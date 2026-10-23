@@ -11,6 +11,27 @@ import (
 	"time"
 )
 
+type checkpoint struct {
+	Cycle          int    `json:"cycle"`
+	RSSBytes       uint64 `json:"rssBytes"`
+	HeapBytes      uint64 `json:"heapBytes"`
+	Goroutines     int    `json:"goroutines"`
+	JournalRecords int    `json:"journalRecords"`
+}
+
+func cpuModel() string {
+	b, e := os.ReadFile("/proc/cpuinfo")
+	if e != nil {
+		return "unavailable"
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if key, value, ok := strings.Cut(line, ":"); ok && strings.TrimSpace(key) == "model name" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return "unavailable"
+}
+
 type latency struct {
 	Count           int   `json:"count"`
 	P50Micros       int64 `json:"p50Micros"`

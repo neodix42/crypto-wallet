@@ -1,0 +1,51 @@
+{
+  "status": "NOT_RUN",
+  "networks": [
+    {
+      "network": "ethereum-sepolia",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "hyperevm-testnet",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "hypercore-testnet",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "base-sepolia-ZEN",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "horizen-testnet-ZEN",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "near-testnet",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "aptos-testnet",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "decred-testnet3",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    },
+    {
+      "network": "ton-testnet",
+      "status": "NOT_RUN",
+      "reason": "No native-approved dedicated testnet roundtrip/independent receipt evidence supplied for this candidate"
+    }
+  ],
+  "nextAction": "Use disposable capped testnet profiles and native approval; retain signed identity, successful execution/finality and independent recipient state for send and send-back. Never run this on mainnet."
+}

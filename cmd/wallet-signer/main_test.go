@@ -24,7 +24,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -42,8 +45,24 @@ var signerTestXvfb *exec.Cmd
 func TestMain(m *testing.M) {
 	code := m.Run()
 	if signerTestXvfb != nil {
-		_ = signerTestXvfb.Process.Kill()
-		_ = signerTestXvfb.Wait()
+		_ = signerTestXvfb.Process.Signal(syscall.SIGTERM)
+		waited := make(chan struct{})
+		go func() { _ = signerTestXvfb.Wait(); close(waited) }()
+		select {
+		case <-waited:
+		case <-time.After(3 * time.Second):
+			_ = signerTestXvfb.Process.Kill()
+			<-waited
+		}
+		// SIGTERM normally removes both entries. If forced termination was
+		// necessary, remove leftovers only while the lock still identifies the
+		// exact child we have now reaped. Never touch an unrelated/live display.
+		number := strings.TrimPrefix(signerTestDisplay, ":")
+		lock := "/tmp/.X" + number + "-lock"
+		if data, err := os.ReadFile(lock); err == nil && strings.TrimSpace(string(data)) == strconv.Itoa(signerTestXvfb.Process.Pid) {
+			_ = os.Remove("/tmp/.X11-unix/X" + number)
+			_ = os.Remove(lock)
+		}
 	}
 	os.Exit(code)
 }
@@ -265,6 +284,7 @@ func TestDispatchTypedTransferPersistsRealSignatureAndRecoveryIdentity(t *testin
 		t.Fatal("private pending journal lost exact signed identity")
 	}
 	denied(t, e, "sign", map[string]string{"id": p.ID})
+	denied(t, e, "cancelPrepared", map[string]string{"id": p.ID})
 	denied(t, e, "update", map[string]any{"id": p.ID, "state": "CONFIRMED", "receipt": model.Receipt{Identity: "unrelated", State: "CONFIRMED"}})
 	dispatch(t, e, "update", map[string]any{"id": p.ID, "state": "SUBMITTING", "receipt": nil})
 	dispatch(t, e, "update", map[string]any{"id": p.ID, "state": "UNKNOWN", "receipt": model.Receipt{Identity: signed.Identity, State: "UNKNOWN", Detail: "No network submission performed by this dispatch test"}})
@@ -332,14 +352,22 @@ func TestDispatchPublicReceiveQRConfigurationAssociationAndDiscovery(t *testing.
 	denied(t, e, "addAccount", map[string]uint32{"index": 1 << 31})
 	dispatch(t, e, "discoverAccounts", map[string]uint32{"start": 127, "end": 129})
 	indices := map[uint32]bool{}
-	for _, account := range e.Snapshot().Accounts { indices[account.Index] = true }
-	for _, index := range []uint32{0, 1, 127, 128, 129} { if !indices[index] { t.Fatal("manual recovery range omitted a canonical index") } }
+	for _, account := range e.Snapshot().Accounts {
+		indices[account.Index] = true
+	}
+	for _, index := range []uint32{0, 1, 127, 128, 129} {
+		if !indices[index] {
+			t.Fatal("manual recovery range omitted a canonical index")
+		}
+	}
 	denied(t, e, "discoverAccounts", map[string]uint32{"start": 20, "end": 19})
 	denied(t, e, "discoverAccounts", map[string]uint32{"start": 0, "end": 20})
 	denied(t, e, "discoverAccounts", map[string]uint32{"start": 1000000, "end": 1000000})
 	dispatch(t, e, "hideAccount", map[string]any{"accountId": a.ID, "hidden": true})
 	hidden := accountFor(t, e, "evm")
-	if !hidden.Hidden || hidden.Index != a.Index || hidden.ID != a.ID || hidden.Address != a.Address { t.Fatal("hiding changed the recovery identity") }
+	if !hidden.Hidden || hidden.Index != a.Index || hidden.ID != a.ID || hidden.Address != a.Address {
+		t.Fatal("hiding changed the recovery identity")
+	}
 	dispatch(t, e, "hideAccount", map[string]any{"accountId": a.ID, "hidden": false})
 	denied(t, e, "hideAccount", map[string]any{"accountId": "foreign", "hidden": true})
 	u.approve = false
@@ -393,6 +421,32 @@ func TestDispatchEncryptedBackupRestoreAndPasswordRotation(t *testing.T) {
 	}
 }
 
+func TestDispatchCancelReleasesOnlyAnUnsignedPreparationDurably(t *testing.T) {
+	e, u := dispatchEngine(t, "testnet", true)
+	unlockFixture(t, e, u)
+	p := publicPlan(accountFor(t, e, "evm"))
+	dispatch(t, e, "prepare", p)
+	dispatch(t, e, "cancelPrepared", map[string]string{"id": p.ID})
+	if len(e.Pending()) != 1 || e.Pending()[0].State != "CANCELLED" || e.Pending()[0].Signed != nil || e.Pending()[0].Digest != journal.Digest(p) {
+		t.Fatal("cancellation changed the original unsigned identity")
+	}
+	denied(t, e, "cancelPrepared", map[string]string{"id": p.ID})
+	denied(t, e, "cancelPrepared", map[string]string{"id": "unknown"})
+	dispatch(t, e, "lock", struct{}{})
+	unlockFixture(t, e, u)
+	if e.Pending()[0].State != "CANCELLED" {
+		t.Fatal("unsigned cancellation was not persisted")
+	}
+	revised := p
+	revised.ID = ""
+	revised.Nonce = "8"
+	revised.ID = "evm:" + journal.Digest(revised)
+	dispatch(t, e, "prepare", revised)
+	if len(e.Pending()) != 2 || e.Pending()[1].State != "PREPARED" {
+		t.Fatal("explicit cancellation did not release the account reservation")
+	}
+}
+
 func TestDispatchCreateImportAndFixedEnvironmentBoundaries(t *testing.T) {
 	for _, method := range []string{"create", "import"} {
 		t.Run(method, func(t *testing.T) {
@@ -438,7 +492,7 @@ func TestDispatchCreateImportAndFixedEnvironmentBoundaries(t *testing.T) {
 
 func TestDispatchRejectsMalformedUnknownSecretBearingAndLockedRequests(t *testing.T) {
 	e, u := dispatchEngine(t, "testnet", false)
-	typed := []string{"create", "import", "addAccount", "hideAccount", "discoverAccounts", "receive", "copyReceive", "saveQR", "discovery", "associate", "configure", "prepare", "sign", "update"}
+	typed := []string{"create", "import", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "discovery", "associate", "configure", "prepare", "sign", "update"}
 	empty := []string{"unlock", "lock", "snapshot", "settings", "scanQR", "backup", "restore", "password", "pending"}
 	for _, method := range append(append([]string{}, typed...), empty...) {
 		t.Run(method, func(t *testing.T) {
@@ -464,6 +518,7 @@ func TestDispatchRejectsMalformedUnknownSecretBearingAndLockedRequests(t *testin
 	denied(t, e, "addAccount", map[string]int{"index": 0})
 	denied(t, e, "hideAccount", map[string]any{"accountId": "absent", "hidden": true})
 	denied(t, e, "discoverAccounts", map[string]uint32{"start": 0, "end": 0})
+	denied(t, e, "cancelPrepared", map[string]string{"id": "absent"})
 	denied(t, e, "receive", map[string]string{"accountId": "absent"})
 	denied(t, e, "copyReceive", map[string]string{"accountId": "absent"})
 	denied(t, e, "saveQR", map[string]string{"accountId": "absent"})
@@ -569,12 +624,18 @@ func TestSignerRejectsInvalidStartupEnvironmentAndDisplay(t *testing.T) {
 func privateSignerDisplay(t *testing.T) {
 	t.Helper()
 	if strings.HasPrefix(os.Getenv("DISPLAY"), ":18") {
+		t.Setenv("WAYLAND_DISPLAY", "")
+		t.Setenv("GDK_BACKEND", "x11")
+		t.Setenv("XDG_RUNTIME_DIR", "")
+		t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
 		return
 	}
 	if signerTestDisplay != "" {
 		t.Setenv("DISPLAY", signerTestDisplay)
 		t.Setenv("WAYLAND_DISPLAY", "")
 		t.Setenv("GDK_BACKEND", "x11")
+		t.Setenv("XDG_RUNTIME_DIR", "")
+		t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
 		return
 	}
 	server, _ := exec.LookPath("Xvfb")
@@ -612,6 +673,8 @@ func privateSignerDisplay(t *testing.T) {
 				t.Setenv("DISPLAY", display)
 				t.Setenv("WAYLAND_DISPLAY", "")
 				t.Setenv("GDK_BACKEND", "x11")
+				t.Setenv("XDG_RUNTIME_DIR", "")
+				t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
 				return
 			}
 			time.Sleep(20 * time.Millisecond)
@@ -729,6 +792,93 @@ d.key('a');time.sleep(1.1);d.key('b');d.key('Escape')
 	if wire.Len() != before || writer.calls != 1 {
 		t.Fatal("native activity callback survived panic/error cleanup")
 	}
+}
+
+type observedSignerReader struct {
+	r               io.Reader
+	read, threshold int
+	reached         chan struct{}
+	once            sync.Once
+}
+
+func (r *observedSignerReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	r.read += n
+	if r.read >= r.threshold {
+		r.once.Do(func() { close(r.reached) })
+	}
+	return n, err
+}
+
+type blockedSignerWriter struct {
+	ready <-chan struct{}
+	err   error
+}
+
+func (w blockedSignerWriter) Write([]byte) (int, error) {
+	select {
+	case <-w.ready:
+		return 0, w.err
+	case <-time.After(3 * time.Second):
+		return 0, errors.New("bounded reader did not reach fixture")
+	}
+}
+func TestServePumpsNativeEventsWhileIdleAndBoundsReaderAhead(t *testing.T) {
+	privateSignerDisplay(t)
+	if err := secureui.Init(); err != nil {
+		runtime.UnlockOSThread()
+		t.Fatalf("BLOCKED: native GTK initialization: %v", err)
+	}
+	defer runtime.UnlockOSThread()
+	e, _ := dispatchEngine(t, "testnet", false)
+	var source bytes.Buffer
+	encoder := ipc.Channel{W: &source}
+	if err := encoder.Write(request("snapshot", struct{}{})); err != nil {
+		t.Fatal(err)
+	}
+	r, w := io.Pipe()
+	defer r.Close()
+	written := make(chan error, 1)
+	go func() {
+		time.Sleep(75 * time.Millisecond)
+		_, err := w.Write(source.Bytes())
+		_ = w.Close()
+		written <- err
+	}()
+	var output bytes.Buffer
+	serve(&ipc.Channel{R: r, W: &output}, e, "testnet")
+	if err := <-written; err != nil {
+		t.Fatal(err)
+	}
+	decoder := ipc.Channel{R: &output}
+	got, err := decoder.Read()
+	if err != nil || got.Method != "snapshot" || !bytes.Contains(got.Body, []byte(`"locked":true`)) {
+		t.Fatal("idle native pump interrupted framed IPC")
+	}
+	if _, err = decoder.Read(); !errors.Is(err, io.EOF) {
+		t.Fatal("idle native pump generated spurious activity")
+	}
+	// Block the first response until two further complete frames are read.
+	// The second request occupies the sole queue slot; the third reader send
+	// must then stop on done after the first response's deliberate pipe error.
+	var ahead bytes.Buffer
+	enc := ipc.Channel{W: &ahead}
+	for i := 0; i < 3; i++ {
+		m := request("snapshot", struct{}{})
+		m.ID = fmt.Sprintf("bounded-%d", i)
+		if err := enc.Write(m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reached := make(chan struct{})
+	observed := &observedSignerReader{r: bytes.NewReader(ahead.Bytes()), threshold: ahead.Len(), reached: reached}
+	serve(&ipc.Channel{R: observed, W: blockedSignerWriter{ready: reached, err: errors.New("PUBLIC-deliberate-private-pipe-close")}}, e, "testnet")
+	select {
+	case <-reached:
+	case <-time.After(time.Second):
+		t.Fatal("reader did not respect the bounded fixture")
+	}
+	time.Sleep(20 * time.Millisecond)
 }
 
 func TestZZSignerMainUsesRealIsolationNativeInitAndBoundedIPC(t *testing.T) {

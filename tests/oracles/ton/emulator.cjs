@@ -41,6 +41,28 @@ async function main() {
   let replayRejected=false;try{await chain.sendMessage(signed);}catch{replayRejected=true;}
   assert.equal(replayRejected,true,'duplicate external message was accepted');
   assert.equal((await chain.getContract(destination)).balance,after);
+  // The fresh index1 recipient deploys its own V5R1 wallet and returns real
+  // native value using the second Go-signed BOC in this same live TVM state.
+  const receiverBeforeReturn=(await chain.getContract(source)).balance;
+  const returned=await chain.sendMessage(Cell.fromBase64(req.returnBoc));
+  const returnSource=returned.transactions.find(t=>t.inMessage?.info.type==='external-in'&&t.inMessage.info.dest.equals(destination));
+  assert(returnSource,'return source transaction absent');
+  assert.equal(returnSource.description.computePhase.type,'vm');
+  assert.equal(returnSource.description.computePhase.success,true);
+  assert.equal(returnSource.description.actionPhase.success,true);
+  assert.equal(returnSource.description.aborted,false);
+  assert.equal(returnSource.outMessagesCount,1);
+  assert.equal(returnSource.outMessages.values()[0].info.value.coins,BigInt(req.returnAmount));
+  assert(returnSource.outMessages.values()[0].info.dest.equals(source));
+  const returnRecipient=returned.transactions.find(t=>t.inMessage?.info.type==='internal'&&t.inMessage.info.dest.equals(source));
+  assert(returnRecipient,'final return recipient transaction absent');
+  assert.equal(returnRecipient.description.creditPhase.credit.coins,BigInt(req.returnAmount));
+  const receiverAfterReturn=(await chain.getContract(source)).balance;
+  assert(receiverAfterReturn>receiverBeforeReturn,'final receiver balance did not increase');
+  assert.equal((await chain.getContract(destination)).accountState.type,'active');
+  assert.equal((await chain.runGetMethod(destination,'seqno')).stackReader.readNumber(),1);
+  const returnSenderFinal=(await chain.getContract(destination)).balance;
+  assert(returnSenderFinal>0n&&returnSenderFinal<after,'return sender balance did not reflect spend and fees');
   await chain.loadFrom(funded);
   chain.now=req.expires+1;
   let expiredRejected=false;try{await chain.sendMessage(signed);}catch{expiredRejected=true;}
@@ -58,8 +80,9 @@ async function main() {
   assert.equal((await chain.getContract(destination)).balance,0n);
   const txs=result.transactions.map(t=>({address:t.inMessage?.info.dest?.toRawString(),data:beginCell().store(storeTransaction(t)).endCell().toBoc().toString('base64')}));
   const failedTxs=failed.transactions.map(t=>({address:t.inMessage?.info.dest?.toRawString(),data:beginCell().store(storeTransaction(t)).endCell().toBoc().toString('base64')}));
-  const report={status:'PASS',oracle:'@ton/sandbox 0.45.0',deployment:true,sourceActionSuccess:true,recipientCredit:true,replayRejected:true,expiredRejected:true,seqnoAdvancedWithoutPaymentDetected:true,recipientBalanceDelta:(after-before).toString(),transactions:txs,failedTransactions:failedTxs};
+  const returnTxs=returned.transactions.map(t=>({address:t.inMessage?.info.dest?.toRawString(),data:beginCell().store(storeTransaction(t)).endCell().toBoc().toString('base64')}));
+  const report={status:'PASS',oracle:'@ton/sandbox 0.45.0',deployment:true,sourceActionSuccess:true,recipientCredit:true,replayRejected:true,expiredRejected:true,seqnoAdvancedWithoutPaymentDetected:true,recipientBalanceDelta:(after-before).toString(),roundtrip:true,returnDeployment:true,returnedAtoms:req.returnAmount,returnRecipientBalanceDelta:(receiverAfterReturn-receiverBeforeReturn).toString(),returnSenderFinalBalance:returnSenderFinal.toString(),transactions:txs,returnTransactions:returnTxs,failedTransactions:failedTxs};
   fs.writeFileSync(process.argv[3],JSON.stringify(report,null,2)+'\n');
-  console.log('PASS: Go-signed V5R1 deployment/payment, recipient credit, replay/expiry rejection, consumed-seqno action failure');
+  console.log('PASS: Go-signed V5R1 deployment/payment and index1 deploy/send-back, independent final credit/balances, replay/expiry rejection, consumed-seqno action failure');
 }
 main().catch(e=>{console.error(e);process.exit(1);});

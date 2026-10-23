@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "measurement": "Istanbul statement/branch coverage from c8/V8; every shipped JS file included, absent files fail",
+  "files": [
+    {
+      "file": "app/main.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/preload.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/validation.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/codec.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "ui/renderer.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 90,
+        "branches": 85
+      },
+      "status": "PASS"
+    }
+  ]
+}

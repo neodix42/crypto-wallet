@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "elapsedSeconds": 76.961,
+  "mutants": [
+    {
+      "id": "aead-authentication",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "kdf-floor",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "chain-id",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "native-confirmation",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "changed-recipient",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "foreign-change",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "locked-signing",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "nonce-reservation",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "ambiguous-resign",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "password-reauthentication",
+      "status": "KILLED",
+      "exit": 1
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"localwallet/internal/buildinfo"
 	"localwallet/internal/chains"
 	"localwallet/internal/ipc"
 	"localwallet/internal/isolation"
@@ -18,6 +20,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(buildinfo.Version)
+		return
+	}
 	runtime.LockOSThread()
 	syscall.Umask(0077)
 	dir := flag.String("data", "", "private profile directory")

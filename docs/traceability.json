@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "interpretation": "PASS applies only to stated evidence scope; production completion requires every mandatory row and external gate PASS",
+  "requirements": [
+    {
+      "id": "BC-APTOS",
+      "status": "NOT_RUN",
+      "evidence": "Official Go/TS explicitLegacyEd25519, actual CLI validator and rotation",
+      "remaining": "Publictestnet and third-party app imports NOT_RUN"
+    },
+    {
+      "id": "BC-CORE",
+      "status": "NOT_RUN",
+      "evidence": "Official PythonSDK0.24.0 fixture/domain parity and adverse RPC tests",
+      "remaining": "No accepted public action; freshactivation unsupported"
+    },
+    {
+      "id": "BC-DCR",
+      "status": "NOT_RUN",
+      "evidence": "Official Child/script engine, leadingzero divergence, actual dcrd simnet",
+      "remaining": "Currenttestnet and externalwallet version import NOT_RUN"
+    },
+    {
+      "id": "BC-EVM",
+      "status": "NOT_RUN",
+      "evidence": "ethers6.17.0 and actual geth; Base/Horizen canonicalZEN runtime acceptance",
+      "remaining": "Publictestnet rows NOT_RUN"
+    },
+    {
+      "id": "BC-NEAR",
+      "status": "NOT_RUN",
+      "evidence": "Pinned JS Borsh/keys and actual near-sandbox full/named/restricted keys",
+      "remaining": "Publictestnet and third-party app imports NOT_RUN"
+    },
+    {
+      "id": "BC-TON",
+      "status": "NOT_RUN",
+      "evidence": "Independent SLIP10/V5R1 SDK fixtures and real TVM source/recipient trace",
+      "remaining": "Publictestnet and externalwallet import NOT_RUN"
+    },
+    {
+      "id": "INV-01-secret-boundary",
+      "status": "PASS",
+      "evidence": "Engine/snapshot/publicJSON/surface-check/frontend strict schema; native-only input tests",
+      "remaining": ""
+    },
+    {
+      "id": "INV-02-auth-before-plaintext",
+      "status": "PASS",
+      "evidence": "Every header/ciphertext tamper and wrong password denied without partial output",
+      "remaining": ""
+    },
+    {
+      "id": "INV-03-bounded-resource-use",
+      "status": "PASS",
+      "evidence": "KDF/IPC/JSON/RPC/QR/transaction count/script preflight bounds; bounded fuzz/stress",
+      "remaining": ""
+    },
+    {
+      "id": "INV-04-no-sign-after-lock",
+      "status": "PASS",
+      "evidence": "Core epoch/child generation and pending/queued native requests plus signer locked calls denied",
+      "remaining": ""
+    },
+    {
+      "id": "INV-05-exact-approval",
+      "status": "PASS",
+      "evidence": "Changed recipient/amount/network/fee/nonce/memo/contracts/outputs fail chain validators and approval digest",
+      "remaining": ""
+    },
+    {
+      "id": "INV-06-durable-before-submit",
+      "status": "PASS",
+      "evidence": "Signer readback journal assertions and failure quarantine; core durableSUBMITTING before network",
+      "remaining": ""
+    },
+    {
+      "id": "INV-07-unknown-not-repaid",
+      "status": "PASS",
+      "evidence": "UNKNOWN reservation/restart tests, exact signed-byte retry and actual fake-ledger lost-response reconciliation",
+      "remaining": ""
+    },
+    {
+      "id": "INV-08-address-recovery",
+      "status": "PASS",
+      "evidence": "Independent profiles, password-preserving addresses and all-family verified encrypted backup rederive",
+      "remaining": ""
+    },
+    {
+      "id": "INV-09-networks-distinct",
+      "status": "PASS",
+      "evidence": "Registry chain/genesis/codehash tests; Core vsEVM and Base vsHorizen token/gas identity",
+      "remaining": ""
+    },
+    {
+      "id": "INV-10-no-partial-overwrite",
+      "status": "PASS",
+      "evidence": "Actual short write/RLIMIT/fsync/rename/finalsync faults and no-follow directory/file tests",
+      "remaining": ""
+    },
+    {
+      "id": "INV-11-no-unsigned-cancel-after-sign",
+      "status": "PASS",
+      "evidence": "CancelPrepared signed/unknown/awaiting refusal and durable unsigned-only reservation release",
+      "remaining": ""
+    },
+    {
+      "id": "S-01",
+      "status": "NOT_RUN",
+      "evidence": "docs/THREAT_MODEL.md lists exact assets/trust limits",
+      "remaining": "Independent threat-model review NOT_RUN"
+    },
+    {
+      "id": "S-02",
+      "status": "NOT_RUN",
+      "evidence": "Isolated Go native credential input and secret-only engine; no JS input/export; buffer clearing tests",
+      "remaining": "Go/C/OS copies cannot be guaranteed erased; same-user malware/OS outside boundary"
+    },
+    {
+      "id": "S-03",
+      "status": "NOT_RUN",
+      "evidence": "Versioned bounded Argon2id/XChaCha20-Poly1305 envelope and actual production KDF stress",
+      "remaining": "Independent vault cryptographic review NOT_RUN"
+    },
+    {
+      "id": "S-04",
+      "status": "NOT_RUN",
+      "evidence": "Private no-follow atomic files, verified portable backups, old/new generation tests",
+      "remaining": "Full OS recovery/migration matrix NOT_RUN; no whole-directory rollback detector"
+    },
+    {
+      "id": "S-05",
+      "status": "NOT_RUN",
+      "evidence": "Actual Linux seccomp/non-dumpable/core-dump/parent-death/inherited-pipe tests",
+      "remaining": "Full OS/display lifecycle acceptance NOT_RUN"
+    },
+    {
+      "id": "S-06",
+      "status": "NOT_RUN",
+      "evidence": "All shipped Electron main/preload/UI files covered; restrictive bridge/CSP/fuses",
+      "remaining": "Packaged OS matrix and independent Electron supply-chain review NOT_RUN"
+    },
+    {
+      "id": "S-07",
+      "status": "NOT_RUN",
+      "evidence": "Exact native plan interpretation, per-send reauth, durable signed identity and reconciliation",
+      "remaining": "Public testnet rows/external signing-adapter review NOT_RUN"
+    },
+    {
+      "id": "S-08",
+      "status": "NOT_RUN",
+      "evidence": "No telemetry/debug endpoints; manifests/SBOM/lockfiles and reachable vulnerability scans",
+      "remaining": "License obligations and independent build/review/signing gates incomplete"
+    },
+    {
+      "id": "TP-001",
+      "status": "PASS",
+      "evidence": "Synthetic-only fixtures; no test obtains a real user vault/credential or spends mainnet; test source and retained oracle inputs",
+      "remaining": ""
+    },
+    {
+      "id": "TP-002",
+      "status": "PASS",
+      "evidence": "tests/oracles/{bip39,evm,hypercore,near,aptos,decred,ton}; pinned independent generators, lockfiles, fixture checksums and chain evidence documents",
+      "remaining": ""
+    },
+    {
+      "id": "TP-010",
+      "status": "PASS",
+      "evidence": "reports/go-coverage.json source-stable cross-package+real-native measurement:22/22 packages meet95/90 floors; reports/frontend-coverage.json all5shippedJS files100% measured statements/branches; docs/COVERAGE.md indexes all180 remainingblocks",
+      "remaining": "Coverage does not replace external acceptance or independent review; C/GTK/third-party modules not instrumented"
+    },
+    {
+      "id": "TP-011",
+      "status": "PASS",
+      "evidence": "reports/mutation.json:10/10 killed; retained EVM/Core and DCR/TON mutants; go vet, race and reachable-vulnerability/dependency scans",
+      "remaining": "An uncalled required-module advisory is recorded separately; external audit NOT_RUN"
+    },
+    {
+      "id": "TP-012",
+      "status": "PASS",
+      "evidence": "reports/fuzz.json:13 bounded3s campaigns; Go test corpus replay and retained regressions; no panic/failure",
+      "remaining": "Longer scheduled campaigns remain NOT_RUN; short campaigns are not exhaustive"
+    },
+    {
+      "id": "TP-020",
+      "status": "PASS",
+      "evidence": "internal/derivation tests: CSPRNG errors/short reads, BIP39 valid lengths/checksum/wordlist/NFKD, independent vectors",
+      "remaining": ""
+    },
+    {
+      "id": "TP-021",
+      "status": "PASS",
+      "evidence": "derivation oracle passphrase fixtures and signer password rotation/separation tests; native byte bounds",
+      "remaining": ""
+    },
+    {
+      "id": "TP-022",
+      "status": "PASS",
+      "evidence": "all-family indices0/1/17 fixtures; signer full encrypted restore, metadata associations, DCR counters/budgets, bounded account range and hide recovery",
+      "remaining": ""
+    },
+    {
+      "id": "TP-030",
+      "status": "PASS",
+      "evidence": "internal/vault authenticated header/ciphertext tamper/truncation/KDF/resource/strict schema tests",
+      "remaining": ""
+    },
+    {
+      "id": "TP-031",
+      "status": "PASS",
+      "evidence": "vault and signer actual FD/file/resource-limit and staged write/fsync/rename/directory-sync failure tests; old/new generation recovery",
+      "remaining": ""
+    },
+    {
+      "id": "TP-032",
+      "status": "NOT_RUN",
+      "evidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented packaged fresh-profile recovery PASS",
+      "remaining": "Clean separate supported OS/account recovery matrix and upgrade/migration drills not completed; only schema1 supported"
+    },
+    {
+      "id": "TP-033",
+      "status": "PASS",
+      "evidence": "surface-check.py; Electron public schema/menus/routes tests; actual masked native input; no reveal/export endpoint",
+      "remaining": ""
+    },
+    {
+      "id": "TP-040",
+      "status": "NOT_RUN",
+      "evidence": "Synthetic canary scans pass exercised signer/IPC/QR/backup/log/profile paths and packaged recovery",
+      "remaining": "Complete every-encoding/process/env/network/crash path installed campaign is not established by this session"
+    },
+    {
+      "id": "TP-041",
+      "status": "PASS",
+      "evidence": "actual seccomp threads/exec tests, socket/io_uring bans; framed pipe/session/epoch tests; Electron main/preload origin and sandbox tests",
+      "remaining": ""
+    },
+    {
+      "id": "TP-042",
+      "status": "PASS",
+      "evidence": "signer authoritative summary/password/immutable plan tests; chain validators and mutated effect rejection; one-use/expiry/cancellation tests",
+      "remaining": ""
+    },
+    {
+      "id": "TP-043",
+      "status": "NOT_RUN",
+      "evidence": "Epoch/generation/queued-work/dialog/signing/persistence race tests; actual X11 native key/button activity; Electron OS callback and cache clearing tests PASS; actual native XTest5m12s campaignPASS in reports/native-input-long.json",
+      "remaining": "Real OS screen lock/logout/suspend/Wayland matrix and five-minute sustained native typing wall-clock drill NOT_RUN"
+    },
+    {
+      "id": "TP-050",
+      "status": "NOT_RUN",
+      "evidence": "Every domain has independent fixtures; actual local geth/ZEN, NEAR, Aptos, dcrd and TONTVM acceptance PASS",
+      "remaining": "Nine public testnet receive/send-back rows, third-party wallet application-version interoperability and Core live action remain NOT_RUN"
+    },
+    {
+      "id": "TP-051",
+      "status": "PASS",
+      "evidence": "DCR official Child divergence/tree/change/maturity/disapproval; TON actual TVM recipient credit/failed actions; Aptos rotation; NEAR removed/restricted keys and final execution",
+      "remaining": ""
+    },
+    {
+      "id": "TP-052",
+      "status": "PASS",
+      "evidence": "canonical ZEN codehash/contracts/decimals/gas tests; Base/Horizen independent registry; Core integer precision and ledger isolation tests",
+      "remaining": ""
+    },
+    {
+      "id": "TP-060",
+      "status": "PASS",
+      "evidence": "durable signer/journal/core/adapters; ambiguous identity stays reserved; actual signed fake-ledger stress with lost responses/restarts/reconciliation; PREPARED-only cancellation",
+      "remaining": ""
+    },
+    {
+      "id": "TP-061",
+      "status": "NOT_RUN",
+      "evidence": "Independent QR decoder sizes256/512/1024 and hostile plain/URI input tests; actual packaged verified receive/copy PASS",
+      "remaining": "Complete installed resize/high-DPI/light-dark matrix and every chain QR UI surface NOT_RUN; only plain addresses supported"
+    },
+    {
+      "id": "TP-070",
+      "status": "NOT_RUN",
+      "evidence": "Actual Ubuntu26.04 host private X11 package drill PASS; .deb container installs/native startup probes",
+      "remaining": "Clean Ubuntu24.04/26.04 x X11/Wayland full flows/upgrade/uninstall matrix NOT_RUN; container Chromium sandbox obstacles BLOCKED"
+    },
+    {
+      "id": "TP-071",
+      "status": "PASS",
+      "evidence": "reports/stress.json, stress-race.json and docs/STRESS.md; predefined ordinary/instrumented resource profiles and retained failed reference-budget run",
+      "remaining": ""
+    },
+    {
+      "id": "TP-072",
+      "status": "NOT_RUN",
+      "evidence": "reports/soak.json records actual95s smoke, executionPASS with correct NOT_RUN24h campaign status; dedicated self-hosted nightly runner workflow implemented",
+      "remaining": "Required full24-hour workload has not elapsed/executed"
+    },
+    {
+      "id": "TP-080",
+      "status": "NOT_RUN",
+      "evidence": "verify-release.py rejects missing/incomplete evidence; release.yml only publishes visibly labeled development prereleases after local gates",
+      "remaining": "Public networks, packaged OS matrix, full soak, source-stable final evidence and independent security review required"
+    }
+  ]
+}

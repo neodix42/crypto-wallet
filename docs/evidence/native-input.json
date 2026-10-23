@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "scope": "Real GTK input and private X11 XTest events; synthetic fixture values only",
+  "notRun": [
+    "Wayland native input",
+    "Five-minute wall-clock sustained typing",
+    "Clean installed desktop OS-lock/suspend matrix"
+  ],
+  "tests": [
+    {
+      "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
+      "name": "TestRealX11NativeKeyAndButtonActivity",
+      "status": "PASS",
+      "seconds": 3.81
+    },
+    {
+      "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
+      "status": "PASS",
+      "seconds": 0.01
+    },
+    {
+      "name": "TestTP033RealNativeMaskedInput",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
+      "name": "TestTP042RealNativeConfirmation",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
+      "name": "TestNativeRejectsMultibyteSecretOverByteLimit",
+      "status": "PASS",
+      "seconds": 0.1
+    },
+    {
+      "name": "TestNativePublicReceiveAndScrollableApproval",
+      "status": "PASS",
+      "seconds": 0.21
+    },
+    {
+      "name": "TestNativeFileChooserCancelAndVerifiedSelection",
+      "status": "PASS",
+      "seconds": 0.98
+    },
+    {
+      "name": "TestNativeInitUnavailableDisplayFailsClosed",
+      "status": "PASS",
+      "seconds": 1.03
+    },
+    {
+      "name": "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
+      "status": "PASS",
+      "seconds": 0.05
+    },
+    {
+      "name": "TestRealX11NativeActivityBeyondFiveMinutes",
+      "status": "SKIP",
+      "seconds": 0
+    }
+  ],
+  "exit": 0,
+  "coverage": "total:\t\t\t\t\t\t(statements)\t\t98.1%",
+  "seconds": 8.505
+}

@@ -1,0 +1,90 @@
+{
+  "executionStatus": "PASS",
+  "instrumentation": "ordinary Go test",
+  "cpuModel": "AMD Ryzen 9 5950X 16-Core Processor",
+  "settledCheckpoints": [
+    {
+      "cycle": 1,
+      "rssBytes": 613277696,
+      "heapBytes": 3119928,
+      "goroutines": 11,
+      "journalRecords": 2
+    },
+    {
+      "cycle": 2,
+      "rssBytes": 564940800,
+      "heapBytes": 3197120,
+      "goroutines": 11,
+      "journalRecords": 4
+    },
+    {
+      "cycle": 3,
+      "rssBytes": 565407744,
+      "heapBytes": 3230832,
+      "goroutines": 11,
+      "journalRecords": 6
+    },
+    {
+      "cycle": 4,
+      "rssBytes": 565846016,
+      "heapBytes": 3271224,
+      "goroutines": 11,
+      "journalRecords": 8
+    }
+  ],
+  "status": "NOT_RUN",
+  "seed": "public BIP39 abandon/about fixture; scenario ordinal modulo 55; fixed 30-second cadence; cryptographic RNG is not replaced",
+  "go": "go1.27.3",
+  "os": "linux/amd64",
+  "cpus": 32,
+  "workloads": {
+    "DCRAccountDiscoveryScans": 4,
+    "DCRDiscoveryBlocks": 26,
+    "additionalAccountGroups": 4,
+    "boundedFakeRPCCalls": 200,
+    "cycles": 4,
+    "encryptedSignerRestartUnlock": 8,
+    "growingHistoryScans": 4,
+    "lifecycleRPC-outage": 4,
+    "lifecycleRPC-rate-limit": 4,
+    "lockedSignatureDenied": 4,
+    "observedHistoryItems": 10,
+    "productionSignedJournalReconciled": 4,
+    "productionSignerCreate": 1,
+    "productionSignerVerifiedBackups": 4
+  },
+  "elapsedSeconds": 96.573227019,
+  "requestedSeconds": 95,
+  "campaign24hStatus": "NOT_RUN",
+  "p50Micros": 0,
+  "p99Micros": 0,
+  "rssBudgetMiB": 1024,
+  "goMemoryLimitMiB": 768,
+  "StartHeap": 1876248,
+  "EndHeap": 3450440,
+  "StartGoroutines": 2,
+  "EndGoroutines": 2,
+  "startRSSBytes": 16031744,
+  "endRSSBytes": 547504128,
+  "peakObservedRSSBytes": 800788480,
+  "kernelHighWaterRSSBytes": 800788480,
+  "resourceSamples": 4830,
+  "peakGoroutines": 15,
+  "latencies": {
+    "productionSignerLifecycle": {
+      "count": 4,
+      "p50Micros": 5839981,
+      "p99Micros": 7742268,
+      "maxMicros": 7742268,
+      "budgetP99Micros": 60000000
+    }
+  },
+  "finalState": {
+    "lifecycleCancelledBeforeSignature": 4,
+    "lifecycleConfirmed": 4,
+    "lifecycleFakeLedgerPayments": 4,
+    "lifecycleNativeUIReplacedByPublicTestUI": 1,
+    "lifecycleUnresolved": 0
+  },
+  "scope": "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/backup; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
+}

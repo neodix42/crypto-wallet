@@ -1,0 +1,89 @@
+{
+  "status": "FAIL",
+  "seed": "PCG(0x79326,0x16482); public deterministic BIP39 fixtures; cryptographic RNG is not replaced",
+  "go": "go1.27.3",
+  "os": "linux/amd64",
+  "cpus": 32,
+  "workloads": {
+    "DCRAccountDiscoveryScans": 2,
+    "DCRDiscoveryBlocks": 11,
+    "RPCOutageRejected": 200,
+    "RPCRateLimitRejected": 143,
+    "acceptedResponseLost": 334,
+    "additionalAccountGroups": 2,
+    "boundedFakeRPCCalls": 15439,
+    "concurrentReservationScenarios": 1000,
+    "cycles": 2,
+    "encryptedSignerRestartUnlock": 4,
+    "growingHistoryScans": 2,
+    "journalRestartReconciliation": 1000,
+    "lifecycleRPC-outage": 2,
+    "lifecycleRPC-rate-limit": 2,
+    "lockedSignatureDenied": 2,
+    "malformedIPC": 100000,
+    "mixedAddressAmountURIAndHostileMetadata": 10000,
+    "observedHistoryItems": 3,
+    "productionKDFBackupReopen": 8,
+    "productionSignedJournalReconciled": 2,
+    "productionSignerCreate": 1,
+    "productionSignerVerifiedBackups": 2,
+    "realSignedFakeNodeTransfers": 1000,
+    "testnetAddressProfiles": 12
+  },
+  "elapsedSeconds": 78.955939036,
+  "p50Micros": 6,
+  "p99Micros": 670,
+  "rssBudgetMiB": 1024,
+  "goMemoryLimitMiB": 384,
+  "StartHeap": 1886984,
+  "EndHeap": 4273744,
+  "StartGoroutines": 2,
+  "EndGoroutines": 2,
+  "startRSSBytes": 39280640,
+  "endRSSBytes": 1981788160,
+  "peakObservedRSSBytes": 2018676736,
+  "kernelHighWaterRSSBytes": 2018676736,
+  "resourceSamples": 3847,
+  "peakGoroutines": 26,
+  "latencies": {
+    "boundedIPCParser": {
+      "count": 100000,
+      "p50Micros": 6,
+      "p99Micros": 670,
+      "maxMicros": 10296,
+      "budgetP99Micros": 10000
+    },
+    "concurrentSchedulingTransfer": {
+      "count": 1000,
+      "p50Micros": 14685,
+      "p99Micros": 21238,
+      "maxMicros": 30314,
+      "budgetP99Micros": 1000000
+    },
+    "productionKDFSealReopen": {
+      "count": 8,
+      "p50Micros": 1683475,
+      "p99Micros": 1955037,
+      "maxMicros": 1955037,
+      "budgetP99Micros": 15000000
+    },
+    "productionSignerLifecycle": {
+      "count": 2,
+      "p50Micros": 23601682,
+      "p99Micros": 23601682,
+      "maxMicros": 23601682,
+      "budgetP99Micros": 60000000
+    }
+  },
+  "finalState": {
+    "fakeLedgerPayments": 1000,
+    "lifecycleCancelledBeforeSignature": 2,
+    "lifecycleConfirmed": 2,
+    "lifecycleFakeLedgerPayments": 2,
+    "lifecycleNativeUIReplacedByPublicTestUI": 1,
+    "lifecycleUnresolved": 0,
+    "reconciledPayments": 1000,
+    "unresolvedPayments": 0
+  },
+  "scope": "Production IPC/amount/address parsers for every registered testnet family; real EVM encoding/signature/verification against bounded fake ledger; actual signer encrypted persistence/lock/restart/backup/discovery/history. Public synthetic test UI replaces GTK; fake node ledger is not consensus acceptance or packaged desktop stress."
+}

@@ -120,6 +120,6 @@ func actualScheduling(t *testing.T, r *report, seed []byte) {
 	r.FinalState["unresolvedPayments"] = 0
 	r.Latencies["concurrentSchedulingTransfer"] = summarize(times, 1_000_000)
 	if r.Latencies["concurrentSchedulingTransfer"].P99Micros > 1_000_000 {
-		t.Fatal(fmt.Sprintf("scheduling p99 exceeded declared1-second budget: %+v", r.Latencies["concurrentSchedulingTransfer"]))
+		t.Fatal(fmt.Sprintf("scheduling p99 exceeded declared 1-second budget: %+v", r.Latencies["concurrentSchedulingTransfer"]))
 	}
 }

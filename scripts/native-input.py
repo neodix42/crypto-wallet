@@ -6,10 +6,15 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 
 root = pathlib.Path(__file__).resolve().parents[1]
+long_mode = sys.argv[1:] == ["--long"]
+if sys.argv[1:] and not long_mode:
+    raise SystemExit("Usage: native-input.py [--long]")
+prefix = "native-input-long" if long_mode else "native-input"
 reports = root / "reports"
 reports.mkdir(exist_ok=True)
 report = {
@@ -34,6 +39,13 @@ try:
         raise RuntimeError("No unused isolated :18x test display; refusing to attach to an existing display")
     env = os.environ.copy()
     env.update(DISPLAY=display, GDK_BACKEND="x11")
+    env.pop("LOCALWALLET_LONG_NATIVE_ACTIVITY", None)
+    if long_mode:
+        env["LOCALWALLET_LONG_NATIVE_ACTIVITY"] = "1"
+    # Never let a private X11 test attach to the desktop user's Wayland/portal
+    # session through inherited native environment settings.
+    for name in ("WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"):
+        env.pop(name, None)
     if pathlib.Path(server) == local:
         libraries = str(root / ".tools/xvfb/root/usr/lib/x86_64-linux-gnu")
         env["LD_LIBRARY_PATH"] = libraries + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
@@ -50,10 +62,13 @@ try:
             time.sleep(.05)
         else:
             raise RuntimeError("Private Xvfb did not become ready")
-        command = ["go", "test", "-race", "-tags", "automation", "-count=1", "-json",
-                   "-coverprofile=" + str(reports / "native-input.cover"), "./internal/secureui"]
+        command = ["go", "test", "-race", "-tags", "automation", "-count=1", "-json", "-timeout=8m",
+                   "-coverprofile=" + str(reports / (prefix + ".cover"))]
+        if long_mode:
+            command += ["-run=^TestRealX11NativeActivityBeyondFiveMinutes$"]
+        command += ["./internal/secureui"]
         result = subprocess.run(command, cwd=root, env=env, text=True, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, timeout=90)
+                                stderr=subprocess.STDOUT, timeout=420 if long_mode else 90)
         for line in result.stdout.splitlines():
             try:
                 event = json.loads(line)
@@ -66,10 +81,16 @@ try:
                 print(event.get("Output", ""), end="", flush=True)
         required = {"TestRealX11NativeKeyAndButtonActivity", "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
                     "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared", "TestTP033RealNativeMaskedInput",
-                    "TestTP042RealNativeConfirmation"}
+                    "TestTP042RealNativeConfirmation", "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
+                    "TestNativeRejectsMultibyteSecretOverByteLimit", "TestNativePublicReceiveAndScrollableApproval",
+                    "TestNativeFileChooserCancelAndVerifiedSelection", "TestNativeInitUnavailableDisplayFailsClosed"}
+        if long_mode:
+            required = {"TestRealX11NativeActivityBeyondFiveMinutes"}
         passed = {test["name"] for test in report["tests"] if test["status"] == "PASS"}
         report.update(status="PASS" if result.returncode == 0 and required <= passed else "FAIL", exit=result.returncode)
-        coverage = subprocess.run(["go", "tool", "cover", "-func=" + str(reports / "native-input.cover")],
+        if long_mode and report["status"] == "PASS":
+            report["notRun"].remove("Five-minute wall-clock sustained typing")
+        coverage = subprocess.run(["go", "tool", "cover", "-func=" + str(reports / (prefix + ".cover"))],
                                   cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         report["coverage"] = coverage.stdout.splitlines()[-1] if coverage.returncode == 0 else "NOT_RUN"
 except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
@@ -83,6 +104,6 @@ finally:
             node.kill()
             node.wait()
     report["seconds"] = round(time.monotonic() - start, 3)
-    (reports / "native-input.json").write_text(json.dumps(report, indent=2) + "\n")
+    (reports / (prefix + ".json")).write_text(json.dumps(report, indent=2) + "\n")
 print(json.dumps(report, indent=2))
 raise SystemExit(0 if report["status"] == "PASS" else 1)

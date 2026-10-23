@@ -1,6 +1,19 @@
 {
   "status": "PASS",
-  "elapsedSeconds": 8.999,
+  "unmutatedBaselines": [
+    {
+      "package": "decred",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "package": "ton",
+      "status": "PASS",
+      "exitCode": 0
+    }
+  ],
+  "scope": "Unit/adversarial suites; real node/emulator integrations measured separately",
+  "elapsedSeconds": 16.955,
   "mutants": [
     {
       "id": "dcr-strict-bip32",
@@ -19,6 +32,21 @@
     },
     {
       "id": "dcr-foreign-change",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "dcr-ignore-expiry-secure",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "dcr-ignore-expiry-sync",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "ton-history-invents-finality",
       "status": "KILLED",
       "exitCode": 1
     },

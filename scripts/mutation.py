@@ -18,7 +18,7 @@ mutants=[
 rows=[];start=time.monotonic()
 with tempfile.TemporaryDirectory(prefix='localwallet-mutants-') as tmp:
     copy=pathlib.Path(tmp)/'source'
-    shutil.copytree(root,copy,ignore=shutil.ignore_patterns('.git','node_modules','.tools','dist','bin','reports','.idea'))
+    shutil.copytree(root,copy,ignore=shutil.ignore_patterns('.git','node_modules','.tools','dist','bin','reports','wallet-runtime','wallet','.idea','__pycache__'))
     for name,filename,before,after,packages in mutants:
         target=copy/filename;original=target.read_text()
         if original.count(before)!=1:

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"localwallet/internal/chains/aptos"
 	"localwallet/internal/chains/near"
 	"localwallet/internal/ipc"
+	"localwallet/internal/journal"
 	"localwallet/internal/model"
 )
 
@@ -238,5 +240,147 @@ func TestTP041InvalidEndpointChangeIsAtomic(t *testing.T) {
 	after, _ := c.adapter("near-testnet")
 	if before != after {
 		t.Fatal("failed settings application partially replaced adapter")
+	}
+}
+
+func TestTP043LockedNativePromptExpiresWithoutGrantingNetworkAccess(t *testing.T) {
+	c, path := fakeCoordinator(t, &publicAdapter{}, nil)
+	c.active = false
+	state := readPublicState(t, path)
+	state["delayMethod"] = "unlock"
+	writePublicState(t, path, state)
+	done := make(chan error, 1)
+	go func() { _, err := c.handle(message("unlock", struct{}{})); done <- err }()
+	waitPublicFixture(t, filepath.Join(filepath.Dir(path), "native-ready"))
+	c.mu.Lock()
+	pending, active := c.promptPending, c.active
+	c.last = time.Now().Add(-5 * time.Minute)
+	c.mu.Unlock()
+	ctx, cancel := c.networkContext(time.Minute)
+	defer cancel()
+	if !pending || active || ctx.Err() != context.Canceled || !c.lockIfIdle(time.Now()) {
+		t.Fatal("locked native prompt was neither private nor subject to inactivity", pending, active, ctx.Err())
+	}
+	if err := <-done; err == nil {
+		t.Fatal("idle native unlock completed after termination")
+	}
+	c.mu.Lock()
+	active, pending = c.active, c.promptPending
+	id := c.requestID
+	c.mu.Unlock()
+	if active || pending || id != "" {
+		t.Fatal("ended prompt retained authorization state")
+	}
+}
+
+func TestTP043NativeActivityPublicForwardIsCorrelatedAndValueFree(t *testing.T) {
+	c, path := fakeCoordinator(t, &publicAdapter{}, nil)
+	c.active = false
+	state := readPublicState(t, path)
+	state["activityMethod"], state["delayMethod"] = "unlock", "unlock"
+	writePublicState(t, path, state)
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	defer writer.Close()
+	c.publicChannel = &ipc.Channel{W: writer}
+	c.child.OnActivity = c.nativeActivity
+	request := message("unlock", struct{}{})
+	request.Session = strings.Repeat("a", 32)
+	done := make(chan error, 1)
+	go func() { _, err := c.handle(request); done <- err }()
+	if err = reader.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	public := &ipc.Channel{R: reader}
+	event, err := public.Read()
+	if err != nil || event.Method != "activity" || event.ID != request.ID || event.Session != request.Session || event.Error != "" || !bytes.Equal(event.Body, []byte(`{}`)) {
+		t.Fatal("native timing leaked input values or changed request identity", err, event)
+	}
+	waitPublicFixture(t, filepath.Join(filepath.Dir(path), "native-ready"))
+	c.mu.Lock()
+	pending, active, recent := c.promptPending, c.active, time.Since(c.last) < time.Second
+	c.mu.Unlock()
+	if !pending || active || !recent || c.lockIfIdle(time.Now()) {
+		t.Fatal("native input did not preserve the locked prompt")
+	}
+	if err = os.WriteFile(filepath.Join(filepath.Dir(path), "native-release"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-done; err != nil {
+		t.Fatal(err)
+	}
+	c.mu.Lock()
+	last, pending, id := c.last, c.promptPending, c.requestID
+	c.mu.Unlock()
+	c.nativeActivity()
+	c.mu.Lock()
+	unchanged := c.last.Equal(last)
+	c.mu.Unlock()
+	if pending || id != "" || !unchanged {
+		t.Fatal("out-of-request native activity refreshed session or retained identity")
+	}
+}
+
+func TestTP043LockAfterDurableSubmissionMarkerPreventsBroadcast(t *testing.T) {
+	p := publicPlan()
+	op := &journal.Operation{Plan: p, State: "PREPARED"}
+	a := &publicAdapter{}
+	c, path := fakeCoordinator(t, a, op)
+	state := readPublicState(t, path)
+	state["delayMethod"] = "update"
+	writePublicState(t, path, state)
+	done := make(chan error, 1)
+	go func() { _, err := c.payment("send", p.ID); done <- err }()
+	dir := filepath.Dir(path)
+	waitPublicFixture(t, filepath.Join(dir, "native-ready"))
+	// Hold a valid response at the update boundary while the lock epoch
+	// changes. Keeping the public peer alive specifically exercises the
+	// final coordinator guard rather than relying on child-pipe EOF.
+	c.mu.Lock()
+	c.epoch++
+	c.active, c.promptPending = false, false
+	if c.sessionCancel != nil {
+		c.sessionCancel()
+	}
+	c.mu.Unlock()
+	if err := os.WriteFile(filepath.Join(dir, "native-release"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err == nil {
+		t.Fatal("stale signed payment crossed final submission boundary")
+	}
+	a.mu.Lock()
+	submitted := a.submits
+	a.mu.Unlock()
+	if submitted != 0 {
+		t.Fatal("adapter broadcast ran after session lock")
+	}
+	state = readPublicState(t, path)
+	operation := state["ops"].([]any)[0].(map[string]any)
+	if operation["state"] != "SUBMITTING" || operation["signed"].(map[string]any)["identity"] != "synthetic-identity" {
+		t.Fatal("lock discarded the durable original signed identity")
+	}
+}
+
+func TestTP043RequestAndCompletionAreNotUserInput(t *testing.T) {
+	c, _ := fakeCoordinator(t, &publicAdapter{}, nil)
+	last := time.Now().Add(-4 * time.Minute)
+	c.last = last
+	for _, method := range []string{"addAccount", "hideAccount", "cancelPrepared", "receive", "configure", "password", "discoverAccounts", "discovery"} {
+		if _, err := c.handle(message(method, struct{}{})); err != nil {
+			t.Fatal("public fixture operation", method, err)
+		}
+		c.mu.Lock()
+		unchanged, pending := c.last.Equal(last), c.promptPending
+		c.mu.Unlock()
+		if !unchanged || pending {
+			t.Fatal("renderer request or completion extended inactivity", method)
+		}
+	}
+	if !c.lockIfIdle(last.Add(5 * time.Minute)) {
+		t.Fatal("repeated renderer requests bypassed real-input inactivity")
 	}
 }

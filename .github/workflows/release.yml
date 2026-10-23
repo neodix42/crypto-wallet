@@ -1,0 +1,74 @@
+name: Build and publish versioned development wallet
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wallet-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Install native and isolated display test prerequisites
+        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil
+      - name: Choose the next version
+        id: version
+        run: |
+          git fetch --tags --force
+          version=$(python3 scripts/next-version.py)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "WALLET_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Install locked oracle dependencies and pinned local nodes
+        run: ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
+      - name: Run mandatory local gates
+        run: make test test-security test-race test-interop test-integration test-fuzz coverage check-deps
+      - name: Build the same version into the application and artifacts
+        run: make install
+      - name: Exercise uninstrumented package recovery on isolated X11
+        run: ./scripts/with-toolchain.sh python3 scripts/packaged-recovery.py
+      - name: Verify candidate version consistency
+        run: ./scripts/with-toolchain.sh python3 scripts/verify-version.py
+      - name: Prepare accurate release notes
+        run: |
+          python3 - <<'PY'
+          import os,pathlib
+          v=os.environ['WALLET_VERSION']
+          pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet v{v} — unsigned development testnet candidate.
+
+          The tag, release, Debian package, Go build identity and visible application version use {v}.
+          Included: Ubuntu amd64 installer, complete portable runtime, SHA256 checksums, source/build manifests and dependency inventory.
+
+          Public funded testnet roundtrips, the clean X11/Wayland OS matrix,24-hour soak and independent security review remain separate production gates. This prerelease is not a production-readiness or audit claim. Mainnet spending is never automated.
+          ''')
+          PY
+          tar -czf dist/test-evidence.tar.gz reports docs
+      - name: Publish matching tag and development prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --title "v$RELEASE_VERSION" --prerelease --notes-file dist/RELEASE-NOTES.md dist/*.deb dist/localwallet-*-linux-amd64.tar.gz dist/SHA256SUMS dist/build-manifest.json dist/source-manifest.json dist/sbom.cdx.json dist/dependency-licenses.json dist/go-modules.json dist/npm-package-lock.json dist/test-evidence.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wallet-build-and-test-evidence
+          path: |
+            reports/
+            dist/
+            !dist/deb/
+            !dist/LocalWallet-linux-x64/

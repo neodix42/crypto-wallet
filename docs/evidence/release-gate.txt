@@ -1,0 +1,27 @@
+FAIL: production release blocked
+ - BC-APTOS: NOT_RUN
+ - BC-CORE: NOT_RUN
+ - BC-DCR: NOT_RUN
+ - BC-EVM: NOT_RUN
+ - BC-NEAR: NOT_RUN
+ - BC-TON: NOT_RUN
+ - S-01: NOT_RUN
+ - S-02: NOT_RUN
+ - S-03: NOT_RUN
+ - S-04: NOT_RUN
+ - S-05: NOT_RUN
+ - S-06: NOT_RUN
+ - S-07: NOT_RUN
+ - S-08: NOT_RUN
+ - TP-032: NOT_RUN
+ - TP-040: NOT_RUN
+ - TP-043: NOT_RUN
+ - TP-050: NOT_RUN
+ - TP-061: NOT_RUN
+ - TP-070: NOT_RUN
+ - TP-072: NOT_RUN
+ - TP-080: NOT_RUN
+ - soak missing or incomplete
+ - desktop-e2e missing or incomplete
+ - public-testnets missing or incomplete
+ - independent-review missing or incomplete

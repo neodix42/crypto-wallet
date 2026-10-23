@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "scope": "Uninstrumented packaged X11 import, encrypted backup, restart and fresh-profile restore; synthetic public root only",
+  "steps": [
+    {
+      "name": "Native input-only BIP39 import with production KDF",
+      "status": "PASS"
+    },
+    {
+      "name": "Go-owned verified receive QR and exact independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Native encrypted portable backup creation and reopen verification",
+      "status": "PASS"
+    },
+    {
+      "name": "Restart requires native unlock and preserves deterministic address",
+      "status": "PASS"
+    },
+    {
+      "name": "Portable restore into empty profile without original application state",
+      "status": "PASS"
+    },
+    {
+      "name": "Captured logs and persisted profile files contain no tested secret canaries",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "clean Ubuntu24.04 desktop",
+    "Wayland",
+    "OS suspend/session lock",
+    "send from installed package",
+    "upgrade/uninstall recovery matrix"
+  ],
+  "backupSHA256": "bdbcfaebf86430d02cd96ceb25b1ccc4ecefbe504f295899122a06ba4efdfd0a"
+}

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -376,8 +377,22 @@ func TestDcrdSimnet(t *testing.T) {
 		t.Fatal(e)
 	}
 	balances, e := a.Balance(ctx, recipient)
-	if e != nil || balances[0].Atomic != "10000000" {
+	if e != nil || balances[0].Atomic != "0" {
 		t.Fatal("independent recipient state", e, balances)
+	}
+	immature, e := a.Sync(ctx, recipient)
+	if e != nil || immature.ImmatureAtoms != 10000000 || len(immature.ImmatureOutputs) != 1 || immature.ImmatureOutputs[0].Reason != "transaction-expiry" {
+		t.Fatal("expiry output maturity not reported", immature, e)
+	}
+	if _, e = a.Prepare(ctx, recipient, model.Transfer{AccountID: recipient.ID, Asset: p.Asset, Recipient: p.Account.Address, Amount: "5000000"}); e == nil {
+		t.Fatal("immature expiry output selected")
+	}
+	if e = a.rpc(ctx, p.Account.Network, "generate", []any{16}, &hashes); e != nil {
+		t.Fatal(e)
+	}
+	balances, e = a.Balance(ctx, recipient)
+	if e != nil || balances[0].Atomic != "10000000" {
+		t.Fatal("mature recipient state", balances, e)
 	}
 	var creation struct {
 		Vout []struct {
@@ -388,9 +403,42 @@ func TestDcrdSimnet(t *testing.T) {
 	if e = a.rpc(ctx, p.Account.Network, "getrawtransaction", []any{signed.Identity, 1}, &creation); e != nil || len(creation.Vout) < 1 || creation.Vout[0].Value.String() != "0.1" || creation.Confirmations < 6 {
 		t.Fatal("independent node output evidence failed", e, creation)
 	}
+	back, e := a.Prepare(ctx, recipient, model.Transfer{AccountID: recipient.ID, Asset: p.Asset, Recipient: p.Account.Address, Amount: "5000000"})
+	if e != nil {
+		t.Fatal("funded fresh recipient prepare return", e)
+	}
+	backSigned, e := a.Sign(seed, back)
+	if e != nil {
+		t.Fatal("derived account1 sign return", e)
+	}
+	if receipt, e = a.Submit(ctx, back, backSigned); e != nil || receipt.State != "SUBMITTED" {
+		t.Fatalf("return submit %v %+v node=%s", e, receipt, logs.String())
+	}
+	if e = a.rpc(ctx, p.Account.Network, "generate", []any{8}, &hashes); e != nil {
+		t.Fatal(e)
+	}
+	if receipt, e = a.Reconcile(ctx, back, backSigned); e != nil || receipt.State != "CONFIRMED" {
+		t.Fatal("return confirmation", receipt, e)
+	}
+	var returned struct {
+		Value         json.Number `json:"value"`
+		Confirmations int64       `json:"confirmations"`
+	}
+	if e = a.rpc(ctx, p.Account.Network, "gettxout", []any{backSigned.Identity, 0, wire.TxTreeRegular, true}, &returned); e != nil || returned.Value.String() != "0.05" || returned.Confirmations < 6 {
+		t.Fatal("independent final receiver unspent output", returned, e)
+	}
+	if e = a.rpc(ctx, p.Account.Network, "generate", []any{16}, &hashes); e != nil {
+		t.Fatal(e)
+	}
+	backPayload, _ := decodePlan(back)
+	remaining, e := a.Balance(ctx, recipient)
+	if e != nil || len(remaining) != 1 || remaining[0].Atomic != strconv.FormatInt(5000000-backPayload.Fee, 10) {
+		t.Fatal("independent sender remaining change", remaining, e)
+	}
 	t.Logf("PASS: dcrd v1.10.9 simnet accepted %s; %d confirmations; recipient independently has 10,000,000 atoms", signed.Identity, creation.Confirmations)
+	t.Logf("PASS: derived account1 sent back %s; %d confirmations; final receiver independently has an unspent5,000,000-atom output", backSigned.Identity, returned.Confirmations)
 	if os.Getenv("WALLET_EVIDENCE_DIR") != "" {
-		evidence := map[string]any{"status": "PASS", "node": "dcrd v1.10.9", "network": "simnet", "identity": signed.Identity, "confirmations": creation.Confirmations, "recipientAtoms": balances[0].Atomic, "matureInputs": len(report.Spendable), "immatureAtoms": report.ImmatureAtoms}
+		evidence := map[string]any{"status": "PASS", "node": "dcrd2.1.7+release.local", "modulePin": "github.com/decred/dcrd@v1.10.9", "originCommit": "e07b56553d6d6af84aa139e33b4f6368c55c9d2d", "network": "simnet", "identity": signed.Identity, "confirmations": creation.Confirmations, "recipientAtoms": balances[0].Atomic, "matureInputs": len(report.Spendable), "immatureAtoms": report.ImmatureAtoms, "roundtrip": true, "returnIdentity": backSigned.Identity, "returnConfirmations": returned.Confirmations, "returnedAtoms": "5000000", "returnOutputUnspent": true, "expiryMaturityObserved": true, "expiryImmatureBlocksRemaining": immature.ImmatureOutputs[0].RemainingBlocks, "recipientRemainingAtoms": remaining[0].Atomic}
 		raw, _ := json.MarshalIndent(evidence, "", "  ")
 		if e = os.WriteFile(filepath.Join(os.Getenv("WALLET_EVIDENCE_DIR"), "decred-simnet.json"), append(raw, '\n'), 0644); e != nil {
 			t.Fatal(e)

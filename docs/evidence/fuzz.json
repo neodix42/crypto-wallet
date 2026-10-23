@@ -1,0 +1,110 @@
+{
+  "status": "PASS",
+  "scope": "3s per target bounded campaigns plus retained source corpus; not long scheduled fuzzing",
+  "targets": [
+    {
+      "package": "vault",
+      "target": "FuzzTP012Envelope",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 4.895,
+      "output": "reports/fuzz-vault.log"
+    },
+    {
+      "package": "derivation",
+      "target": "FuzzTP012Mnemonic",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 4.573,
+      "output": "reports/fuzz-derivation.log"
+    },
+    {
+      "package": "ipc",
+      "target": "FuzzTP012IPC",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 4.755,
+      "output": "reports/fuzz-ipc.log"
+    },
+    {
+      "package": "strictjson",
+      "target": "FuzzTP012JSON",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 4.28,
+      "output": "reports/fuzz-strictjson.log"
+    },
+    {
+      "package": "amount",
+      "target": "FuzzTP012Amount",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 4.412,
+      "output": "reports/fuzz-amount.log"
+    },
+    {
+      "package": "qr",
+      "target": "FuzzTP012QR",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 5.889,
+      "output": "reports/fuzz-qr.log"
+    },
+    {
+      "package": "chains/chainutil",
+      "target": "FuzzJSON",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 4.485,
+      "output": "reports/fuzz-chains-chainutil.log"
+    },
+    {
+      "package": "chains/evm",
+      "target": "FuzzTP012AddressAndPlan",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 5.442,
+      "output": "reports/fuzz-chains-evm.log"
+    },
+    {
+      "package": "chains/hypercore",
+      "target": "FuzzTP012CoreAction",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 5.526,
+      "output": "reports/fuzz-chains-hypercore.log"
+    },
+    {
+      "package": "chains/near",
+      "target": "FuzzAddress",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 3.915,
+      "output": "reports/fuzz-chains-near.log"
+    },
+    {
+      "package": "chains/aptos",
+      "target": "FuzzAddress",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 5.835,
+      "output": "reports/fuzz-chains-aptos.log"
+    },
+    {
+      "package": "chains/decred",
+      "target": "FuzzAddressesScriptsOutpoints",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 5.041,
+      "output": "reports/fuzz-chains-decred.log"
+    },
+    {
+      "package": "chains/ton",
+      "target": "FuzzAddressAndBOC",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 5.163,
+      "output": "reports/fuzz-chains-ton.log"
+    }
+  ]
+}

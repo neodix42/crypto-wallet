@@ -311,7 +311,21 @@ func TestWalletV5R1Emulator(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	req := map[string]any{"address": p.Account.Address, "recipient": p.Recipient, "amount": p.Amount, "expires": p.Expires, "boc": base64.StdEncoding.EncodeToString(s.Bytes), "insufficientBoc": base64.StdEncoding.EncodeToString(failedSigned.Bytes)}
+	back := p
+	back.Account, e = a.Derive(seed, 1, p.Account.Network)
+	if e != nil {
+		t.Fatal(e)
+	}
+	back.Recipient = p.Account.Address
+	back.Amount = "10000000"
+	back.Memo = "fixture-return"
+	back.Payload, _ = json.Marshal(Payload{Deploy: true, Bounce: true, SourceBalance: p.Amount, EstimatedFee: "1000000", StorageReserve: "10000000"})
+	back.ID = planID(back)
+	backSigned, e := a.Sign(seed, back)
+	if e != nil {
+		t.Fatal("derived account1 sign return", e)
+	}
+	req := map[string]any{"address": p.Account.Address, "recipient": p.Recipient, "amount": p.Amount, "expires": p.Expires, "boc": base64.StdEncoding.EncodeToString(s.Bytes), "insufficientBoc": base64.StdEncoding.EncodeToString(failedSigned.Bytes), "returnBoc": base64.StdEncoding.EncodeToString(backSigned.Bytes), "returnAmount": back.Amount}
 	raw, _ := json.Marshal(req)
 	request := filepath.Join(dir, "request.json")
 	report := filepath.Join(dir, "report.json")
@@ -338,6 +352,10 @@ func TestWalletV5R1Emulator(t *testing.T) {
 			Address string `json:"address"`
 			Data    string `json:"data"`
 		} `json:"failedTransactions"`
+		ReturnTransactions []struct {
+			Address string `json:"address"`
+			Data    string `json:"data"`
+		} `json:"returnTransactions"`
 	}
 	if e = json.Unmarshal(b, &v); e != nil || v.Status != "PASS" {
 		t.Fatal("emulator report failed", e)
@@ -358,7 +376,7 @@ func TestWalletV5R1Emulator(t *testing.T) {
 			_ = json.Unmarshal(raw["params"], &par)
 			addr, _ := parseAddress("ton-testnet", par.Address)
 			var rows []map[string]string
-			for _, tx := range v.Transactions {
+			for _, tx := range append(v.Transactions, v.ReturnTransactions...) {
 				if tx.Address == addr.StringRaw() {
 					rows = append(rows, map[string]string{"data": tx.Data})
 				}
@@ -375,6 +393,34 @@ func TestWalletV5R1Emulator(t *testing.T) {
 	receipt, e := a.Reconcile(context.Background(), p, s)
 	if e != nil || receipt.State != "CONFIRMED" {
 		t.Fatalf("emulator BOC reconciliation: %v %+v", e, receipt)
+	}
+	if receipt, e = a.Reconcile(context.Background(), back, backSigned); e != nil || receipt.State != "CONFIRMED" {
+		t.Fatal("actual TVM return source+recipient credit", receipt, e)
+	}
+	for _, index := range []uint32{0, 1} {
+		account, err := a.Derive(seed, index, "ton-testnet")
+		if err != nil {
+			t.Fatal(err)
+		}
+		history, err := a.History(context.Background(), account)
+		if err != nil || len(history) == 0 {
+			t.Fatal("actual TVM history unavailable", err)
+		}
+		observed := false
+		for _, item := range history {
+			if item.State != "OBSERVED" {
+				t.Fatal("history invented payment confirmation", item)
+			}
+			if index == 0 && strings.Contains(item.Detail, "native outbound message "+p.Amount) && strings.Contains(item.Detail, "recipient credit not queried") {
+				observed = true
+			}
+			if index == 1 && strings.Contains(item.Detail, "native inbound message "+p.Amount) && strings.Contains(item.Detail, "account native credit phase "+p.Amount) {
+				observed = true
+			}
+		}
+		if !observed {
+			t.Fatal("actual TVM native transfer absent from bounded history", index, history)
+		}
 	}
 	v.Transactions = v.FailedTransactions
 	receipt, e = a.Reconcile(context.Background(), insufficient, failedSigned)

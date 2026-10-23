@@ -581,8 +581,8 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 		if e != nil {
 			return e
 		}
-		if coinbase(prev) && uint64(x.TipHeight)-uint64(in.Height)+1 < uint64(cp.CoinbaseMaturity) {
-			return errors.New("immature Decred input")
+		if (coinbase(prev) || prev.Expiry != 0) && uint64(x.TipHeight)-uint64(in.Height)+1 < uint64(cp.CoinbaseMaturity) {
+			return errors.New("immature Decred coinbase or expiring-transaction output")
 		}
 		addr, e := AddressAt(p.Account, in.Branch, in.Index)
 		if e != nil {

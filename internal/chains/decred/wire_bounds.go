@@ -11,7 +11,7 @@ import (
 // The official decoder limits declared vector lengths against a global 32 MiB
 // message bound. Preflight additionally ties each allocation to the actual
 // bounded input bytes. It does no consensus or signature validation; Deserialize
-// remains authoritative after this allocation-free structural walk.
+// remains authoritative after this structural walk without allocations proportional to declared counts.
 func skipWire(r *bytes.Reader, n uint64) bool {
 	if n > uint64(r.Len()) {
 		return false

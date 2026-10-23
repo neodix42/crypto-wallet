@@ -1,0 +1,4 @@
+{
+  "status": "NOT_RUN",
+  "reason": "No independent external security review of vault, GUI/IPC boundary, signing adapters or build chain has been performed; implementation-author review is not an audit"
+}

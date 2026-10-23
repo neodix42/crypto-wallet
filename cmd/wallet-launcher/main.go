@@ -4,7 +4,9 @@
 package main
 
 import (
+	"fmt"
 	"io"
+	"localwallet/internal/buildinfo"
 	"localwallet/internal/isolation"
 	"localwallet/internal/supervisor"
 	"os"
@@ -27,6 +29,10 @@ type launch struct {
 func main() { os.Exit(run()) }
 
 func run() int {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(buildinfo.Version)
+		return 0
+	}
 	exe, e := os.Executable()
 	if e != nil {
 		return 2

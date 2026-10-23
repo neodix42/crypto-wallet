@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "scope": "Real GTK input and private X11 XTest events; synthetic fixture values only",
+  "notRun": [
+    "Wayland native input",
+    "Clean installed desktop OS-lock/suspend matrix"
+  ],
+  "tests": [
+    {
+      "name": "TestRealX11NativeActivityBeyondFiveMinutes",
+      "status": "PASS",
+      "seconds": 312.02
+    }
+  ],
+  "exit": 0,
+  "coverage": "total:\t\t\t\t\t\t(statements)\t\t39.6%",
+  "seconds": 313.971
+}

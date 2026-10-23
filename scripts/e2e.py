@@ -5,7 +5,7 @@ import json,pathlib,subprocess,time
 root=pathlib.Path(__file__).resolve().parents[1];rows=[]
 for version in ['24.04','26.04']:
     image='localwallet-package-test:'+version;start=time.monotonic()
-    build=subprocess.run(['docker','build','--build-arg','BASE=ubuntu:'+version,'-t',image,'-f','tests/e2e/Dockerfile','.'],cwd=root)
+    build=subprocess.run(['docker','build','--build-arg','BASE=ubuntu:'+version,'--build-arg','WALLET_DEB=dist/'+json.loads((root/'dist/build-manifest.json').read_text())['package'],'-t',image,'-f','tests/e2e/Dockerfile','.'],cwd=root)
     if build.returncode:rows.append({'os':version,'status':'BLOCKED','reason':'disposable install image failed','seconds':time.monotonic()-start});continue
     p=subprocess.run(['docker','run','--rm',image],cwd=root,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=90)
     print(p.stdout,flush=True)

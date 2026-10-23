@@ -1,0 +1,24 @@
+name: Nightly24-hour deterministic wallet soak
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wallet-soak
+  cancel-in-progress: false
+jobs:
+  soak:
+    # A24-hour job needs a dedicated runner. No real funds or user vaults.
+    runs-on: [self-hosted, linux, x64, wallet-soak]
+    timeout-minutes: 1500
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run complete deterministic workload
+        run: make test-soak
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wallet24-hour-soak-evidence
+          path: reports/soak.json

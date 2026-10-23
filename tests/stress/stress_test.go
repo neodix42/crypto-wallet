@@ -22,9 +22,13 @@ import (
 	"localwallet/internal/vault"
 )
 
-var soak = flag.Duration("soak", 0, "explicit deterministic soak duration; production gate requires24hours")
+var soak = flag.Duration("soak", 0, "explicit deterministic soak duration; production gate requires 24 hours")
 
 type report struct {
+	ExecutionStatus                string         `json:"executionStatus"`
+	Instrumentation                string         `json:"instrumentation"`
+	CPUModel                       string         `json:"cpuModel"`
+	Checkpoints                    []checkpoint   `json:"settledCheckpoints"`
 	Status                         string         `json:"status"`
 	Seed                           string         `json:"seed"`
 	Go                             string         `json:"go"`
@@ -68,11 +72,20 @@ func save(t *testing.T, name string, r report) {
 }
 func beginReport(t *testing.T, name string) *report {
 	t.Helper()
+	if raceInstrumentation {
+		name += "-race"
+	}
 	previousLimit := debug.SetMemoryLimit(768 << 20)
 	runtime.GC()
 	var before runtime.MemStats
 	runtime.ReadMemStats(&before)
 	r := &report{Status: "PASS", Seed: "PCG(0x79326,0x16482); public deterministic BIP39 fixtures; cryptographic RNG is not replaced", Go: runtime.Version(), OS: runtime.GOOS + "/" + runtime.GOARCH, CPUs: runtime.NumCPU(), RSSBudgetMiB: 1024, GoMemoryLimitMiB: 768, Workloads: map[string]int{}, Latencies: map[string]latency{}, FinalState: map[string]int{}, StartHeap: before.HeapAlloc, StartGoroutines: runtime.NumGoroutine()}
+	r.Instrumentation = "ordinary Go test"
+	r.CPUModel = cpuModel()
+	if raceInstrumentation {
+		r.Instrumentation = "Go race detector; separate 3 GiB instrumentation budget, ordinary target remains 1 GiB"
+		r.RSSBudgetMiB = 3072
+	}
 	start := time.Now()
 	monitor := watchResources()
 	// Registered before fixture cleanup so resources are measured after every
@@ -95,8 +108,10 @@ func beginReport(t *testing.T, name string) *report {
 				t.Error("declared latency budget exceeded", workload, value)
 			}
 		}
+		r.ExecutionStatus = "PASS"
 		if t.Failed() {
 			r.Status = "FAIL"
+			r.ExecutionStatus = "FAIL"
 		}
 		save(t, name, *r)
 		debug.SetMemoryLimit(previousLimit)
@@ -204,13 +219,14 @@ func TestTP071BoundedStress(t *testing.T) {
 }
 func TestTP072Soak(t *testing.T) {
 	if *soak == 0 {
-		t.Skip("NOT_RUN: invoke make test-soak for explicit24-hour campaign")
+		t.Skip("NOT_RUN: invoke make test-soak for explicit 24-hour campaign")
 	}
 	if *soak < 0 {
 		t.Fatal("soak duration must be positive")
 	}
 	r := beginReport(t, "soak")
-	r.Scope = "Actual signer production256MiB Argon2id encrypted persistence, lock/restart/backup; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
+	r.Seed = "public BIP39 abandon/about fixture; scenario ordinal modulo 55; fixed 30-second cadence; cryptographic RNG is not replaced"
+	r.Scope = "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/backup; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
 	r.RequestedSeconds = soak.Seconds()
 	r.Campaign24hStatus = "NOT_RUN"
 	if *soak < 24*time.Hour {
@@ -221,9 +237,9 @@ func TestTP072Soak(t *testing.T) {
 	for cycle := 0; time.Since(start) < *soak; cycle++ {
 		l.cycle(t, r, cycle)
 		if cycle >= 4998 {
-			t.Fatal("bounded journal campaign reached10000-operation limit")
+			t.Fatal("bounded journal campaign reached 10000-operation limit")
 		}
-		// Fixed30-second cadence keeps a24h run below the production10000-record
+		// Fixed 30-second cadence keeps a 24h run below the production 10000-record
 		// journal bound while preserving accumulated history for reconciliation.
 		next := start.Add(time.Duration(cycle+1) * 30 * time.Second)
 		if end := start.Add(*soak); next.After(end) {

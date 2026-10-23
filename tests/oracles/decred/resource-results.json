@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "toolchain": "go1.27.3 linux/amd64",
+  "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+  "scope": "Resource amplification measurement of malformed 7-byte public fixture, not consensus acceptance",
+  "command": "go test -count=1 ./internal/chains/decred -run TestWireAllocationPreflight -bench BenchmarkDeclaredInputCount -benchtime=20x -benchmem",
+  "iterationsPerBenchmark": 20,
+  "payloadHex": "01000000fdffff",
+  "declaredInputs": 65535,
+  "upstream": {
+    "nanosecondsPerOperation": 1546992,
+    "bytesPerOperation": 6291507,
+    "allocationsPerOperation": 3
+  },
+  "bounded": {
+    "nanosecondsPerOperation": 217.5,
+    "bytesPerOperation": 52,
+    "allocationsPerOperation": 2
+  },
+  "library": "github.com/decred/dcrd/wire v1.8.0",
+  "guards": "actual input bounds before official decoder; all 3 tx serialization forms and both block trees preserved",
+  "sourceSHA256": {
+    "internal/chains/decred/wire_bounds.go": "4d0625f72e887404b82bc94ed7286565555df012021798663beb3e1f43089fd3",
+    "internal/chains/decred/wire_bounds_test.go": "da8a37525e9707535dbc13798c373872da7dc0f01f74c9ad9fbfdb05fec14cb9"
+  }
+}

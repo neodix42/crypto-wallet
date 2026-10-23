@@ -41,3 +41,12 @@ go.work.sum
 /reports/
 *.deb
 *.AppImage
+
+# Test-tool interpreter caches
+**/__pycache__/
+*.py[cod]
+
+# Complete repository-local runtime installed by make install
+/wallet
+/wallet-runtime/
+**/__pycache__/

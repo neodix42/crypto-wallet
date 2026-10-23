@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -235,6 +236,14 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 		t.Fatal("production encrypted verified backup", e)
 	}
 	r.Workloads["productionSignerVerifiedBackups"]++
+	runtime.GC()
+	currentRSS, _, e := rss()
+	if e != nil {
+		t.Fatal(e)
+	}
+	var memory runtime.MemStats
+	runtime.ReadMemStats(&memory)
+	r.Checkpoints = append(r.Checkpoints, checkpoint{Cycle: cycle + 1, RSSBytes: currentRSS, HeapBytes: memory.HeapAlloc, Goroutines: runtime.NumGoroutine(), JournalRecords: len(l.engine.Snapshot().Operations)})
 	l.times = append(l.times, time.Since(begin).Microseconds())
 	r.Workloads["cycles"]++
 }
@@ -269,6 +278,6 @@ func (l *lifecycle) reconcile(t *testing.T, r *report) {
 	r.Workloads["boundedFakeRPCCalls"] += calls
 	r.Latencies["productionSignerLifecycle"] = summarize(l.times, 60_000_000)
 	if r.Latencies["productionSignerLifecycle"].P99Micros > 60_000_000 {
-		t.Fatal("production lifecycle p99 exceeded declared60-second budget")
+		t.Fatal("production lifecycle p99 exceeded declared 60-second budget")
 	}
 }

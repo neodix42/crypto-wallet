@@ -1,0 +1,113 @@
+{
+  "status": "PASS",
+  "command": [
+    "/usr/bin/python3",
+    "scripts/build-tools-test.py"
+  ],
+  "tests": [
+    {
+      "test": "test_actual_elf_versions_match_metadata_and_all_binary_hashes (__main__.BuildTools.test_actual_elf_versions_match_metadata_and_all_binary_hashes)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_completed_copy_is_reverified_before_commit (__main__.BuildTools.test_completed_copy_is_reverified_before_commit)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_component_and_patch_exhaustion_bounds (__main__.BuildTools.test_component_and_patch_exhaustion_bounds)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_copy_failure_preserves_selected_version_and_profile_files (__main__.BuildTools.test_copy_failure_preserves_selected_version_and_profile_files)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_failed_atomic_link_switch_preserves_previous_runtime (__main__.BuildTools.test_failed_atomic_link_switch_preserves_previous_runtime)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_incomplete_runtime_or_ambiguous_manifest_never_creates_launcher (__main__.BuildTools.test_incomplete_runtime_or_ambiguous_manifest_never_creates_launcher)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_install_preserves_unrelated_runtime_directory (__main__.BuildTools.test_install_preserves_unrelated_runtime_directory)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_install_preserves_unrelated_wallet_file (__main__.BuildTools.test_install_preserves_unrelated_wallet_file)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_install_refuses_runtime_symlink_even_with_external_managed_marker (__main__.BuildTools.test_install_refuses_runtime_symlink_even_with_external_managed_marker)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_install_refuses_traversal_launcher_and_symlinked_marker (__main__.BuildTools.test_install_refuses_traversal_launcher_and_symlinked_marker)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_invalid_and_out_of_policy_tags_are_ignored (__main__.BuildTools.test_invalid_and_out_of_policy_tags_are_ignored)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_manifest_mismatch_never_switches_existing_install (__main__.BuildTools.test_manifest_mismatch_never_switches_existing_install)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_next_version_reads_git_tags_without_creating_or_mutating_them (__main__.BuildTools.test_next_version_reads_git_tags_without_creating_or_mutating_them)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_node_archive_hash_mismatch_never_extracts_or_installs (__main__.BuildTools.test_node_archive_hash_mismatch_never_extracts_or_installs)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_numeric_semver_maximum_is_not_lexical (__main__.BuildTools.test_numeric_semver_maximum_is_not_lexical)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_release_publish_step_follows_mandatory_gates_and_version_check (__main__.BuildTools.test_release_publish_step_follows_mandatory_gates_and_version_check)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_runtime_version_match_is_exact_not_prefix (__main__.BuildTools.test_runtime_version_match_is_exact_not_prefix)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_sbom_marks_shipped_electron_required_and_never_reads_external_symlink_targets (__main__.BuildTools.test_sbom_marks_shipped_electron_required_and_never_reads_external_symlink_targets)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_stale_packaged_binary_is_not_hidden_by_current_source_bin (__main__.BuildTools.test_stale_packaged_binary_is_not_hidden_by_current_source_bin)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_tampered_debian_and_portable_artifacts_fail_closed (__main__.BuildTools.test_tampered_debian_and_portable_artifacts_fail_closed)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap (__main__.BuildTools.test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_upgrade_switches_one_complete_version_atomically_and_retains_old_generation (__main__.BuildTools.test_upgrade_switches_one_complete_version_atomically_and_retains_old_generation)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_version_override_rejects_shell_and_github_environment_injection (__main__.BuildTools.test_version_override_rejects_shell_and_github_environment_injection)",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Hermetic public fixture ELFs, real temporary Debian files and Git repository; ASAR fixture reader and SBOM inventory tool outputs are substituted. No wallet profiles, network, funding or remote publication.",
+  "sourceSHA256": {
+    "scripts/version.py": "b0baaf4dd3ba3c336f7d7edcd0a3a52a4f2f5bf0a698207c3fb9af9a4ab10ca1",
+    "scripts/next-version.py": "8f3368764f6ac37d01bdb01f3447ab022dc5258115ebcb47ab0609f104a09198",
+    "scripts/install.py": "25b4a4d25b48c64fcf15df4c9425d1b8e39322748d3d4742f6164c3b687ee063",
+    "scripts/verify-version.py": "30e9a26b949a3f9e52336845dee186d29ca731bb8034151f93a779d3043961dd",
+    "scripts/with-toolchain.sh": "5a2f2e3b0616ceef1fb378e88e02fc6d2b0cf95794a0da69ab2ceb30b961bb8f",
+    "scripts/bootstrap-node.py": "b67714e06d3bd61b63fa5f9ab853df0e4f93f308dfc26ee49763ada60eb9c0d8",
+    "scripts/sbom.py": "cb3c141478e8830ca1055e7328b84ea70fafb761fd72c65b4955cf0e4d6d3878",
+    "scripts/build-tools-test.py": "130ada1383bc489183d26dd5609c4230e53cf68c7e04597369d4b9bc3d81e7bb",
+    ".github/workflows/release.yml": "0ec274a794efb341735852345be24c14dc36d74e64fb9f45d26003dc96de0da1"
+  }
+}

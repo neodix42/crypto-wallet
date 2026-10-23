@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "scope": "Actual packaged Electron fuses and ASAR inventory; no publisher authentication or OS sandbox acceptance claim",
+  "fuses": {
+    "0": 48,
+    "1": 49,
+    "2": 48,
+    "3": 48,
+    "4": 48,
+    "5": 49,
+    "6": 48,
+    "7": 49,
+    "8": 49,
+    "version": "1"
+  },
+  "files": [
+    "/app",
+    "/app/codec.js",
+    "/app/main.js",
+    "/app/preload.js",
+    "/app/validation.js",
+    "/package.json",
+    "/ui",
+    "/ui/index.html",
+    "/ui/renderer.js",
+    "/ui/style.css"
+  ]
+}

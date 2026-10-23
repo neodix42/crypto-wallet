@@ -1,10 +1,20 @@
 {
-  "confirmations": 7,
-  "identity": "3630ccdde573215a0bc6d4731cfc7589a5c994f112b8387a7429689caa75d019",
+  "confirmations": 23,
+  "expiryImmatureBlocksRemaining": 9,
+  "expiryMaturityObserved": true,
+  "identity": "01a393020dc58dcd60f8aa8b8b84b5600817171bcea3a2f603c632bb12b01f9c",
   "immatureAtoms": 7500000000,
   "matureInputs": 8,
+  "modulePin": "github.com/decred/dcrd@v1.10.9",
   "network": "simnet",
-  "node": "dcrd v1.10.9",
+  "node": "dcrd2.1.7+release.local",
+  "originCommit": "e07b56553d6d6af84aa139e33b4f6368c55c9d2d",
   "recipientAtoms": "10000000",
+  "recipientRemainingAtoms": "4997470",
+  "returnConfirmations": 7,
+  "returnIdentity": "4f3784c69d168b82beff1e93f4f49b8fa347fbcf7cdb7e25728b0a12740c200d",
+  "returnOutputUnspent": true,
+  "returnedAtoms": "5000000",
+  "roundtrip": true,
   "status": "PASS"
 }

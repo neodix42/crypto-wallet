@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "scope": "Actual native key events through production five-minute inactivity boundary on private X11; not OS suspend/Wayland acceptance",
+  "seconds": {
+    "activeNativeInput": 321.947,
+    "idleLockAfterLastInput": 301.228,
+    "total": 623.347
+  },
+  "launcherSHA256": "de583f15310127a46292218af1f6778797c4c599b4480d3f4ff1ceed1324c543",
+  "nativeInputPairs": 32,
+  "testedRuntimeBinaryManifest": {
+    "wallet-core": "322fcc087acde61de274abfbe64f18e052cf32813fd7219734fad32c14f896e8",
+    "wallet-launcher": "de583f15310127a46292218af1f6778797c4c599b4480d3f4ff1ceed1324c543",
+    "wallet-signer": "7ab75dea06d93c9272d6ea10ad706f89ed9d46278aaa0e2050bb89f60ca8dfd6"
+  },
+  "candidateScope": "Preceding retained development runtime. Subsequent candidate adds DCR maturity disclosure and removes completion-based timer refresh. This is X11 lifecycle evidence; the exact final installed OS/release matrix remains NOT_RUN."
+}

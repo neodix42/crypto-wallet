@@ -13,6 +13,7 @@ function clearLocked() {
 }
 const removeLockListener = window.wallet.onLocked(clearLocked);
 window.addEventListener('beforeunload', removeLockListener, { once: true });
+window.wallet.getVersion().then(version => { $('version').textContent = 'Version ' + version; }).catch(() => { $('version').textContent = 'Version unavailable'; });
 async function run(fn) {
   const epoch = sessionEpoch;
   try {
@@ -86,6 +87,12 @@ async function history() {
         const button = document.createElement('button');
         button.textContent = 'Reconcile original payment';
         button.onclick = () => run(() => result('reconcile', { id: operation.plan.id }, async value => { show('preview', value); await history(); }));
+        row.append(button);
+      }
+      if (operation.state === 'PREPARED') {
+        const button = document.createElement('button');
+        button.textContent = 'Cancel unsigned preparation';
+        button.onclick = () => run(() => result('cancelPrepared', { id: operation.plan.id }, async () => { prepared = undefined; $('send').disabled = true; show('preview', 'Unsigned preparation cancelled.'); await history(); }));
         row.append(button);
       }
       $('operations').append(row);

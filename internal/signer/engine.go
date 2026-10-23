@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/skip2/go-qrcode"
 	"localwallet/internal/chains/aptos"
 	"localwallet/internal/chains/chainutil"
@@ -840,6 +841,16 @@ func nativeEffects(p model.Plan) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Output recipient %s: %s DCR atoms\nChange output %s: %d atoms (owned change index %d)\nFee: %d atoms; rate %d atoms/kB; source %s\nTransaction expires at height %d\n", p.Recipient, p.Amount, x.ChangeAddress, x.Change, x.ChangeIndex, x.Fee, x.FeeRate, x.FeeSource, x.Expiry)
+	if x.Expiry != 0 {
+		maturity := chaincfg.MainNetParams().CoinbaseMaturity
+		if p.Account.Network == "decred-testnet3" {
+			maturity = chaincfg.TestNet3Params().CoinbaseMaturity
+		}
+		if p.Account.Network == "decred-simnet" {
+			maturity = chaincfg.SimNetParams().CoinbaseMaturity
+		}
+		fmt.Fprintf(&b, "Spendability delay: this transaction uses a wire expiry. Its recipient and change outputs require %d confirmations before spending under this network's consensus rules.\n", maturity)
+	}
 	for _, in := range x.Inputs {
 		fmt.Fprintf(&b, "Input %s:%d tree %d; %d atoms; owned branch/index %d/%d; height %d\n", in.TxID, in.Vout, in.Tree, in.Value, in.Branch, in.Index, in.Height)
 	}

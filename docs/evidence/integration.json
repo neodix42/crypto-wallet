@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "scope": "Real local protocol acceptance, not public testnets; Core SDK fixtures have no official local validator gate",
+  "gates": [
+    {
+      "gate": "near-sandbox",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 6.876
+    },
+    {
+      "gate": "aptos-local-validator",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 18.526
+    },
+    {
+      "gate": "decred-simnet",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 2.58
+    },
+    {
+      "gate": "ton-v5r1-emulator",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 0.75
+    },
+    {
+      "gate": "geth-native",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 3.859
+    },
+    {
+      "gate": "evm-canonical-ZEN-runtime",
+      "status": "PASS",
+      "exit": 0,
+      "seconds": 3.655
+    }
+  ]
+}

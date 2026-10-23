@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "scope": "Actual Go1.27.3 trimpath/linker embedded nondefault version and read-only --version; no native initialization, profiles, mainnet or remote publication",
+  "tests": [
+    {
+      "component": "wallet-core",
+      "version": "0.1.10",
+      "status": "PASS"
+    },
+    {
+      "component": "wallet-signer",
+      "version": "0.1.10",
+      "status": "PASS"
+    },
+    {
+      "component": "wallet-launcher",
+      "version": "0.1.10",
+      "status": "PASS"
+    }
+  ]
+}

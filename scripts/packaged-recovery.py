@@ -48,7 +48,8 @@ def launch(profile,env):
  global app
  env={**env,'XDG_CONFIG_HOME':str(profile)}
  log=tempfile.TemporaryFile(mode='w+');logs.append(log)
- app=subprocess.Popen([str(root/'dist/LocalWallet-linux-x64/wallet-launcher'),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
+ launcher=root/'wallet' if (root/'wallet').exists() else root/'dist/LocalWallet-linux-x64/wallet-launcher'
+ app=subprocess.Popen([str(launcher),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
  desktop.wait('LocalWallet',20);time.sleep(1)
 def clip():
  # Only the public address is requested. No secret is ever written to a clipboard.
@@ -65,7 +66,7 @@ def clip():
 def publicaddress():
  clickword('Copy');waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3);return clip()
 def filechoice(prefix,path):
- waitnative(prefix);desktop.key('l',ctrl=True);desktop.type(str(path));desktop.key('Return');time.sleep(.5)
+ waitnative(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.type(str(path));desktop.key('Return');time.sleep(.5)
  if any(t.startswith(prefix) for _,t in desktop.windows()):desktop.accept(prefix)
 try:
  server=shutil.which('Xvfb') or str(root/'.tools/xvfb/root/usr/bin/Xvfb')
@@ -78,8 +79,11 @@ try:
  desktop=mod.Desktop(display.encode());os.environ.update(DISPLAY=display,GDK_BACKEND='x11')
  with tempfile.TemporaryDirectory(prefix='localwallet-package-fixture-') as temporary:
   folder=pathlib.Path(temporary);profile=folder/'original';backupdir=folder/'backup';backupdir.mkdir(mode=0o700);backup=backupdir/'portable.lwv'
+  home=folder/'home';home.mkdir(mode=0o700);env['HOME']=str(home)
+  os.environ['HOME']=str(home)
+  for key in ['WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS']:os.environ.pop(key,None)
   launch(profile,env);clickword('Import',350);x,y,w,h=waitnative('Create local wallet')
-  for yy,value in [(72,password),(166,password),(260,phrase)]:desktop.click(x+230,y+yy);desktop.type(value)
+  desktop.inputs('Create local wallet',[password,password,phrase,''])
   desktop.screenshot(reports/'packaged-native-masked.png');desktop.accept('Create local wallet')
   waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits')
   until(lambda:(profile/'localwallet/testnet/vault.lwv').exists());time.sleep(1);passed('Native input-only BIP39 import with production KDF')
@@ -90,11 +94,11 @@ try:
   until(lambda:backup.exists());time.sleep(3);passed('Native encrypted portable backup creation and reopen verification')
   stopapp();launch(profile,env)
   # A restart never resumes the signer session; unlock requires native input.
-  clickword('Unlock',350);x,y,w,h=waitnative('Unlock local wallet');desktop.click(x+200,y+72);desktop.type(password);desktop.accept('Unlock local wallet');time.sleep(3)
+  clickword('Unlock',350);x,y,w,h=waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Restart public address differs')
   passed('Restart requires native unlock and preserves deterministic address')
   stopapp();fresh=folder/'fresh';launch(fresh,env);clickword('Restore',350);filechoice('Open encrypted backup',backup)
-  x,y,w,h=waitnative('Restore encrypted portable backup');desktop.click(x+200,y+72);desktop.type(password);desktop.accept('Restore encrypted portable backup')
+  x,y,w,h=waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup')
   until(lambda:(fresh/'localwallet/testnet/vault.lwv').exists());time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Fresh-profile public address differs')
   passed('Portable restore into empty profile without original application state')

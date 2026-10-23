@@ -186,7 +186,7 @@ func TestTP041BootstrapWorker(t *testing.T) {
 		}
 		return
 	}
-	for _, key := range []string{"LD_PRELOAD", "LD_LIBRARY_PATH", "NODE_OPTIONS", "ELECTRON_RUN_AS_NODE", "LOCALWALLET_DEV", "LOCALWALLET_INHERITED_CORE", "PATH", "GOTRACEBACK"} {
+	for _, key := range []string{"LD_PRELOAD", "LD_LIBRARY_PATH", "NODE_OPTIONS", "ELECTRON_RUN_AS_NODE", "LOCALWALLET_DEV", "LOCALWALLET_INHERITED_CORE", "GDK_BACKEND", "PATH", "GOTRACEBACK"} {
 		if e := os.Setenv(key, "public-untrusted-inherited-value"); e != nil {
 			t.Fatal(e)
 		}
@@ -226,6 +226,13 @@ func TestTP041BootstrapWorker(t *testing.T) {
 	}
 	if values["PATH"] != "/usr/bin:/bin" || values["GOTRACEBACK"] != "none" || values["LOCALWALLET_INHERITED_CORE"] != "1" {
 		t.Fatal("fixed environment missing")
+	}
+	backend := "x11"
+	if kind == "wayland" {
+		backend = "wayland"
+	}
+	if values["GDK_BACKEND"] != backend {
+		t.Fatal("display backend did not follow approved launcher flag")
 	}
 	if kind != "minimal" && values["LANG"] != "C.UTF-8" {
 		t.Fatal("locale dropped")

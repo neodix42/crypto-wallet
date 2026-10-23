@@ -1,0 +1,22 @@
+{
+  "status": "NOT_RUN",
+  "reason": "Full real desktop flows, stock OS session lock, Wayland and upgrade/recovery matrix are not established by container smoke tests",
+  "containers": [
+    {
+      "os": "24.04",
+      "status": "BLOCKED",
+      "scope": "container Xvfb install/startup only",
+      "reason": "Inspect sandbox/native startup log; no weakening applied",
+      "seconds": 81.714,
+      "exit": 1
+    },
+    {
+      "os": "26.04",
+      "status": "BLOCKED",
+      "scope": "container Xvfb install/startup only",
+      "reason": "Inspect sandbox/native startup log; no weakening applied",
+      "seconds": 94.902,
+      "exit": 1
+    }
+  ]
+}

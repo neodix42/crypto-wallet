@@ -25,16 +25,28 @@ type HistoryItem struct {
 	State    string `json:"state"`
 }
 type SyncReport struct {
-	Height         uint32        `json:"height"`
-	Hash           string        `json:"hash"`
-	ScannedFrom    uint32        `json:"scannedFrom"`
-	ScannedThrough uint32        `json:"scannedThrough"`
-	AddressLimit   uint32        `json:"addressLimit"`
-	HighestReceive int64         `json:"highestReceive"`
-	HighestChange  int64         `json:"highestChange"`
-	Spendable      []Input       `json:"spendable"`
-	ImmatureAtoms  int64         `json:"immatureAtoms"`
-	History        []HistoryItem `json:"history"`
+	Height          uint32           `json:"height"`
+	Hash            string           `json:"hash"`
+	ScannedFrom     uint32           `json:"scannedFrom"`
+	ScannedThrough  uint32           `json:"scannedThrough"`
+	AddressLimit    uint32           `json:"addressLimit"`
+	HighestReceive  int64            `json:"highestReceive"`
+	HighestChange   int64            `json:"highestChange"`
+	Spendable       []Input          `json:"spendable"`
+	ImmatureAtoms   int64            `json:"immatureAtoms"`
+	ImmatureOutputs []ImmatureOutput `json:"immatureOutputs"`
+	History         []HistoryItem    `json:"history"`
+}
+type ImmatureOutput struct {
+	TxID                  string `json:"txid"`
+	Vout                  uint32 `json:"vout"`
+	Tree                  int8   `json:"tree"`
+	Atoms                 int64  `json:"atoms"`
+	Confirmations         uint64 `json:"confirmations"`
+	RequiredConfirmations uint32 `json:"requiredConfirmations"`
+	RemainingBlocks       uint32 `json:"remainingBlocks"`
+	SpendableFromBlock    uint64 `json:"spendableFromBlock"`
+	Reason                string `json:"reason"`
 }
 type owned struct{ branch, index uint32 }
 type txout struct {
@@ -303,8 +315,17 @@ func (a *Adapter) SyncWithProgress(ctx context.Context, ac model.Account, progre
 		if e != nil {
 			return SyncReport{}, e
 		}
-		if coinbase(tx) && height-in.Height+1 < uint32(cp.CoinbaseMaturity) {
+		confirmations := uint64(height) - uint64(in.Height) + 1
+		if (coinbase(tx) || tx.Expiry != 0) && confirmations < uint64(cp.CoinbaseMaturity) {
+			if r.ImmatureAtoms > MaxAtoms-in.Value {
+				return SyncReport{}, errors.New("Decred immature balance exceeds monetary bounds")
+			}
 			r.ImmatureAtoms += in.Value
+			reason := "transaction-expiry"
+			if coinbase(tx) {
+				reason = "coinbase"
+			}
+			r.ImmatureOutputs = append(r.ImmatureOutputs, ImmatureOutput{TxID: in.TxID, Vout: in.Vout, Tree: in.Tree, Atoms: in.Value, Confirmations: confirmations, RequiredConfirmations: uint32(cp.CoinbaseMaturity), RemainingBlocks: uint32(uint64(cp.CoinbaseMaturity) - confirmations), SpendableFromBlock: uint64(in.Height) + uint64(cp.CoinbaseMaturity), Reason: reason})
 			continue
 		}
 		if e = a.unspent(ctx, ac.Network, in, tip); e != nil {

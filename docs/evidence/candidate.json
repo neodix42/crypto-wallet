@@ -1,0 +1,138 @@
+{
+  "sourceCommit": "88ae7006c4492eb3415d40821d664dcb5890d9c2",
+  "version": "0.1.0",
+  "artifact": "localwallet-development_0.1.0_amd64.deb",
+  "sha256": "405f7e4b2280bf8fc022061d28d36d74daf1d25944045b1b3bf66ef0fd32330b",
+  "binaryManifest": {
+    "wallet-core": "8b6754bc40728af17438b2b752bc04a2355a1541af6172e43c7c03b461032734",
+    "wallet-launcher": "de583f15310127a46292218af1f6778797c4c599b4480d3f4ff1ceed1324c543",
+    "wallet-signer": "cc54bc7f875596b8d5480d33d935c55cc722a9a3be2f64826564c9911a43fc9c"
+  },
+  "go": "go version go1.27.3 linux/amd64",
+  "node": "v24.19.0",
+  "electron": "45.0.0",
+  "status": "DEVELOPMENT_UNSIGNED",
+  "productionRelease": "NOT_RUN: mandatory external gates remain incomplete",
+  "reports": [
+    {
+      "report": "coverage",
+      "status": "PASS",
+      "file": "coverage.json",
+      "sha256": "1ba1f5e0b56b29c5a0519a167eaf2bdb3429223b522708268fbabef592833938"
+    },
+    {
+      "report": "go-coverage",
+      "status": "PASS",
+      "file": "go-coverage.json",
+      "sha256": "9e30563671878bf5aa14f1ba018d4a29c78731864566387f07d5bede4c9235e9"
+    },
+    {
+      "report": "frontend-coverage",
+      "status": "PASS",
+      "file": "frontend-coverage.json",
+      "sha256": "7cb3fdd689e1dce71028949d150b56ef92909f5865e360a5129dee7a8d037f06"
+    },
+    {
+      "report": "mutation",
+      "status": "PASS",
+      "file": "mutation.json",
+      "sha256": "ccd345f90c0e08f0e38a08d1a58d63a0fa0af2f390405770ee57c2bcabf78943"
+    },
+    {
+      "report": "fuzz",
+      "status": "PASS",
+      "file": "fuzz.json",
+      "sha256": "98bee664ffd722bbfd7ab0b1eec6e7c9123b6a67020b460f6b1932f9da3a03a0"
+    },
+    {
+      "report": "integration",
+      "status": "PASS",
+      "file": "integration.json",
+      "sha256": "1dc2c2c52daf73daca60938feb048369a8a1c3421b6f93f4a124044ae3083410"
+    },
+    {
+      "report": "stress",
+      "status": "PASS",
+      "file": "stress.json",
+      "sha256": "454eedce983937a5865022542f6e614cbb270ab23de0ccccf5125228b02eb741"
+    },
+    {
+      "report": "stress-race",
+      "status": "PASS",
+      "file": "stress-race.json",
+      "sha256": "e0bc289231c1371cdbab02eb4cedbad26316a10ce331859773a5abb867fccf89"
+    },
+    {
+      "report": "stress-race-reference-budget",
+      "status": "FAIL",
+      "file": "stress-race-reference-budget.json",
+      "sha256": "5e2d54f37509a668dca7a5e4877f6c0a39e502f08c23d719c17e8db43b01f6d7"
+    },
+    {
+      "report": "soak",
+      "status": "NOT_RUN",
+      "file": "soak.json",
+      "sha256": "9dd4ff76c4ff7b3bb856f671b24211113fc501836c130902379c96eaf8960155"
+    },
+    {
+      "report": "native-input",
+      "status": "PASS",
+      "file": "native-input.json",
+      "sha256": "8d671d3494c039834951a53b354c152afa134f6deb578449fe119ddedb8feb4d"
+    },
+    {
+      "report": "native-input-long",
+      "status": "PASS",
+      "file": "native-input-long.json",
+      "sha256": "40fe94dff25405a5e6795fbaf9b8af352f22e312b5b8f2e2acd8b3b6f1d7ad5e"
+    },
+    {
+      "report": "native-duration",
+      "status": "PASS",
+      "file": "native-duration.json",
+      "sha256": "2d25302abde4443986123b63cf61a78c8c594647d3a53fa14ce25aff190fa0bd"
+    },
+    {
+      "report": "packaged-recovery",
+      "status": "PASS",
+      "file": "packaged-recovery.json",
+      "sha256": "7f854a45732e43b9f23ee43172c8186484e5bd785198fa43769ebdf36862703c"
+    },
+    {
+      "report": "desktop-e2e",
+      "status": "NOT_RUN",
+      "file": "desktop-e2e.json",
+      "sha256": "eb25745497de04cde00d2e23d75d7c0527a577e933f96637172dc07babfedddc"
+    },
+    {
+      "report": "public-testnets",
+      "status": "NOT_RUN",
+      "file": "public-testnets.json",
+      "sha256": "42002f140843e57d32004735ce80cfd408096ec47d73466355a37bdfb993779f"
+    },
+    {
+      "report": "independent-review",
+      "status": "NOT_RUN",
+      "file": "independent-review.json",
+      "sha256": "18fd723260a185da288a700a186982334324958977c2df9439c9949794d3d344"
+    },
+    {
+      "report": "build-tools",
+      "status": "PASS",
+      "file": "build-tools.json",
+      "sha256": "fc0bcb6ec90565f66ef0ca7e8b99ec8e7cde44989acd2498e98c86b6950165c3"
+    },
+    {
+      "report": "nondefault-go-version",
+      "status": "PASS",
+      "file": "nondefault-go-version.json",
+      "sha256": "6314afb2240f3918d1878c248d94c161e08b00b3f5f58518ea079c116e180dd9"
+    },
+    {
+      "report": "artifact-security",
+      "status": "PASS",
+      "file": "artifact-security.json",
+      "sha256": "d238adf3f0ab653ca9ca7ad74421b7d8039dca6b7de04d9c9dcc928c079e0303"
+    }
+  ]
+}

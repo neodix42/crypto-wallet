@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"math/big"
 	"net/url"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"localwallet/internal/amount"
+	"localwallet/internal/buildinfo"
 	"localwallet/internal/chains"
 	"localwallet/internal/chains/aptos"
 	"localwallet/internal/chains/decred"
@@ -40,14 +42,19 @@ type snapshot struct {
 	Operations     []journal.Operation `json:"operations"`
 }
 type core struct {
-	child         *supervisor.Child
-	adapters      []model.Adapter
-	mu            sync.Mutex
-	last          time.Time
-	epoch         uint64
-	active        bool
-	sessionCtx    context.Context
-	sessionCancel context.CancelFunc
+	child          *supervisor.Child
+	adapters       []model.Adapter
+	mu             sync.Mutex
+	last           time.Time
+	epoch          uint64
+	active         bool
+	promptPending  bool
+	requestID      string
+	requestSession string
+	requestEpoch   uint64
+	publicChannel  *ipc.Channel
+	sessionCtx     context.Context
+	sessionCancel  context.CancelFunc
 }
 
 func (c *core) lock() {
@@ -61,6 +68,8 @@ func (c *core) lock() {
 func (c *core) endSession() {
 	c.epoch++
 	c.active = false
+	c.promptPending = false
+	c.requestID, c.requestSession = "", ""
 	if c.sessionCancel != nil {
 		c.sessionCancel()
 	}
@@ -76,10 +85,26 @@ func (c *core) activity() {
 	c.mu.Unlock()
 }
 
+// nativeActivity carries timing alone. Ordinary polling and clipboard events
+// cannot extend a prompt; the private child reports key/button events only.
+func (c *core) nativeActivity() {
+	c.mu.Lock()
+	if !c.promptPending || c.requestEpoch != c.epoch {
+		c.mu.Unlock()
+		return
+	}
+	c.last = time.Now()
+	channel, id, session := c.publicChannel, c.requestID, c.requestSession
+	c.mu.Unlock()
+	if channel != nil && id != "" && session != "" {
+		_ = channel.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: "activity", Body: []byte(`{}`)})
+	}
+}
+
 func (c *core) lockIfIdle(now time.Time) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !c.active || now.Sub(c.last) < 5*time.Minute {
+	if (!c.active && !c.promptPending) || now.Sub(c.last) < 5*time.Minute {
 		return false
 	}
 	c.endSession()
@@ -113,8 +138,30 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 		c.mu.Unlock()
 		return errors.New("wallet session changed")
 	}
+	interactive := false
+	switch method {
+	case "create", "import", "unlock", "backup", "restore", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign":
+		interactive = true
+	}
+	if interactive {
+		c.promptPending = true
+		if !c.active {
+			// A locked prompt needs an initial budget even before its first key.
+			// Active sessions retain their last real input time.
+			c.last = time.Now()
+		}
+	}
 	generation := c.child.Generation()
 	c.mu.Unlock()
+	if interactive {
+		defer func() {
+			c.mu.Lock()
+			if c.epoch == epoch {
+				c.promptPending = false
+			}
+			c.mu.Unlock()
+		}()
+	}
 	return c.child.CallAt(generation, method, body, out)
 }
 func (c *core) current() (snapshot, error) {
@@ -128,6 +175,13 @@ func (c *core) current() (snapshot, error) {
 		if c.epoch != epoch {
 			c.mu.Unlock()
 			return snapshot{Locked: true}, errors.New("wallet session changed")
+		}
+		if s.Locked && c.active {
+			// A fail-closed persistence error can lock the signer independently
+			// of the UI. End the coordinator epoch and drop RPC credentials too.
+			c.endSession()
+			c.mu.Unlock()
+			return s, nil
 		}
 		c.active = !s.Locked
 		if !c.active {
@@ -156,6 +210,10 @@ func (c *core) account(id string) (model.Account, error) {
 	return model.Account{}, errors.New("unknown account")
 }
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(buildinfo.Version)
+		return
+	}
 	environment := flag.String("environment", "testnet", "testnet or explicit mainnet profile")
 	flag.Parse()
 	if *environment != "testnet" && *environment != "mainnet" {
@@ -170,11 +228,12 @@ func main() {
 		os.Exit(3)
 	}
 	c := &core{child: &supervisor.Child{Path: filepath.Join(filepath.Dir(exe), "wallet-signer"), Data: filepath.Join(home, "localwallet", *environment), Environment: *environment}, adapters: chains.All(), last: time.Now()}
-	c.child.OnActivity = c.activity
 	defer c.lock()
 	done := make(chan struct{})
 	defer close(done)
 	ch := ipc.Channel{R: os.Stdin, W: os.Stdout}
+	c.publicChannel = &ch
+	c.child.OnActivity = c.nativeActivity
 	go func() {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
@@ -263,6 +322,9 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 	}
 	c.mu.Lock()
 	changed := c.epoch != epoch
+	if !changed {
+		c.requestID, c.requestSession, c.requestEpoch = m.ID, m.Session, epoch
+	}
 	c.mu.Unlock()
 	if changed {
 		return nil, errors.New("wallet session changed")
@@ -270,6 +332,9 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 	defer func() {
 		c.mu.Lock()
 		changed := c.epoch != epoch
+		if c.requestEpoch == epoch && c.requestID == m.ID && c.requestSession == m.Session {
+			c.requestID, c.requestSession = "", ""
+		}
 		c.mu.Unlock()
 		if changed {
 			out, err = nil, errors.New("wallet session changed")
@@ -292,8 +357,14 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			}
 		}
 		return networks, nil
-	case "accounts", "status":
+	case "accounts":
 		return c.current()
+	case "status":
+		s, err := c.current()
+		return struct {
+			Version string `json:"version"`
+			snapshot
+		}{buildinfo.Version, s}, err
 	case "create", "import", "unlock", "backup", "restore", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
 		var out json.RawMessage
 		if e := c.childCallAt(epoch, m.Method, json.RawMessage(m.Body), &out); e != nil {
@@ -309,7 +380,6 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			c.mu.Unlock()
 			return nil, errors.New("wallet session changed")
 		}
-		c.last = time.Now()
 		c.active = true
 		if c.sessionCtx == nil {
 			c.sessionCtx, c.sessionCancel = context.WithCancel(context.Background())
