@@ -1,0 +1,89 @@
+{
+  "endpoint": "http://127.0.0.1:18547",
+  "history": [
+    {
+      "identity": "0x04b7ce1d5ce14e189deccd16999c2df6dfac554b147d5f1f6767daf32a61aac6",
+      "state": "CONFIRMED",
+      "detail": "bounded RPC scan blocks 219..346; sent 100000000000000000 atomic ethereum-sepolia:native; peer 0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+      "block": "0xaf7f5bdc055b4382cec60441a484708d71127b5a6d9a8fc98ba2869484c6fb01"
+    },
+    {
+      "identity": "0xb30d4fd4a970ee64ac47f3ec4c343cc88894d73213cbeae7ed723256cb57a4a0",
+      "state": "CONFIRMED",
+      "detail": "bounded RPC scan blocks 219..346; received 50000000000000000 atomic ethereum-sepolia:native; peer 0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+      "block": "0xa90beda4e43107d90a0f54af91a18fcc92ec1070eb3a4701861c12243ee18e61"
+    }
+  ],
+  "localSyntheticFundsOnly": true,
+  "nativeRecipientBalanceAfterFunding": "149999233166016000",
+  "nativeRecipientBalanceBefore": "49999233166016000",
+  "network": "ethereum-sepolia",
+  "observedUTC": "2026-10-23T06:13:56Z",
+  "recipient": {
+    "id": "evm:1:ethereum-sepolia",
+    "family": "evm",
+    "profile": "evm-bip39-bip32-v1",
+    "index": 1,
+    "network": "ethereum-sepolia",
+    "address": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+    "publicKey": "0x04f462436b3b5397981a33c765502b5b1f62c2a9e46536cd0bb6896dd94063d59621e24af24b43be70dd45f960f9414a04bea4a2f50ac5ec48f344f6f26bf5b1f7"
+  },
+  "source": {
+    "id": "evm:0:ethereum-sepolia",
+    "family": "evm",
+    "profile": "evm-bip39-bip32-v1",
+    "index": 0,
+    "network": "ethereum-sepolia",
+    "address": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+    "publicKey": "0x048df1c46ac23b373ac7269cb4a0f5c790474d70d7f2c99e4d3f7f1108f770f13c2c3a917e38d997bad3ece55b4de72c8b0a8400d4e441eb21cb2274f7130c43f4"
+  },
+  "status": "PASS",
+  "transfers": [
+    {
+      "asset": "ethereum-sepolia:native",
+      "atomicAmount": "100000000000000000",
+      "from": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+      "identity": "0x04b7ce1d5ce14e189deccd16999c2df6dfac554b147d5f1f6767daf32a61aac6",
+      "receipt": {
+        "blockHash": "0xaf7f5bdc055b4382cec60441a484708d71127b5a6d9a8fc98ba2869484c6fb01",
+        "blockNumber": "0x158",
+        "contractAddress": null,
+        "cumulativeGasUsed": "0x5208",
+        "effectiveGasPrice": "0xf4247",
+        "from": "0x255482b10cea431d6af9ea4fcd9e4de262e8c341",
+        "gasUsed": "0x5208",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "status": "0x1",
+        "to": "0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+        "transactionHash": "0x04b7ce1d5ce14e189deccd16999c2df6dfac554b147d5f1f6767daf32a61aac6",
+        "transactionIndex": "0x0",
+        "type": "0x2"
+      },
+      "to": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5"
+    },
+    {
+      "asset": "ethereum-sepolia:native",
+      "atomicAmount": "50000000000000000",
+      "from": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+      "identity": "0xb30d4fd4a970ee64ac47f3ec4c343cc88894d73213cbeae7ed723256cb57a4a0",
+      "receipt": {
+        "blockHash": "0xa90beda4e43107d90a0f54af91a18fcc92ec1070eb3a4701861c12243ee18e61",
+        "blockNumber": "0x15a",
+        "contractAddress": null,
+        "cumulativeGasUsed": "0x5208",
+        "effectiveGasPrice": "0xf4247",
+        "from": "0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+        "gasUsed": "0x5208",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "status": "0x1",
+        "to": "0x255482b10cea431d6af9ea4fcd9e4de262e8c341",
+        "transactionHash": "0xb30d4fd4a970ee64ac47f3ec4c343cc88894d73213cbeae7ed723256cb57a4a0",
+        "transactionIndex": "0x0",
+        "type": "0x2"
+      },
+      "to": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341"
+    }
+  ]
+}

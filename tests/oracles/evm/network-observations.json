@@ -1,0 +1,54 @@
+{
+  "observedUTC": "2026-10-23T05:41:56Z",
+  "readOnly": true,
+  "networks": [
+    {
+      "network": "base-mainnet",
+      "rpc": "https://mainnet.base.org",
+      "contract": "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229",
+      "chainId": 8453,
+      "block": "0x3284b5c",
+      "decimals": 18,
+      "codeHash": "0x92a6294a008ae778c19a6f894f1c0f66818ce2a00c32d25eb6fa6a7923b23c3c",
+      "codeBytes": 3314,
+      "eip1967Implementation": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "status": "PASS"
+    },
+    {
+      "network": "base-sepolia",
+      "rpc": "https://sepolia.base.org",
+      "contract": "0x107fdE93838e3404934877935993782F977324BB",
+      "chainId": 84532,
+      "block": "0x2ec9d4d",
+      "decimals": 18,
+      "codeHash": "0xd0ed2947f1aaa2a3eecc272403016fe1a8e49e21beadf7d189946f679d1a4a39",
+      "codeBytes": 3314,
+      "eip1967Implementation": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "status": "PASS"
+    },
+    {
+      "network": "horizen-mainnet",
+      "rpc": "https://horizen.calderachain.xyz/http",
+      "contract": "0x57da2D504bf8b83Ef304759d9f2648522D7a9280",
+      "chainId": 26514,
+      "block": "0x1bfa4fa",
+      "decimals": 18,
+      "codeHash": "0x244bb43a2f687bfcd9cbe2f0a64b2e54436a597367ab7052fd1ab925c4cabe14",
+      "codeBytes": 12539,
+      "eip1967Implementation": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "status": "PASS"
+    },
+    {
+      "network": "horizen-testnet",
+      "rpc": "https://horizen-testnet.rpc.caldera.xyz/http",
+      "contract": "0xb06EC4ce262D8dbDc24Fac87479A49A7DC4cFb87",
+      "chainId": 2651420,
+      "block": "0x1de7c96",
+      "decimals": 18,
+      "codeHash": "0x676dedf00282df1f07ddbff58e1c7bf7817fefcf52fa2506f1e7ee3f3723fc01",
+      "codeBytes": 12539,
+      "eip1967Implementation": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "status": "PASS"
+    }
+  ]
+}

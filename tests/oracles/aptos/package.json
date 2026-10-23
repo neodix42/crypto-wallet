@@ -1,0 +1,1 @@
+{"name":"wallet-aptos-public-fixture-oracle","private":true,"type":"module","scripts":{"generate":"node generate.mjs"},"dependencies":{"@aptos-labs/ts-sdk":"7.5.0"}}

@@ -1,0 +1,10 @@
+{
+  "confirmations": 7,
+  "identity": "3630ccdde573215a0bc6d4731cfc7589a5c994f112b8387a7429689caa75d019",
+  "immatureAtoms": 7500000000,
+  "matureInputs": 8,
+  "network": "simnet",
+  "node": "dcrd v1.10.9",
+  "recipientAtoms": "10000000",
+  "status": "PASS"
+}

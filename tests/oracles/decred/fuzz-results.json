@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "toolchain": "Go 1.27.3",
+  "targets": [
+    {
+      "package": "internal/chains/decred",
+      "target": "FuzzAddressesScriptsOutpoints",
+      "durationSeconds": 16.06,
+      "executions": 216714,
+      "workers": 4,
+      "retainedSourceSeeds": 3,
+      "initialCorpusIncludingGoCache": 344
+    },
+    {
+      "package": "internal/chains/ton",
+      "target": "FuzzAddressAndBOC",
+      "durationSeconds": 16.027,
+      "executions": 338863,
+      "workers": 4,
+      "retainedSourceSeeds": 3,
+      "initialCorpusIncludingGoCache": 119
+    }
+  ],
+  "failures": 0,
+  "longCampaignStatus": "NOT_RUN"
+}

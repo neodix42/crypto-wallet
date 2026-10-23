@@ -1,0 +1,45 @@
+{
+  "observedUTC": "2026-10-23T05:45:03Z",
+  "readOnly": true,
+  "networks": [
+    {
+      "environment": "Mainnet",
+      "endpoint": "https://api.hyperliquid.xyz",
+      "hype": [
+        {
+          "name": "HYPE",
+          "szDecimals": 2,
+          "weiDecimals": 8,
+          "index": 150,
+          "tokenId": "0x0d01dc56dcaaca66ad901c959b4011ec",
+          "isCanonical": false,
+          "evmContract": null,
+          "fullName": "Hyperliquid",
+          "deployerTradingFeeShare": "0.0"
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "environment": "Testnet",
+      "endpoint": "https://api.hyperliquid-testnet.xyz",
+      "hype": [
+        {
+          "name": "HYPE",
+          "szDecimals": 2,
+          "weiDecimals": 8,
+          "index": 1105,
+          "tokenId": "0x7317beb7cceed72ef0b346074cc8e7ab",
+          "isCanonical": false,
+          "evmContract": {
+            "address": "0x0000000000000000000000000000000000000000",
+            "evm_extra_wei_decimals": 10
+          },
+          "fullName": "Hyperliquid",
+          "deployerTradingFeeShare": "0.0"
+        }
+      ],
+      "status": "PASS"
+    }
+  ]
+}

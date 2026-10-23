@@ -1,0 +1,127 @@
+{
+  "oracle": "hyperliquid-python-sdk 0.24.0",
+  "commit": "2fdb18f9517675ea03695a0962bd19eece9c83f0",
+  "seed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+  "fixtures": [
+    {
+      "index": 0,
+      "mainnet": true,
+      "address": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec",
+        "amount": "0.12345678",
+        "time": 1792733000000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Mainnet"
+      },
+      "hash": "0xf0e9711bd41a8b0c1575d11e55a363dad65f1d6e3789c56a5157583f4d86b438",
+      "signature": {
+        "r": "0x4f0fa81c0a6963643a856fe7679676933f590ff51b95f03349b5c39e3e7105f",
+        "s": "0x70c7525108e788ffe48d8ce5a2d2595e8cf2c7fd68a37c0ff97ada982d6029c9",
+        "v": 27
+      }
+    },
+    {
+      "index": 0,
+      "mainnet": false,
+      "address": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "HYPE:0x7317beb7cceed72ef0b346074cc8e7ab",
+        "amount": "0.12345678",
+        "time": 1792733000000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Testnet"
+      },
+      "hash": "0xa86f90755d087240ff49cf3de401d35f9e125eab330fa36615366dd2679e1ab7",
+      "signature": {
+        "r": "0xf51ea954de49cb432cb88528a048c9edf5f307312d991172eb4a731a3678e360",
+        "s": "0x3bf7c8dad56b5009d134409f51b6486276b1b602c147d88c6019eccb283a3073",
+        "v": 28
+      }
+    },
+    {
+      "index": 1,
+      "mainnet": true,
+      "address": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec",
+        "amount": "0.12345678",
+        "time": 1792733000000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Mainnet"
+      },
+      "hash": "0xf0e9711bd41a8b0c1575d11e55a363dad65f1d6e3789c56a5157583f4d86b438",
+      "signature": {
+        "r": "0x38bdbdf8c4f0d9ade32cda44bb04ef157142c2ed3232f2f57c7c3bef64cb5061",
+        "s": "0x195c597b5369526b562dd6752fd5475218dab8ba4624b8f80967682d276410d0",
+        "v": 27
+      }
+    },
+    {
+      "index": 1,
+      "mainnet": false,
+      "address": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "HYPE:0x7317beb7cceed72ef0b346074cc8e7ab",
+        "amount": "0.12345678",
+        "time": 1792733000000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Testnet"
+      },
+      "hash": "0xa86f90755d087240ff49cf3de401d35f9e125eab330fa36615366dd2679e1ab7",
+      "signature": {
+        "r": "0x982c68cd71b986241535c13beeca9489a0a216527b3eb3c098e71978cebb03db",
+        "s": "0x11e0ae2a56354fb26a615f2c09dbb2a45aba62fe279ad9abf01824251dca3f14",
+        "v": 27
+      }
+    },
+    {
+      "index": 127,
+      "mainnet": true,
+      "address": "0x59fb421A70e40d883C239006c3aB088C9fc86D43",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec",
+        "amount": "0.12345678",
+        "time": 1792733000000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Mainnet"
+      },
+      "hash": "0xf0e9711bd41a8b0c1575d11e55a363dad65f1d6e3789c56a5157583f4d86b438",
+      "signature": {
+        "r": "0x2b254766eda02e44afce3c5090d1061006ccdfb564dd0c69f28674d9d99e9b47",
+        "s": "0x5f02f21d2ea4cc39ede5b859994dc6453934522db2c2212374d122555e6f88c9",
+        "v": 27
+      }
+    },
+    {
+      "index": 127,
+      "mainnet": false,
+      "address": "0x59fb421A70e40d883C239006c3aB088C9fc86D43",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "HYPE:0x7317beb7cceed72ef0b346074cc8e7ab",
+        "amount": "0.12345678",
+        "time": 1792733000000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Testnet"
+      },
+      "hash": "0xa86f90755d087240ff49cf3de401d35f9e125eab330fa36615366dd2679e1ab7",
+      "signature": {
+        "r": "0xcfebbaca8c2b20c706a7e9e2b658657d8440cb0cd5d99d43c94cd286e27a8cd9",
+        "s": "0x6a7a18a26ee927bdfbd207bfbe9bc1fde9f648330cca964b31b0898cad368184",
+        "v": 27
+      }
+    }
+  ]
+}

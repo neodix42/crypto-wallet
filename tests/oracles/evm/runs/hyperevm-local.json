@@ -1,0 +1,89 @@
+{
+  "endpoint": "http://127.0.0.1:18550",
+  "history": [
+    {
+      "identity": "0xd0bcf796e4bad20b98e8e16e43784557c4029fb82a5ce274db253164b86ebb9d",
+      "state": "CONFIRMED",
+      "detail": "bounded RPC scan blocks 219..346; sent 100000000000000000 atomic hyperevm-testnet:native; peer 0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+      "block": "0x23125b31fc502bf150d4329d68ea573f61719254ddf6e0bd6fac4f40f6ecd34f"
+    },
+    {
+      "identity": "0x5b3255938c67480293038ac6d385c4711737b11f8936bc478750dd9bbb92544b",
+      "state": "CONFIRMED",
+      "detail": "bounded RPC scan blocks 219..346; received 50000000000000000 atomic hyperevm-testnet:native; peer 0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+      "block": "0x52fc3cca311bb3cea0e64d31c374d960ac83aba975316846c8e3abf5186cd1c2"
+    }
+  ],
+  "localSyntheticFundsOnly": true,
+  "nativeRecipientBalanceAfterFunding": "149978026151502000",
+  "nativeRecipientBalanceBefore": "49978026151502000",
+  "network": "hyperevm-testnet",
+  "observedUTC": "2026-10-23T06:13:54Z",
+  "recipient": {
+    "id": "evm:1:hyperevm-testnet",
+    "family": "evm",
+    "profile": "evm-bip39-bip32-v1",
+    "index": 1,
+    "network": "hyperevm-testnet",
+    "address": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+    "publicKey": "0x04f462436b3b5397981a33c765502b5b1f62c2a9e46536cd0bb6896dd94063d59621e24af24b43be70dd45f960f9414a04bea4a2f50ac5ec48f344f6f26bf5b1f7"
+  },
+  "source": {
+    "id": "evm:0:hyperevm-testnet",
+    "family": "evm",
+    "profile": "evm-bip39-bip32-v1",
+    "index": 0,
+    "network": "hyperevm-testnet",
+    "address": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+    "publicKey": "0x048df1c46ac23b373ac7269cb4a0f5c790474d70d7f2c99e4d3f7f1108f770f13c2c3a917e38d997bad3ece55b4de72c8b0a8400d4e441eb21cb2274f7130c43f4"
+  },
+  "status": "PASS",
+  "transfers": [
+    {
+      "asset": "hyperevm-testnet:native",
+      "atomicAmount": "100000000000000000",
+      "from": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+      "identity": "0xd0bcf796e4bad20b98e8e16e43784557c4029fb82a5ce274db253164b86ebb9d",
+      "receipt": {
+        "blockHash": "0x23125b31fc502bf150d4329d68ea573f61719254ddf6e0bd6fac4f40f6ecd34f",
+        "blockNumber": "0x159",
+        "contractAddress": null,
+        "cumulativeGasUsed": "0x5208",
+        "effectiveGasPrice": "0x3b9aca07",
+        "from": "0x255482b10cea431d6af9ea4fcd9e4de262e8c341",
+        "gasUsed": "0x5208",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "status": "0x1",
+        "to": "0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+        "transactionHash": "0xd0bcf796e4bad20b98e8e16e43784557c4029fb82a5ce274db253164b86ebb9d",
+        "transactionIndex": "0x0",
+        "type": "0x2"
+      },
+      "to": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5"
+    },
+    {
+      "asset": "hyperevm-testnet:native",
+      "atomicAmount": "50000000000000000",
+      "from": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+      "identity": "0x5b3255938c67480293038ac6d385c4711737b11f8936bc478750dd9bbb92544b",
+      "receipt": {
+        "blockHash": "0x52fc3cca311bb3cea0e64d31c374d960ac83aba975316846c8e3abf5186cd1c2",
+        "blockNumber": "0x15a",
+        "contractAddress": null,
+        "cumulativeGasUsed": "0x5208",
+        "effectiveGasPrice": "0x3b9aca07",
+        "from": "0xf39f0372c01ad568076b748b74b96ef4225bdca5",
+        "gasUsed": "0x5208",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "status": "0x1",
+        "to": "0x255482b10cea431d6af9ea4fcd9e4de262e8c341",
+        "transactionHash": "0x5b3255938c67480293038ac6d385c4711737b11f8936bc478750dd9bbb92544b",
+        "transactionIndex": "0x0",
+        "type": "0x2"
+      },
+      "to": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341"
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "status": "PASS",
+  "reason": "mandatory95% critical-package statement floor met by both adapters",
+  "toolchain": "go1.27.3 linux/amd64",
+  "nodeIntegration": "PASS(dcrd v1.10.9 simnet; node built by Go1.27.3)",
+  "tonEmulator": "PASS(@ton/sandbox0.45.0)",
+  "race": "PASS",
+  "vet": "PASS",
+  "measurement": "Go statement coverage including both real integrations; source guard regions retained",
+  "packages": {
+    "localwallet/internal/chains/ton": {
+      "statements": 556,
+      "covered": 531,
+      "uncoveredRegions": [
+        {
+          "location": "localwallet/internal/chains/ton/network.go:114.3,115.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:163.4,164.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:307.4,308.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:351.3,352.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:355.3,356.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:366.3,367.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:370.3,371.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:425.4,426.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:430.4,431.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:437.4,438.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/network.go:449.5,450.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:128.3,129.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:310.3,311.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:328.3,329.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:334.4,335.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:400.3,401.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:404.3,405.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:409.3,410.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:423.3,424.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:430.3,431.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:434.3,435.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:441.3,442.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:445.3,446.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:450.3,451.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/ton/ton.go:457.3,458.1",
+          "statements": 1
+        }
+      ],
+      "statementPercent": 95.5,
+      "requiredPercent": 95,
+      "floorStatus": "PASS"
+    },
+    "localwallet/internal/chains/decred": {
+      "statements": 791,
+      "covered": 762,
+      "uncoveredRegions": [
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:143.114,143.158",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:169.3,170.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:235.3,236.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:245.4,246.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:262.3,263.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:268.3,269.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:286.3,287.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:299.3,300.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:319.3,320.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:324.3,325.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:589.4,590.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:627.3,628.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:632.4,633.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:637.4,638.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:643.4,644.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:649.4,650.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:654.3,655.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:658.3,659.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/decred.go:693.3,694.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:131.3,132.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:139.5,140.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:143.5,144.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:198.5,200.1",
+          "statements": 2
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:289.3,290.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:304.4,305.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:400.3,401.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:418.4,419.1",
+          "statements": 1
+        },
+        {
+          "location": "localwallet/internal/chains/decred/sync.go:430.5,431.1",
+          "statements": 1
+        }
+      ],
+      "statementPercent": 96.3,
+      "requiredPercent": 95,
+      "floorStatus": "PASS"
+    }
+  },
+  "sourceSHA256": {
+    "internal/chains/decred/adverse_test.go": "41c9a3840833675315f1ffd249e0bf8ba69393edecf58e458bba4eff80d53dfe",
+    "internal/chains/decred/codec_hazards_test.go": "1eec4b5f515bd91717b25d3aa3b3099d2cec7d61062fcfb96fd8216a4e2800fd",
+    "internal/chains/decred/decred.go": "31db4d6bf03bfebab6a0c7cc3bd1f33f6b3895f2f47589bd23f3a2168d96ae1f",
+    "internal/chains/decred/decred_test.go": "1cbfe7b90e7dd96e2df138fccb611cf4321247b73e8a42c3b1724b9752f8edc5",
+    "internal/chains/decred/discovery_budget_test.go": "af2c1045d80decf57dfd1f1b3307ba22bbe0ae2543bf3beb989a29fcbc5476f3",
+    "internal/chains/decred/node_hazards_test.go": "0372da995ff27ef4b577dad494a69a4484c57401760b62708c1d2209b9e3d872",
+    "internal/chains/decred/sync.go": "b87cdd4ff08d0d73cc9811a9c9d5c8773bdeac3380865d27ecc6e6c5a73dd7a9",
+    "internal/chains/decred/wire_bounds.go": "50ba6699fd49b8a1d7e0d42fc366ca7fc18703624c8890e2018707c63dfe5a08",
+    "internal/chains/decred/wire_bounds_test.go": "da8a37525e9707535dbc13798c373872da7dc0f01f74c9ad9fbfdb05fec14cb9",
+    "internal/chains/ton/adverse_test.go": "f2940bd56f98be4c730a997c8f657585e468dec2012e5c9065efb48b1fea4a5f",
+    "internal/chains/ton/archive_hazards_test.go": "eeb961f7bba8e440b6c4054b44d3bb0a6d66c068b176a738af3d50125bb8922e",
+    "internal/chains/ton/network.go": "6cb5088e3ed31d688ef9ac10d1c8ca008316b3076d4b0abf36715e7f8f643dfb",
+    "internal/chains/ton/network_hazards_test.go": "4fdf4da4c2c6d4cbb75d3c49b211c4a93370dcd3edbc1b2e41d5fe69a7b34695",
+    "internal/chains/ton/receipts_test.go": "ff8def7d87752f77eddf17c8c531b88fe5dbd9ce8626b2dd0c3be1c7230f2367",
+    "internal/chains/ton/ton.go": "4d737b7ce887f1b315d8b2bd79739a72ce81481f209e4e8aa0b8057eaa774f18",
+    "internal/chains/ton/ton_test.go": "6784cdd7c035c3a837349666f129854c333ba54e13b464df5078dc82ffdc9d70",
+    "internal/chains/ton/wallet_v5r1.boc": "142231250bd2dc479aa587c672ffae08ef606dfb001af05fb3746b1b9fc90b91"
+  }
+}

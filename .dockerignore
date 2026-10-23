@@ -1,0 +1,10 @@
+.git
+.idea
+.tools
+**/node_modules
+desktop/app
+bin
+reports
+dist/LocalWallet-linux-x64
+dist/deb
+dist/go-modules.json

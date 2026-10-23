@@ -1,0 +1,1 @@
+{"name":"wallet-near-public-fixture-oracle","private":true,"type":"module","scripts":{"generate":"node generate.mjs"},"dependencies":{"@near-js/crypto":"2.5.1","@near-js/transactions":"2.5.1","near-sandbox":"0.3.4","near-seed-phrase":"0.2.1"}}

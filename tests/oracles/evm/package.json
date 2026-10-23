@@ -1,0 +1,1 @@
+{"name":"localwallet-evm-test-oracle","private":true,"type":"module","dependencies":{"ethers":"6.17.0","ganache":"7.9.2","solc":"0.8.30"},"scripts":{"fixtures":"node generate.mjs","node":"node local-node.mjs"}}

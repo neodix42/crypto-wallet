@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "elapsedSeconds": 8.999,
+  "mutants": [
+    {
+      "id": "dcr-strict-bip32",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "dcr-discard-tree",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "dcr-fake-input-value",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "dcr-foreign-change",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "ton-network-wallet-id",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "ton-active-code-authority",
+      "status": "KILLED",
+      "exitCode": 1
+    },
+    {
+      "id": "ton-skip-signature-verification",
+      "status": "KILLED",
+      "exitCode": 1
+    }
+  ]
+}

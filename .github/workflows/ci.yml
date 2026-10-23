@@ -1,0 +1,24 @@
+name: hermetic-security-gates
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-3-0t64 libseccomp2
+      - run: npm --prefix desktop ci --ignore-scripts
+      - run: make test test-security test-race coverage
+      - run: make check-deps
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence
+          path: reports/

@@ -1,0 +1,95 @@
+# Test plan and release gates
+
+## 1. Purpose, evidence, and identifiers
+
+This plan is mandatory implementation scope. It specifies tests to build, not tests already executed. All seven requested assets must pass their respective gates; HyperCore and HyperEVM are separate HYPE implementations, and Base and current Horizen L3 are separate ZEN implementations. A working Ethereum adapter does not establish compatibility with either HyperCore or another network's token registry.
+
+Use the stable requirement IDs below in test names, issue references, CI reports, and the acceptance matrix. Keep a machine-readable traceability file mapping each ID to positive tests, adversarial tests, fixtures, and execution evidence. Report `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, or `NOT_APPLICABLE` with a concrete reason. Never convert an unavailable endpoint, absent faucet balance, missing native dependency, or skipped test into a pass.
+
+**TP-001 — Evidence integrity.** Use synthetic test secrets and public vectors only. No real user seed, password, private key, production vault, or funded mainnet signing identity may enter tests, fixtures, snapshots, screenshots, or CI variables. Tests must assert externally meaningful behavior, including rejection paths. Do not invent tests that merely reproduce implementation logic, inflate coverage with trivial assertions, suppress failures, or exclude difficult first-party code to improve percentages.
+
+**TP-002 — Independent oracles.** Freeze reference outputs with generator repository, commit/release, algorithm/profile, input, expected public result, and fixture checksum. Generate expectations with independent upstream implementations or published vectors, not the Go functions under test. Tests may use public synthetic private values internally, but normal reports print public outputs and fixture IDs only. Reference tools must never handle user secrets.
+
+## 2. Coverage and quality gates
+
+**TP-010 — Enforced coverage.** Aim for 100% of meaningful reachable critical logic, with a written review of every uncovered security/funds path. The numbers below are minimum release floors, not a reason to stop adding necessary tests. Measure first-party code; report exclusions and generated/vendor files separately. Apply floors per critical package, not only to an aggregate that can hide an untested adapter.
+
+| Area | Minimum gate |
+|---|---|
+| Go vault, mnemonic/derivation, signing policy, address/amount validation, transaction construction/serialization, fees/change, and authorization | 95% statement coverage in each critical package |
+| Other first-party Go application code | 90% statement coverage |
+| Electron main/preload/IPC validation | 95% statements and 90% branches |
+| UI application logic | 90% statements and 85% branches |
+| Enumerated security and fund-preservation invariants | 100% mapped to passing positive/negative tests |
+
+Go's standard coverage measures statements, not branches. Do not label it branch coverage. Exercise Go decision outcomes through explicit test cases and mutation testing. A numerical floor never excuses an untested fatal scenario. Test ordinary glue and failure handling where they cross security boundaries.
+
+**TP-011 — Mutation gate.** Introduce controlled mutants that remove authentication checks, alter chain IDs, skip AEAD verification, weaken KDF bounds, bypass confirmation, accept changed recipients, misclassify change outputs, permit signing while locked, reuse nonces, or re-sign ambiguous payments. Every enumerated critical mutant must be killed. Document equivalent mutants individually; never blanket-ignore survivors. Run race detection, static analysis, dependency vulnerability review, and type checks; unresolved critical/high findings relevant to deployed code block release.
+
+**TP-012 — Fuzz gate.** Maintain seed corpora for vault headers, IPC frames, BIP39 input, derivation paths, addresses/URIs, decimal amounts, RPC responses, transaction codecs, BOC/cell input, and DCR scripts/outpoints. Require bounded allocations, bounded recursion, timeouts, no panic, no secret-bearing error, and fail-closed results. Run deterministic corpus regression on every change, short time-bounded fuzzing in CI, and longer scheduled campaigns. Every discovered failure becomes a fixed regression case.
+
+## 3. Secret generation, import, and compatibility
+
+**TP-020 — Entropy and BIP39.** Test successful OS CSPRNG operation and injected short-read/failure behavior; failure must never fall back to predictable entropy. Cover 12-word default creation, explicitly versioned 24-word creation, all supported valid import lengths, word-count/checksum failures, unknown words, whitespace policy, NFKD normalization, and word-list selection. Verify complete BIP39 vectors and SLIP-0010/BIP32 vectors, including leading zeros and invalid-child handling. Do not use statistical randomness tests as proof of entropy quality.
+
+**TP-021 — Password separation.** The local app password must never become the BIP39 passphrase. Changing the app password preserves every derived address. An imported nonempty BIP39 passphrase must change derived keys exactly as reference vectors specify. Test Unicode, empty values, long bounded inputs, and accidental trimming/normalization. A valid but different passphrase produces a different wallet; the UI must not invent an ability to detect the intended passphrase.
+
+**TP-022 — Immutable profiles.** Test at least indices 0, 1, and a higher bounded account index for every supported profile. Clean restoration must reproduce all addresses, contract versions, and derivation rules. Dependency upgrades must preserve fixture results. Unsupported external wallet profiles must produce an explicit incompatibility result, never a silent alternate derivation. Test named-account associations, rotated-key accounts, change branches, and TON contract metadata separately from key derivation.
+
+## 4. Vault, backups, and crash recovery
+
+**TP-030 — Authenticated vault.** Test correct/incorrect passwords, fresh randomness, supported versions, and declared KDF/cipher settings. Alter each authenticated header field, salt, nonce, ciphertext, authentication tag, and profile manifest independently; test wrapped keys separately only if the implemented format includes them. Test truncation at structural boundaries, oversized lengths, trailing garbage, duplicate fields, unsupported algorithms, weak or excessive KDF parameters, and malformed encodings. Unlock must release no partial plaintext and must not overwrite the original file on failure.
+
+**TP-031 — Atomic persistence.** Inject failures before/after write, sync, rename, directory sync, and journal checkpoint. Cover disk full, permission changes, interrupted migration, concurrent launch, stale locks, symlink substitution, and process termination. Recovery must produce either the valid previous version or the complete new version. Never silently initialize an empty wallet over an unreadable vault. Check intended directory/file permissions and ensure temporary files contain ciphertext only.
+
+**TP-032 — Password change and backup.** Round-trip portable encrypted backups on a clean OS account. Verify the mnemonic scheme, optional passphrase, account metadata, DCR discovery state, and pending-operation journal survive where required by the format. Crash-test password rotation and format migrations. The current vault must reject the old password after successful rotation; an older backup may still use its original password and this must be accurately explained. Test backup corruption, rollback detection limits, cancelled restore, destination collision, and restoration without an installed prior application.
+
+**TP-033 — No-reveal behavior.** Neither the normal application nor a bundled recovery tool may output or export seed phrases/private keys. Test API enumeration, menus, keyboard shortcuts, debug routes, clipboard handlers, QR generation, export formats, and error paths. The Go credential/phrase dialog is input-only; cancel and completion clear its sensitive state. Recovery is through the encrypted portable backup and password, or an explicitly supplied compatible phrase. No hidden seed-export escape hatch is acceptable.
+
+## 5. Isolation, authorization, and leakage
+
+**TP-040 — Synthetic-canary leakage.** Use distinctive synthetic passwords, entropy, mnemonic words, seed bytes, extended keys, and derived private keys. Scan captured logs, errors, stdout/stderr, files, temporary directories, database/WAL files, crash output, process arguments/environment, IPC transcripts, clipboard, generated QR images, and network payloads. Include hex/base64 encodings and meaningful mnemonic/secret fragments. Approved input-only credential-to-signer transport is a narrowly documented exception; Electron/public-data IPC must contain no secrets. Repeat for successful, failed, cancelled, locked, restored, and crashing workflows. Canary absence demonstrates tested paths, not immunity to privileged malware.
+
+**TP-041 — Process boundaries.** Attempt outbound DNS, TCP, UDP, HTTP, and local-network requests from the network-disabled Go signer; all must fail under the production isolation mechanism. Verify inherited framed IPC, no localhost listener, frame-size bounds, peer/session binding, timeout, malformed length handling, truncated frames, replay rejection, and orderly EOF. The Electron renderer must lack Node, filesystem, process-spawn, arbitrary IPC, and direct signing authority. Test untrusted frames/origins, navigation, popups, custom protocols, remote assets, and malicious RPC/token metadata.
+
+**TP-042 — Approval binding.** The independent native Go confirmation must display signer-validated network, asset, full destination, amount, maximum fee, and every spend effect. Modify any field after preview, including change outputs, nonce, memo, token contract, calldata, or network. The prior approval must become unusable. Test stale/expired approvals, repeated clicks, cancelled prompts, concurrent windows, and spoofed renderer confirmation messages. Generic arbitrary-hash signing must not be exposed.
+
+**TP-043 — Lock lifecycle.** Exercise sign/lock races before derivation, during confirmation, during signing, and before returning a result. Define and test the lock linearization point: no new signing operation succeeds afterward. Cancel pending authorizations, terminate isolated secret-bearing sessions as specified, and verify no automatic unlock after restart. Test inactivity, screen lock, suspend/resume, renderer crash, signer crash, and parent exit. Distinguish already-broadcast transactions from cancelled unsent operations; locking cannot retract an on-chain payment.
+
+## 6. Chain acceptance matrix
+
+Every row requires deterministic vectors, adverse cases, and actual network or node acceptance evidence. Test both receiving into a fresh account and sending back from it.
+
+| Adapter | Independent oracle | Mandatory compatibility/funds cases | Runtime evidence |
+|---|---|---|---|
+| Ethereum ETH | Published EIPs plus a pinned independent Ethereum SDK | EIP-55, chain ID, EIP-1559/declared fee types, integer wei, nonce reservation, replacement, revert, reorg, insufficient gas | Sepolia receipt and independently queried recipient balance/state |
+| HyperEVM HYPE | Independent EVM SDK plus current Hyperliquid docs | Correct chain identity, HYPE gas, 18-decimal arithmetic, identical owner address but separate Core balance | HyperEVM testnet receipt and state change |
+| HyperCore HYPE | Pinned official Python SDK signing/action fixtures | Exact transfer action/domain, Mainnet/Testnet fields, token ID, nonce, normalization, Core precision, fresh-recipient prerequisites; no trading-key substitution | Accepted Core action plus independently queried transfer history and balances |
+| ZEN on Base | Independent EVM SDK and official ZEN registry | Correct Base token contract, ETH gas, decimals, ERC-20 return/revert behavior, execution/data fees; reject OFT-adapter confusion | Base Sepolia token receipt/event plus contract balance query |
+| ZEN on Horizen L3 | Independent EVM SDK and official Horizen registry | L3 chain ID, distinct token identity, ETH gas, rollup fees, wrong-network RPC rejection; no legacy-chain substitution | Current Horizen testnet token receipt/event plus contract balance query |
+| NEAR | Pinned near-seed-phrase/CLI and official transaction SDK | Implicit/named accounts, full-access permission, removed key, yoctoNEAR, nonce, reference-block expiry, missing named recipient | Final execution success and independently queried account balances |
+| Aptos APT | Official Go versus independent TS SDK/CLI | Exact hardened path, explicit Legacy Ed25519 scheme, rotation lookup, address canonicalization, octas, BCS, sequence, expiry, committed failure | Committed success plus independent resource/balance query |
+| Decred DCR | Official hdkeychain/dcrwallet and script engine; known node fixtures | Full 64-byte BIP39 seed, coin type 42 versus legacy 20, Decred Child leading-zero divergence, P2PKH, tree-aware outpoints, fees/change, maturity/disapproval | Simnet integration and current testnet acceptance; independently verified outputs/spendability |
+| TON | Independent SLIP-0010 plus official TON wrappers/emulator | BIP39 versus native mnemonic, V5R1 StateInit, IDs/workchain, CRC/flags, first deployment, seqno/expiry, bounce, action failure | Emulator and testnet trace demonstrating deployment and successful recipient transfer |
+
+**TP-050 — Matrix completeness.** Attach fixture IDs, exact dependency versions, network identities, and execution results to every row. Runtime checks must use an independent client or node query rather than echo the wallet's own success flag. Tests unavailable on a particular public testnet remain `NOT_RUN`; use local equivalents for development but do not call public integration complete.
+
+**TP-051 — Chain-specific hazards.** For DCR, include leading-zero cases that actually diverge between `Child` and strict BIP32, both output trees, fake input values/scripts, duplicate outpoints, foreign change, immature outputs, regular-tree disapproval, and recovery across address gaps. Verify signatures with the official script engine. For TON, assert exact versioned StateInit and mainnet/testnet wallet IDs; never accept seqno advancement alone as proof the recipient was paid. For Aptos, distinguish original address from current authentication key. For NEAR, validate finality and execution status independently.
+
+**TP-052 — Asset identity and precision.** Never identify assets by ticker alone. Test token/adapter address collisions, mismatched decimals, token-address-as-recipient mistakes, and sufficient ZEN with insufficient ETH gas. Core/EVM precision differences must not silently round amounts. Bridging is outside v1; a separately authorized future extension would need dedicated conversion/dust tests and explicit confirmation, because ordinary send/receive tests do not certify bridging.
+
+## 7. Transaction state and QR behavior
+
+**TP-060 — No duplicate payment.** Crash at each boundary: reservation, approval, signing, journal persistence, broadcast, response, and confirmation. Inject timeout-after-acceptance, connection reset, duplicate response, stale provider, and provider disagreement. Reconcile the original signed bytes/hash/action before any replacement. An unknown result must remain unknown/pending. Test account nonces, access-key nonces, Aptos sequences, TON seqnos, Core action nonces, and DCR UTXO reservations under concurrent sends. Balance and fee arithmetic must reject underflow, overflow, negative values, exponent ambiguity, and excess precision.
+
+**TP-061 — Receive and QR.** Decode every generated QR with an independent decoder and compare it with the intended address/URI. Cover high DPI, resize, light/dark modes, long NEAR addresses, TON flags, and malformed scan input. Plain addresses that cannot encode network identity require an explicit network selection. A scan must never auto-send. Reject injected commands, unexpected URI parameters, unsupported schemes, conflicting amounts, and cross-network payment requests. Rendering an already authenticated public receive descriptor requires no private-key access, although unlocking may be required to retrieve encrypted metadata; verify locked-mode behavior against the product's privacy policy.
+
+## 8. Packaged desktop, stress, and release
+
+**TP-070 — Real package tests.** Install the actual `.deb` in clean Ubuntu 24.04 and 26.04 environments, each under X11 and Wayland. Test non-root launch, sandbox operation, native input/confirmation focus, QR receive, send, lock/suspend, backup/restore, upgrade, and uninstall preservation policy. Never use `--no-sandbox` to pass. A container/Xvfb run alone is insufficient evidence for Wayland or OS lock behavior. Use a separately instrumented build for automation when necessary; verify the production package's fuses, debugger restrictions, sandbox flags, packaged resource integrity, and absence of test hooks separately.
+
+**TP-071 — Bounded stress.** Use fixed seeds and a recorded reference environment. Exercise 100,000 malformed/bounded IPC requests, 10,000 mixed address/amount/URI cases, 1,000 concurrent-send scheduling scenarios against deterministic fake nodes, and repeated unlock/lock/backup cycles with production KDF settings. Bound concurrency and resources; mocks must not broadcast live funds. Acceptance: no crash, race report, lost journal state, unauthorized signature, duplicate payment, or continuing memory/goroutine growth. Establish latency/RSS budgets before execution, record actual results, and explain regressions. Proposed targets are not measurements.
+
+**TP-072 — Nightly soak.** Run a 24-hour deterministic scenario mix with RPC outages, rate limits, wallet locking, restarts, account discovery, and growing history. Record seeds, workload counts, RSS/goroutines, latency distributions, and final state reconciliation. Scheduled testnet activity uses capped dedicated test funds and separate reporting. No automated mainnet transactions.
+
+**TP-080 — Release decision.** Mandatory CI is hermetic: unit, vector, mutation-critical, corpus/fuzz, race, local-node integration, and IPC/security checks must pass without public network dependencies. Public testnet integration is a separate explicit gate. Release requires all coverage floors, all fatal security/funds scenarios, packaged-OS matrix, recovery drill, and required network rows passed for the exact release candidate or an evidenced unchanged binary. Publish limitations honestly. Missing network execution, failed adversarial tests, unreviewed cryptographic/profile changes, or unsupported requested adapters block a claim of a complete production wallet. High coverage is evidence of exercised code, not a substitute for independent security review.

@@ -1,0 +1,68 @@
+{
+  "observedUTC": "2026-10-23T06:29:27Z",
+  "goVersion": "go version go1.27.3 linux/amd64",
+  "coverage": {
+    "evm": {
+      "status": "PASS",
+      "coveredStatements": 782,
+      "totalStatements": 810,
+      "statementPercent": 96.54,
+      "floorPercent": 95
+    },
+    "hypercore": {
+      "status": "PASS",
+      "coveredStatements": 543,
+      "totalStatements": 562,
+      "statementPercent": 96.62,
+      "floorPercent": 95
+    }
+  },
+  "sourceSHA256": {
+    "internal/chains/evm/adapter.go": "8000479c508821624388548d9b2775af315a68da2d0acac39b88f693d18b15a9",
+    "internal/chains/evm/adapter_test.go": "c67fdfccc7f8066b9a128ad1bc7a45cd0939ce404d149c60721ebe5e3f8e5def",
+    "internal/chains/evm/adversarial_test.go": "dfb972780faf2e7f542eae6af4908d84c71dd4abe267165442aed1b4fa842784",
+    "internal/chains/evm/history.go": "8a7ed5bf24b36425912a3172673455758ea109e0dcc267a6f6fd939310869fca",
+    "internal/chains/evm/history_test.go": "3507c63e8f6c7761779494a7aa952184629b8750c1edaa79e59de609ba22fb71",
+    "internal/chains/evm/integration_test.go": "db96c9bbf31c99457422507a15fbccbe1cdbd9562cc77b42d37c531559d6a863",
+    "internal/chains/evm/keys.go": "1083e6b7f3ba3ae783db1e244f5be8a35a87072ab485d682568cf8d421b7153e",
+    "internal/chains/evm/keys_test.go": "e867953114999db3f99300763c47e5a990d7e87114a1d9fa1514dc09513d9299",
+    "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
+    "internal/chains/evm/rpc.go": "4f6bacd119a3cd6371f8a2f5b46baf4746e2a97ff700e4f4396c6f2cd6e9882d",
+    "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
+    "internal/chains/hypercore/adapter_test.go": "d3f82a71d944ee7d1e152ce969d12efe4234dba0cd10ee86ae836f64217cdfb3",
+    "internal/chains/hypercore/adversarial_test.go": "fc66d5ff4f990cc1db51b5903916eb9ca08e27071e66e306bd87957783448feb",
+    "internal/chains/hypercore/history.go": "c342443b41a1f4432c3dfe26ce4fe563739b09555393c652af04c9b0727b7e84",
+    "internal/chains/hypercore/history_test.go": "b273419fa671edca4643835a99808c2186a5e529246719fe9fc43c11c2e734b3",
+    "internal/chains/hypercore/keys.go": "fe30d0b9766c669de05d878fac3626ad85e7ea06ee81e5288a2f4d2907bc3c71",
+    "internal/chains/hypercore/keys_test.go": "1b9ba974ec7dfe1a13da44e193c25bd8f916d402514c608a03aac5617d8bfd8b"
+  },
+  "unitCorpus": "PASS",
+  "race": "PASS",
+  "vet": "PASS",
+  "mutantsKilled": 8,
+  "fuzz": {
+    "evm": {
+      "status": "PASS",
+      "durationSeconds": 10,
+      "executions": 63939,
+      "retainedInputs": 166
+    },
+    "hypercore": {
+      "status": "PASS",
+      "durationSeconds": 10,
+      "executions": 47499,
+      "retainedInputs": 147
+    }
+  },
+  "actualLocalNodeIntegration": {
+    "gethNative": "PASS",
+    "baseFrozenRuntime": "PASS",
+    "horizenFrozenRuntime": "PASS",
+    "hyperEVMCompatible": "PASS"
+  },
+  "publicTestnetTransfers": "NOT_RUN",
+  "coreActualAcceptance": "NOT_RUN",
+  "coreFreshActivation": "BLOCKED",
+  "rollupAbsoluteDataFeeCeiling": "BLOCKED",
+  "independentAudit": "NOT_RUN"
+}

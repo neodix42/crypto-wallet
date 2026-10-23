@@ -1,0 +1,181 @@
+{
+  "classification": "PUBLIC SYNTHETIC TEST SECRETS ONLY",
+  "oracle": "ethers 6.17.0, independent JS BIP39/NFKD implementation, exact lockfile integrity",
+  "vectors": [
+    {
+      "id": "BIP39-English-128-0",
+      "entropy": "00070e151c232a31383f464d545b6269",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden stadium",
+      "passphrase": "",
+      "seed": "0157b2544de787c602b35b02bc32a116b282c7bc01d97dfe0bf70d7f1f9ef765a7faaa45eb800f24cf690bbe52b698a9a0e10d36e599cdba16246dea7fed1106"
+    },
+    {
+      "id": "BIP39-English-128-1",
+      "entropy": "00070e151c232a31383f464d545b6269",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden stadium",
+      "passphrase": "TREZOR",
+      "seed": "0e7d3e708a5856d86a4b30fe1d73c194e841d0cde6c6766f60231bee5d83e833b69a198cbe9ad5a4a70efbd0904f6c5584cbe93877affe3fa4efdb4e2b059b0d"
+    },
+    {
+      "id": "BIP39-English-128-2",
+      "entropy": "00070e151c232a31383f464d545b6269",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden stadium",
+      "passphrase": "é",
+      "seed": "59402e570716ec2c1f97b1c03713b2c204e29dc0608be0eec0b8766bfcd9b823de9fea56e270351c7217b7ff2bab13ee64b1efa8d49c7fc0b5404c7e7d195970"
+    },
+    {
+      "id": "BIP39-English-128-3",
+      "entropy": "00070e151c232a31383f464d545b6269",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden stadium",
+      "passphrase": "é",
+      "seed": "59402e570716ec2c1f97b1c03713b2c204e29dc0608be0eec0b8766bfcd9b823de9fea56e270351c7217b7ff2bab13ee64b1efa8d49c7fc0b5404c7e7d195970"
+    },
+    {
+      "id": "BIP39-English-128-4",
+      "entropy": "00070e151c232a31383f464d545b6269",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden stadium",
+      "passphrase": "public synthetic 🙂",
+      "seed": "377aea5c394af019bab262cf59a7b7aca1d59dc7a94c9f9b3739194206c1b320a26c6060aa961cf2925942af9209ad55479f3f4ad7888e653cd8085e23049c48"
+    },
+    {
+      "id": "BIP39-English-160-0",
+      "entropy": "00070e151c232a31383f464d545b626970777e85",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bless",
+      "passphrase": "",
+      "seed": "38760dc67a9469f5cf274205db723fa88708662df59ab235dea46b6cc9efa2000ec517e1c8d79e4207b8b5524d4be397f1853c04c5936eb42ee79a29ff2e8d79"
+    },
+    {
+      "id": "BIP39-English-160-1",
+      "entropy": "00070e151c232a31383f464d545b626970777e85",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bless",
+      "passphrase": "TREZOR",
+      "seed": "869c5489a0e5093e58dbac3cdf13ee163cd9e9768ab2731929557b58a159ab14b6d9d9a12f3371f027d88fb1c7fa3d23d1204e733e9a5cea6ff52b816cf93edd"
+    },
+    {
+      "id": "BIP39-English-160-2",
+      "entropy": "00070e151c232a31383f464d545b626970777e85",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bless",
+      "passphrase": "é",
+      "seed": "47704bdf4bfbfa03352b97142947af45cd5156ec89e112a7f2700563ffb409a5a1176f5622889041387c56c1b1b121c0b509bd20fed09ebe894b8c33b75aa29c"
+    },
+    {
+      "id": "BIP39-English-160-3",
+      "entropy": "00070e151c232a31383f464d545b626970777e85",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bless",
+      "passphrase": "é",
+      "seed": "47704bdf4bfbfa03352b97142947af45cd5156ec89e112a7f2700563ffb409a5a1176f5622889041387c56c1b1b121c0b509bd20fed09ebe894b8c33b75aa29c"
+    },
+    {
+      "id": "BIP39-English-160-4",
+      "entropy": "00070e151c232a31383f464d545b626970777e85",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bless",
+      "passphrase": "public synthetic 🙂",
+      "seed": "0df326a3b5bdec1855b90c96000cf509c628b0cdb9f6c45dd9c61e41231f480cf067882c44ec7a5eeca81b80e364a7b51a3c89440e13157d5662f06094c746ee"
+    },
+    {
+      "id": "BIP39-English-192-0",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one assist",
+      "passphrase": "",
+      "seed": "a62b5dd62bbd45e2cee13592f90650b58ae48c0fc7b5544f3bf376cbd3b9f686cbb90760373e639c411acf1e283a0fd4e4eab139c500425cdfe7ac4c532d0885"
+    },
+    {
+      "id": "BIP39-English-192-1",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one assist",
+      "passphrase": "TREZOR",
+      "seed": "71b1df2e2621fd1af0ed080b4a3bb288997d1a745bea6cfc5da9c082b680c90add16c643c0e6dc9cdca1d60ade7f6c4a31fcb48fabae04b0532d78ffebdc0642"
+    },
+    {
+      "id": "BIP39-English-192-2",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one assist",
+      "passphrase": "é",
+      "seed": "1f5a007ccd6b48ec820a8ba8614eed36167864ed6c2c6191dcb8b8693d05461baff67167b7a9e0e1c04bd1c89c34e7dbad6da54407c8f7d24496292c00fde07f"
+    },
+    {
+      "id": "BIP39-English-192-3",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one assist",
+      "passphrase": "é",
+      "seed": "1f5a007ccd6b48ec820a8ba8614eed36167864ed6c2c6191dcb8b8693d05461baff67167b7a9e0e1c04bd1c89c34e7dbad6da54407c8f7d24496292c00fde07f"
+    },
+    {
+      "id": "BIP39-English-192-4",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one assist",
+      "passphrase": "public synthetic 🙂",
+      "seed": "0738b2f5bbeceb97521a726a5ce04cbda07387b9929874a5d4f3ee4387727de898bc2514f5bd35f059f140be9a54411d3667d75a79d5de8f0f26f512d67ecbc2"
+    },
+    {
+      "id": "BIP39-English-224-0",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bd",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope spell",
+      "passphrase": "",
+      "seed": "7e3da56b86a2882a0967e362fe330c1bfbd9bfd91968330c11029010b4d777da3ee0cfe752cdd012e7a62f322b00ff2e83aa7448cc112088ac4e41e65d2d68f1"
+    },
+    {
+      "id": "BIP39-English-224-1",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bd",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope spell",
+      "passphrase": "TREZOR",
+      "seed": "8dcce43ab4173a7880c4612cb31763db264d7db830856d3ef1a7452353bb416fc1f2eb18ad255b315937de3d61b3a96a2443522252e78418ea23f7fd61df7194"
+    },
+    {
+      "id": "BIP39-English-224-2",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bd",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope spell",
+      "passphrase": "é",
+      "seed": "08c9f50b2a4f8b50fe06b31317aa0f9cd1028430fb1e468f47c2324c6be0ceb31ac296f50e6da32907a22ba967ede8fb4ee4b8d70fd1790a672e4857c6840687"
+    },
+    {
+      "id": "BIP39-English-224-3",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bd",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope spell",
+      "passphrase": "é",
+      "seed": "08c9f50b2a4f8b50fe06b31317aa0f9cd1028430fb1e468f47c2324c6be0ceb31ac296f50e6da32907a22ba967ede8fb4ee4b8d70fd1790a672e4857c6840687"
+    },
+    {
+      "id": "BIP39-English-224-4",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bd",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope spell",
+      "passphrase": "public synthetic 🙂",
+      "seed": "6aec9df7ebe7c9cd14664d385d9ddf7417b457662b2c02d3d50e083ea9d9be288c4770a30efae6f2fed511d12c795f6c8938419373fb9df5c420a2007c4b0ac7"
+    },
+    {
+      "id": "BIP39-English-256-0",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope sword grass enter certain",
+      "passphrase": "",
+      "seed": "e337d6177620079ec2145f5dc11bc05404eaf31307ba9e220eff6533da99fd27c6fc4a1ecd7e867c6818cad8eda69a6bdaaa81583d8393ae01a7c37ca15a17f1"
+    },
+    {
+      "id": "BIP39-English-256-1",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope sword grass enter certain",
+      "passphrase": "TREZOR",
+      "seed": "c61955c9014e333d686919b353f6c923d17c2a686394d7a102a02ff89ef42de45a5f3865add12355d187475a7b4b660710966642855960da93495bd7bd5bc4cf"
+    },
+    {
+      "id": "BIP39-English-256-2",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope sword grass enter certain",
+      "passphrase": "é",
+      "seed": "1ef1b6c611b9f42c7a45d03444f83fe4f78eedcf8b8df6652c4797dbd36ed073045b591c7a2904997d88008a6f4b99d200cf8f8df910630c7eff7c62e7f5f31c"
+    },
+    {
+      "id": "BIP39-English-256-3",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope sword grass enter certain",
+      "passphrase": "é",
+      "seed": "1ef1b6c611b9f42c7a45d03444f83fe4f78eedcf8b8df6652c4797dbd36ed073045b591c7a2904997d88008a6f4b99d200cf8f8df910630c7eff7c62e7f5f31c"
+    },
+    {
+      "id": "BIP39-English-256-4",
+      "entropy": "00070e151c232a31383f464d545b626970777e858c939aa1a8afb6bdc4cbd2d9",
+      "phrase": "abandon debris luxury debate crawl blush thought trip essence people sudden spray alter satisfy bike mystery one ask cloud hope sword grass enter certain",
+      "passphrase": "public synthetic 🙂",
+      "seed": "34622afb282027794a53cda6e741fa6c8bbf6fbcedc3a4cc233b8d34c1ad32c23e8bda3d25f31f8d7e85d127828945fc4d24de469e69e40d7d37f484c3de15a4"
+    }
+  ]
+}

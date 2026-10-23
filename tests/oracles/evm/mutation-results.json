@@ -1,0 +1,50 @@
+[
+  {
+    "mutant": "EVM_CHAIN_ID",
+    "test": "TestTP042PlanAndSignatureTampering",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "EVM_NATIVE_EFFECTS",
+    "test": "TestTP042PlanAndSignatureTampering",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "EVM_TOKEN_APPROVAL",
+    "test": "TestTP042ReconstructionRejectsAllChangedEffects",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "EVM_FEE_CEILING",
+    "test": "TestTP042PlanAndSignatureTampering",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "EVM_ROLLUP_FEE_UNAVAILABLE",
+    "test": "TestTP052MissingRollupDataFee",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "CORE_ENVIRONMENT",
+    "test": "TestTP042CorePlanSignatureMutations",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "CORE_NONCE_BINDING",
+    "test": "TestTP042CorePlanSignatureMutations",
+    "status": "PASS",
+    "result": "KILLED"
+  },
+  {
+    "mutant": "CORE_SIGNATURE_OWNER",
+    "test": "TestTP042CorePlanSignatureMutations",
+    "status": "PASS",
+    "result": "KILLED"
+  }
+]
