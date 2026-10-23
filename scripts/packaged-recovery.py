@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Exercise the uninstrumented packaged app on an owned private X11 display.
 Synthetic public test credentials stay in this test process and native key events.
-No clipboard secret transport, debug port, or bypass is used. Opening a wallet
-may query its configured public RPC with disposable fixture addresses only.
+No clipboard secret transport, debug port, or bypass is used. The overview and
+opened wallets query configured public RPCs with disposable fixture addresses.
 This is not the clean Ubuntu/Wayland acceptance matrix.
 """
-import argparse, base64, ctypes as C, hashlib, importlib.util, json, os, pathlib, shutil, signal, subprocess, tempfile, time
+import argparse, base64, ctypes as C, hashlib, importlib.util, json, os, pathlib, re, shutil, signal, subprocess, tempfile, time
 from PIL import Image, ImageOps
 from install import verify_binaries
 root=pathlib.Path(__file__).resolve().parents[1]
@@ -15,8 +15,11 @@ selected_profile=parser.parse_args().profile
 vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 settings, wallet table, native receive QR/copy, on-demand send form, middle-click tab closing, validation feedback, password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 clickable Send/Receive before backup, explicit verified-backup continuation, Settings journal, native table balances, native receive QR/copy, middle-click tab closing, validation feedback, generation/import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
 report['environment']=selected_profile
+# Keep the pinned test decoder's existing build cache when the wallet itself
+# receives a fresh HOME below. These paths are never passed to the wallet.
+decoder_environment=json.loads(subprocess.check_output([str(root/'scripts/with-go.sh'),'go','env','-json','GOROOT','GOPATH','GOMODCACHE','GOCACHE'],cwd=root,text=True))
 password='public-synthetic-password-79326';phrase='abandon '*11+'about'
 owned=[];app=None;display=None;desktop=None;logs=[];live_log_checks=[]
 def passed(name): report['steps'].append({'name':name,'status':'PASS'});print('PASS '+name,flush=True)
@@ -80,13 +83,17 @@ def clickprimary(word):
  picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<90 else 255)
  path=reports/'packaged-primary-controls.png';picture.save(path)
  raw=subprocess.check_output(['tesseract',str(path),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
- for line in raw.splitlines()[1:]:
-  a=line.split('\t')
-  if len(a)==12 and a[11].lower()==word.lower():
+ rows=[line.split('\t') for line in raw.splitlines()[1:] if len(line.split('\t'))==12 and line.split('\t')[11].strip()]
+ words=word.lower().split()
+ for i,a in enumerate(rows):
+  segment=rows[i:i+len(words)]
+  if len(segment)==len(words) and [b[11].lower() for b in segment]==words and all(b[1:5]==a[1:5] for b in segment):
    desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
  raise RuntimeError('Public primary control unavailable: '+word)
 def waitnative(prefix):
- w,_=desktop.wait(prefix,25);desktop.focus(w);return desktop.geometry(w)
+ # One in-flight overview query can finish before the serial core handles a
+ # native action. Its production deadline is 30 seconds; no wallet retry occurs.
+ w,_=desktop.wait(prefix,45);desktop.focus(w);return desktop.geometry(w)
 def expectfailure(native_fragment,public_fragment,name,persist=False):
  x,y,w,h=waitnative('Wallet request failed')
  # This notice contains only fixed guidance; no credential input window remains.
@@ -182,6 +189,36 @@ def copyfirstrow():
     waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3);return clip()
   desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('First public wallet table row not available')
+def overviewbalance():
+ overview();rows=textboxes()
+ headers=[a for a in rows if a[11].lower()=='network']
+ if not headers:raise RuntimeError('Wallet table network header missing')
+ header=max(headers,key=lambda a:int(a[7]));hy=int(header[7])
+ native=[a for a in rows if a[11].lower()=='native' and abs(int(a[7])-hy)<25]
+ receive=[a for a in rows if a[11].lower()=='receive' and abs(int(a[7])-hy)<25]
+ if not native or not receive:raise RuntimeError('Wallet overview does not expose its native balance column')
+ first=[a for a in rows if a[11].lower()=='ethereum' and int(a[7])>hy]
+ following=[a for a in rows if a[11].lower()=='hyperevm' and int(a[7])>hy]
+ if not first or not following:raise RuntimeError('First two network wallet rows missing')
+ ey=int(first[0][7]);ny=int(following[0][7]);bottom=(ey+ny)//2
+ words=' '.join(a[11] for a in rows if int(native[0][6])-5<=int(a[6])<int(receive[0][6])-5 and hy+20<int(a[7])<bottom)
+ if re.search(r'\b[0-9]+(?:\.[0-9]+)? ETH\b',words):report['nativeBalanceObservation']={'status':'PASS','scope':'Installed Ethereum table native-currency amount and observation metadata visible','publicText':words}
+ elif any(word in words.lower() for word in ['unknown','unavailable','loading']):report['nativeBalanceObservation']={'status':'BLOCKED','scope':'Live Ethereum amount not available during this observation; UI retains an explicit unknown state','publicText':words}
+ else:raise RuntimeError('First wallet row lacks native-currency amount or explicit unavailable state: '+words)
+ desktop.screenshot(reports/'packaged-native-balance-table.png')
+ passed('Overview table displays its native balance column and an exact ETH quantity or explicit unknown state')
+def settingsjournal():
+ openfirstwallet()
+ # The journal must not remain on any scroll position of the wallet page.
+ for attempt in range(4):
+  if 'Local payment journal' in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Payment journal remained in the wallet page')
+  desktop.key('Page_Down');time.sleep(.15)
+ walletmenu('Local payment journal')
+ words=' '.join(a[11] for a in textboxes())
+ if 'Refresh journal' not in words or 'Ethereum' not in words or 'Wallet' not in words:raise RuntimeError('Settings journal lacks its explicit wallet context or controls')
+ desktop.screenshot(reports/'packaged-settings-journal.png')
+ desktop.key('Escape');time.sleep(.3)
+ passed('Local payment journal exists only in Settings with explicit wallet and asset context')
 def filechoice(prefix,path):
  waitnative(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.key('a',ctrl=True);desktop.type(str(path))
  # GTK resolves a typed absolute path asynchronously. Wait between accepting
@@ -218,7 +255,7 @@ func main(){f,e:=os.Open(os.Args[1]);if e!=nil{panic(e)};defer f.Close();im,_,e:
 '''
  with tempfile.TemporaryDirectory(prefix='localwallet-public-qr-oracle-') as temporary:
   source=pathlib.Path(temporary)/'main.go';source.write_text(oracle)
-  decoded=subprocess.check_output([str(root/'scripts/with-go.sh'),'go','run',str(source),str(path)],cwd=root,text=True,timeout=60)
+  decoded=subprocess.check_output([str(pathlib.Path(decoder_environment['GOROOT'])/'bin/go'),'run',str(source),str(path)],cwd=root,env={**os.environ,**decoder_environment,'GOTOOLCHAIN':'local'},text=True,timeout=60)
  if decoded!=expected:raise RuntimeError('Displayed Receive QR pixels differ from the independent expected address')
 try:
  server=shutil.which('Xvfb') or str(root/'.tools/xvfb/root/usr/bin/Xvfb')
@@ -253,7 +290,26 @@ try:
   desktop.screenshot(reports/'packaged-generated-main-account.png')
   passed('Explicit first-run password-only generation and Main account overview without phrase reveal')
   generated_backup=backupdir/'generated.lwv'
-  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',generated_backup)
+  if selected_profile=='mainnet':
+   openfirstwallet();clickprimary('Send');time.sleep(.3)
+   if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Unverified-backup Send button did not open its payment form')
+   desktop.screenshot(reports/'packaged-unverified-send.png')
+   passed('Send opens before mainnet backup verification and displays the required backup action')
+   clickphrase('Close send form');clickprimary('Receive');time.sleep(.3)
+   if 'Back up before receiving funds' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Unverified-backup Receive button did not explain the recovery step')
+   if any(t.startswith('Verify receive address') for _,t in desktop.windows()):raise RuntimeError('Unverified mainnet receive opened its QR before backup')
+   desktop.screenshot(reports/'packaged-receive-backup-required.png')
+   clickphrase('Cancel');time.sleep(.3)
+   if generated_backup.exists() or any(t.startswith('Verify receive address') for _,t in desktop.windows()):raise RuntimeError('Cancelled receive guidance started a backup or QR flow')
+   passed('Receive opens actionable backup guidance; cancelling does not open an unverified QR')
+   clickprimary('Receive');time.sleep(.3)
+   clickprimary('Create & verify encrypted backup')
+   filechoice('Save encrypted portable backup',generated_backup)
+   waitnative('Verify receive address')
+   continued_address=nativecopy();decodereceive(continued_address);desktop.accept('Verify receive address');time.sleep(.3)
+   passed('Explicit receive backup action verifies the encrypted file then opens the original wallet authoritative QR')
+  else:
+   walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',generated_backup)
   until(lambda:generated_backup.exists());time.sleep(2)
   if generated_backup.stat().st_mode&0o777!=0o600 or backupdir.stat().st_mode&0o777!=0o755 or (backupdir/'writer.lock').exists():raise RuntimeError('Backup altered folder policy or did not retain owner-only file permissions')
   original_backup=generated_backup.read_bytes()
@@ -291,6 +347,7 @@ try:
   passed('Go-owned verified receive QR and exact independent public address')
   if copyfirstrow()!=expected:raise RuntimeError('Wallet table copy icon copied a different public address')
   passed('Wallet table copy icon invokes native verification and copies the full independent public address')
+  overviewbalance();settingsjournal()
   openfirstwallet()
   words=' '.join(a[11] for a in textboxes())
   if 'Balance' not in words or 'HyperEVM' in words:raise RuntimeError('Open wallet did not show an isolated Ethereum tab with its balance instead of the portfolio grid')
@@ -331,8 +388,10 @@ try:
    words=' '.join(a[11] for a in textboxes())
    if 'Mainnet profile' not in words or 'Welcome back' not in words:raise RuntimeError('Default launch failed to return to the existing locked mainnet profile')
    clickphrase('Unlock wallet');waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
-   walletmenu('Add deterministic account');time.sleep(2)
-   desktop.key('Home',ctrl=True);clickphrase('Account 2');time.sleep(.5)
+   walletmenu('Add deterministic account')
+   desktop.key('Home',ctrl=True)
+   until(lambda:'Account 2' in ' '.join(a[11] for a in textboxes()),45)
+   clickphrase('Account 2');time.sleep(.5)
    words=' '.join(a[11] for a in textboxes())
    if 'Derivation index 1' not in words:raise RuntimeError('Second deterministic account did not have its own top tab page')
    desktop.screenshot(reports/'packaged-account-tabs.png')

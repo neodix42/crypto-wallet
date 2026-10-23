@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "5c19c0d388f5a19e19fb5d275d5d1d7885c6fbac",
+  "sourceCommit": "f7ecd3b1004c2b0e21a7e4c61cd6e7820af18fdf",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "542ac7cf4f99b723f8ace39fb1b2e88ef2ed238b7375d98de98b2eb2b36c143e",
+  "sha256": "bd5eaaa294723ed32c41343c02c72a3f6199ebdca0dc12fac922720bfecbc86a",
   "binaryManifest": {
-    "wallet-core": "c3fc793fc3bf19c4a456f49143840e9233c99385608fe03472ff4b58c888776e",
-    "wallet-launcher": "1de8f31d6e7e12ed19fcb852920c7420e189764595c79b6109f44b0e6c2e9af4",
-    "wallet-signer": "cb200e3a00cb936a158804f6e2c1d01e6ede8fb3cfda3d99863cfd5d345483a3"
+    "wallet-core": "2bff2d45778fcd1c59bea5e67c3e0c1dd209951621c2a63db274cf37e1026b18",
+    "wallet-launcher": "92fd1a514fe5f80a59e217ceb7cc3a7221b52e7980df1d39e048b8ca141f1cb1",
+    "wallet-signer": "5aa8ca0c4020c67432bc002d55afa1b1be1625102524c017b44bbb766ff6c376"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -28,7 +28,7 @@
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "d1c7cb205b641b6d5823b0759ae2ecd9144d731a56104538fc981ea358aaa5fd"
+      "sha256": "656c9cc74f5e7b23f679580d1d1a38076cd0ef4c652b04981ff3cd0cd4fee1da"
     },
     {
       "report": "mutation",
@@ -94,13 +94,13 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "5e9b54c664075c11041003e2378cd2a059b47454045414d7dfa7df3e7f09ab64"
+      "sha256": "133f899cb77771eff5071161d8bd551f16d4ecb641e1bd7dd3dd6bf1d7b8835f"
     },
     {
       "report": "display-startup",
       "status": "PASS",
       "file": "display-startup.json",
-      "sha256": "bb3d2f7aa06e0e9e90e667d1cc40f1e892d36f46a9f6d0163e250d0eb483500b"
+      "sha256": "6533e3a23003e95ee970992ae4e8a2c32cdc6e15be949d182371f065198843c8"
     },
     {
       "report": "mainnet-rpc",
@@ -119,6 +119,12 @@
       "status": "PASS",
       "file": "wallet-layout.json",
       "sha256": "a63fafc5dadbbf3364f8fa745d1a06ac14ec9962b3fc7fc7b88a1356a4c1d1ab"
+    },
+    {
+      "report": "wallet-actions",
+      "status": "PASS",
+      "file": "wallet-actions.json",
+      "sha256": "01b7717fb86793303f7b016ca18dc3db16c7899423f40f3f34217d726221fb29"
     },
     {
       "report": "receive-small-display",

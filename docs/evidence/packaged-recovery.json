@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 settings, wallet table, native receive QR/copy, on-demand send form, middle-click tab closing, validation feedback, password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 clickable Send/Receive before backup, explicit verified-backup continuation, Settings journal, native table balances, native receive QR/copy, middle-click tab closing, validation feedback, generation/import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -12,6 +12,18 @@
     },
     {
       "name": "Explicit first-run password-only generation and Main account overview without phrase reveal",
+      "status": "PASS"
+    },
+    {
+      "name": "Send opens before mainnet backup verification and displays the required backup action",
+      "status": "PASS"
+    },
+    {
+      "name": "Receive opens actionable backup guidance; cancelling does not open an unverified QR",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit receive backup action verifies the encrypted file then opens the original wallet authoritative QR",
       "status": "PASS"
     },
     {
@@ -52,6 +64,14 @@
     },
     {
       "name": "Wallet table copy icon invokes native verification and copies the full independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Overview table displays its native balance column and an exact ETH quantity or explicit unknown state",
+      "status": "PASS"
+    },
+    {
+      "name": "Local payment journal exists only in Settings with explicit wallet and asset context",
       "status": "PASS"
     },
     {
@@ -102,11 +122,16 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "c3fc793fc3bf19c4a456f49143840e9233c99385608fe03472ff4b58c888776e",
-      "wallet-launcher": "1de8f31d6e7e12ed19fcb852920c7420e189764595c79b6109f44b0e6c2e9af4",
-      "wallet-signer": "cb200e3a00cb936a158804f6e2c1d01e6ede8fb3cfda3d99863cfd5d345483a3"
+      "wallet-core": "2bff2d45778fcd1c59bea5e67c3e0c1dd209951621c2a63db274cf37e1026b18",
+      "wallet-launcher": "92fd1a514fe5f80a59e217ceb7cc3a7221b52e7980df1d39e048b8ca141f1cb1",
+      "wallet-signer": "5aa8ca0c4020c67432bc002d55afa1b1be1625102524c017b44bbb766ff6c376"
     },
-    "asarSHA256": "ba816a8f59abe53f779b0eebbfd78caf0f81d36e9f6ae888dad9d72086b534ae"
+    "asarSHA256": "8fb3ee24dc9a9785d832c6e222a8fc639ed5481d6f07806a41e0e9cf54fc53f1"
+  },
+  "nativeBalanceObservation": {
+    "status": "PASS",
+    "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
+    "publicText": "0 ETH - provider-observed - 0xa48b341\u00a232f560b0bd3431 e5ad7484d64ac7dfc8 f0a0566d3ab04432dd6ff2ed"
   },
   "liveLogChecks": [
     {
@@ -138,5 +163,5 @@
       "ordinaryIPCStackTrace": false
     }
   ],
-  "backupSHA256": "0106f44dbc23be95de2a1a846734da240301e294dc064bb9a70f1670fb2d2066"
+  "backupSHA256": "41f113feaeb4135bdf496128ece4e2cd8e89ccd4d67c54cdb802c1e3e18f0dda"
 }

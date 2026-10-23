@@ -28,6 +28,7 @@
       <div id="backupcallout" class="backup-callout" role="status" hidden><div><strong>Back up your wallet before receiving funds</strong><p>Your generated BIP39 phrase stays hidden. Recovery needs a verified encrypted backup and its password.</p></div><button id="backupnow">Create &amp; verify encrypted backup</button></div>
       <div id="viewtabs" class="viewtabs" role="tablist" aria-label="Accounts and open wallets"></div>
       <div id="accountoverview" role="tabpanel">
+      <button id="refreshbalances">Refresh balances</button><p id="overviewbalancestatus">Balances are queried once per visible wallet. Refresh explicitly for new network data.</p>
       <label><input id="showhidden" type="checkbox"> Show hidden accounts</label>
       <div id="accountgroups"></div>
       <p>These are derived public accounts. Query balances and network state before use; derivation does not activate an account or establish a zero balance.</p>
@@ -35,7 +36,7 @@
       <select id="account" hidden aria-hidden="true" tabindex="-1"></select>
       <div id="walletpage" role="tabpanel" hidden>
       <div class="wallet-heading"><div><h1 id="wallettitle" tabindex="-1">Network wallet</h1><p id="walletsubtitle"></p></div><div class="actions"><button id="sendview" class="primary">Send</button><button id="receive" class="primary">Receive</button></div></div>
-      <p id="walletbackupnotice" class="backup-callout" hidden>Verify an encrypted backup first to enable mainnet receive, address copying and payment preparation.</p>
+      <p id="walletbackupnotice" class="backup-callout" hidden>Verify an encrypted backup before receiving funds or preparing a payment. Send and Receive explain the next step.</p>
       <div class="panel"><h2>Balance &amp; receive address</h2>
         <label>Asset <select id="asset"></select></label><p id="address"></p>
         <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p><p id="connectionstatus"></p>
@@ -44,17 +45,16 @@
         <p>Choose this exact network at the sender. A plain address QR does not identify an EVM network. Hiding an account preserves its derivation index and recovery data.</p>
       </div>
       <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div><button id="scan">Scan local QR image</button>
+        <div id="sendbackupnotice" class="backup-callout" hidden><p>Create and verify an encrypted backup before preparing this payment. Your recipient and amount stay in this form.</p><button id="sendbackup">Create &amp; verify encrypted backup</button></div>
         <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Exact decimal amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
         <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Confirm in native signer</button></div><pre id="preview">No payment prepared.</pre>
-      </div>
-      <div class="panel"><h2>Local payment journal</h2><button id="history">Refresh journal</button><button id="chainhistory">Query bounded chain history</button><pre id="chainhistoryresult">History has not been queried.</pre>
-        <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
       <details><summary>Network details &amp; public diagnostics</summary>
         <div id="associationcontrols" hidden><label>Named or rotated account address <input id="associateaddress" autocomplete="off" spellcheck="false"></label><button id="associate">Associate named / rotated account</button></div>
         <div id="dcrdiscoverycontrols" hidden>
         <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings in Go</button></div><pre id="diagnostics">Locked</pre>
       </details>
+
       </div>
     </div>
     <details id="release-status" class="release-details"><summary>Release status and remaining verification</summary><p>This unsigned development candidate has local security, recovery and protocol test evidence. Public funded testnet roundtrips, the full X11/Wayland OS matrix, the 24-hour soak and independent security review remain outstanding. Use disposable test wallets only. This is not a production-readiness or audit claim.</p></details>
@@ -79,9 +79,21 @@
         <label>Last index (inclusive) <input id="recoveryend" value="1" type="number" min="0" max="999999"></label>
         <button id="discoveraccounts">Recover this index range</button>
       </details>
+      <div id="journalpanel" class="panel"><h2>Local payment journal</h2>
+        <label>Wallet <select id="journalaccount"></select></label><label>Asset <select id="journalasset"></select></label><p id="journalcontext">Choose a wallet to inspect its payments.</p>
+        <button id="history">Refresh journal</button><button id="chainhistory">Query bounded chain history</button><pre id="journalresult">No journal action requested.</pre><pre id="chainhistoryresult">History has not been queried.</pre>
+        <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
+      </div>
     </div>
     <hr><p>Passwords and imported secrets are entered only in the separate native Go window. Generated phrases are never displayed.</p>
     <p>Recovery requires the encrypted backup and its password. There is no password reset.</p>
+  </section>
+</div>
+<div id="receivebackupdialog" class="modal-backdrop" hidden>
+  <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="receivebackuptitle" tabindex="-1">
+    <div class="settings-heading"><h2 id="receivebackuptitle">Back up before receiving funds</h2><button id="closereceivebackup">Cancel</button></div>
+    <p id="receivebackupcontext"></p><p>Your recovery phrase stays hidden. Create and verify an encrypted backup first; then the Go signer opens this wallet’s verified address and QR code. Keep the backup and its password safe.</p>
+    <button id="receivebackup" class="primary">Create &amp; verify encrypted backup</button>
   </section>
 </div>
 
