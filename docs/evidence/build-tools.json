@@ -167,6 +167,6 @@
     "scripts/sbom.py": "97882ee176650cd6888feee6fb5bfd135d5e8aac2ff27f740a03e489ae83a1c3",
     "scripts/build-tools-test.py": "3b82756c67ed1256bddf4287b907542ead822aae52fda2bf11b584514bfd601b",
     "Makefile": "cbfddf8afd0a4427f01969b64d2bcb8c6fb4e1319dadee2ba482eb91c16cbd1d",
-    ".github/workflows/release.yml": "9fe373993759ee5c75f2c6fd5f6396a6ac9853fe0aa633b87086e380acbf2381"
+    ".github/workflows/release.yml": "5dc7a5f8d7cf4fff0c1b449b80ae8a467f2ee4b7934ebc14a7e4d68eee625d41"
   }
 }

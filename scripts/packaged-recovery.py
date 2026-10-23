@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """Exercise the uninstrumented packaged app on an owned private X11 display.
 Synthetic public test credentials stay in this test process and native key events.
-No clipboard secret transport, remote endpoint, debug port, or bypass is used.
+No clipboard secret transport, debug port, or bypass is used. Opening a wallet
+may query its configured public RPC with disposable fixture addresses only.
 This is not the clean Ubuntu/Wayland acceptance matrix.
 """
-import base64, ctypes as C, hashlib, importlib.util, json, os, pathlib, shutil, signal, subprocess, tempfile, time
+import argparse, base64, ctypes as C, hashlib, importlib.util, json, os, pathlib, shutil, signal, subprocess, tempfile, time
 from PIL import Image, ImageOps
 from install import verify_binaries
 root=pathlib.Path(__file__).resolve().parents[1]
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--profile',choices=['mainnet','testnet'],default='mainnet')
+selected_profile=parser.parse_args().profile
+vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
 report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 validation feedback, password-only generation, import, ordinary-folder encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
+report['environment']=selected_profile
 password='public-synthetic-password-79326';phrase='abandon '*11+'about'
 owned=[];app=None;display=None;desktop=None;logs=[];live_log_checks=[]
 def passed(name): report['steps'].append({'name':name,'status':'PASS'});print('PASS '+name,flush=True)
@@ -56,6 +62,29 @@ def clickline(prefix):
   if ' '.join(a[11] for a in words).lower().startswith(prefix.lower()):
    a=words[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
  raise RuntimeError('Public UI button unavailable: '+prefix)
+def clickphrase(phrase):
+ words=phrase.lower().split()
+ for attempt in range(16):
+  rows=textboxes()
+  for i,a in enumerate(rows):
+   segment=rows[i:i+len(words)]
+   if len(segment)==len(words) and [b[11].lower().strip('.,:') for b in segment]==words and all(b[1:5]==a[1:5] for b in segment):
+    desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+  desktop.key('Home',ctrl=True) if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
+ raise RuntimeError('Public UI phrase unavailable: '+phrase)
+def clickprimary(word):
+ # The bright primary-button border confuses document-layout OCR at the
+ # ordinary threshold. Remove that border while preserving its label contrast.
+ textboxes() # Enforce the credential-window exclusion before image processing.
+ picture=ImageOps.invert(Image.open(capture()).convert('L'))
+ picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<90 else 255)
+ path=reports/'packaged-primary-controls.png';picture.save(path)
+ raw=subprocess.check_output(['tesseract',str(path),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
+ for line in raw.splitlines()[1:]:
+  a=line.split('\t')
+  if len(a)==12 and a[11].lower()==word.lower():
+   desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
+ raise RuntimeError('Public primary control unavailable: '+word)
 def waitnative(prefix):
  w,_=desktop.wait(prefix,25);desktop.focus(w);return desktop.geometry(w)
 def expectfailure(native_fragment,public_fragment,name,persist=False):
@@ -89,7 +118,7 @@ def stopapp():
   try:app.wait(timeout=10)
   except subprocess.TimeoutExpired:os.killpg(app.pid,signal.SIGKILL);app.wait()
   app=None;time.sleep(.5)
-def launch(profile,env):
+def launch(profile,env,environment=None):
  global app
  env={**env,'XDG_CONFIG_HOME':str(profile)}
  log=tempfile.TemporaryFile(mode='w+');logs.append(log)
@@ -98,7 +127,12 @@ def launch(profile,env):
  identity={'version':subprocess.check_output([str(launcher),'--version'],env=env,text=True,timeout=10).strip(),'binaryManifest':verify_binaries(runtime),'asarSHA256':hashlib.sha256((runtime/'resources/app.asar').read_bytes()).hexdigest()}
  if 'artifact' in report and report['artifact']!=identity:raise RuntimeError('Portable runtime changed between recovery steps')
  report['artifact']=identity
- app=subprocess.Popen([str(launcher),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
+ arguments=[str(launcher),'--ozone-platform=x11']
+ # Mainnet deliberately uses no profile override: this tests the default users
+ # receive. Testnet is always an explicit isolated developer profile.
+ environment=environment or selected_profile
+ if environment=='testnet':arguments.append('--profile=testnet')
+ app=subprocess.Popen(arguments,env=env,stdout=log,stderr=log,start_new_session=True)
  desktop.wait('LocalWallet',20);time.sleep(1)
 def clip():
  # Only the public address is requested. No secret is ever written to a clipboard.
@@ -113,7 +147,36 @@ def clip():
  if not p:raise RuntimeError('Public address clipboard empty')
  s=C.string_at(p).decode();glib.g_free(p);return s
 def publicaddress():
+ openfirstwallet()
  clickword('Copy');waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3);return clip()
+def overview():
+ desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
+ clickphrase('Main account');time.sleep(.3)
+def openfirstwallet():
+ overview();clickword('Open');time.sleep(.5)
+ until(lambda:'Balance' in ' '.join(a[11] for a in textboxes()))
+def copyfirstcard():
+ overview()
+ # Locate the actual public first card by its Open wallet button. The copy
+ # control is at the right edge of its single-line address row immediately
+ # above. This uses native XTest pointer input, never DOM/debug injection.
+ for attempt in range(12):
+  rows=textboxes()
+  for i,a in enumerate(rows[:-1]):
+   if a[11].lower()=='open' and rows[i+1][11].lower()=='wallet' and a[1:5]==rows[i+1][1:5]:
+    x=int(a[6]);y=int(a[7])
+    # First-card width is determined by the responsive grid, not host DPI.
+    # Find its two vertical border edges in the screenshot's own pixels.
+    picture=Image.open(capture()).convert('RGB')
+    border=(53,66,89)
+    edges=[xx for xx in range(max(0,x-40),min(1280,x+500)) if sum(abs(picture.getpixel((xx,max(0,y-10)))[c]-border[c]) for c in range(3))<9]
+    left=next((xx for xx in edges if xx<x),None)
+    right=next((xx for xx in edges if xx>x+100),None)
+    if left is None or right is None:raise RuntimeError('Public wallet card boundaries unavailable for native copy icon click')
+    desktop.click(right-35,y-42)
+    waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3);return clip()
+  desktop.key('Page_Down');time.sleep(.2)
+ raise RuntimeError('First public wallet card not available')
 def filechoice(prefix,path):
  waitnative(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.type(str(path));desktop.key('Return');time.sleep(.5)
  if any(t.startswith(prefix) for _,t in desktop.windows()):desktop.accept(prefix)
@@ -137,19 +200,17 @@ try:
   clickline('Create app password');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',['bad','bad']);desktop.accept('Create local wallet')
   expectfailure('UTF-8 bytes','Use an app password','short-password-feedback',persist=True)
-  if (generated/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Short password created a vault')
+  if (generated/vault_relative).exists():raise RuntimeError('Short password created a vault')
   clickline('Create app password');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,'different-public-password-79326']);desktop.accept('Create local wallet')
   expectfailure('do not match','passwords did not match','password-mismatch-feedback')
-  if (generated/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Mismatched passwords created a vault')
+  if (generated/vault_relative).exists():raise RuntimeError('Mismatched passwords created a vault')
   clickline('Create app password');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password]);desktop.accept('Create local wallet')
-  until(lambda:(generated/'localwallet/testnet/vault.lwv').exists());time.sleep(2)
+  until(lambda:(generated/vault_relative).exists());time.sleep(2)
   words=' '.join(a[11] for a in textboxes())
-  if 'Main account' not in words or 'Testnet profile' not in words:raise RuntimeError('Generated wallet did not show Main account and its testnet identity')
+  if 'Main account' not in words or selected_profile.title()+' profile' not in words:raise RuntimeError('Generated wallet did not show Main account and its actual profile identity')
   desktop.screenshot(reports/'packaged-generated-main-account.png')
-  generated_address=publicaddress()
-  if generated_address== '0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused the fixed import fixture')
   passed('Explicit first-run password-only generation and Main account overview without phrase reveal')
   generated_backup=backupdir/'generated.lwv'
   clickword('backup',350);filechoice('Save encrypted portable backup',generated_backup)
@@ -157,6 +218,8 @@ try:
   if generated_backup.stat().st_mode&0o777!=0o600 or backupdir.stat().st_mode&0o777!=0o755 or (backupdir/'writer.lock').exists():raise RuntimeError('Backup altered folder policy or did not retain owner-only file permissions')
   original_backup=generated_backup.read_bytes()
   passed('Verified owner-only encrypted backup in ordinary 0755 folder without folder mutation or lockfile')
+  generated_address=publicaddress()
+  if generated_address=='0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused the fixed import fixture')
   clickword('backup',350);filechoice('Save encrypted portable backup',generated_backup)
   expectfailure('Choose a new backup filename','A file already exists','existing-backup-feedback')
   if generated_backup.read_bytes()!=original_backup:raise RuntimeError('Existing encrypted backup changed')
@@ -175,17 +238,27 @@ try:
   launch(profile,env);clickword('Other',350);clickword('Import',350);waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,'bad','']);desktop.accept('Create local wallet')
   expectfailure('valid English BIP39','valid English BIP39','invalid-recovery-phrase-feedback')
-  if (profile/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Invalid phrase created a vault')
+  if (profile/vault_relative).exists():raise RuntimeError('Invalid phrase created a vault')
   clickword('Import',350);x,y,w,h=waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,phrase,''])
   desktop.screenshot(reports/'packaged-native-masked.png');desktop.accept('Create local wallet')
   waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits')
-  until(lambda:(profile/'localwallet/testnet/vault.lwv').exists());time.sleep(1);passed('Native input-only BIP39 import with production KDF')
+  until(lambda:(profile/vault_relative).exists());time.sleep(1);passed('Native input-only BIP39 import with production KDF')
   expected='0x9858EfFD232B4033E47d90003D41EC34EcaEda94'
-  if publicaddress()!=expected:raise RuntimeError('Imported independent fixture public address differs')
-  passed('Go-owned verified receive QR and exact independent public address')
   clickword('backup',350);filechoice('Save encrypted portable backup',backup)
   until(lambda:backup.exists());time.sleep(3);passed('Native encrypted portable backup creation and reopen verification')
+  if publicaddress()!=expected:raise RuntimeError('Imported independent fixture public address differs')
+  passed('Go-owned verified receive QR and exact independent public address')
+  if copyfirstcard()!=expected:raise RuntimeError('Wallet cell copy icon copied a different public address')
+  passed('Wallet cell copy icon invokes native verification and copies the full independent public address')
+  openfirstwallet()
+  words=' '.join(a[11] for a in textboxes())
+  if 'Balance' not in words or 'HyperEVM' in words:raise RuntimeError('Open wallet did not show an isolated Ethereum tab with its balance instead of the portfolio grid')
+  desktop.screenshot(reports/'packaged-wallet-tab.png')
+  clickprimary('Receive');waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3)
+  clickprimary('Send');time.sleep(.3)
+  if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Wallet Send button did not focus its own payment form')
+  passed('Open wallet selects a wallet tab with scoped balance and send/receive controls instead of the portfolio grid')
   stopapp();launch(profile,env)
   # A restart never resumes the signer session; unlock requires native input.
   clickword('Unlock',350);x,y,w,h=waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(3)
@@ -193,11 +266,29 @@ try:
   passed('Restart requires native unlock and preserves deterministic address')
   stopapp();fresh=folder/'fresh';launch(fresh,env);clickword('Other',350);clickword('Restore',350);filechoice('Open encrypted backup',backup)
   x,y,w,h=waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup')
-  until(lambda:(fresh/'localwallet/testnet/vault.lwv').exists());time.sleep(3)
+  until(lambda:(fresh/vault_relative).exists());time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Fresh-profile public address differs')
   passed('Portable restore into empty profile without original application state')
   desktop.screenshot(reports/'packaged-restored.png')
   stopapp()
+  if selected_profile=='mainnet':
+   saved=hashlib.sha256((fresh/vault_relative).read_bytes()).hexdigest()
+   launch(fresh,env,environment='testnet')
+   words=' '.join(a[11] for a in textboxes())
+   if 'Testnet profile' not in words or 'Create your app password' not in words or (fresh/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Explicit testnet launch reused or auto-created a mainnet root')
+   if hashlib.sha256((fresh/vault_relative).read_bytes()).hexdigest()!=saved:raise RuntimeError('Explicit testnet launch modified the mainnet vault')
+   passed('Explicit testnet profile starts empty and preserves existing mainnet ciphertext without conversion')
+   stopapp();launch(fresh,env)
+   words=' '.join(a[11] for a in textboxes())
+   if 'Mainnet profile' not in words or 'Welcome back' not in words:raise RuntimeError('Default launch failed to return to the existing locked mainnet profile')
+   clickword('Unlock',350);waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
+   clickword('Add',350);time.sleep(2)
+   desktop.key('Home',ctrl=True);clickphrase('Account 2');time.sleep(.5)
+   words=' '.join(a[11] for a in textboxes())
+   if 'Derivation index 1' not in words:raise RuntimeError('Second deterministic account did not have its own top tab page')
+   desktop.screenshot(reports/'packaged-account-tabs.png')
+   passed('Additional deterministic account appears as its own top tab with index-one network wallets')
+   stopapp()
   canaries=[password.encode(),phrase.encode(),bytes.fromhex('00'*16)]
   # Entropy all-zero bytes are not scanned: binary formats legitimately contain
   # zero padding. Distinct password/phrase and their common encodings are checked.

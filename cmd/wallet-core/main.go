@@ -216,7 +216,7 @@ func main() {
 		fmt.Println(buildinfo.Version)
 		return
 	}
-	environment := flag.String("environment", "testnet", "testnet or explicit mainnet profile")
+	environment := flag.String("environment", "mainnet", "mainnet or explicitly selected testnet profile")
 	flag.Parse()
 	if *environment != "testnet" && *environment != "mainnet" {
 		os.Exit(2)
@@ -848,11 +848,12 @@ func publicJSON(value any) ([]byte, error) {
 					x[key] = string(b)
 				} else if key == "rpc" {
 					if s, ok := item.(string); ok {
-						if u, e := url.Parse(s); e == nil {
-							u.User = nil
-							u.RawQuery = ""
-							u.Fragment = ""
-							x[key] = u.String()
+						// API providers may embed credentials in path segments as
+						// well as userinfo or query fields. Public UI receives only
+						// the origin; the exact endpoint stays inside Go settings.
+						x[key] = ""
+						if u, e := url.Parse(s); e == nil && u.Host != "" && (u.Scheme == "https" || u.Scheme == "http") {
+							x[key] = (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
 						}
 					}
 				} else {

@@ -60,7 +60,7 @@ void app.whenReady().then(async()=>{
  ses.webRequest.onBeforeRequest((details,callback)=>callback({cancel:!details.url.startsWith(origin+'/')&&!details.url.startsWith('data:image/png;base64,')}));
  ses.on('will-download',event=>event.preventDefault());
  await ses.protocol.handle('wallet',request=>{const u=new URL(request.url);const files:Record<string,string>={'/':'index.html','/renderer.js':'renderer.js','/style.css':'style.css'};const name=files[u.pathname];if(u.host!=='app'||!name||u.search||u.hash)return new Response('Denied',{status:403});return net.fetch('file://'+path.join(__dirname,'../ui',name));});
- win=new BrowserWindow({width:1180,height:850,title:'LocalWallet — Development / Testnet',webPreferences:{partition:'wallet-local',preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});
+ win=new BrowserWindow({width:1180,height:850,title:'LocalWallet — Verification pending',webPreferences:{partition:'wallet-local',preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});
  win.on('closed',()=>{win=undefined;stop()});
  win.webContents.on('will-navigate',e=>e.preventDefault());win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-attach-webview',e=>e.preventDefault());
  const osLock=()=>{notifyLocked();void request('lock',{}).catch(stop)};

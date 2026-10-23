@@ -12,9 +12,9 @@
     {
       "backend": "x11",
       "status": "PASS",
-      "log": "[858061:1023/184242.560967:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.InvalidArgs: No such interface \u201corg.freedesktop.portal.FileChooser\u201d\n",
+      "log": "[1046666:1023/193243.984523:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.InvalidArgs: No such interface \u201corg.freedesktop.portal.FileChooser\u201d\n",
       "mesaWarning": false,
-      "screenshotSHA256": "15950057502101ee13e8ad81be259ad5d7b120546a67fa8f5c416bba264dde22",
+      "screenshotSHA256": "80c79dfcfc3fb82b3b30f0a259cfb9dec3c4702d10bc2dde2d168bceca3ff666",
       "scope": "Mapped public X11 window and process alive for 5 seconds",
       "displayCommand": [
         "/home/neodix/gitProjects/crypto-wallet/.tools/xvfb/root/usr/bin/Xvfb",
@@ -31,7 +31,7 @@
     {
       "backend": "wayland",
       "status": "PASS",
-      "log": "[859274:1023/184248.865797:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.InvalidArgs: No such interface \u201corg.freedesktop.portal.FileChooser\u201d\n",
+      "log": "[1049193:1023/193250.094580:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.InvalidArgs: No such interface \u201corg.freedesktop.portal.FileChooser\u201d\n",
       "mesaWarning": false,
       "scope": "Private virtual Wayland startup process alive for 5 seconds; window visibility/input not verified",
       "displayCommand": [
@@ -54,10 +54,10 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "a0e49c71a50ec07933a69057a1b199f1df710357e758bb638e8d9b89822069a7",
-      "wallet-launcher": "95f4f33a1e9f2849bc654c9f18d496625ffe348c9b2aecbb9fab5d743f94b988",
-      "wallet-signer": "4394ebe033e918eb6c30a3e646656518356ce73b7eb380b39d272924280228c1"
+      "wallet-core": "0354262c84d10a24c4f1ab8b5fca71fb460bf6386ad0b2c4415e758ba70846f3",
+      "wallet-launcher": "45495251d451a70d28c3a78f6c13ed68f40b36cc9c4d50394d6190865b37f43f",
+      "wallet-signer": "09eaeb89273a4a2ee2f237e8f19866f1e5092317db0f862f6bc1c9f5357b8a49"
     },
-    "asarSHA256": "2c8788a6c1957966b26dd3a0331d812a0b2a18fd9d0db0a7f54558f9c8e8797e"
+    "asarSHA256": "dc87387e69f9d6fadc9161aaf54c8a72ee1226d2df448311e9c97635f451891e"
   }
 }

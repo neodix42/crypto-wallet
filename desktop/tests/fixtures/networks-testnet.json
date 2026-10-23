@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "scope": "Public network DTOs from chains.All().Networks(), filtered Testnet; no account seed, native UI, RPC or transaction operation.",
+  "scope": "Public network DTOs from chains.All().Networks(), filtered by the named environment; no account seed, native UI, RPC or transaction operation.",
   "sourceSHA256": {
     "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
     "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
     "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
     "internal/chains/near/near.go": "ea66cf20a6545a625d8cdc531c128c2ad1f59f829ecc088f3440c5d396c3bb2b",
-    "internal/chains/aptos/aptos.go": "1ec117b7e22ade103df48f2065d31e8e12591dd6ce5f3d22cd86a88510e36a39",
-    "internal/chains/decred/decred.go": "dfddadc5329088e92730f0969ba33588328a8b92641ee1791f4691962778e094",
-    "internal/chains/ton/ton.go": "4d737b7ce887f1b315d8b2bd79739a72ce81481f209e4e8aa0b8057eaa774f18"
+    "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
+    "internal/chains/decred/decred.go": "da7ca49a095ad6fe251b11a3915001f1a9ff34b62b0af5951d608f7015db267c",
+    "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed"
   },
   "networks": [
     {
@@ -171,7 +171,7 @@
     {
       "id": "decred-testnet3",
       "family": "decred",
-      "name": "testnet3",
+      "name": "Decred Testnet3",
       "testnet": true,
       "chainId": "a649dce53918caf422e9c711c858837e08d626ecfcd198969b24f7b634a49bac",
       "rpc": "",
@@ -187,7 +187,7 @@
     {
       "id": "decred-simnet",
       "family": "decred",
-      "name": "simnet",
+      "name": "Decred Simnet",
       "testnet": true,
       "chainId": "6bef82c645999585f7255cb02672921ac2f5492820090cd635fe3a59d16b4f87",
       "rpc": "",
@@ -203,7 +203,7 @@
     {
       "id": "ton-testnet",
       "family": "ton",
-      "name": "ton-testnet",
+      "name": "TON Testnet",
       "testnet": true,
       "chainId": "-3",
       "rpc": "https://testnet.toncenter.com/api/v2/jsonRPC",

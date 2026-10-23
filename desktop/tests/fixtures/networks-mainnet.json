@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "scope": "Public network DTOs from chains.All().Networks(), filtered by the named environment; no account seed, native UI, RPC or transaction operation.",
+  "sourceSHA256": {
+    "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
+    "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
+    "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
+    "internal/chains/near/near.go": "ea66cf20a6545a625d8cdc531c128c2ad1f59f829ecc088f3440c5d396c3bb2b",
+    "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
+    "internal/chains/decred/decred.go": "da7ca49a095ad6fe251b11a3915001f1a9ff34b62b0af5951d608f7015db267c",
+    "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed"
+  },
+  "networks": [
+    {
+      "id": "ethereum-mainnet",
+      "family": "evm",
+      "name": "Ethereum",
+      "testnet": false,
+      "chainId": "1",
+      "rpc": "https://ethereum-rpc.publicnode.com",
+      "assets": [
+        {
+          "id": "ethereum-mainnet:native",
+          "symbol": "ETH",
+          "decimals": 18
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "hyperevm-mainnet",
+      "family": "evm",
+      "name": "HyperEVM",
+      "testnet": false,
+      "chainId": "999",
+      "rpc": "https://rpc.hyperliquid.xyz/evm",
+      "assets": [
+        {
+          "id": "hyperevm-mainnet:native",
+          "symbol": "HYPE",
+          "decimals": 18
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "base-mainnet",
+      "family": "evm",
+      "name": "Base",
+      "testnet": false,
+      "chainId": "8453",
+      "rpc": "https://mainnet.base.org",
+      "assets": [
+        {
+          "id": "base-mainnet:native",
+          "symbol": "ETH",
+          "decimals": 18
+        },
+        {
+          "id": "base-mainnet:erc20:0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229",
+          "symbol": "ZEN",
+          "decimals": 18,
+          "contract": "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229"
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "horizen-mainnet",
+      "family": "evm",
+      "name": "Horizen",
+      "testnet": false,
+      "chainId": "26514",
+      "rpc": "https://horizen.calderachain.xyz/http",
+      "assets": [
+        {
+          "id": "horizen-mainnet:native",
+          "symbol": "ETH",
+          "decimals": 18
+        },
+        {
+          "id": "horizen-mainnet:erc20:0x57da2D504bf8b83Ef304759d9f2648522D7a9280",
+          "symbol": "ZEN",
+          "decimals": 18,
+          "contract": "0x57da2D504bf8b83Ef304759d9f2648522D7a9280"
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "hypercore-mainnet",
+      "family": "hypercore",
+      "name": "HyperCore Mainnet spot",
+      "testnet": false,
+      "chainId": "HyperCore Mainnet",
+      "rpc": "https://api.hyperliquid.xyz",
+      "assets": [
+        {
+          "id": "hypercore-mainnet:HYPE:0x0d01dc56dcaaca66ad901c959b4011ec",
+          "symbol": "HYPE",
+          "decimals": 8,
+          "contract": "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec"
+        }
+      ],
+      "trust": "official TLS API and explorer; HYPE token identity checked; not a consensus proof"
+    },
+    {
+      "id": "near-mainnet",
+      "family": "near",
+      "name": "NEAR mainnet",
+      "testnet": false,
+      "chainId": "mainnet",
+      "rpc": "https://rpc.mainnet.near.org",
+      "assets": [
+        {
+          "id": "near-mainnet:native",
+          "symbol": "NEAR",
+          "decimals": 24
+        }
+      ],
+      "trust": "TLS RPC; provider assertion, not verified consensus"
+    },
+    {
+      "id": "aptos-mainnet",
+      "family": "aptos",
+      "name": "Aptos mainnet",
+      "testnet": false,
+      "chainId": "1",
+      "rpc": "https://api.mainnet.aptoslabs.com/v1",
+      "assets": [
+        {
+          "id": "aptos-mainnet:native",
+          "symbol": "APT",
+          "decimals": 8
+        }
+      ],
+      "trust": "TLS RPC; provider assertion, not verified consensus"
+    },
+    {
+      "id": "decred-mainnet",
+      "family": "decred",
+      "name": "Decred Mainnet",
+      "testnet": false,
+      "chainId": "298e5cc3d985bfe7f81dc135f360abe089edd4396b86d2de66b0cef42b21d980",
+      "rpc": "",
+      "assets": [
+        {
+          "id": "decred-mainnet:DCR",
+          "symbol": "DCR",
+          "decimals": 8
+        }
+      ],
+      "trust": "Authenticated trusted dcrd; bounded full-block scan; no SPV proof claim"
+    },
+    {
+      "id": "ton-mainnet",
+      "family": "ton",
+      "name": "TON Mainnet",
+      "testnet": false,
+      "chainId": "-239",
+      "rpc": "https://toncenter.com/api/v2/jsonRPC",
+      "assets": [
+        {
+          "id": "ton-mainnet:TON",
+          "symbol": "TON",
+          "decimals": 9
+        }
+      ],
+      "trust": "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"
+    }
+  ]
+}

@@ -879,12 +879,12 @@ func TestTP052NativeMaxIncludesStorageReserve(t *testing.T) {
 	}
 }
 func TestTP040PublicJSONPreservesAtomicStringsAndRedactsRPCCredentials(t *testing.T) {
-	value := map[string]any{"operations": []any{map[string]any{"nonce": "18446744073709551615", "amount": "340282366920938463463374607431768211455", "payload": json.RawMessage(`{"nonce":18446744073709551615,"amount":"123"}`)}}, "rpc": "https://public-user:PUBLIC-NODE-PASSWORD@example.org/v1?apiKey=PUBLIC-API-KEY#credential", "nested": map[string]any{"rpc": 42}}
+	value := map[string]any{"operations": []any{map[string]any{"nonce": "18446744073709551615", "amount": "340282366920938463463374607431768211455", "payload": json.RawMessage(`{"nonce":18446744073709551615,"amount":"123"}`)}}, "rpc": "https://public-user:PUBLIC-NODE-PASSWORD@example.org/v1/PUBLIC-PATH-API-KEY?apiKey=PUBLIC-API-KEY#credential", "nested": map[string]any{"rpc": 42}}
 	b, e := publicJSON(value)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if bytes.Contains(b, []byte("PUBLIC-NODE-PASSWORD")) || bytes.Contains(b, []byte("PUBLIC-API-KEY")) || bytes.Contains(b, []byte("public-user")) {
+	if bytes.Contains(b, []byte("PUBLIC-NODE-PASSWORD")) || bytes.Contains(b, []byte("PUBLIC-API-KEY")) || bytes.Contains(b, []byte("public-user")) || bytes.Contains(b, []byte("PUBLIC-PATH-API-KEY")) {
 		t.Fatal("node credential in public IPC")
 	}
 	var decoded struct {
@@ -898,7 +898,7 @@ func TestTP040PublicJSONPreservesAtomicStringsAndRedactsRPCCredentials(t *testin
 	if e = json.Unmarshal(b, &decoded); e != nil {
 		t.Fatal(e)
 	}
-	if decoded.RPC != "https://example.org/v1" || decoded.Operations[0].Nonce != "18446744073709551615" || !strings.Contains(decoded.Operations[0].Payload, "18446744073709551615") {
+	if decoded.RPC != "https://example.org" || decoded.Operations[0].Nonce != "18446744073709551615" || !strings.Contains(decoded.Operations[0].Payload, "18446744073709551615") {
 		t.Fatal("public quantity precision lost")
 	}
 	if _, e = publicJSON(make(chan int)); e == nil {

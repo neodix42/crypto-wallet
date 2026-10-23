@@ -1,0 +1,823 @@
+{
+  "schemaVersion": 1,
+  "startedAtUTC": "2026-10-23T15:20:43.451908+00:00",
+  "finishedAtUTC": "2026-10-23T15:22:42.422477+00:00",
+  "scope": "Read-only network identity, current network metadata, canonical public token contract bytecode and decimals only. No wallet address, balance, secret, signed transaction, broadcast or faucet request. Sequential requests per public service, at most four independent providers concurrently. No load/stress testing of public endpoints.",
+  "claimLimits": [
+    "Provider-reported identity is not a consensus proof.",
+    "PASS does not establish funded receive/send acceptance, performance, uptime, independent review or production readiness.",
+    "Unavailable identity or method remains BLOCKED, never converted to a confirmed zero."
+  ],
+  "results": [
+    {
+      "check": "Ethereum identity",
+      "endpoint": "https://ethereum-rpc.publicnode.com",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_chainId",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "208c0be5a34cd9b241311e625b3035aa89cb237969cbc1a0c9cbd8c8517087eb",
+      "status": "PASS",
+      "durationSeconds": 0.159,
+      "expectedChainId": 1,
+      "observedChainId": "0x1"
+    },
+    {
+      "check": "Ethereum latest block",
+      "endpoint": "https://ethereum-rpc.publicnode.com",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_getBlockByNumber",
+          "params": [
+            "latest",
+            false
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "02322754c58e33af2b7ebf35f1d999a2bc1d1b420a90d44b78bcce479be6f0d3",
+      "status": "PASS",
+      "durationSeconds": 0.333,
+      "observed": {
+        "number": "0x190a338",
+        "hash": "0x34145638a4cdf7b2a2f26d90c5e1c383d3c07263743fd1e31a29177cd4582efe",
+        "timestamp": "0x6adb7b43",
+        "baseFeePerGas": "0xa8b01cb"
+      }
+    },
+    {
+      "check": "Ethereum priority fee method",
+      "endpoint": "https://ethereum-rpc.publicnode.com",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_maxPriorityFeePerGas",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "97e9422e8ca43b6b1f579942866bb0bfb7936f1852f3f14e8faf553d79043f18",
+      "status": "PASS",
+      "durationSeconds": 0.14,
+      "observed": "0x3ee3"
+    },
+    {
+      "check": "HyperEVM identity",
+      "endpoint": "https://rpc.hyperliquid.xyz/evm",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_chainId",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "430f684fbe48ec1e680bfacf8a2bea38f365e868bc8874eebe9e26e360983a9a",
+      "status": "PASS",
+      "durationSeconds": 0.241,
+      "expectedChainId": 999,
+      "observedChainId": "0x3e7"
+    },
+    {
+      "check": "HyperEVM latest block",
+      "endpoint": "https://rpc.hyperliquid.xyz/evm",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_getBlockByNumber",
+          "params": [
+            "latest",
+            false
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "72ee8f9eb38200655eed915a5cc0cdc1f6bfa6791d8558b88244f3bd06ac3309",
+      "status": "PASS",
+      "durationSeconds": 0.194,
+      "observed": {
+        "number": "0x2f09302",
+        "hash": "0x00062a88f7e54030da17521534cfe175651f9aa431721bdcc24016d9916beabb",
+        "timestamp": "0x6adb7b4b",
+        "baseFeePerGas": "0x5f5e100"
+      }
+    },
+    {
+      "check": "HyperEVM priority fee method",
+      "endpoint": "https://rpc.hyperliquid.xyz/evm",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_maxPriorityFeePerGas",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "b0b17a2167550f78381234d8284565462e60c99813ae88d7dc4f310662d3f65c",
+      "status": "PASS",
+      "durationSeconds": 0.197,
+      "observed": "0x0"
+    },
+    {
+      "check": "Base identity",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_chainId",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "395c4282d446999297cdcba9e50c3df13687008bc4eecc206a5d616be7f6d227",
+      "status": "PASS",
+      "durationSeconds": 0.257,
+      "expectedChainId": 8453,
+      "observedChainId": "0x2105"
+    },
+    {
+      "check": "Base latest block",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_getBlockByNumber",
+          "params": [
+            "latest",
+            false
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "681841cc8abd1a2a0e656d99d7ffbc269ac94e772668ac49b4bd18a80283c843",
+      "status": "PASS",
+      "durationSeconds": 0.225,
+      "observed": {
+        "number": "0x3288f34",
+        "hash": "0x1cc59e8a8c7da12269313eba7905256d9a57aca4269f4eec3a19493dced3a7b5",
+        "timestamp": "0x6adb7b4b",
+        "baseFeePerGas": "0x4c4b40"
+      }
+    },
+    {
+      "check": "Base priority fee method",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_maxPriorityFeePerGas",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "4ee76a83764663fe38cd00b366780df6221e191ef2021769fd7dd2180e88f2d7",
+      "status": "PASS",
+      "durationSeconds": 0.214,
+      "observed": "0xf4240"
+    },
+    {
+      "check": "Base ZEN runtime bytecode",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_getCode",
+          "params": [
+            "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229",
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "68f9c4353908835dea0dde193f9573793451203ed83f7ce4c7c1298878866f34",
+      "status": "PASS",
+      "durationSeconds": 0.211,
+      "contract": "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229",
+      "expectedKeccak256": "0x92a6294a008ae778c19a6f894f1c0f66818ce2a00c32d25eb6fa6a7923b23c3c",
+      "byteLength": 3314,
+      "observedKeccak256": "0x92a6294a008ae778c19a6f894f1c0f66818ce2a00c32d25eb6fa6a7923b23c3c"
+    },
+    {
+      "check": "Base ZEN decimals",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_call",
+          "params": [
+            {
+              "to": "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229",
+              "data": "0x313ce567"
+            },
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "942eb00e02101dd8673395e77f951530862ae177255e90bbbb71a3c42dd6fba6",
+      "status": "PASS",
+      "durationSeconds": 0.22,
+      "contract": "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229",
+      "expectedDecimals": 18,
+      "observedDecimals": 18
+    },
+    {
+      "check": "Horizen identity",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_chainId",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "c22b40027abd931441a80c841a5df874582f9b450fd4b44b7c5cf77624ea118f",
+      "status": "PASS",
+      "durationSeconds": 0.545,
+      "expectedChainId": 26514,
+      "observedChainId": "0x6792"
+    },
+    {
+      "check": "Horizen latest block",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_getBlockByNumber",
+          "params": [
+            "latest",
+            false
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "b81fa99d00f3fb15de1f36ff2c81efec5306053eb692348758f5aede7c8a4eff",
+      "status": "PASS",
+      "durationSeconds": 0.789,
+      "observed": {
+        "number": "0x1c02ca9",
+        "hash": "0x85f6122d757c3c317b2a16f5e2bf46d42f85e406cf8cc83a469a2885076ba5ff",
+        "timestamp": "0x6adb7b4c",
+        "baseFeePerGas": "0xfc"
+      }
+    },
+    {
+      "check": "Horizen priority fee method",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_maxPriorityFeePerGas",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "4ee76a83764663fe38cd00b366780df6221e191ef2021769fd7dd2180e88f2d7",
+      "status": "PASS",
+      "durationSeconds": 0.789,
+      "observed": "0xf4240"
+    },
+    {
+      "check": "Horizen ZEN runtime bytecode",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_getCode",
+          "params": [
+            "0x57da2D504bf8b83Ef304759d9f2648522D7a9280",
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "2e86f688251ba418de1ed1a86e0f6a3bd2a30d59fc3c79517b08d4dec315a4f0",
+      "status": "PASS",
+      "durationSeconds": 0.543,
+      "contract": "0x57da2D504bf8b83Ef304759d9f2648522D7a9280",
+      "expectedKeccak256": "0x244bb43a2f687bfcd9cbe2f0a64b2e54436a597367ab7052fd1ab925c4cabe14",
+      "byteLength": 12539,
+      "observedKeccak256": "0x244bb43a2f687bfcd9cbe2f0a64b2e54436a597367ab7052fd1ab925c4cabe14"
+    },
+    {
+      "check": "Horizen ZEN decimals",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_call",
+          "params": [
+            {
+              "to": "0x57da2D504bf8b83Ef304759d9f2648522D7a9280",
+              "data": "0x313ce567"
+            },
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "942eb00e02101dd8673395e77f951530862ae177255e90bbbb71a3c42dd6fba6",
+      "status": "PASS",
+      "durationSeconds": 0.533,
+      "contract": "0x57da2D504bf8b83Ef304759d9f2648522D7a9280",
+      "expectedDecimals": 18,
+      "observedDecimals": 18
+    },
+    {
+      "check": "HyperCore spot HYPE metadata",
+      "endpoint": "https://api.hyperliquid.xyz/info",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "type": "spotMeta"
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "e08fd325573e423b074501b511e28f2c981276b065539704f26bd8f3aafd3587",
+      "status": "PASS",
+      "durationSeconds": 0.285,
+      "expected": {
+        "name": "HYPE",
+        "index": 150,
+        "weiDecimals": 8,
+        "tokenId": "0x0d01dc56dcaaca66ad901c959b4011ec"
+      },
+      "observed": [
+        {
+          "name": "HYPE",
+          "szDecimals": 2,
+          "weiDecimals": 8,
+          "index": 150,
+          "tokenId": "0x0d01dc56dcaaca66ad901c959b4011ec",
+          "isCanonical": false,
+          "evmContract": null,
+          "fullName": "Hyperliquid",
+          "deployerTradingFeeShare": "0.0"
+        }
+      ]
+    },
+    {
+      "check": "HyperCore public status method",
+      "endpoint": "https://api.hyperliquid.xyz/info",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "type": "exchangeStatus"
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "f21107f5953df1f763019c538cf118a4f791401ccb21979792e451d83de10500",
+      "status": "PASS",
+      "durationSeconds": 0.2,
+      "observed": {
+        "specialStatuses": null,
+        "time": 1792768846862
+      }
+    },
+    {
+      "check": "NEAR mainnet identity",
+      "endpoint": "https://rpc.mainnet.near.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "status",
+          "params": []
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "f5e9c2b78e982b0f912d9f0b43a6945d5faa9081815c14f1e92b22d2ee87ec64",
+      "status": "PASS",
+      "durationSeconds": 3.184,
+      "observed": {
+        "chain_id": "mainnet",
+        "protocol_version": 86,
+        "latest_protocol_version": 86
+      },
+      "syncInfo": {
+        "earliest_block_hash": "5LQGLYmmpcpk38d1i9tubP4a4qckQzhbcarBPKDCPJPA",
+        "earliest_block_height": 221142785,
+        "earliest_block_time": "2026-10-22T20:51:38.153811148Z",
+        "epoch_id": "47Sm6voDCwjrJwHnhUw1Vrf3Qj7ByVGDNEBmhBAHx5Jx",
+        "epoch_start_height": 221241134,
+        "latest_block_hash": "8MRnEKsNWyuxpmTSuLsJ2PRALorR4Qpuz6yTp8SvpaET",
+        "latest_block_height": 221255733,
+        "latest_block_time": "2026-10-23T15:20:49.020931561Z",
+        "latest_state_root": "AgkRKdaujHvU8GJLyECCsFomtjRKYA8gE96HfbSkKa6v",
+        "syncing": false
+      }
+    },
+    {
+      "check": "Aptos current fullnode alias",
+      "endpoint": "https://fullnode.mainnet.aptoslabs.com/v1",
+      "request": {
+        "httpMethod": "GET"
+      },
+      "httpStatus": 200,
+      "responseSha256": "e27b463671700c269f4492f265b4caa859b4e37df4336213b717a28c6f51da20",
+      "status": "PASS",
+      "durationSeconds": 0.707,
+      "observed": {
+        "chain_id": 1,
+        "ledger_version": "7737970627",
+        "ledger_timestamp": "1792768850942267",
+        "block_height": "1133538222",
+        "node_role": "full_node"
+      }
+    },
+    {
+      "check": "Aptos documented REST API",
+      "endpoint": "https://api.mainnet.aptoslabs.com/v1",
+      "request": {
+        "httpMethod": "GET"
+      },
+      "httpStatus": 200,
+      "responseSha256": "def79050338c624ef1d76b0ccc4f8c9dfac5cdeb60ae98843498218af375b24d",
+      "status": "PASS",
+      "durationSeconds": 0.598,
+      "observed": {
+        "chain_id": 1,
+        "ledger_version": "7737970699",
+        "ledger_timestamp": "1792768851527102",
+        "block_height": "1133538234",
+        "node_role": "full_node"
+      }
+    },
+    {
+      "check": "TON official mainnet zerostate source",
+      "endpoint": "https://ton.org/global.config.json",
+      "request": {
+        "httpMethod": "GET"
+      },
+      "httpStatus": 200,
+      "responseSha256": "60233365eb4e9ae06d9822f1e4546667ef79d6a5df75686c7cc87d4d7830be3d",
+      "status": "PASS",
+      "durationSeconds": 1.081,
+      "observed": {
+        "workchain": -1,
+        "shard": -9223372036854775808,
+        "seqno": 0,
+        "root_hash": "F6OpKZKqvqeFp6CQmFomXNMfMj2EnaUSOXN+Mh+wVWk=",
+        "file_hash": "XplPz01CXAps5qeSWUtxcyBfdAo5zVb1N979KLSKD24="
+      }
+    },
+    {
+      "check": "TON mainnet zerostate identity",
+      "endpoint": "https://toncenter.com/api/v2/jsonRPC",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "getMasterchainInfo",
+          "params": {}
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "7fa4e89325bb80839f9069be8eed5550e54ea7205d1fa3e78c2d359364e9cef7",
+      "status": "PASS",
+      "durationSeconds": 0.758,
+      "expected": {
+        "root_hash": "F6OpKZKqvqeFp6CQmFomXNMfMj2EnaUSOXN+Mh+wVWk=",
+        "file_hash": "XplPz01CXAps5qeSWUtxcyBfdAo5zVb1N979KLSKD24=",
+        "workchain": -1
+      },
+      "observed": {
+        "@type": "blocks.masterchainInfo",
+        "last": {
+          "@type": "ton.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 100880348,
+          "root_hash": "x2KHZlMt5tWoYsxQjU16MhjckZc37o4B9/13hayxhKg=",
+          "file_hash": "vL00BF3pAmL5qn4winP3lhercKeD0XkMJ5M4cIOqb2c="
+        },
+        "state_root_hash": "lL7t/mmptmixAmTo7jPhDXuzZ1MmIQxrOaERA2Yvi5o=",
+        "init": {
+          "@type": "ton.blockIdExt",
+          "workchain": -1,
+          "shard": "0",
+          "seqno": 0,
+          "root_hash": "F6OpKZKqvqeFp6CQmFomXNMfMj2EnaUSOXN+Mh+wVWk=",
+          "file_hash": "XplPz01CXAps5qeSWUtxcyBfdAo5zVb1N979KLSKD24="
+        }
+      }
+    },
+    {
+      "check": "Decred authenticated mainnet dcrd connectivity",
+      "endpoint": null,
+      "status": "BLOCKED",
+      "reason": "No user-authorized authenticated mainnet dcrd endpoint and TLS trust configured. Public dcrdata explorers are not an authenticated dcrd RPC replacement. No credentials or user profiles read."
+    },
+    {
+      "check": "Base rollup fee oracle getL1FeeUpperBound(uint256)",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_call",
+          "params": [
+            {
+              "to": "0x420000000000000000000000000000000000000F",
+              "data": "0xf1c7a58b0000000000000000000000000000000000000000000000000000000000000200"
+            },
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "90c418c9dc749be6c017cbd4555f1c76a22cd142ea216197ad481dcb818ea07f",
+      "status": "PASS",
+      "durationSeconds": 0.216,
+      "observed": "0x00000000000000000000000000000000000000000000000000000001e11f1701",
+      "observedAtomic": "8071878401"
+    },
+    {
+      "check": "Base rollup fee oracle getOperatorFee(uint256)",
+      "endpoint": "https://mainnet.base.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_call",
+          "params": [
+            {
+              "to": "0x420000000000000000000000000000000000000F",
+              "data": "0x275aedd20000000000000000000000000000000000000000000000000000000000005208"
+            },
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "d6270a96c74e698681cb7c0012a25d17a018228bca3a631fd19a384e561ca22a",
+      "status": "PASS",
+      "durationSeconds": 0.22,
+      "observed": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "observedAtomic": "0"
+    },
+    {
+      "check": "Horizen rollup fee oracle getL1FeeUpperBound(uint256)",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_call",
+          "params": [
+            {
+              "to": "0x420000000000000000000000000000000000000F",
+              "data": "0xf1c7a58b0000000000000000000000000000000000000000000000000000000000000200"
+            },
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "996534faf1097a4ccd1a653f97033539de4a946fd7461515dab4639cfa08c703",
+      "status": "PASS",
+      "durationSeconds": 0.798,
+      "observed": "0x000000000000000000000000000000000000000000000000000000000267ddc3",
+      "observedAtomic": "40361411"
+    },
+    {
+      "check": "Horizen rollup fee oracle getOperatorFee(uint256)",
+      "endpoint": "https://horizen.calderachain.xyz/http",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "eth_call",
+          "params": [
+            {
+              "to": "0x420000000000000000000000000000000000000F",
+              "data": "0x275aedd20000000000000000000000000000000000000000000000000000000000005208"
+            },
+            "latest"
+          ]
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "d6270a96c74e698681cb7c0012a25d17a018228bca3a631fd19a384e561ca22a",
+      "status": "PASS",
+      "durationSeconds": 0.797,
+      "observed": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "observedAtomic": "0"
+    },
+    {
+      "check": "NEAR current transfer protocol configuration",
+      "endpoint": "https://rpc.mainnet.near.org",
+      "request": {
+        "httpMethod": "POST",
+        "json": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "EXPERIMENTAL_protocol_config",
+          "params": {
+            "finality": "final"
+          }
+        }
+      },
+      "httpStatus": 200,
+      "responseSha256": "94b069321d9375dcdab9cfc9844bedf586abf04abe81022266ae76389ea24f58",
+      "status": "PASS",
+      "durationSeconds": 3.183,
+      "observed": {
+        "chain_id": "mainnet",
+        "protocol_version": 86,
+        "storage_amount_per_byte": "10000000000000000000",
+        "min_gas_purchase_price": "1000000000",
+        "action_receipt_creation_config": {
+          "execution": 108059500000,
+          "send_not_sir": 108059500000,
+          "send_sir": 108059500000
+        },
+        "transfer_cost": {
+          "execution": 115123062500,
+          "send_not_sir": 115123062500,
+          "send_sir": 115123062500
+        },
+        "create_account_cost": {
+          "execution": 7200000000000,
+          "send_not_sir": 500000000000,
+          "send_sir": 500000000000
+        },
+        "full_access_cost": {
+          "execution": 101765125000,
+          "send_not_sir": 101765125000,
+          "send_sir": 101765125000
+        }
+      }
+    },
+    {
+      "check": "Aptos documented mainnet gas estimation",
+      "endpoint": "https://api.mainnet.aptoslabs.com/v1/estimate_gas_price",
+      "request": {
+        "httpMethod": "GET"
+      },
+      "httpStatus": 200,
+      "responseSha256": "16b1bdff381124f80acc2463bad8198537d8088fd5b19e7c755572977509e48b",
+      "status": "PASS",
+      "durationSeconds": 0.591,
+      "observed": {
+        "deprioritized_gas_estimate": 100,
+        "gas_estimate": 100,
+        "prioritized_gas_estimate": 150
+      }
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://ethereum.publicnode.com/",
+      "authority": "Selected RPC operator",
+      "supports": "Public Ethereum mainnet HTTPS endpoint; chain 1 separately checked by RPC"
+    },
+    {
+      "url": "https://ethereum.org/en/developers/docs/networks/",
+      "authority": "Ethereum",
+      "supports": "Ethereum mainnet network identity"
+    },
+    {
+      "url": "https://docs.base.org/get-started/connect-to-base",
+      "authority": "Base",
+      "supports": "Mainnet 8453, ETH gas, HTTPS RPC"
+    },
+    {
+      "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/onboarding/how-to-use-the-hyperevm",
+      "authority": "Hyperliquid",
+      "supports": "HyperEVM 999, HYPE gas, official HTTPS RPC"
+    },
+    {
+      "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/spot",
+      "authority": "Hyperliquid",
+      "supports": "Spot metadata API and weiDecimals distinction"
+    },
+    {
+      "url": "https://docs.horizen.io/horizen-chain/network/mainnet/",
+      "authority": "Horizen",
+      "supports": "Mainnet 26514, ETH gas, HTTPS RPC"
+    },
+    {
+      "url": "https://docs.horizen.io/horizen-chain/tokens-and-gas/zen-token/",
+      "authority": "Horizen",
+      "supports": "Exact canonical ZEN ERC-20 contracts on Base and Horizen; the Base OFT adapter is not the Base ZEN token"
+    },
+    {
+      "url": "https://docs.near.org/api/rpc/providers",
+      "authority": "NEAR",
+      "supports": "Mainnet public providers and rpc.mainnet.near.org status example; limits and provider trust"
+    },
+    {
+      "url": "https://aptos.dev/network/nodes/networks",
+      "authority": "Aptos",
+      "supports": "Mainnet chain 1 and current documented REST API host"
+    },
+    {
+      "url": "https://docs.ton.org/api/v2/overview",
+      "authority": "TON",
+      "supports": "TON Center mainnet API v2 base URL"
+    },
+    {
+      "url": "https://ton.org/global.config.json",
+      "authority": "TON",
+      "supports": "Mainnet zerostate identity"
+    },
+    {
+      "url": "https://docs.decred.org/wallets/cli/dcrd-and-dcrwallet-cli-arguments/",
+      "authority": "Decred",
+      "supports": "Authenticated dcrd RPC, mainnet port 9109, TLS default and localhost restriction for notls"
+    },
+    {
+      "url": "https://docs.ton.org/api/rate-limit",
+      "authority": "TON",
+      "supports": "Unauthenticated TON Center limit is one request per second; API keys and limits are network-specific"
+    },
+    {
+      "url": "https://docs.ton.org/api/v2/authentication",
+      "authority": "TON",
+      "supports": "JSON-RPC uses X-API-Key; keys must not be exposed in renderer code or public repositories"
+    },
+    {
+      "url": "https://docs.decred.org/wallets/cli/dcrd-setup/",
+      "authority": "Decred",
+      "supports": "dcrd maintains mainnet chain data; RPC username/password enable RPC access"
+    }
+  ],
+  "sourceReviewDateUTC": "2026-10-23",
+  "summary": {
+    "PASS": 29,
+    "FAIL": 0,
+    "BLOCKED": 1,
+    "NOT_RUN": 0
+  },
+  "status": "BLOCKED",
+  "reason": "Read-only public-provider checks passed; Decred connectivity is blocked until an authenticated, TLS-trusted mainnet dcrd endpoint is configured. This aggregate status is not a funded acceptance or production readiness result.",
+  "auditedSources": {
+    "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
+    "internal/chains/evm/adapter.go": "8000479c508821624388548d9b2775af315a68da2d0acac39b88f693d18b15a9",
+    "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
+    "internal/chains/near/near.go": "ea66cf20a6545a625d8cdc531c128c2ad1f59f829ecc088f3440c5d396c3bb2b",
+    "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
+    "internal/chains/ton/ton.go": "1b241a8977637b01479e4e124f0e6dc3147a2dea21e7afa2a288a1abb5ac2dc5",
+    "internal/chains/ton/network.go": "6cb5088e3ed31d688ef9ac10d1c8ca008316b3076d4b0abf36715e7f8f643dfb",
+    "internal/chains/decred/decred.go": "2fda13e5c59b2fb9ec3090b216d669db606900e622fd76987d4af1a1e25e3c46",
+    "internal/chains/decred/sync.go": "9988e85c8256ac9cbe468de276a58926d8dbff8c4394c896c951c8f291823aa5"
+  },
+  "sourceHashScope": "Source files visible at the network observation snapshot. Later label/default changes require a new source inventory; observation hashes establish provenance, not complete adapter acceptance.",
+  "operationalLimitations": [
+    "Public providers may impose rate limits, censor or return incorrect state; no uptime or funded acceptance claim.",
+    "TON Center without an API key permits one request per second. The identity probe used one TON API method. This does not prove multi-request account/send workflows under provider rate limits.",
+    "Decred requires an authenticated TLS-trusted node. Its default 10000-block scan budget is insufficient for a mainnet genesis scan. Imported/older accounts need deliberate birthday/address ranges; incomplete discovery is unavailable, never confirmed zero.",
+    "No arbitrary API-header authentication in current adapters: TON APIKey and Decred username/password are supported; other adapter URL customization alone does not implement provider-specific headers."
+  ],
+  "execution": {
+    "client": "Python 3 urllib.request with TLS verification and redirect rejection; 18 second per-request timeout; response limit 2 MiB",
+    "requests": "Exact HTTP method, URL and public JSON request body retained per check; no wallet query or write method is included",
+    "bytecodeHash": "ethers keccak256 from pinned tests/oracles/evm dependency lock; computed locally from eth_getCode bytes",
+    "parallelism": "At most four independent EVM services concurrently; requests to each service were sequential. Other services queried sequentially."
+  }
+}

@@ -54,8 +54,10 @@ type Endpoint struct {
 	Client      *http.Client
 }
 type Adapter struct {
-	mu        sync.RWMutex
-	endpoints map[string]Endpoint
+	mu                sync.RWMutex
+	endpoints         map[string]Endpoint
+	publicPermit      chan struct{}
+	lastPublicRequest time.Time
 }
 type network struct {
 	global          int32
@@ -73,7 +75,7 @@ func netInfo(id string) (network, error) {
 	return network{}, errors.New("unsupported TON network")
 }
 func New() *Adapter {
-	a := &Adapter{endpoints: map[string]Endpoint{}}
+	a := &Adapter{endpoints: map[string]Endpoint{}, publicPermit: make(chan struct{}, 1)}
 	for _, id := range []string{"ton-mainnet", "ton-testnet"} {
 		n, _ := netInfo(id)
 		a.endpoints[id] = Endpoint{URL: n.url, Client: defaultHTTP()}
@@ -84,10 +86,16 @@ func defaultHTTP() *http.Client {
 	return &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("TON RPC redirect rejected") }}
 }
 func (a *Adapter) Networks() []model.Network {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	var out []model.Network
 	for _, id := range []string{"ton-mainnet", "ton-testnet"} {
 		n, _ := netInfo(id)
-		out = append(out, model.Network{ID: id, Family: "ton", Name: id, Testnet: id == "ton-testnet", ChainID: strconv.FormatInt(int64(n.global), 10), RPC: n.url, Assets: []model.Asset{{ID: id + ":TON", Symbol: "TON", Decimals: 9}}, Trust: "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"})
+		name := "TON Mainnet"
+		if id == "ton-testnet" {
+			name = "TON Testnet"
+		}
+		out = append(out, model.Network{ID: id, Family: "ton", Name: name, Testnet: id == "ton-testnet", ChainID: strconv.FormatInt(int64(n.global), 10), RPC: a.endpoints[id].URL, Assets: []model.Asset{{ID: id + ":TON", Symbol: "TON", Decimals: 9}}, Trust: "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"})
 	}
 	return out
 }
@@ -130,6 +138,9 @@ func (a *Adapter) rpc(ctx context.Context, id, method string, args any, out any)
 	req.Header.Set("Content-Type", "application/json")
 	if e.APIKey != "" {
 		req.Header.Set("X-API-Key", e.APIKey)
+	}
+	if er := a.pacePublic(ctx, e); er != nil {
+		return er
 	}
 	res, er := e.Client.Do(req)
 	if er != nil {

@@ -8,7 +8,7 @@
 <body>
 <header>
   <div><strong>LocalWallet</strong><small>Local custody · Go signer</small><small id="version">Version loading…</small></div>
-  <span id="profile" class="profile-badge" data-environment="testnet">Testnet profile</span>
+  <span id="profile" class="profile-badge" data-environment="unknown">Checking network profile…</span>
   <a id="release-link" class="release-status" href="#release-status">Release status: development; verification outstanding</a>
   <button id="lock" disabled>Lock wallet</button>
 </header>
@@ -45,27 +45,37 @@
       <p class="recovery-note">The generated phrase remains hidden. After creation, make and verify an encrypted backup in the native Go window. Keep that backup and its password safe; both are required for recovery.</p>
     </div>
     <div id="walletcontent" hidden>
-      <div class="overview-heading"><div><h1>Your network wallets</h1><p>One shared root. Separate wallets for each network.</p></div><span id="backupstatus">Encrypted backup verification required</span></div>
+      <div class="overview-heading"><div><h1>Your wallets</h1><p>One shared root. Separate wallets for each network.</p></div><span id="backupstatus">Encrypted backup verification required</span></div>
       <div id="backupcallout" class="backup-callout" role="status" hidden><div><strong>Back up your wallet before receiving funds</strong><p>Your generated BIP39 phrase stays hidden. Recovery needs a verified encrypted backup and its password.</p></div><button id="backupnow">Create &amp; verify encrypted backup</button></div>
+      <div id="viewtabs" class="viewtabs" role="tablist" aria-label="Accounts and open wallets"></div>
+      <div id="accountoverview" role="tabpanel">
+      <label><input id="showhidden" type="checkbox"> Show hidden accounts</label>
       <div id="accountgroups"></div>
       <p>These are derived public accounts. Query balances and network state before use; derivation does not activate an account or establish a zero balance.</p>
-      <div class="panel"><h2>Selected wallet &amp; assets</h2>
-        <label>Account / network <select id="account"></select></label><label><input id="showhidden" type="checkbox"> Show hidden accounts</label><button id="hideaccount">Hide selected</button>
+      </div>
+      <select id="account" hidden aria-hidden="true" tabindex="-1"></select>
+      <div id="walletpage" role="tabpanel" hidden>
+      <div class="wallet-heading"><div><h1 id="wallettitle" tabindex="-1">Network wallet</h1><p id="walletsubtitle"></p></div><div class="actions"><button id="sendview" class="primary">Send</button><button id="receive" class="primary">Receive</button></div></div>
+      <p id="walletbackupnotice" class="backup-callout" hidden>Verify an encrypted backup first to enable mainnet receive, address copying and payment preparation.</p>
+      <div class="panel"><h2>Balance &amp; receive address</h2>
         <label>Asset <select id="asset"></select></label><p id="address"></p>
-        <div class="actions"><button id="configure">Configure trusted RPC</button><button id="associate">Associate named / rotated account</button><button id="refresh">Query balance</button><button id="receive">Verify receive address &amp; QR</button><button id="copy">Copy verified address</button><button id="saveqr">Save verified QR</button></div>
-        <pre id="balance">Balance unknown — no query completed.</pre><p>Decred spendable balance excludes immature outputs. Query bounded chain history for maturity details.</p><img id="qr" hidden alt="Public receive address QR">
+        <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p><p id="connectionstatus"></p>
+        <div class="actions"><button id="refresh">Refresh balance</button><button id="copy">Copy verified address</button><button id="saveqr">Save verified QR</button><button id="configure">Configure trusted RPC</button><button id="associate">Associate named / rotated account</button><button id="hideaccount">Hide selected</button></div>
+        <p id="decrednote" hidden>Decred spendable balance excludes immature outputs. Query bounded chain history for maturity details.</p><img id="qr" hidden alt="Public receive address QR">
         <p>Choose this exact network at the sender. A plain address QR does not identify an EVM network. Hiding an account preserves its derivation index and recovery data.</p>
       </div>
-      <div class="panel"><h2>Send</h2><button id="scan">Scan local QR image</button>
+      <div id="sendpanel" class="panel"><h2 id="sendheading" tabindex="-1">Send</h2><button id="scan">Scan local QR image</button>
         <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Exact decimal amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
         <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Confirm in native signer</button></div><pre id="preview">No payment prepared.</pre>
       </div>
       <div class="panel"><h2>Local payment journal</h2><button id="history">Refresh journal</button><button id="chainhistory">Query bounded chain history</button><pre id="chainhistoryresult">History has not been queried.</pre>
         <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
-      <details><summary>Bounded Decred discovery &amp; public diagnostics</summary>
-        <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings in Go</button><pre id="diagnostics">Locked</pre>
+      <details><summary>Network details &amp; public diagnostics</summary>
+        <div id="dcrdiscoverycontrols" hidden>
+        <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings in Go</button></div><pre id="diagnostics">Locked</pre>
       </details>
+      </div>
     </div>
     <details id="release-status" class="release-details"><summary>Release status and remaining verification</summary><p>This unsigned development candidate has local security, recovery and protocol test evidence. Public funded testnet roundtrips, the full X11/Wayland OS matrix, the 24-hour soak and independent security review remain outstanding. Use disposable test wallets only. This is not a production-readiness or audit claim.</p></details>
   </section>

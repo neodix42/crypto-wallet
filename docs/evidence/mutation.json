@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "elapsedSeconds": 92.764,
+  "elapsedSeconds": 114.901,
   "mutants": [
     {
       "id": "aead-authentication",
@@ -34,6 +34,11 @@
     },
     {
       "id": "locked-signing",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "mainnet-backup-authorization",
       "status": "KILLED",
       "exit": 1
     },

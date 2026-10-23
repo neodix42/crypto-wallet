@@ -43,11 +43,19 @@
       "status": "PASS"
     },
     {
+      "name": "Native encrypted portable backup creation and reopen verification",
+      "status": "PASS"
+    },
+    {
       "name": "Go-owned verified receive QR and exact independent public address",
       "status": "PASS"
     },
     {
-      "name": "Native encrypted portable backup creation and reopen verification",
+      "name": "Wallet cell copy icon invokes native verification and copies the full independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Open wallet selects a wallet tab with scoped balance and send/receive controls instead of the portfolio grid",
       "status": "PASS"
     },
     {
@@ -56,6 +64,14 @@
     },
     {
       "name": "Portable restore into empty profile without original application state",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit testnet profile starts empty and preserves existing mainnet ciphertext without conversion",
+      "status": "PASS"
+    },
+    {
+      "name": "Additional deterministic account appears as its own top tab with index-one network wallets",
       "status": "PASS"
     },
     {
@@ -74,14 +90,15 @@
     "send from installed package",
     "upgrade/uninstall recovery matrix"
   ],
+  "environment": "mainnet",
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "a0e49c71a50ec07933a69057a1b199f1df710357e758bb638e8d9b89822069a7",
-      "wallet-launcher": "95f4f33a1e9f2849bc654c9f18d496625ffe348c9b2aecbb9fab5d743f94b988",
-      "wallet-signer": "4394ebe033e918eb6c30a3e646656518356ce73b7eb380b39d272924280228c1"
+      "wallet-core": "0354262c84d10a24c4f1ab8b5fca71fb460bf6386ad0b2c4415e758ba70846f3",
+      "wallet-launcher": "45495251d451a70d28c3a78f6c13ed68f40b36cc9c4d50394d6190865b37f43f",
+      "wallet-signer": "09eaeb89273a4a2ee2f237e8f19866f1e5092317db0f862f6bc1c9f5357b8a49"
     },
-    "asarSHA256": "2c8788a6c1957966b26dd3a0331d812a0b2a18fd9d0db0a7f54558f9c8e8797e"
+    "asarSHA256": "dc87387e69f9d6fadc9161aaf54c8a72ee1226d2df448311e9c97635f451891e"
   },
   "liveLogChecks": [
     {
@@ -103,7 +120,15 @@
     {
       "mesaLoaderError": false,
       "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
     }
   ],
-  "backupSHA256": "3e5d79032b03540664e020c8d810c66b0ed091913dc67580f35a2960da59470c"
+  "backupSHA256": "febb5ae1deacc3b7e983b9517e7c2cfaa02ad1657715d7953c475b53189de183"
 }

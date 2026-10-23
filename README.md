@@ -2,7 +2,7 @@
 
 Go + Electron multichain desktop wallet for Ubuntu amd64. Implemented domains are Ethereum, NEAR, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN on Base and Horizen L3 (plus ETH gas), Decred and TON Wallet V5R1.
 
-**Development testnet candidate.** Public funded testnet roundtrips, the complete clean Ubuntu X11/Wayland matrix, the 24-hour soak and independent security review remain production release gates. See the [evidence checklist](docs/STATUS.md). Local protocol acceptance is tested with actual nodes/emulation; missing external evidence is never treated as a pass. Never fund public test fixtures.
+**Mainnet is the default network profile.** This remains an unsigned development candidate: public funded testnet roundtrips, the complete clean Ubuntu X11/Wayland matrix, the 24-hour soak and independent security review remain production release gates. Selecting mainnet does not establish production readiness. See the [evidence checklist](docs/STATUS.md). Never fund public test fixtures.
 
 ## Build Go binaries
 
@@ -38,7 +38,9 @@ make install
 
 Node 24.19.0/npm 11.17.0 are needed only for desktop builds/tests and are bootstrapped into `.tools/` when missing. Explicit display backends are `./wallet --ozone-platform=x11` and `./wallet --ozone-platform=wayland`. Always use the Go launcher for the desktop security boundary. Application execution as root and `--no-sandbox` are rejected.
 
-Profile data remains in `~/.config/localwallet/testnet` or `$XDG_CONFIG_HOME/localwallet/testnet`; it is separate from build caches/runtime files. Outputs and dependencies are explained in [BUILD.md](docs/BUILD.md). Nothing in these targets creates a `.deb` package.
+The default profile stores data in `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, separately from build caches/runtime files. Existing testnet data stays in its original directory and can be opened explicitly with `./wallet --profile=testnet`. There is no automatic conversion, copying or replacement of an existing vault. An empty mainnet profile requires its own explicit create/import/restore action. Outputs and dependencies are explained in [BUILD.md](docs/BUILD.md). Nothing in these targets creates a `.deb` package.
+
+Public mainnet connections are configured for Ethereum, HyperEVM, HyperCore, Base, Horizen, NEAR, Aptos and TON. Decred remains available and requires an authenticated TLS `dcrd` connection configured through the native **Configure trusted RPC** dialog. See [mainnet connection setup](docs/MAINNET.md) for exact endpoints, API-key/rate-limit considerations and Decred setup. An unavailable connection displays an unknown balance; it is never treated as a verified zero.
 
 ## Tests
 
@@ -77,9 +79,11 @@ make test-e2e             # package recovery on private X11, then disposable Ubu
 
 A verified empty profile offers **Create app password & wallet**. The password is entered and confirmed only in the native Go window and must contain **12–4096 UTF-8 bytes**, with both entries identical. After that, Go draws random entropy, generates one shared English BIP39 recovery root, encrypts it and derives the initial wallet for every configured supported network at index0. The generated phrase is hidden; it is not a common fixed phrase or a password-derived seed. Import requires an existing valid English BIP39 phrase with its correct checksum; arbitrary short text is rejected.
 
-The network wallets appear together under **Main account** with separate network/asset identities and public addresses. Keys follow each chain's pinned derivation profile; EVM networks can share an address. Balances remain unknown until queried, and deriving an address does not activate its network account.
+Deterministic account groups appear as tabs across the top, starting with **Main account**. Each group contains nine mainnet network wallets and eleven asset identities. Keys follow each chain's pinned derivation profile; EVM networks can share an address while their balances remain separate. Card addresses stay on one line; the copy-icon button requests the full verified address from the native signer.
 
-Create and verify an encrypted backup after setup. Both the backup and its password are needed for recovery; no password reset or seed reveal exists. Existing profiles open an unlock screen. Unreadable storage or an orphaned previous vault opens a storage-unavailable state instead of offering a new root. The current desktop profile is explicitly labeled testnet; **Main account** is the name for index0, not a mainnet claim.
+**Open wallet** opens or selects a tab for that wallet. It contains that wallet's balances, asset selector, send/receive controls, network settings and payment history. Opening a wallet queries its balance through Go; no other wallet's amount, payment preview or history is carried into the page. Balance errors remain unknown. Sending uses the existing real transaction preparation and native approval/reauthentication flow. Deriving an address does not activate its network account.
+
+Create and verify an encrypted backup after setup. Mainnet receive/copy and signing remain gated on backup verification. Both the backup and its password are needed for recovery; no password reset or seed reveal exists. Existing profiles open an unlock screen. Unreadable storage or an orphaned previous vault opens a storage-unavailable state instead of offering a new root. The current profile is labeled **Mainnet** or **Testnet** independently of the **Main account** name for derivation index0. Backups retain their environment and cannot be silently restored into the other profile.
 
 Select a new filename in an existing folder you own, such as Documents. Ordinary `0755` folders are supported; folders writable by other users and symbolic links are rejected. The encrypted backup is always `0600`, is reopened and verified, and never overwrites an existing file. The operation does not change the folder's permissions or create a lockfile there. Validation failures show fixed guidance in a native notice and a focused GUI error banner. See the [failure analysis and regression checklist](docs/FAILURE_FEEDBACK.md).
 

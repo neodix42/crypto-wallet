@@ -3,7 +3,7 @@
 import argparse,hashlib,json,pathlib,shutil,subprocess
 parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--go-only',action='store_true');args=parser.parse_args()
 root=pathlib.Path(__file__).resolve().parents[1];out=root/'docs/evidence';out.mkdir(exist_ok=True)
-names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
+names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','mainnet-rpc','mainnet-tabs','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
 index=[]
 for name in names:
  source=root/'reports'/(name+'.json')

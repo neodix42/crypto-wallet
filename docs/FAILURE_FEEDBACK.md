@@ -26,11 +26,11 @@ All inputs were disposable generated roots or public fixtures. No real user secr
 |---|---|---|
 | Actual packaged rejected short/mismatched passwords and invalid BIP39 input: native notice, focused GUI guidance and no vault creation | PASS | `docs/evidence/packaged-recovery.json`; short-password guidance also survives the next locked poll |
 | Actual packaged backup in `0755`, encrypted `0600`, no chmod/lockfile; existing-file and unsafe-folder rejection; wallet remains usable | PASS | Same report; existing ciphertext compared byte for byte |
-| Generated and imported root backup, restart/unlock, fresh-profile restore, independent public address and tested log/file canaries | PASS | Same report, all 16 steps passed |
+| Generated and imported root backup, restart/unlock, fresh-profile restore, independent public address and tested log/file canaries | PASS | Current report preserves the original checks and adds mainnet/tab flows; see `MAINNET_TABS.md` |
 | No ordinary IPC handler stack traces or Mesa loader errors during the packaged drill | PASS | Same report; logs inspected while each app instance was live, before forced teardown |
 | Private X11 mapped screen and virtual Wayland process startup, without live Mesa warnings | PASS, limited scope | `docs/evidence/display-startup.json`; Wayland visibility/native input was not verified |
 | Go/native suite, source-stable coverage of all 22 shipped packages | PASS | `docs/evidence/go-coverage.json`, `coverage.json`; existing floors unchanged |
-| All shipped desktop JS, 38 component tests | PASS | `docs/evidence/frontend-coverage.json`; 100% measured statements/branches in five files |
+| All shipped desktop JS, 46 component tests | PASS | `docs/evidence/frontend-coverage.json`; 100% measured statements in five files; critical branches 100%, renderer branches 98.54% |
 | Full Go race suite and build-tool tests | PASS | `docs/evidence/failure-feedback.json`; exact commands/log hashes retained; 37 build-tool tests |
 | Actual host GPU/display reproduction, clean OS recovery/lifecycle and native Wayland workflows | NOT_RUN | Disposable displays do not establish these gates |
 | Remote execution of the new CI gate | NOT_RUN | Workflow implementation and local equivalent checked; no remote workflow triggered |

@@ -27,7 +27,7 @@ func main() {
 	runtime.LockOSThread()
 	syscall.Umask(0077)
 	dir := flag.String("data", "", "private profile directory")
-	environment := flag.String("environment", "testnet", "fixed profile environment")
+	environment := flag.String("environment", "mainnet", "fixed profile environment")
 	flag.Parse()
 	if *environment != "testnet" && *environment != "mainnet" {
 		os.Exit(2)

@@ -64,10 +64,13 @@ func TestTP041BootstrapWorker(t *testing.T) {
 	base := os.Getenv("LOCALWALLET_BOOTSTRAP_TEST_BASE")
 	switch kind {
 	case "invalid-argument":
-		for _, arg := range []string{"--no-sandbox", "--executable=/tmp/public", "--environment=mainnet", "--ozone-platform=auto", "--remote-debugging-port=9222", "--ozone-platform=x11\x00--no-sandbox"} {
+		for _, arg := range []string{"--profile=local", "--profile=mainnet\x00--no-sandbox", "--profile", "--no-sandbox", "--executable=/tmp/public", "--environment=mainnet", "--ozone-platform=auto", "--remote-debugging-port=9222", "--ozone-platform=x11\x00--no-sandbox"} {
 			if l, status := prepareLaunch(base, []string{arg}); status != 2 || l != nil {
 				t.Fatal("unsafe argument accepted", arg, status)
 			}
+		}
+		if l, status := prepareLaunch(base, []string{"--profile=testnet", "--profile=mainnet"}); status != 2 || l != nil {
+			t.Fatal("ambiguous profile selection accepted", status)
 		}
 		original := os.Args
 		defer func() { os.Args = original }()
@@ -203,12 +206,20 @@ func TestTP041BootstrapWorker(t *testing.T) {
 	if kind == "wayland" {
 		args = []string{"--ozone-platform=wayland"}
 	}
+	expectedArgs := append([]string(nil), args...)
+	expectedEnvironment := "mainnet"
+	if kind == "testnet" {
+		args = append(args, "--profile=testnet")
+		expectedEnvironment = "testnet"
+	} else if kind == "mainnet" {
+		args = append(args, "--profile=mainnet")
+	}
 	l, status := prepareLaunch(base, args)
 	if status != 0 || l == nil {
 		t.Fatal("bootstrap failed", status)
 	}
 	defer l.stop()
-	if l.electron != filepath.Join(base, "LocalWallet") || !reflect.DeepEqual(l.args, append([]string{l.electron}, args...)) {
+	if l.electron != filepath.Join(base, "LocalWallet") || !reflect.DeepEqual(l.args, append([]string{l.electron}, expectedArgs...)) {
 		t.Fatal("fixed executable or approved arguments changed")
 	}
 	values := map[string]string{}
@@ -257,8 +268,8 @@ func TestTP041BootstrapWorker(t *testing.T) {
 			t.Fatal("private pipe will not survive exec", fd, e)
 		}
 	}
-	var boot [11]byte
-	if _, e := io.ReadFull(os.NewFile(3, "public-core-output"), boot[:]); e != nil || !bytes.Equal(boot[:], []byte("PUBLIC-BOOT")) {
+	var boot [12]byte
+	if _, e := io.ReadFull(os.NewFile(3, "public-core-output"), boot[:]); e != nil || !bytes.Equal(boot[:], []byte("PUBLIC-BOOT"+strings.ToUpper(expectedEnvironment[:1]))) {
 		t.Fatal("core output pipe unavailable", e)
 	}
 	if _, e := os.NewFile(4, "public-core-input").Write([]byte{1}); e != nil {
@@ -280,7 +291,7 @@ func TestTP041ProductionBootstrapRejectionsAndBoundary(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Fatal("BLOCKED: launcher must be tested as non-root")
 	}
-	for _, kind := range []string{"invalid-argument", "bad-manifest", "bad-core", "pipe-first", "pipe-second", "closed-reader", "closed-writer", "isolation-failure", "normal", "wayland", "minimal", "exec-failure", "run-exec-failure"} {
+	for _, kind := range []string{"invalid-argument", "bad-manifest", "bad-core", "pipe-first", "pipe-second", "closed-reader", "closed-writer", "isolation-failure", "normal", "mainnet", "testnet", "wayland", "minimal", "exec-failure", "run-exec-failure"} {
 		t.Run(kind, func(t *testing.T) {
 			base := launcherFixture(t, kind == "bad-core")
 			if kind == "bad-manifest" {

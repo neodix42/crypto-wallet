@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -21,7 +22,7 @@ func init() {
 		main()
 		os.Exit(0)
 	case "wallet-core":
-		if len(os.Args) != 3 || os.Args[1] != "--environment" || os.Args[2] != "testnet" {
+		if len(os.Args) != 3 || os.Args[1] != "--environment" || (os.Args[2] != "mainnet" && os.Args[2] != "testnet") {
 			os.Exit(91)
 		}
 		// The public coordinator starts before the renderer's IP restriction.
@@ -35,7 +36,7 @@ func init() {
 				os.Exit(97)
 			}
 		}
-		os.Stdout.Write([]byte("PUBLIC-BOOT"))
+		os.Stdout.Write([]byte("PUBLIC-BOOT" + strings.ToUpper(os.Args[2][:1])))
 		var b [1]byte
 		io.ReadFull(os.Stdin, b[:])
 		os.Exit(0)
@@ -55,8 +56,8 @@ func init() {
 			os.Exit(94)
 		}
 		syscall.Close(fd)
-		var b [11]byte
-		if _, e = io.ReadFull(os.NewFile(3, "private-core-output"), b[:]); e != nil || !bytes.Equal(b[:], []byte("PUBLIC-BOOT")) {
+		var b [12]byte
+		if _, e = io.ReadFull(os.NewFile(3, "private-core-output"), b[:]); e != nil || !bytes.Equal(b[:], []byte("PUBLIC-BOOTM")) {
 			os.Exit(95)
 		}
 		os.NewFile(4, "private-core-input").Write([]byte{1})

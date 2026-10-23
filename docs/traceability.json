@@ -65,7 +65,7 @@
     {
       "id": "INV-05-exact-approval",
       "status": "PASS",
-      "evidence": "Changed recipient/amount/network/fee/nonce/memo/contracts/outputs fail chain validators and approval digest",
+      "evidence": "Changed recipient/amount/network/fee/nonce/memo/contracts/outputs fail chain validators and approval digest; current mainnet verified-backup eligibility rechecked before approval, after confirmation and after reauthentication; revocation and critical mutant regressions pass",
       "remaining": ""
     },
     {
@@ -301,6 +301,24 @@
       "status": "NOT_RUN",
       "evidence": "verify-release.py rejects missing/incomplete evidence; release.yml publishes visibly labeled development Go-component prereleases with matching executable/tag versions after local gates; remote workflow execution NOT_RUN",
       "remaining": "Public networks, packaged OS matrix, full soak, source-stable final evidence and independent security review required"
+    },
+    {
+      "id": "UX-MAINNET-PROFILES",
+      "status": "PASS",
+      "evidence": "MAINNET_TABS.md; actual defaultmainnet/explicit-testnet bootstrap, nine mainnet network wallets/eleven assets, unchanged mainnet ciphertext during separate testnet launch",
+      "remaining": "Mainnet enablement does not establish production acceptance"
+    },
+    {
+      "id": "UX-WALLET-TABS",
+      "status": "PASS",
+      "evidence": "46 frontend tests and 20-check actual packaged drill; top account/wallet tabs, one-line card address with native copy, selected wallet/asset balances/history, stale-response/lock tests",
+      "remaining": "Full supported OS/display matrix remains NOT_RUN"
+    },
+    {
+      "id": "OPS-MAINNET-CONNECTIVITY",
+      "status": "BLOCKED",
+      "evidence": "mainnet-rpc.json:29 read-only identity/metadata checks PASS across eight public mainnet domains; all nine wallets retained",
+      "remaining": "Authenticated synchronized Decred mainnet dcrd endpoint and TLS trust must be configured by operator; no user credentials were accessed"
     }
   ]
 }

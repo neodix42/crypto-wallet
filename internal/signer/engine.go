@@ -103,7 +103,7 @@ func (e *Engine) Snapshot() Snapshot {
 		// Storage uncertainty cannot authorize creating a replacement wallet.
 		exists, state = true, "unavailable"
 	}
-	s := Snapshot{Locked: e.data == nil, WalletExists: exists, VaultState: state}
+	s := Snapshot{Locked: e.data == nil, WalletExists: exists, VaultState: state, Environment: e.Environment}
 	if e.data == nil {
 		return s
 	}
@@ -626,8 +626,16 @@ func (e *Engine) Prepare(p model.Plan) error {
 	e.data.Operations = append(e.data.Operations, journal.Operation{Plan: p, Digest: journal.Digest(p), State: "PREPARED"})
 	return e.persist()
 }
+
+// canAuthorize is checked at each native authorization boundary. A prepared
+// plan cannot retain permission after account metadata or password changes have
+// invalidated the current mainnet backup.
+func (e *Engine) canAuthorize() bool {
+	return e.data != nil && !e.persistFailed && (e.data.Environment != "mainnet" || e.data.BackupVerified)
+}
+
 func (e *Engine) Sign(id string) (model.Signed, error) {
-	if e.data == nil || e.persistFailed {
+	if !e.canAuthorize() {
 		return model.Signed{}, ErrDenied
 	}
 	for i := range e.data.Operations {
@@ -660,12 +668,15 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 			o.State = "CANCELLED"
 			return model.Signed{}, e.cancelError()
 		}
+		if !e.canAuthorize() {
+			return model.Signed{}, e.cancelOperation(o)
+		}
 		in, err := e.UI.Input("Reauthenticate this transfer", "Storage password")
 		if err != nil {
 			return model.Signed{}, e.cancelOperation(o)
 		}
 		defer wipeInputs(in)
-		if len(in) != 1 || !hmac.Equal(in[0], e.password) || p.Expires <= time.Now().Unix() {
+		if len(in) != 1 || !hmac.Equal(in[0], e.password) || p.Expires <= time.Now().Unix() || !e.canAuthorize() {
 			return model.Signed{}, e.cancelOperation(o)
 		}
 		adapter, err := e.adapter(p.Account.Network)
@@ -847,8 +858,18 @@ func (e *Engine) Configure(network string) error {
 	if e.data == nil {
 		return ErrDenied
 	}
-	if _, err := e.adapter(network); err != nil {
+	adapter, err := e.adapter(network)
+	if err != nil {
 		return err
+	}
+	allowed := false
+	for _, n := range adapter.Networks() {
+		if n.ID == network && n.Testnet == (e.data.Environment == "testnet") {
+			allowed = true
+		}
+	}
+	if !allowed {
+		return ErrDenied
 	}
 	in, err := e.UI.Input("Configure trusted RPC for "+network, "TLS URL (HTTP allowed only for loopback node)", "Optional authenticated node username", "Optional authenticated node password", "Optional API key")
 	if err != nil {
@@ -857,6 +878,13 @@ func (e *Engine) Configure(network string) error {
 	defer wipeInputs(in)
 	if len(in) != 4 || chainutil.Endpoint(string(in[0])) != nil {
 		return ErrDenied
+	}
+	// Validate the authenticated-node shape before committing encrypted settings.
+	// Decred deliberately has no unauthenticated public default.
+	if _, ok := adapter.(*decred.Adapter); ok {
+		if err := decred.New().Configure(network, decred.Endpoint{URL: string(in[0]), User: string(in[1]), Password: string(in[2])}); err != nil {
+			return ErrDenied
+		}
 	}
 	if !e.UI.Confirm("Approve RPC privacy and trust", "Network: "+network+"\nEndpoint: "+string(in[0])+"\nThe provider learns queried public addresses and may lie or censor. Network identity is checked before account queries; it does not prove consensus.") {
 		return ErrDenied

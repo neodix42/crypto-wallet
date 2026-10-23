@@ -28,13 +28,15 @@ make package-desktop
 # Or build, package and install the local runtime in one command:
 make install
 ./wallet
+# Optional explicit isolated developer profile:
+./wallet --profile=testnet
 ```
 
 `make install` needs no sudo. It copies a complete staged runtime under `wallet-runtime/` and atomically switches the repository-root `./wallet` launcher. Existing profile files are not in the copy. The installer rejects unrelated files, unsafe/symlinked runtime generations and mismatched hashes, and rechecks the staged copy before switching. Prior managed generations are retained. The installed runtime does not use `.tools/` or system Node/npm; Electron's runtime is bundled.
 
 Pins for this optional desktop build are Node24.19.0, npm11.17.0, Electron45.0.0 and TypeScript7.0.2. The build wrapper bootstraps the SHA256-verified Node distribution in `.tools/` if necessary. Electron, Go SDKs and npm dependencies have locked versions/checksums. No command produces a `.deb` file, invokes `dpkg-deb`, installs a package-specific profile, or changes system-wide sandbox settings. A host that blocks Chromium's user-namespace sandbox remains unsupported until properly configured/tested; the launcher never uses `--no-sandbox`.
 
-The launcher starts the network coordinator on anonymous inherited pipes, then installs process-wide IP restrictions before execing Electron. The secret signer independently applies the same restriction. Running the app as root is rejected. Explicit `--ozone-platform=x11` and `--ozone-platform=wayland` select matching Electron/GTK backends. Start the complete desktop with its Go launcher, rather than bypassing the process boundary by invoking Electron directly.
+The launcher starts the network coordinator on anonymous inherited pipes, then installs process-wide IP restrictions before execing Electron. The secret signer independently applies the same restriction. Running the app as root is rejected. Mainnet is the default; `--profile=mainnet` is explicit and `--profile=testnet` opens the separate developer profile without changing mainnet data. Profile selection is consumed by the Go launcher and passed to the coordinator/signer, not chosen by renderer input. Explicit `--ozone-platform=x11` and `--ozone-platform=wayland` select matching Electron/GTK backends. Start the complete desktop with its Go launcher, rather than bypassing the process boundary by invoking Electron directly.
 
 The desktop uses CPU rendering, selected before Electron is ready, to avoid unnecessary GPU-driver initialization for its forms and account lists. This does not disable Chromium's sandbox or change system GPU-library permissions. A `MESA-LOADER` driver warning is separate from a rejected password, phrase or backup operation; those failures must appear in the native dialog or public status message.
 

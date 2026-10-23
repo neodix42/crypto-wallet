@@ -48,7 +48,7 @@ jobs:
           python3 - <<'PY'
           import os,pathlib
           v=os.environ['WALLET_VERSION']
-          pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet v{v} — unsigned development testnet candidate.
+          pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet v{v} — unsigned development candidate; mainnet profile by default.
 
           The tag, release and Go executable versions use {v}.
           Included: Linux amd64 Go component executables, their portable archive, SHA256 checksums, manifests and source/test evidence. No Debian installer is built. The Go components expose framed IPC and native credential dialogs; the existing Electron desktop UI is not included in these component assets.

@@ -118,10 +118,20 @@ func params(network string) (*chaincfg.Params, error) {
 	return nil, errors.New("unsupported Decred network")
 }
 func (a *Adapter) Networks() []model.Network {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	var out []model.Network
 	for _, id := range []string{"decred-mainnet", "decred-testnet3", "decred-simnet"} {
 		p, _ := params(id)
-		out = append(out, model.Network{ID: id, Family: "decred", Name: p.Name, Testnet: id != "decred-mainnet", ChainID: p.GenesisHash.String(), Assets: []model.Asset{{ID: id + ":DCR", Symbol: "DCR", Decimals: 8}}, Trust: "Authenticated trusted dcrd; bounded full-block scan; no SPV proof claim"})
+		name := map[string]string{"decred-mainnet": "Decred Mainnet", "decred-testnet3": "Decred Testnet3", "decred-simnet": "Decred Simnet"}[id]
+		rpc := ""
+		if endpoint, ok := a.endpoints[id]; ok {
+			// Configure accepts only absolute HTTP(S) URLs. Never return a
+			// provider path or authentication value in a public descriptor.
+			u, _ := url.Parse(endpoint.URL)
+			rpc = (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
+		}
+		out = append(out, model.Network{ID: id, Family: "decred", Name: name, Testnet: id != "decred-mainnet", ChainID: p.GenesisHash.String(), RPC: rpc, Assets: []model.Asset{{ID: id + ":DCR", Symbol: "DCR", Decimals: 8}}, Trust: "Authenticated trusted dcrd; bounded full-block scan; no SPV proof claim"})
 	}
 	return out
 }

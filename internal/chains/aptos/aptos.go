@@ -36,7 +36,7 @@ type Adapter struct {
 }
 
 func New() *Adapter {
-	return &Adapter{map[string]string{"aptos-mainnet": "https://fullnode.mainnet.aptoslabs.com/v1", "aptos-testnet": "https://fullnode.testnet.aptoslabs.com/v1", "aptos-localnet": "http://127.0.0.1:8080/v1"}, chainutil.NewClient()}
+	return &Adapter{map[string]string{"aptos-mainnet": "https://api.mainnet.aptoslabs.com/v1", "aptos-testnet": "https://fullnode.testnet.aptoslabs.com/v1", "aptos-localnet": "http://127.0.0.1:8080/v1"}, chainutil.NewClient()}
 }
 func chainID(network string) (uint8, error) {
 	switch network {

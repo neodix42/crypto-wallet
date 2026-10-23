@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -106,16 +107,21 @@ func prepareLaunch(base string, args []string) (_ *launch, status int) {
 	}
 	l := &launch{electron: filepath.Join(base, "LocalWallet")}
 	l.args = []string{l.electron}
-	backend := ""
+	backend, environment := "", "mainnet"
+	profileSelected := false
 	for _, arg := range args {
-		if arg != "--ozone-platform=x11" && arg != "--ozone-platform=wayland" {
+		switch arg {
+		case "--profile=mainnet", "--profile=testnet":
+			if profileSelected {
+				return nil, 2
+			}
+			profileSelected = true
+			environment = strings.TrimPrefix(arg, "--profile=")
+		case "--ozone-platform=x11", "--ozone-platform=wayland":
+			l.args = append(l.args, arg)
+			backend = strings.TrimPrefix(arg, "--ozone-platform=")
+		default:
 			return nil, 2
-		}
-		l.args = append(l.args, arg)
-		if arg == "--ozone-platform=x11" {
-			backend = "x11"
-		} else {
-			backend = "wayland"
 		}
 	}
 	for _, name := range []string{"wallet-core", "wallet-signer"} {
@@ -149,7 +155,7 @@ func prepareLaunch(base string, args []string) (_ *launch, status int) {
 	if backend != "" {
 		l.env = append(l.env, "GDK_BACKEND="+backend)
 	}
-	l.child = exec.Command(filepath.Join(base, "resources/bin/wallet-core"), "--environment", "testnet")
+	l.child = exec.Command(filepath.Join(base, "resources/bin/wallet-core"), "--environment", environment)
 	l.child.Env = l.env
 	l.child.Stdin, l.child.Stdout, l.child.Stderr = files[2], files[1], io.Discard
 	l.child.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}

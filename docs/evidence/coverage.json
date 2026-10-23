@@ -6,17 +6,17 @@
   "packages": [
     {
       "package": "localwallet/cmd/wallet-core",
-      "statements": 498,
-      "covered": 477,
-      "percent": 95.78,
+      "statements": 496,
+      "covered": 475,
+      "percent": 95.77,
       "floor": 95,
       "status": "PASS"
     },
     {
       "package": "localwallet/cmd/wallet-launcher",
-      "statements": 90,
-      "covered": 84,
-      "percent": 93.33,
+      "statements": 93,
+      "covered": 87,
+      "percent": 93.55,
       "floor": 90,
       "status": "PASS"
     },
@@ -62,9 +62,9 @@
     },
     {
       "package": "localwallet/internal/chains/decred",
-      "statements": 812,
-      "covered": 783,
-      "percent": 96.43,
+      "statements": 819,
+      "covered": 790,
+      "percent": 96.46,
       "floor": 95,
       "status": "PASS"
     },
@@ -94,9 +94,9 @@
     },
     {
       "package": "localwallet/internal/chains/ton",
-      "statements": 623,
-      "covered": 596,
-      "percent": 95.67,
+      "statements": 648,
+      "covered": 620,
+      "percent": 95.68,
       "floor": 95,
       "status": "PASS"
     },
@@ -150,9 +150,9 @@
     },
     {
       "package": "localwallet/internal/signer",
-      "statements": 589,
-      "covered": 570,
-      "percent": 96.77,
+      "statements": 602,
+      "covered": 583,
+      "percent": 96.84,
       "floor": 95,
       "status": "PASS"
     },
