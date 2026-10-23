@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "command": [
+    "make",
+    "dev"
+  ],
+  "scope": "Actual development target build/install and private X11 first-run screen, empty temporary HOME/config, no credential input or network transactions",
+  "firstRunScreen": true,
+  "version": "0.1.0",
+  "launcherSHA256": "d6b6121e01aeb695dadb08c9cd3fa3715ca0505ab49964c5135ffc75fca85a27",
+  "termination": "The test deliberately terminated its owned app process group after observing the ready first-run screen; this is startup acceptance only.",
+  "sourceSHA256": {
+    "scripts/install.py": "395085a49b25935538f94100c12f70cef8b77277b774940ca1fc6347cb227126",
+    "scripts/build-tools-test.py": "3b82756c67ed1256bddf4287b907542ead822aae52fda2bf11b584514bfd601b",
+    "Makefile": "b719791d8e5b2b86c66f6d4053f44b9253ea63341c4f0771566787158b3d7183"
+  }
+}

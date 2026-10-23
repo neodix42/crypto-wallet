@@ -130,7 +130,7 @@
       "report": "build-tools",
       "status": "PASS",
       "file": "build-tools.json",
-      "sha256": "2595cb97dc8ebd5e579b7140ccf2e6d058dd085609b7f4f6a0b5ad9b20f4e5ee"
+      "sha256": "abaa8cfc69812cc84a541b203378e025ef8843896f82cd806e83d9a382793058"
     },
     {
       "report": "go-only-build",

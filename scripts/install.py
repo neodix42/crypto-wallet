@@ -77,7 +77,10 @@ def _check_managed_launcher(target, runtime):
     if not re.fullmatch(r'wallet-runtime/app-[0-9a-f]{32}/wallet-launcher', link):
         raise RuntimeError('Refusing to replace an unrelated ./wallet symlink')
     if not runtime.exists():
-        raise RuntimeError('Existing wallet link has no managed runtime')
+        # A cleanup can remove the runtime while leaving our canonical link.
+        # install() already rejected unsafe runtime paths. Keep this dangling
+        # link until the verified new generation is atomically selected.
+        return
     generation = runtime / pathlib.PurePosixPath(link).parts[1]
     if generation.is_symlink() or (generation.exists() and not generation.is_dir()):
         raise RuntimeError('Existing wallet generation is not an owned directory')

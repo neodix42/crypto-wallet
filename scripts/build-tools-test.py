@@ -100,6 +100,15 @@ class BuildTools(unittest.TestCase):
     def runtime_version(self, destination):
         return subprocess.check_output([str(destination / 'wallet')], text=True).strip()
 
+    def orphaned_install(self):
+        app, destination = self.app(), self.destination()
+        self.install(app, destination)
+        original = os.readlink(destination / 'wallet')
+        shutil.rmtree(destination / 'wallet-runtime')
+        self.assertTrue((destination / 'wallet').is_symlink())
+        self.assertFalse((destination / 'wallet').exists())
+        return destination, original
+
     def project(self, metadata='0.1.1', binaries=None):
         binaries = binaries or metadata
         app = self.app(binaries, 'dist/LocalWallet-linux-x64')
@@ -219,6 +228,84 @@ class BuildTools(unittest.TestCase):
             self.install(app, destination)
         self.assertEqual(target.read_text(), 'public foreign-file sentinel')
         self.assertFalse((destination / 'wallet-runtime').exists())
+
+    def test_install_recovers_managed_launcher_after_runtime_cleanup(self):
+        destination, original = self.orphaned_install()
+        profile = destination / 'public-profile-sentinel'
+        profile.write_bytes(b'not an actual profile or secret')
+        app = self.app('0.1.1', 'new')
+        self.install(app, destination)
+        self.assertNotEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(self.runtime_version(destination), '0.1.1')
+        runtime = (destination / 'wallet').resolve().parent
+        installer.verify_binaries(runtime)
+        self.assertEqual((runtime / 'resources/public-fixture.txt').read_text(), 'Complete application resource for 0.1.1')
+        self.assertTrue((destination / 'wallet-runtime/.localwallet-managed').is_file())
+        self.assertEqual(profile.read_bytes(), b'not an actual profile or secret')
+
+    def test_orphan_recovery_copy_failure_preserves_link_and_allows_retry(self):
+        destination, original = self.orphaned_install()
+        app = self.app('0.1.1', 'new')
+        with mock.patch.object(installer.shutil, 'copytree', side_effect=OSError('public injected copy failure')), self.assertRaises(OSError):
+            self.install(app, destination)
+        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertFalse(list((destination / 'wallet-runtime').glob('.staging-*')))
+        self.install(app, destination)
+        self.assertEqual(self.runtime_version(destination), '0.1.1')
+
+    def test_orphan_recovery_commit_failure_preserves_link_and_allows_retry(self):
+        destination, original = self.orphaned_install()
+        app = self.app('0.1.1', 'new')
+        with mock.patch.object(pathlib.Path, 'replace', side_effect=OSError('public injected atomic switch failure')), self.assertRaises(OSError):
+            self.install(app, destination)
+        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertFalse(list(destination.glob('.wallet-link-*')))
+        self.assertFalse(list((destination / 'wallet-runtime').glob('.staging-*')))
+        self.install(app, destination)
+        self.assertEqual(self.runtime_version(destination), '0.1.1')
+
+    def test_install_refuses_unrelated_dangling_launcher_without_runtime(self):
+        app, destination = self.app(), self.destination()
+        target = destination / 'wallet'
+        for link in ('unrelated/wallet-launcher', 'wallet-runtime/../../foreign/wallet-launcher', 'wallet-runtime/app-not-an-id/wallet-launcher', '/wallet-runtime/app-' + '0' * 32 + '/wallet-launcher'):
+            with self.subTest(link=link):
+                target.symlink_to(link)
+                with self.assertRaises(RuntimeError):
+                    self.install(app, destination)
+                self.assertEqual(os.readlink(target), link)
+                self.assertFalse((destination / 'wallet-runtime').exists())
+                target.unlink()
+
+    def test_orphan_recovery_refuses_unsafe_runtime_paths(self):
+        app, destination = self.app(), self.destination()
+        target = destination / 'wallet'
+        original = 'wallet-runtime/app-' + '0' * 32 + '/wallet-launcher'
+        target.symlink_to(original)
+        runtime = destination / 'wallet-runtime'
+        outside = self.root / 'outside'
+        outside.mkdir(mode=0o700)
+        (outside / '.localwallet-managed').touch(mode=0o600)
+        sentinel = outside / 'foreign'
+        sentinel.write_bytes(b'public external sentinel')
+        for shape in ('symlink', 'dangling-symlink', 'file', 'unmarked-directory', 'unsafe-directory'):
+            with self.subTest(shape=shape):
+                if shape.endswith('symlink'):
+                    runtime.symlink_to(outside if shape == 'symlink' else self.root / 'missing', target_is_directory=True)
+                elif shape == 'file':
+                    runtime.write_bytes(b'public unrelated runtime file')
+                else:
+                    runtime.mkdir(mode=0o700)
+                    if shape == 'unsafe-directory':
+                        (runtime / '.localwallet-managed').touch(mode=0o600)
+                        runtime.chmod(0o777)
+                with self.assertRaises(RuntimeError):
+                    self.install(app, destination)
+                self.assertEqual(os.readlink(target), original)
+                self.assertEqual(sentinel.read_bytes(), b'public external sentinel')
+                if runtime.is_symlink() or runtime.is_file():
+                    runtime.unlink()
+                else:
+                    shutil.rmtree(runtime)
 
     def test_install_preserves_unrelated_runtime_directory(self):
         app, destination = self.app(), self.destination()

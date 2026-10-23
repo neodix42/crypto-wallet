@@ -34,7 +34,7 @@ make install
 # Alternative explicit steps: make build-desktop / make package-desktop
 ```
 
-`make install` uses no sudo and creates the ready-to-run `./wallet` launcher plus its complete `wallet-runtime/` directory. It retains previous managed generations and refuses unrelated files/symlinks. Runtime users need neither `.tools/` nor system Node/npm; the desktop runtime is bundled. A complete downloaded desktop archive similarly needs its bundled files kept together. Replacing this interface with a purely Go application is not achieved by shipping backend binaries.
+`make install` uses no sudo and creates the ready-to-run `./wallet` launcher plus its complete `wallet-runtime/` directory. It retains previous managed generations and refuses unrelated files/symlinks. If cleanup removed `wallet-runtime/` but left the managed `./wallet` link, rerun `make install` or `make dev` to rebuild it safely. Runtime users need neither `.tools/` nor system Node/npm; the desktop runtime is bundled. A complete downloaded desktop archive similarly needs its bundled files kept together. Replacing this interface with a purely Go application is not achieved by shipping backend binaries.
 
 Node 24.19.0/npm 11.17.0 are needed only for desktop builds/tests and are bootstrapped into `.tools/` when missing. Explicit display backends are `./wallet --ozone-platform=x11` and `./wallet --ozone-platform=wayland`. Always use the Go launcher for the desktop security boundary. Application execution as root and `--no-sandbox` are rejected.
 

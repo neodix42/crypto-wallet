@@ -70,11 +70,19 @@
       "status": "PASS"
     },
     {
+      "test": "test_install_recovers_managed_launcher_after_runtime_cleanup (__main__.BuildTools.test_install_recovers_managed_launcher_after_runtime_cleanup)",
+      "status": "PASS"
+    },
+    {
       "test": "test_install_refuses_runtime_symlink_even_with_external_managed_marker (__main__.BuildTools.test_install_refuses_runtime_symlink_even_with_external_managed_marker)",
       "status": "PASS"
     },
     {
       "test": "test_install_refuses_traversal_launcher_and_symlinked_marker (__main__.BuildTools.test_install_refuses_traversal_launcher_and_symlinked_marker)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_install_refuses_unrelated_dangling_launcher_without_runtime (__main__.BuildTools.test_install_refuses_unrelated_dangling_launcher_without_runtime)",
       "status": "PASS"
     },
     {
@@ -99,6 +107,18 @@
     },
     {
       "test": "test_optional_desktop_packager_only_produces_portable_desktop (__main__.BuildTools.test_optional_desktop_packager_only_produces_portable_desktop)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_orphan_recovery_commit_failure_preserves_link_and_allows_retry (__main__.BuildTools.test_orphan_recovery_commit_failure_preserves_link_and_allows_retry)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_orphan_recovery_copy_failure_preserves_link_and_allows_retry (__main__.BuildTools.test_orphan_recovery_copy_failure_preserves_link_and_allows_retry)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_orphan_recovery_refuses_unsafe_runtime_paths (__main__.BuildTools.test_orphan_recovery_refuses_unsafe_runtime_paths)",
       "status": "PASS"
     },
     {
@@ -138,14 +158,14 @@
   "sourceSHA256": {
     "scripts/version.py": "478578ebd38607d152c7ae3bb75f66874aa1e2eea9a9870d58be44d83883c14c",
     "scripts/next-version.py": "8f3368764f6ac37d01bdb01f3447ab022dc5258115ebcb47ab0609f104a09198",
-    "scripts/install.py": "25b4a4d25b48c64fcf15df4c9425d1b8e39322748d3d4742f6164c3b687ee063",
+    "scripts/install.py": "395085a49b25935538f94100c12f70cef8b77277b774940ca1fc6347cb227126",
     "scripts/verify-version.py": "502bc80801b3fb629ad5a9ddd280bedc0b76c1398261a43f3c9bb806bc84204e",
     "scripts/package.cjs": "504ef4acf1ba28f394a9c7d1d6e9505fe598514b5561403137aa8e494bf56214",
     "scripts/package-go.py": "ef158a88a5efd6dffd43017b632505d0665a8b9d4dc6942930ddabcd014ad459",
     "scripts/with-toolchain.sh": "5a2f2e3b0616ceef1fb378e88e02fc6d2b0cf95794a0da69ab2ceb30b961bb8f",
     "scripts/bootstrap-node.py": "b67714e06d3bd61b63fa5f9ab853df0e4f93f308dfc26ee49763ada60eb9c0d8",
     "scripts/sbom.py": "97882ee176650cd6888feee6fb5bfd135d5e8aac2ff27f740a03e489ae83a1c3",
-    "scripts/build-tools-test.py": "cd47d8ae46328b01f07a592a836ddbd8b421b70dcb73861f8948ce807deb16b9",
+    "scripts/build-tools-test.py": "3b82756c67ed1256bddf4287b907542ead822aae52fda2bf11b584514bfd601b",
     "Makefile": "b719791d8e5b2b86c66f6d4053f44b9253ea63341c4f0771566787158b3d7183",
     ".github/workflows/release.yml": "9fe373993759ee5c75f2c6fd5f6396a6ac9853fe0aa633b87086e380acbf2381"
   }
