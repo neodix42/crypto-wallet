@@ -2,6 +2,27 @@
 const $ = id => document.getElementById(id);
 let accounts = [], networks = [], prepared, viewEpoch = 0, sessionEpoch = 0, vaultMode = 'checking';
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+const operationErrors = Object.freeze({
+  PASSWORD_POLICY: 'Use an app password of 12–4096 UTF-8 bytes. Enter and repeat it in the native Go window, then try again.',
+  INPUT_TOO_LONG: 'An input exceeds 4,096 UTF-8 bytes. Shorten it in the native window.',
+  PASSWORD_MISMATCH: 'The passwords did not match. Enter the same app password in both native fields and try again.',
+  INVALID_MNEMONIC: 'Enter a valid English BIP39 recovery phrase (12, 15, 18, 21 or 24 words) in the native Go window. A new wallet generates its phrase automatically.',
+  BACKUP_DESTINATION_UNSAFE: 'The backup destination is unavailable or unsafe. Choose a writable folder and a new file name. The wallet will not follow a link or overwrite an existing file.',
+  BACKUP_EXISTS: 'A file already exists at that backup destination. Choose a new file name; the wallet will not overwrite it.',
+  BACKUP_WRITE_FAILED: 'The encrypted backup could not be saved or verified. Check folder permissions and free space, then choose a new file name. Backup verification is still required.',
+  BACKUP_VERIFY_FAILED: 'The encrypted backup could not be verified. Keep the wallet open and choose a new file name to create and verify another backup. This backup is not verified for recovery.',
+  RESTORE_SOURCE_UNSAFE: 'The selected backup could not be read safely. Choose a regular encrypted backup file you can read; links and unsafe files are refused.',
+  REQUEST_CANCELLED: 'Request cancelled. Check the wallet state before retrying.',
+  REQUEST_FAILED_STATE_UNKNOWN: 'Request failed or is unavailable. Balance is unknown until verified; reconcile any pending payment before retrying.'
+});
+function clearOperationError() { $('operationerror').hidden = true; show('operationerror', ''); }
+function showOperationError(error) {
+  // Electron copies Error.message but drops custom Error properties at the bridge.
+  const code = typeof error?.message === 'string' && Object.hasOwn(operationErrors, error.message) ? error.message : 'REQUEST_FAILED_STATE_UNKNOWN';
+  const message = operationErrors[code];
+  show('message', message); show('operationerror', message); $('operationerror').hidden = false;
+  $('operationerror').focus();
+}
 const gates = {
   checking: ['Checking your local wallet', 'Reading the local vault status. No password dialog opens until you choose an action.'],
   missing: ['Create your app password', 'Choose your password in the native Go window. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Your generated phrase stays inside the signer.'],
@@ -20,7 +41,9 @@ function renderGate() {
   show('onboardtitle', title); show('onboarddescription', description);
 }
 function clearLocked() {
+  const retainError = vaultMode !== 'ready' && !$('operationerror').hidden;
   viewEpoch++; sessionEpoch++;
+  if (!retainError) clearOperationError();
   if (vaultMode === 'ready') vaultMode = 'present';
   accounts = []; networks = []; prepared = undefined;
   $('account').replaceChildren(); $('asset').replaceChildren(); $('operations').replaceChildren(); $('accountgroups').replaceChildren();
@@ -28,7 +51,7 @@ function clearLocked() {
   $('qr').hidden = true; $('qr').removeAttribute('src'); $('send').disabled = true;
   for (const id of ['recipient', 'amount', 'memo']) $(id).value = '';
   for (const id of ['address', 'diagnostics', 'preview', 'balance', 'chainhistoryresult']) show(id, 'Locked');
-  $('message').textContent = vaultMode === 'missing' ? 'Start by choosing your app password in the native Go window.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the native Go window.';
+  if (!retainError) $('message').textContent = vaultMode === 'missing' ? 'Start by choosing your app password in the native Go window.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the native Go window.';
   renderGate();
 }
 const removeLockListener = window.wallet.onLocked(clearLocked);
@@ -37,12 +60,13 @@ window.wallet.getVersion().then(version => { $('version').textContent = 'Version
 async function run(fn) {
   const epoch = sessionEpoch;
   try {
+    clearOperationError();
     $('message').textContent = 'Waiting for Go wallet…';
     await fn();
     if (epoch === sessionEpoch) $('message').textContent = 'Request completed. Check the returned state and any limitations.';
-  } catch {
+  } catch (error) {
     if (vaultMode === 'checking') { vaultMode = 'unavailable'; renderGate(); }
-    if (epoch === sessionEpoch) $('message').textContent = 'Request failed, unavailable or cancelled. Balance is unknown until verified; reconcile any pending payment before retrying.';
+    if (epoch === sessionEpoch) showOperationError(error);
   }
 }
 // A native/automatic lock invalidates outstanding public replies as well as the

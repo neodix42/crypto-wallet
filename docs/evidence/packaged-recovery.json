@@ -1,13 +1,41 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 validation feedback, password-only generation, import, ordinary-folder encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
   "steps": [
+    {
+      "name": "short-password-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "password-mismatch-feedback",
+      "status": "PASS"
+    },
     {
       "name": "Explicit first-run password-only generation and Main account overview without phrase reveal",
       "status": "PASS"
     },
     {
+      "name": "Verified owner-only encrypted backup in ordinary 0755 folder without folder mutation or lockfile",
+      "status": "PASS"
+    },
+    {
+      "name": "existing-backup-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "unsafe-backup-folder-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Rejected backups preserve existing ciphertext and leave the active wallet usable",
+      "status": "PASS"
+    },
+    {
       "name": "Password-only generated root restored from verified encrypted backup into an empty profile",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid-recovery-phrase-feedback",
       "status": "PASS"
     },
     {
@@ -33,11 +61,15 @@
     {
       "name": "Captured logs and persisted profile files contain no tested secret canaries",
       "status": "PASS"
+    },
+    {
+      "name": "Invalid native inputs and backup failures produce guidance without ordinary IPC handler stack traces or Mesa loader errors",
+      "status": "PASS"
     }
   ],
   "notRun": [
     "clean Ubuntu24.04 desktop",
-    "Wayland",
+    "Wayland full wallet workflows",
     "OS suspend/session lock",
     "send from installed package",
     "upgrade/uninstall recovery matrix"
@@ -45,11 +77,33 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "3e4c2efaa22aa52434ddd5befeecaee31dbbea5749849b0456e20112ed29db73",
-      "wallet-launcher": "d14d092e5b3864b51b6575a436205bed82237c425addb5b79b5b13ca802c187f",
-      "wallet-signer": "ed396c9a92c9023a40b69c0efeb2df9886bdd387bcef10761fdd00177937b213"
+      "wallet-core": "a0e49c71a50ec07933a69057a1b199f1df710357e758bb638e8d9b89822069a7",
+      "wallet-launcher": "95f4f33a1e9f2849bc654c9f18d496625ffe348c9b2aecbb9fab5d743f94b988",
+      "wallet-signer": "4394ebe033e918eb6c30a3e646656518356ce73b7eb380b39d272924280228c1"
     },
-    "asarSHA256": "d1a3ea7953db44fb586cd0b54a231e15a34b781ee245f51b43f8b685a4c36c21"
+    "asarSHA256": "2c8788a6c1957966b26dd3a0331d812a0b2a18fd9d0db0a7f54558f9c8e8797e"
   },
-  "backupSHA256": "da671152d2b132d0b18b2b3bb52b88e3aebb57c3357c442578b1082610942ea5"
+  "liveLogChecks": [
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    }
+  ],
+  "backupSHA256": "3e5d79032b03540664e020c8d810c66b0ed091913dc67580f35a2960da59470c"
 }

@@ -20,7 +20,7 @@ The recorded suites cover immutable plans/native approval, changed recipients/fe
 
 First-run tests require primary and previous generations to be absent before setup or restore. Existing, corrupt, unsafe and orphaned entries remain existing/unavailable rather than a new-wallet invitation. Nine deterministic cases introduce primary, previous or both ciphertext files during Create/import/Restore native input, then verify rejection, secret cleanup and unchanged original bytes. A separate real filesystem test introduces a primary after staging fsync; the kernel's `RENAME_NOREPLACE` preserves that late file. Initialization never copies a previous generation. These are bounded collision tests, not proof of atomic exclusion across two names against an arbitrary same-user filesystem writer.
 
-Real native tests cover masked inputs, UTF-8 byte limits, cancellation, PNG display, file selection, public clipboard ownership, scrolling exact effects and unavailable display. Background timers, programmatic field assignments, redraw/focus and clipboard events produce no activity. Private/public activity frames carry only `{}` with current request ID/session. Tests reject stale/malformed/flooding events and prove that initial locked prompts expire while their network access remains denied.
+Real native tests cover masked inputs, UTF-8 byte limits, cancellation, fixed value-free failure notices, PNG display, file selection, public clipboard ownership, scrolling exact effects and unavailable display. The combined profile measures `internal/secureui` at 99.09%; `Notice` is fully executed, while the partial-result wiping guard below remains unexecuted. This union includes the real private-X11 native profile (98.3% on its narrower run) without duplicating statement denominators. Background timers, programmatic field assignments, redraw/focus and clipboard events produce no activity. Private/public activity frames carry only `{}` with current request ID/session. Tests reject stale/malformed/flooding events and prove that initial locked prompts expire while their network access remains denied.
 
 The [process-lifetime review](PROCESS_LIFETIME.md) covers the Linux creator-thread parent-death hazard. The launcher keeps one OS thread through child startup and `Exec`; the supervisor retains a dedicated locked creator thread until each signer is killed and reaped. Actual kernel controls reproduce child `SIGKILL` when an unowned caller thread retires. The fixed Child survives caller-thread retirement, answers a subsequent RPC, releases every owner over eight restarts, and receives `SIGKILL` after abrupt parent-process death. The last test independently reaps the child through a private subreaper and makes the peer wait on EOF, so ordinary pipe closure cannot pass it. These regressions confirm the isolated mechanism; they do not attribute an earlier packaged failure without its missing thread trace.
 
@@ -34,7 +34,7 @@ The retained defensive guards remain enabled. An unexecuted error return is stil
 
 | Area | Review of remaining statements |
 |---|---|
-| Vault envelope/files | AEAD/serializer errors after validated fixed parameters, OS read/short-write/close/sync/rename errors and directory-open errors. Stage-by-stage faults, authenticated tampering, unsafe paths, old/new valid generation recovery and failed persistence are covered. Not every filesystem/kernel error is independently induced. Guards return errors and preserve/lock state; filesystem durability remains an OS contract. |
+| Vault envelope/files | AEAD/serializer errors after validated fixed parameters, OS read/short-write/close/sync/rename errors, directory-open errors and the portable backup destination metadata-query error after a verified directory open. Stage-by-stage faults, authenticated tampering, unsafe paths, old/new valid generation recovery and failed persistence are covered. Not every filesystem/kernel error is independently induced. Guards return errors and preserve/lock state; filesystem durability remains an OS contract. |
 | Root derivation and amounts | BIP39/library failure after prior entropy validation, invalid scalars and checked conversion failures precluded by preceding canonical bounds. Independent vectors, Unicode/passphrase separation, invalid-child policy and overflow/precision cases are covered. No deterministic production RNG/HMAC override was added. |
 | Signer policy | OS RNG termination, verified encryption/decryption mismatches and native/output/library failures following validated inputs; repeated backup/recovery checks and unsupported corrupted descriptors. The initial-commit write-error and post-commit previous-conflict returns remain unexecuted at the engine call site; lower-level atomic late-primary rejection and the nine pre-commit prompt collisions are passing tests with narrower scope. The postcheck preserves both files and locks the current session; it does not establish durable conflict quarantine after restart. Persistence/encoding/approval faults are exercised through real encrypted IO. A cryptographic API failure must return no artifact. Recovery validation has positive/negative tests; offline metadata never proves current chain authority. |
 | Supervisor/launcher | Pipe/descriptor allocation exhaustion, CSPRNG failure, diagnostic OS-path failures, sanitized optional-environment skips and process startup/exec failure variants. Real manifest tampering, private-frame validation, child death, generation-bound queued calls and lock interruption are tested. No globally weakened sandbox or production fault hook is used. The launcher entry-point `os.Exit` wrapper is subprocess exercised separately from its in-process `run` counters. |
@@ -52,7 +52,7 @@ Native C and cryptographic library behavior require external review in addition 
 
 The following snapshot is generated from the final recorded profiles; the machine reports remain authoritative for reruns.
 
-Recorded on 2026-10-23 with Go 1.27.3; wrapper status **PASS**, 45.967 seconds. Source base commit `96f9836c0463dba908dd1cc5b177cb235af0ae09`; uncommitted source/test/module hashes are retained individually in `reports/go-coverage.json`. Both retained raw-profile hashes and all source hashes were reverified after the run. `reports/go-base.cover` SHA-256: `80b4b211b645681660813d9dbb29fbda90f5e870b8394c5fa6a101a38326b6c2`. `reports/go-native.cover` SHA-256: `41793f4f272007363e2b6ff8f936b54a96c8ac83f9ccc14090cd0742207b5e56`.
+Recorded on 2026-10-23 with Go 1.27.3; wrapper status **PASS**, 56.011 seconds. Source base commit `23f9520b24c0e29d337c3bac8f387581819548a0`; the 130 measured source/test/module SHA-256 values are retained individually in `reports/go-coverage.json`. All 130 source hashes and both retained raw-profile hashes were reverified after the run. `reports/go-base.cover` SHA-256: `6189ed7ccb8024e003c4abd00b64795ab5be8ec70ff212426d0c13d2ae00929f`. `reports/go-native.cover` SHA-256: `55a9ad4b13c7df92094a9ce94f2e0b76eb252fd9435374f24f0a2a89f4b38277`.
 
 The wrapper freezes the native profile as `reports/go-native.cover` before merging, so a later standalone native-security run cannot overwrite the measurement input. The current wrapper ran DCR simnet and the TON V5R1 emulator. Its optional NEAR/Aptos/geth node tests were **NOT_RUN**, explicitly listed with their prerequisite reasons in `reports/go-coverage.json`; separate preceding local-node acceptance reports remain valid only for their own recorded scope. The 24-hour case also remained **NOT_RUN**. Bootstrap/helper tests intentionally skip outside their child-helper invocations; those are test harness roles, not network acceptance.
 
@@ -60,7 +60,7 @@ The wrapper freezes the native profile as `reports/go-native.cover` before mergi
 |---|---:|---:|---|
 | `cmd/wallet-core` | 95.78% | 95% | PASS |
 | `cmd/wallet-launcher` | 93.33% | 90% | PASS |
-| `cmd/wallet-signer` | 98.67% | 95% | PASS |
+| `cmd/wallet-signer` | 98.77% | 95% | PASS |
 | `internal/amount` | 95.74% | 95% | PASS |
 | `internal/chains` | 100.00% | 95% | PASS |
 | `internal/chains/aptos` | 96.59% | 95% | PASS |
@@ -75,11 +75,11 @@ The wrapper freezes the native profile as `reports/go-native.cover` before mergi
 | `internal/isolation` | 100.00% | 95% | PASS |
 | `internal/journal` | 100.00% | 95% | PASS |
 | `internal/qr` | 96.30% | 95% | PASS |
-| `internal/secureui` | 98.97% | 95% | PASS |
-| `internal/signer` | 96.53% | 95% | PASS |
+| `internal/secureui` | 99.09% | 95% | PASS |
+| `internal/signer` | 96.77% | 95% | PASS |
 | `internal/strictjson` | 97.44% | 95% | PASS |
 | `internal/supervisor` | 95.65% | 95% | PASS |
-| `internal/vault` | 96.08% | 95% | PASS |
+| `internal/vault` | 96.31% | 95% | PASS |
 
 The exact remaining 182 blocks contain 194 unexecuted statements. Every block belongs to the reviewed area table above. The index lists exact block start line/column positions; full spans, excerpts and statement counts are in `reports/go-uncovered.json`. No empty/zero-statement data-only package is represented as a tested implementation.
 
@@ -108,11 +108,12 @@ The exact remaining 182 blocks contain 194 unexecuted statements. Every block be
 | [internal/chains/ton/ton.go](../internal/chains/ton/ton.go) | `128.3`, `310.3`, `328.3`, `334.4`, `400.3`, `404.3`, `409.3`, `423.3`, `430.3`, `434.3`, `441.3`, `445.3`, `450.3`, `457.3` | 14 |
 | [internal/derivation/derivation.go](../internal/derivation/derivation.go) | `60.4`, `80.3` | 2 |
 | [internal/qr/qr.go](../internal/qr/qr.go) | `32.3` | 1 |
-| [internal/secureui/native.go](../internal/secureui/native.go) | `133.4` | 1 |
-| [internal/signer/engine.go](../internal/signer/engine.go) | `68.3`, `152.3`, `156.3`, `166.4`, `171.4`, `227.4`, `431.3`, `474.3`, `478.3`, `483.3`, `487.3`, `490.3`, `494.3`, `582.3`, `624.4`, `705.5`, `769.3`, `816.3`, `868.3` | 20 |
+| [internal/secureui/native.go](../internal/secureui/native.go) | `139.4` | 1 |
+| [internal/signer/engine.go](../internal/signer/engine.go) | `68.3`, `152.3`, `156.3`, `166.4`, `171.4`, `227.4`, `440.3`, `486.3`, `490.3`, `495.3`, `499.3`, `502.3`, `600.3`, `642.4`, `723.5`, `787.3`, `834.3`, `886.3` | 19 |
 | [internal/strictjson/json.go](../internal/strictjson/json.go) | `69.3` | 1 |
 | [internal/supervisor/child.go](../internal/supervisor/child.go) | `108.5`, `117.3`, `121.3`, `133.3` | 6 |
-| [internal/vault/envelope.go](../internal/vault/envelope.go) | `59.3`, `78.3` | 2 |
-| [internal/vault/files.go](../internal/vault/files.go) | `103.3`, `122.3`, `143.3`, `149.3`, `162.3`, `173.3` | 6 |
+| [internal/vault/backup.go](../internal/vault/backup.go) | `65.3` | 1 |
+| [internal/vault/envelope.go](../internal/vault/envelope.go) | `60.3`, `79.3` | 2 |
+| [internal/vault/files.go](../internal/vault/files.go) | `103.3`, `122.3`, `143.3`, `149.3`, `159.3`, `165.3` | 6 |
 
 A separately requested five-minute native campaign passed with63 actual XTest key events over5m11.962s (`reports/native-input-long.json`). The ordinary short native suite intentionally skips that long case and records the skip honestly; its own PASS does not stand in for the separate wall-clock result. Wayland and the clean installed desktop matrix remain outside this local coverage result.

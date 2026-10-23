@@ -242,15 +242,24 @@ func (e *Engine) Create(environment string, words int, importing bool) error {
 	}
 	in, err := e.UI.Input("Create local wallet — encrypted backup is required for recovery", labels...)
 	if err != nil {
-		return ErrDenied
+		return err
 	}
 	defer wipeInputs(in)
-	if len(in) != len(labels) || !vault.PasswordValid(in[0]) || !hmac.Equal(in[0], in[1]) {
+	if len(in) != len(labels) {
 		return ErrDenied
+	}
+	if !vault.PasswordValid(in[0]) {
+		return ErrPasswordPolicy
+	}
+	if !hmac.Equal(in[0], in[1]) {
+		return ErrPasswordMismatch
 	}
 	var entropy, pass []byte
 	if importing {
 		entropy, err = derivation.Import(in[2])
+		if err != nil {
+			return ErrInvalidPhrase
+		}
 		pass = append([]byte(nil), in[3]...)
 	} else {
 		entropy, err = derivation.Generate(words)
@@ -282,7 +291,7 @@ func (e *Engine) Unlock() error {
 	}
 	in, err := e.UI.Input("Unlock local wallet", "Storage password")
 	if err != nil {
-		return ErrDenied
+		return err
 	}
 	defer wipeInputs(in)
 	if len(in) != 1 {
@@ -450,11 +459,11 @@ func (e *Engine) Backup() error {
 	}
 	path, err := e.UI.File("Save encrypted portable backup", true)
 	if err != nil {
-		return ErrDenied
-	}
-	f, err := vault.NewFiles(filepath.Dir(path))
-	if err != nil {
 		return err
+	}
+	f, err := vault.NewBackupFiles(filepath.Dir(path), true)
+	if err != nil {
+		return ErrBackupDestination
 	}
 	defer f.Close()
 	plain, err := e.data.Encode()
@@ -466,32 +475,35 @@ func (e *Engine) Backup() error {
 	if err != nil {
 		return err
 	}
-	if err = f.Write(filepath.Base(path), b, false); err != nil {
-		return err
+	if err = f.Write(filepath.Base(path), b); err != nil {
+		if errors.Is(err, vault.ErrExists) {
+			return ErrBackupExists
+		}
+		return ErrBackupWrite
 	}
 	r, err := f.Read(filepath.Base(path))
 	if err != nil {
-		return err
+		return ErrBackupVerification
 	}
 	opened, err := vault.Open(r, e.password)
 	if err != nil {
-		return err
+		return ErrBackupVerification
 	}
 	defer clear(opened)
 	d, err := vault.Decode(opened)
 	if err != nil {
-		return err
+		return ErrBackupVerification
 	}
 	defer d.Destroy()
 	if err = vault.VerifyRecovery(e.data, d); err != nil {
-		return err
+		return ErrBackupVerification
 	}
 	if e.Environment != "" && d.Environment != e.Environment {
 		d.Destroy()
 		return ErrDenied
 	}
 	if err = e.validateAccounts(d); err != nil {
-		return err
+		return ErrBackupVerification
 	}
 	e.data.BackupVerified = true
 	return e.persist()
@@ -505,20 +517,20 @@ func (e *Engine) Restore() error {
 	}
 	path, err := e.UI.File("Open encrypted backup — restores into an empty profile", false)
 	if err != nil {
-		return ErrDenied
-	}
-	f, err := vault.NewFiles(filepath.Dir(path))
-	if err != nil {
 		return err
+	}
+	f, err := vault.NewBackupFiles(filepath.Dir(path), false)
+	if err != nil {
+		return ErrRestoreSource
 	}
 	defer f.Close()
 	b, err := f.Read(filepath.Base(path))
 	if err != nil {
-		return err
+		return ErrRestoreSource
 	}
 	in, err := e.UI.Input("Restore encrypted portable backup", "Password that encrypted this backup")
 	if err != nil {
-		return ErrDenied
+		return err
 	}
 	defer wipeInputs(in)
 	if len(in) != 1 {
@@ -555,11 +567,17 @@ func (e *Engine) ChangePassword() error {
 	}
 	in, err := e.UI.Input("Change storage password — old backups retain their OLD password", "Current password", "New password", "Repeat new password")
 	if err != nil {
-		return ErrDenied
+		return err
 	}
 	defer wipeInputs(in)
-	if len(in) != 3 || !hmac.Equal(in[0], e.password) || !hmac.Equal(in[1], in[2]) || !vault.PasswordValid(in[1]) {
+	if len(in) != 3 || !hmac.Equal(in[0], e.password) {
 		return ErrDenied
+	}
+	if !vault.PasswordValid(in[1]) {
+		return ErrPasswordPolicy
+	}
+	if !hmac.Equal(in[1], in[2]) {
+		return ErrPasswordMismatch
 	}
 	old := e.password
 	e.password = append([]byte(nil), in[1]...)

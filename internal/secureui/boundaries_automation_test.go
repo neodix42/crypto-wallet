@@ -5,6 +5,7 @@ package secureui
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -23,9 +24,17 @@ func TestNativeRejectsMultibyteSecretOverByteLimit(t *testing.T) {
 	}
 	// GTK's limit is in characters; the signer additionally limits UTF-8 bytes.
 	autoSchedule(strings.Repeat("é", 4096), -3)
-	if out, err := (Native{}).Input("TEST public synthetic oversized UTF8", "Synthetic password"); err == nil || out != nil {
+	if out, err := (Native{}).Input("TEST public synthetic oversized UTF8", "Synthetic password"); !errors.Is(err, ErrInputTooLong) || out != nil {
 		t.Fatal("native input exposed over-limit UTF8")
 	}
+}
+
+func TestNativeFixedFailureNotice(t *testing.T) {
+	if err := Init(); err != nil {
+		t.Fatalf("BLOCKED native display: %v", err)
+	}
+	autoSchedule("", -7)
+	(Native{}).Notice("TEST public validation guidance", "Choose a new encrypted backup filename.")
 }
 
 func TestNativePublicReceiveAndScrollableApproval(t *testing.T) {

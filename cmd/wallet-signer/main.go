@@ -83,7 +83,11 @@ func serve(c *ipc.Channel, engine *signer.Engine, environment string) {
 				return
 			}
 			if respond(c, m, func() (json.RawMessage, error) {
-				return handle(engine, m, environment)
+				body, err := handle(engine, m, environment)
+				if err != nil {
+					notifyFailure(engine.UI, err)
+				}
+				return body, err
 			}) != nil {
 				return
 			}
@@ -109,7 +113,7 @@ func respond(c *ipc.Channel, m ipc.Message, run func() (json.RawMessage, error))
 	response := ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: body}
 	if err != nil {
 		response.Body = []byte(`null`)
-		response.Error = "REQUEST_DENIED"
+		response.Error = requestErrorCode(err)
 	}
 	return c.Write(response)
 }

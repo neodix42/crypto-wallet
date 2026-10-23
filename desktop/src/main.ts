@@ -7,12 +7,21 @@ import {validate} from './validation';
 import {parseResponse} from './codec';
 
 app.enableSandbox();
+// Public wallet views and QR images do not need a hardware rendering pipeline.
+// Keep Chromium away from host-specific Mesa/DRI loaders while retaining sandboxing.
+app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('force-webrtc-ip-handling-policy','disable_non_proxied_udp');
 protocol.registerSchemesAsPrivileged([{scheme:'wallet',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 const origin='wallet://app'; const sessionID=randomBytes(16).toString('hex');
 let core:{stdin:WriteStream,stdout:ReadStream}|undefined;let win:BrowserWindow|undefined;let serial=0;let buffered=Buffer.alloc(0);
 let statusTimer:NodeJS.Timeout|undefined;let statusInFlight=false;
 const nativeMethods=new Set(['create','import','unlock','backup','restore','password','receive','copyReceive','saveQR','scanQR','configure','associate','discovery','discoverAccounts','send']);
+// Only reviewed, value-free operation codes may cross the desktop boundary.
+// Ordinary failures resolve the IPC handler, avoiding Electron's rejected-handler
+// stack logging. Core/session protocol failures still terminate the session.
+const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','BACKUP_DESTINATION_UNSAFE','BACKUP_EXISTS','BACKUP_WRITE_FAILED','BACKUP_VERIFY_FAILED','RESTORE_SOURCE_UNSAFE','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
+function operationCode(value:unknown):string{return typeof value==='string'&&operationErrors.has(value)?value:'REQUEST_FAILED_STATE_UNKNOWN';}
+class OperationError extends Error{readonly code:string;constructor(value:unknown){const code=operationCode(value);super(code);this.code=code;}}
 type Pending={method:string,resolve:(x:unknown)=>void,reject:(e:Error)=>void,timer:NodeJS.Timeout|undefined,deadline:number,activityWindow:number,activityCount:number};
 const pending=new Map<string,Pending>();
 function renewDeadline(id:string,p:Pending):void{
@@ -41,7 +50,7 @@ function startCore():void{
  if(createHash('sha256').update(fs.readFileSync(executable)).digest('hex')!==manifest['wallet-core'])throw new Error('Packaged core identity mismatch');
  if(process.env['LOCALWALLET_INHERITED_CORE']!=='1')throw new Error('Start with the packaged network-isolating launcher');
  core={stdin:fs.createWriteStream('',{fd:4,autoClose:true}),stdout:fs.createReadStream('',{fd:3,autoClose:true})};
- core.stdout.on('data',(chunk:string|Buffer)=>{buffered=Buffer.concat([buffered,typeof chunk==='string'?Buffer.from(chunk):chunk]);if(buffered.length>2097152){stop();return}while(buffered.length>=4){const length=buffered.readUInt32BE();if(length<1||length>1048576){stop();return}if(buffered.length<4+length)return;const b=buffered.subarray(4,4+length);buffered=buffered.subarray(4+length);try{const r=parseResponse(b.toString());if(r.version!==1||r.session!==sessionID||typeof r.id!=='string'){stop();return}const p=pending.get(r.id);if(!p){stop();return}if(r.method==='activity'&&p.method!=='activity'){nativeActivity(r.id,p,r);continue}if(p.method!==r.method){stop();return}pending.delete(r.id);clearTimeout(p.timer);if(r.error)p.reject(new Error('Operation failed or unavailable. Check wallet state before retrying.'));else p.resolve(r.body)}catch{stop();return}}});
+ core.stdout.on('data',(chunk:string|Buffer)=>{buffered=Buffer.concat([buffered,typeof chunk==='string'?Buffer.from(chunk):chunk]);if(buffered.length>2097152){stop();return}while(buffered.length>=4){const length=buffered.readUInt32BE();if(length<1||length>1048576){stop();return}if(buffered.length<4+length)return;const b=buffered.subarray(4,4+length);buffered=buffered.subarray(4+length);try{const r=parseResponse(b.toString());if(r.version!==1||r.session!==sessionID||typeof r.id!=='string'){stop();return}const p=pending.get(r.id);if(!p){stop();return}if(r.method==='activity'&&p.method!=='activity'){nativeActivity(r.id,p,r);continue}if(p.method!==r.method){stop();return}pending.delete(r.id);clearTimeout(p.timer);if(Object.hasOwn(r,'error'))p.reject(new OperationError(r.error));else p.resolve(r.body)}catch{stop();return}}});
  core.stdin.on('error',stop);core.stdout.on('error',stop);core.stdout.on('end',stop);
 }
 void app.whenReady().then(async()=>{
@@ -58,7 +67,7 @@ void app.whenReady().then(async()=>{
  win.webContents.on('render-process-gone',osLock);
  let lastActivity=0;win.webContents.on('before-input-event',()=>{if(Date.now()-lastActivity>1000){lastActivity=Date.now();void request('activity',{}).catch(stop)}});
  ipcMain.on('wallet:activity',event=>{if(win&&event.sender===win.webContents&&event.senderFrame===win.webContents.mainFrame&&event.senderFrame.url.startsWith(origin+'/'))void request('activity',{}).catch(stop)});
- ipcMain.handle('wallet:request',async(event,method:unknown,body:unknown)=>{if(!win||event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame||!event.senderFrame.url.startsWith(origin+'/'))throw new Error('Untrusted frame');validate(method,body);if(method==='lock')notifyLocked();const result=await request(method,body);if(method==='status'&&lockedSnapshot(result))notifyLocked();return result});
+ ipcMain.handle('wallet:request',async(event,method:unknown,body:unknown)=>{if(!win||event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame||!event.senderFrame.url.startsWith(origin+'/'))throw new Error('Untrusted frame');validate(method,body);if(method==='lock')notifyLocked();try{const result=await request(method,body);if(method==='status'&&lockedSnapshot(result))notifyLocked();return {ok:true,body:result}}catch(error){return {ok:false,error:error instanceof OperationError?error.code:'REQUEST_FAILED_STATE_UNKNOWN'}}});
  ipcMain.handle('wallet:version',event=>{if(!win||event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame||!event.senderFrame.url.startsWith(origin+'/'))throw new Error('Untrusted frame');return app.getVersion()});
  powerMonitor.on('lock-screen',osLock);powerMonitor.on('suspend',osLock);powerMonitor.on('shutdown',osLock);
  // Status queries never send activity. Avoid queueing behind native dialogs or

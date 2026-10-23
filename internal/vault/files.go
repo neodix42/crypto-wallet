@@ -153,6 +153,9 @@ func (f *Files) Write(name string, data []byte, replace bool) error {
 		flags = unix.RENAME_NOREPLACE
 	}
 	if e = unix.Renameat2(dir, temp, dir, name, flags); e != nil {
+		if !replace && e == unix.EEXIST {
+			return ErrExists
+		}
 		return ErrFile
 	}
 	if e = f.stage("after-rename"); e != nil {

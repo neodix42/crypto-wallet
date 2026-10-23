@@ -111,7 +111,12 @@ func TestTP032AllProfilesCleanPortableRecovery(t *testing.T) {
 		}
 	}
 	backupDir := filepath.Join(t.TempDir(), "backup")
-	os.Mkdir(backupDir, 0700)
+	if err := os.Mkdir(backupDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(backupDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	u.path = filepath.Join(backupDir, "portable.lwv")
 	if err := e.Backup(); err != nil {
 		t.Fatal(err)

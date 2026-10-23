@@ -396,7 +396,10 @@ func TestTP032PasswordAndBackupFailureBoundaries(t *testing.T) {
 		t.Fatal("relative backup")
 	}
 	u.path = filepath.Join(t.TempDir(), "public-folder", "backup.lwv")
-	if err := os.Mkdir(filepath.Dir(u.path), 0755); err != nil {
+	if err := os.Mkdir(filepath.Dir(u.path), 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Dir(u.path), 0777); err != nil {
 		t.Fatal(err)
 	}
 	if e.Backup() == nil {

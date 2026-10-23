@@ -221,7 +221,7 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 		}
 	}
 	if r.Error != "" {
-		return errors.New(r.Error)
+		return ipc.NewRequestError(r.Error)
 	}
 	if out != nil {
 		return json.Unmarshal(r.Body, out)

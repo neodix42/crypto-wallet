@@ -272,7 +272,7 @@ func main() {
 			r := ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: b}
 			if e != nil {
 				r.Body = []byte(`null`)
-				r.Error = "REQUEST_FAILED_STATE_UNKNOWN"
+				r.Error = ipc.PublicErrorCode(e)
 			}
 			_ = ch.Write(r)
 		}

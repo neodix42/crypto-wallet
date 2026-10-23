@@ -383,6 +383,9 @@ func TestDispatchEncryptedBackupRestoreAndPasswordRotation(t *testing.T) {
 	e, u := dispatchEngine(t, "testnet", true)
 	unlockFixture(t, e, u)
 	u.path = filepath.Join(t.TempDir(), "encrypted-backup", "portable.lwv")
+	if err := os.Mkdir(filepath.Dir(u.path), 0755); err != nil {
+		t.Fatal(err)
+	}
 	dispatch(t, e, "backup", struct{}{})
 	if !e.Snapshot().BackupVerified {
 		t.Fatal("backup did not verify recovery")
@@ -477,6 +480,9 @@ func TestDispatchCreateImportAndFixedEnvironmentBoundaries(t *testing.T) {
 		t.Fatal(err)
 	}
 	u.path = filepath.Join(t.TempDir(), "encrypted-backup", "mainnet-public-fixture.lwv")
+	if err := os.Mkdir(filepath.Dir(u.path), 0755); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := handle(e, request("backup", struct{}{}), "mainnet"); err != nil {
 		t.Fatal(err)
 	}

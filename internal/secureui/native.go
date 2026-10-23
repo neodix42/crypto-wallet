@@ -62,9 +62,12 @@ static void public_copy(const char*s){void*c=gtk_clipboard_get(gdk_atom_intern_s
 static void add_label(void*box,const char*s){void*l=gtk_label_new(s);gtk_label_set_line_wrap(l,1);gtk_label_set_max_width_chars(l,80);gtk_label_set_xalign(l,0);gtk_label_set_selectable(l,1);gtk_box_pack_start(box,l,0,0,10);}
 static void add_scroll(void*b,const char*s){void*w=gtk_scrolled_window_new(0,0);gtk_scrolled_window_set_policy(w,1,1);gtk_widget_set_size_request(w,600,240);void*l=gtk_label_new(s);gtk_label_set_line_wrap(l,1);gtk_label_set_max_width_chars(l,80);gtk_label_set_selectable(l,1);gtk_container_add(w,l);gtk_box_pack_start(b,w,1,1,6);}
 static void *new_dialog(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Cancel",-6,"Continue",-3,(char*)0);gtk_window_set_default_size(d,650,240);gtk_window_set_keep_above(d,1);return d;}
+static void *new_notice(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Close",-7,(char*)0);gtk_window_set_default_size(d,650,180);gtk_window_set_keep_above(d,1);return d;}
 static void *add_entry(void*b,const char*l){add_label(b,l);void*e=gtk_entry_new();gtk_entry_set_visibility(e,0);gtk_entry_set_input_purpose(e,8);gtk_entry_set_input_hints(e,1026);gtk_entry_set_max_length(e,4096);gtk_box_pack_start(b,e,0,0,8);return e;}
 static void finish(void*d){gtk_widget_destroy(d);while(gtk_events_pending())gtk_main_iteration();}
-static void *file_dialog(const char*t,int save){void*d=gtk_file_chooser_dialog_new(t,0,save?1:0,"Cancel",-6,save?"Save":"Open",-3,(char*)0);gtk_file_chooser_set_do_overwrite_confirmation(d,1);return d;}
+// Backups never overwrite files. Let the signer report BACKUP_EXISTS instead
+// of presenting GTK's misleading "Replace" confirmation.
+static void *file_dialog(const char*t,int save){void*d=gtk_file_chooser_dialog_new(t,0,save?1:0,"Cancel",-6,save?"Save":"Open",-3,(char*)0);gtk_file_chooser_set_do_overwrite_confirmation(d,0);return d;}
 static int add_png(void*b,const unsigned char*p,size_t n){void*l=gdk_pixbuf_loader_new();if(!gdk_pixbuf_loader_write(l,p,n,0)||!gdk_pixbuf_loader_close(l,0)){g_object_unref(l);return 0;}void*i=gtk_image_new_from_pixbuf(gdk_pixbuf_loader_get_pixbuf(l));gtk_box_pack_start(b,i,0,0,6);g_object_unref(l);return 1;}
 */
 import "C"
@@ -76,6 +79,7 @@ import (
 )
 
 var ErrCancelled = errors.New("native request cancelled or unavailable")
+var ErrInputTooLong = errors.New("native input exceeds UTF-8 byte limit")
 
 func Init() error {
 	runtime.LockOSThread()
@@ -110,6 +114,7 @@ func Input(title string, labels ...string) ([][]byte, error) {
 	}
 	C.gtk_widget_show_all(d)
 	response := C.gtk_dialog_run(d)
+	tooLong := false
 	var result [][]byte
 	if response == -3 {
 		for _, e := range entries {
@@ -117,6 +122,7 @@ func Input(title string, labels ...string) ([][]byte, error) {
 			n := C.strlen(p)
 			if n > 4096 {
 				response = -6
+				tooLong = true
 				break
 			}
 			result = append(result, C.GoBytes(unsafe.Pointer(p), C.int(n)))
@@ -132,9 +138,25 @@ func Input(title string, labels ...string) ([][]byte, error) {
 		for _, b := range result {
 			clear(b)
 		}
+		if tooLong {
+			return nil, ErrInputTooLong
+		}
 		return nil, ErrCancelled
 	}
 	return result, nil
+}
+
+// Notice shows fixed public guidance. No input values or filesystem paths are
+// passed to this function by the signer request error handler.
+func Notice(title, message string) {
+	t, s := cstr(title), cstr(message)
+	defer C.free(unsafe.Pointer(t))
+	defer C.free(unsafe.Pointer(s))
+	d := C.new_notice(t)
+	C.add_label(C.gtk_dialog_get_content_area(d), s)
+	C.gtk_widget_show_all(d)
+	C.gtk_dialog_run(d)
+	C.finish(d)
 }
 func Confirm(title, summary string) bool             { return display(title, summary, nil) }
 func Receive(title, summary string, png []byte) bool { return display(title, summary, png) }

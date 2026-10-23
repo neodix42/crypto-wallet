@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "scope": "Uninstrumented portable startup on owned disposable displays; no wallet creation, secret input or user profile access",
+  "notRun": [
+    "actual host hardware/display reproduction",
+    "native Wayland credential/backup workflows",
+    "stock Ubuntu OS/display acceptance matrix"
+  ],
+  "rendererPolicy": "Expected hardware acceleration disabled before ready; separately enforced by frontend startup tests alongside sandbox retention",
+  "electronAPI": "https://www.electronjs.org/docs/latest/api/app#appdisablehardwareacceleration",
+  "backends": [
+    {
+      "backend": "x11",
+      "status": "PASS",
+      "log": "[858061:1023/184242.560967:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.InvalidArgs: No such interface \u201corg.freedesktop.portal.FileChooser\u201d\n",
+      "mesaWarning": false,
+      "screenshotSHA256": "15950057502101ee13e8ad81be259ad5d7b120546a67fa8f5c416bba264dde22",
+      "scope": "Mapped public X11 window and process alive for 5 seconds",
+      "displayCommand": [
+        "/home/neodix/gitProjects/crypto-wallet/.tools/xvfb/root/usr/bin/Xvfb",
+        ":188",
+        "-screen",
+        "0",
+        "1280x1024x24",
+        "-nolisten",
+        "tcp"
+      ],
+      "compositorGPUEnvironmentOverrides": [],
+      "displayLog": ""
+    },
+    {
+      "backend": "wayland",
+      "status": "PASS",
+      "log": "[859274:1023/184248.865797:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.InvalidArgs: No such interface \u201corg.freedesktop.portal.FileChooser\u201d\n",
+      "mesaWarning": false,
+      "scope": "Private virtual Wayland startup process alive for 5 seconds; window visibility/input not verified",
+      "displayCommand": [
+        "kwin_wayland",
+        "--virtual",
+        "--no-lockscreen",
+        "--no-global-shortcuts",
+        "--no-kactivities",
+        "--socket",
+        "wallet-fixture-wayland",
+        "--width",
+        "1280",
+        "--height",
+        "1024"
+      ],
+      "compositorGPUEnvironmentOverrides": [],
+      "displayLog": "Accepting client connections on sockets: QList(\"wallet-fixture-wayland\")\n\"applications.menu\"  not found in  QList(\"/etc/xdg/menus\")\nkwin_screencast: Failed to connect PipeWire context\n"
+    }
+  ],
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "a0e49c71a50ec07933a69057a1b199f1df710357e758bb638e8d9b89822069a7",
+      "wallet-launcher": "95f4f33a1e9f2849bc654c9f18d496625ffe348c9b2aecbb9fab5d743f94b988",
+      "wallet-signer": "4394ebe033e918eb6c30a3e646656518356ce73b7eb380b39d272924280228c1"
+    },
+    "asarSHA256": "2c8788a6c1957966b26dd3a0331d812a0b2a18fd9d0db0a7f54558f9c8e8797e"
+  }
+}

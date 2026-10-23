@@ -2,6 +2,7 @@ package secureui
 
 type Native struct{}
 
+func (Native) Notice(t, s string)                            { Notice(t, s) }
 func (Native) Input(t string, l ...string) ([][]byte, error) { return Input(t, l...) }
 func (Native) Confirm(t, s string) bool                      { return Confirm(t, s) }
 func (Native) File(t string, s bool) (string, error)         { return File(t, s) }

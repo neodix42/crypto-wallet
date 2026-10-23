@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"localwallet/internal/ipc"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,6 +40,8 @@ while True:
  if mode=='wait':time.sleep(30)
  m['body']={'ok':True}
  if mode=='denied':m['error']='REQUEST_DENIED'
+ if mode=='password-policy':m['error']='PASSWORD_POLICY'
+ if mode=='private-error':m['error']='CANARY-native-secret-or-path'
  send(m)
  if mode=='stale':send(a)
 `
@@ -146,8 +149,14 @@ func TestIdentityAndFailurePaths(t *testing.T) {
 	if err := c.Call("unlock", make(chan int), nil); err == nil {
 		t.Fatal("unencodable request accepted")
 	}
-	if err := c.Call("unlock", map[string]string{"mode": "denied"}, nil); err == nil || err.Error() != "REQUEST_DENIED" {
+	if err := c.Call("unlock", map[string]string{"mode": "denied"}, nil); err == nil || ipc.PublicErrorCode(err) != "REQUEST_FAILED_STATE_UNKNOWN" {
 		t.Fatal("native denial lost", err)
+	}
+	if err := c.Call("create", map[string]string{"mode": "password-policy"}, nil); err == nil || ipc.PublicErrorCode(err) != "PASSWORD_POLICY" {
+		t.Fatal("safe native validation guidance lost", err)
+	}
+	if err := c.Call("backup", map[string]string{"mode": "private-error"}, nil); err == nil || ipc.PublicErrorCode(err) != "REQUEST_FAILED_STATE_UNKNOWN" || strings.Contains(err.Error(), "CANARY") {
+		t.Fatal("untrusted native failure was disclosed", err)
 	}
 	var invalidOutput int
 	if c.Call("snapshot", map[string]string{"mode": "none"}, &invalidOutput) == nil {

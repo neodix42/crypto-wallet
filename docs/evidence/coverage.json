@@ -1,0 +1,184 @@
+{
+  "measurement": "Go statement coverage; not branch coverage",
+  "exclusions": [
+    "tests/oracles: independent non-shipped reference generators; third-party modules not instrumented"
+  ],
+  "packages": [
+    {
+      "package": "localwallet/cmd/wallet-core",
+      "statements": 498,
+      "covered": 477,
+      "percent": 95.78,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/cmd/wallet-launcher",
+      "statements": 90,
+      "covered": 84,
+      "percent": 93.33,
+      "floor": 90,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/cmd/wallet-signer",
+      "statements": 162,
+      "covered": 160,
+      "percent": 98.77,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/amount",
+      "statements": 47,
+      "covered": 45,
+      "percent": 95.74,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains",
+      "statements": 1,
+      "covered": 1,
+      "percent": 100.0,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "statements": 469,
+      "covered": 453,
+      "percent": 96.59,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/chainutil",
+      "statements": 94,
+      "covered": 93,
+      "percent": 98.94,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/decred",
+      "statements": 812,
+      "covered": 783,
+      "percent": 96.43,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/evm",
+      "statements": 810,
+      "covered": 782,
+      "percent": 96.54,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/hypercore",
+      "statements": 562,
+      "covered": 543,
+      "percent": 96.62,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/near",
+      "statements": 403,
+      "covered": 399,
+      "percent": 99.01,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/chains/ton",
+      "statements": 623,
+      "covered": 596,
+      "percent": 95.67,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/derivation",
+      "statements": 57,
+      "covered": 55,
+      "percent": 96.49,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/ipc",
+      "statements": 49,
+      "covered": 49,
+      "percent": 100.0,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/isolation",
+      "statements": 9,
+      "covered": 9,
+      "percent": 100.0,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/journal",
+      "statements": 16,
+      "covered": 16,
+      "percent": 100.0,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/qr",
+      "statements": 27,
+      "covered": 26,
+      "percent": 96.3,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/secureui",
+      "statements": 110,
+      "covered": 109,
+      "percent": 99.09,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/signer",
+      "statements": 589,
+      "covered": 570,
+      "percent": 96.77,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/strictjson",
+      "statements": 39,
+      "covered": 38,
+      "percent": 97.44,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/supervisor",
+      "statements": 138,
+      "covered": 132,
+      "percent": 95.65,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/vault",
+      "statements": 244,
+      "covered": 235,
+      "percent": 96.31,
+      "floor": 95,
+      "status": "PASS"
+    }
+  ]
+}

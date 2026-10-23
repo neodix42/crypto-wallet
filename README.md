@@ -60,6 +60,7 @@ Native tests and full coverage require isolated Xvfb and XTest. Packaged recover
 ```sh
 sudo apt-get install xvfb libxtst6 python3-pil tesseract-ocr
 make test-native
+make test-packaged       # actual packaged app: invalid inputs, visible errors, backup/restart/restore
 ```
 
 Real local node/emulator integration also requires Docker and explicitly provisioned test dependencies:
@@ -74,11 +75,13 @@ make test-e2e             # package recovery on private X11, then disposable Ubu
 
 ## First run
 
-A verified empty profile offers **Create app password & wallet**. The password is entered and confirmed only in the native Go window. After that, Go draws random entropy, generates one shared English BIP39 recovery root, encrypts it and derives the initial wallet for every configured supported network at index0. The generated phrase is hidden; it is not a common fixed phrase or a password-derived seed.
+A verified empty profile offers **Create app password & wallet**. The password is entered and confirmed only in the native Go window and must contain **12–4096 UTF-8 bytes**, with both entries identical. After that, Go draws random entropy, generates one shared English BIP39 recovery root, encrypts it and derives the initial wallet for every configured supported network at index0. The generated phrase is hidden; it is not a common fixed phrase or a password-derived seed. Import requires an existing valid English BIP39 phrase with its correct checksum; arbitrary short text is rejected.
 
 The network wallets appear together under **Main account** with separate network/asset identities and public addresses. Keys follow each chain's pinned derivation profile; EVM networks can share an address. Balances remain unknown until queried, and deriving an address does not activate its network account.
 
 Create and verify an encrypted backup after setup. Both the backup and its password are needed for recovery; no password reset or seed reveal exists. Existing profiles open an unlock screen. Unreadable storage or an orphaned previous vault opens a storage-unavailable state instead of offering a new root. The current desktop profile is explicitly labeled testnet; **Main account** is the name for index0, not a mainnet claim.
+
+Select a new filename in an existing folder you own, such as Documents. Ordinary `0755` folders are supported; folders writable by other users and symbolic links are rejected. The encrypted backup is always `0600`, is reopened and verified, and never overwrites an existing file. The operation does not change the folder's permissions or create a lockfile there. Validation failures show fixed guidance in a native notice and a focused GUI error banner. See the [failure analysis and regression checklist](docs/FAILURE_FEEDBACK.md).
 
 The release-status panel lists the outstanding public-network, installed-OS, soak and independent-review gates. Passing local tests does not establish production readiness, so the application continues to state its actual verification status.
 

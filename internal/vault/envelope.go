@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -30,7 +31,7 @@ var kdfLock sync.Mutex
 func (p Parameters) valid() bool {
 	return p.Memory >= 64*1024 && p.Memory <= 512*1024 && p.Memory%(1024) == 0 && p.Passes >= 3 && p.Passes <= 6 && p.Lanes == 4
 }
-func PasswordValid(p []byte) bool { return len(p) >= 12 && len(p) <= 4096 }
+func PasswordValid(p []byte) bool { return len(p) >= 12 && len(p) <= 4096 && utf8.Valid(p) }
 func Seal(plaintext, password []byte, p Parameters) ([]byte, error) {
 	return seal(rand.Reader, plaintext, password, p)
 }

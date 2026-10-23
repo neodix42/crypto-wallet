@@ -15,6 +15,7 @@
 *.out
 coverage.*
 !coverage.go
+!docs/evidence/coverage.json
 *.coverprofile
 profile.cov
 
