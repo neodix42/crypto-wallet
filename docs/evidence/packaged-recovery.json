@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 validation feedback, password-only generation, import, ordinary-folder encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 settings, wallet table, native receive QR/copy, on-demand send form, middle-click tab closing, validation feedback, password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -51,11 +51,19 @@
       "status": "PASS"
     },
     {
-      "name": "Wallet cell copy icon invokes native verification and copies the full independent public address",
+      "name": "Wallet table copy icon invokes native verification and copies the full independent public address",
       "status": "PASS"
     },
     {
-      "name": "Open wallet selects a wallet tab with scoped balance and send/receive controls instead of the portfolio grid",
+      "name": "Receive popup shows authoritative QR and full address with explicit in-window native copying",
+      "status": "PASS"
+    },
+    {
+      "name": "Table row opens a wallet tab; Receive uses its own window and Send reveals its form on demand",
+      "status": "PASS"
+    },
+    {
+      "name": "Middle-click closes the active wallet tab and returns to its account table",
       "status": "PASS"
     },
     {
@@ -94,11 +102,11 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "0354262c84d10a24c4f1ab8b5fca71fb460bf6386ad0b2c4415e758ba70846f3",
-      "wallet-launcher": "45495251d451a70d28c3a78f6c13ed68f40b36cc9c4d50394d6190865b37f43f",
-      "wallet-signer": "09eaeb89273a4a2ee2f237e8f19866f1e5092317db0f862f6bc1c9f5357b8a49"
+      "wallet-core": "c3fc793fc3bf19c4a456f49143840e9233c99385608fe03472ff4b58c888776e",
+      "wallet-launcher": "1de8f31d6e7e12ed19fcb852920c7420e189764595c79b6109f44b0e6c2e9af4",
+      "wallet-signer": "cb200e3a00cb936a158804f6e2c1d01e6ede8fb3cfda3d99863cfd5d345483a3"
     },
-    "asarSHA256": "dc87387e69f9d6fadc9161aaf54c8a72ee1226d2df448311e9c97635f451891e"
+    "asarSHA256": "ba816a8f59abe53f779b0eebbfd78caf0f81d36e9f6ae888dad9d72086b534ae"
   },
   "liveLogChecks": [
     {
@@ -130,5 +138,5 @@
       "ordinaryIPCStackTrace": false
     }
   ],
-  "backupSHA256": "febb5ae1deacc3b7e983b9517e7c2cfaa02ad1657715d7953c475b53189de183"
+  "backupSHA256": "0106f44dbc23be95de2a1a846734da240301e294dc064bb9a70f1670fb2d2066"
 }

@@ -448,7 +448,17 @@ func (e *Engine) Receive(id string) ([]byte, error) {
 	case "decred":
 		guidance = "\nReceive index was durably advanced before this display. Keep a current verified backup and rescan beyond older address gaps."
 	}
-	if !e.UI.Receive("Verify receive address — Go signer", fmt.Sprintf("Network: %s\nAccount: %s\nAddress: %s\nProfile: %s\nChoose this exact network at the sender. A plain QR does not encode the network.\nActivation/account prerequisites must be checked before funding.", a.Network, a.ID, a.Address, a.Profile)+guidance, png) {
+	title := "Verify receive address — Go signer"
+	summary := fmt.Sprintf("Network: %s\nAccount: %s\nAddress: %s\nProfile: %s\nChoose this exact network at the sender. A plain QR does not encode the network.\nActivation/account prerequisites must be checked before funding.", a.Network, a.ID, a.Address, a.Profile) + guidance
+	var accepted bool
+	if ui, ok := e.UI.(interface {
+		ReceiveAddress(string, string, string, []byte) bool
+	}); ok {
+		accepted = ui.ReceiveAddress(title, summary, a.Address, png)
+	} else {
+		accepted = e.UI.Receive(title, summary, png)
+	}
+	if !accepted {
 		return nil, ErrDenied
 	}
 	return png, nil

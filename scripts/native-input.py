@@ -84,7 +84,8 @@ try:
                     "TestTP042RealNativeConfirmation", "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
                     "TestNativeRejectsMultibyteSecretOverByteLimit", "TestNativePublicReceiveAndScrollableApproval",
                     "TestNativeFileChooserCancelAndVerifiedSelection", "TestNativeInitUnavailableDisplayFailsClosed",
-                    "TestNativeFixedFailureNotice"}
+                    "TestNativeFixedFailureNotice", "TestNativeReceiveCopyRequiresExplicitButtonAndExactAddress",
+                    "TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible"}
         if long_mode:
             required = {"TestRealX11NativeActivityBeyondFiveMinutes"}
         passed = {test["name"] for test in report["tests"] if test["status"] == "PASS"}

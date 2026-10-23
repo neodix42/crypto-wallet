@@ -15,12 +15,12 @@
     {
       "name": "TestRealX11NativeKeyAndButtonActivity",
       "status": "PASS",
-      "seconds": 3.8
+      "seconds": 3.81
     },
     {
       "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
       "status": "PASS",
-      "seconds": 0
+      "seconds": 0.01
     },
     {
       "name": "TestTP033RealNativeMaskedInput",
@@ -48,9 +48,19 @@
       "seconds": 0.21
     },
     {
+      "name": "TestNativeReceiveCopyRequiresExplicitButtonAndExactAddress",
+      "status": "PASS",
+      "seconds": 0.61
+    },
+    {
+      "name": "TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
       "name": "TestNativeFileChooserCancelAndVerifiedSelection",
       "status": "PASS",
-      "seconds": 1.01
+      "seconds": 0.95
     },
     {
       "name": "TestNativeInitUnavailableDisplayFailsClosed",
@@ -69,6 +79,6 @@
     }
   ],
   "exit": 0,
-  "coverage": "total:\t\t\t\t\t\t(statements)\t\t98.3%",
-  "seconds": 8.505
+  "coverage": "total:\t\t\t\t\t\t(statements)\t\t\t98.1%",
+  "seconds": 9.2
 }

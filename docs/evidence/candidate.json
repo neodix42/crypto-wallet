@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "f1f57927f931181b85dbcd7f575f4e5b5c94bfb7",
+  "sourceCommit": "5c19c0d388f5a19e19fb5d275d5d1d7885c6fbac",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "7a6e1237159c44104e570fb328ccb36dc60785c976ab897bcb389ee304fd3552",
+  "sha256": "542ac7cf4f99b723f8ace39fb1b2e88ef2ed238b7375d98de98b2eb2b36c143e",
   "binaryManifest": {
-    "wallet-core": "0354262c84d10a24c4f1ab8b5fca71fb460bf6386ad0b2c4415e758ba70846f3",
-    "wallet-launcher": "45495251d451a70d28c3a78f6c13ed68f40b36cc9c4d50394d6190865b37f43f",
-    "wallet-signer": "09eaeb89273a4a2ee2f237e8f19866f1e5092317db0f862f6bc1c9f5357b8a49"
+    "wallet-core": "c3fc793fc3bf19c4a456f49143840e9233c99385608fe03472ff4b58c888776e",
+    "wallet-launcher": "1de8f31d6e7e12ed19fcb852920c7420e189764595c79b6109f44b0e6c2e9af4",
+    "wallet-signer": "cb200e3a00cb936a158804f6e2c1d01e6ede8fb3cfda3d99863cfd5d345483a3"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -16,19 +16,19 @@
       "report": "coverage",
       "status": "PASS",
       "file": "coverage.json",
-      "sha256": "e69c917e8eadef9f496c1bb99875a7316a10c7be4f8ce3fc545838391ac2e89d"
+      "sha256": "43e11d022e8fb5eed8bc254a7a68d69d9fa0faf040b45fa06a60d2fa36825666"
     },
     {
       "report": "go-coverage",
       "status": "PASS",
       "file": "go-coverage.json",
-      "sha256": "caa2a8e8c4e8a71c5f83ffa63f62fb76b6a27e94bade4cfb71cb68dc54f3cad1"
+      "sha256": "31b1dc7d1d95716df731778d4cc3293b0ea6cf069f34c17622be9455d300f276"
     },
     {
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "37a9ff4b1dfa7802d40392a28891cfb9acabe74605db523831a87eb19d400543"
+      "sha256": "d1c7cb205b641b6d5823b0759ae2ecd9144d731a56104538fc981ea358aaa5fd"
     },
     {
       "report": "mutation",
@@ -52,13 +52,13 @@
       "report": "stress",
       "status": "PASS",
       "file": "stress.json",
-      "sha256": "b66bb2fe188567e3e8532078a0c456399a34016051b54f2983b6b4acdca6a89a"
+      "sha256": "a71de570bb5d85dad703c7ccbac406d417bc06b643100816a53b314bee1ce641"
     },
     {
       "report": "stress-race",
       "status": "PASS",
       "file": "stress-race.json",
-      "sha256": "0a6926171895211969743f01b452f094fcb8be65ef814c0dffbab25efa22cd10"
+      "sha256": "c2d72fc198dad1efc4350f6244bd1a4d86725ab502b9937a9409a1de696b4102"
     },
     {
       "report": "stress-race-reference-budget",
@@ -76,7 +76,7 @@
       "report": "native-input",
       "status": "PASS",
       "file": "native-input.json",
-      "sha256": "8848b9c649359dcfd75245c861ec5a7a6138537f2802e3c1899ad8a084d2a4ae"
+      "sha256": "8cb8708ab5a0749a2d76fb794249685ce7ef49355b8a377c3fa858181b5fb04e"
     },
     {
       "report": "native-input-long",
@@ -94,13 +94,13 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "aad8061c3425feaea21b67b5a0157cb372f29f8d7fc4aa1f7191888cd29ffe82"
+      "sha256": "5e9b54c664075c11041003e2378cd2a059b47454045414d7dfa7df3e7f09ab64"
     },
     {
       "report": "display-startup",
       "status": "PASS",
       "file": "display-startup.json",
-      "sha256": "f333c98b8c19aaac847005ec261fc6dc87b3334bbcc4848ea012c21d870a4d62"
+      "sha256": "bb3d2f7aa06e0e9e90e667d1cc40f1e892d36f46a9f6d0163e250d0eb483500b"
     },
     {
       "report": "mainnet-rpc",
@@ -113,6 +113,18 @@
       "status": "PASS",
       "file": "mainnet-tabs.json",
       "sha256": "397565a31fa0a3e613c488c3889d1a5b76db121bfee7bdf060f616d1fb08bb49"
+    },
+    {
+      "report": "wallet-layout",
+      "status": "PASS",
+      "file": "wallet-layout.json",
+      "sha256": "a63fafc5dadbbf3364f8fa745d1a06ac14ec9962b3fc7fc7b88a1356a4c1d1ab"
+    },
+    {
+      "report": "receive-small-display",
+      "status": "PASS",
+      "file": "receive-small-display.json",
+      "sha256": "9f1b9ccb5a4d49dec07cb2ac20e2a7baea085d746a10434368be2c5169b05cb7"
     },
     {
       "report": "failure-feedback",

@@ -10,30 +10,9 @@
   <div><strong>LocalWallet</strong><small>Local custody · Go signer</small><small id="version">Version loading…</small></div>
   <span id="profile" class="profile-badge" data-environment="unknown">Checking network profile…</span>
   <a id="release-link" class="release-status" href="#release-status">Release status: development; verification outstanding</a>
-  <button id="lock" disabled>Lock wallet</button>
+  <div class="header-actions"><button id="lock" disabled>Lock wallet</button><button id="settings" aria-haspopup="dialog" aria-controls="settingsdialog" aria-expanded="false">⚙ Settings</button></div>
 </header>
 <main>
-  <aside>
-    <h2>Wallet</h2><button id="unlock" hidden>Unlock</button>
-    <div id="emptyactions" hidden>
-      <details><summary>Other setup options</summary>
-        <button id="create">Create 12-word BIP39 wallet</button><button id="create24">Create 24-word BIP39 wallet</button>
-        <button id="import">Import known BIP39 phrase</button><button id="restore">Restore into empty profile</button>
-      </details>
-    </div>
-    <div id="walletactions" hidden>
-      <button id="backup">Create &amp; verify encrypted backup</button><button id="password">Change app password</button>
-      <button id="add">Add deterministic account</button><label>Account index <input id="index" value="1" type="number" min="0" max="999999"></label>
-      <details><summary>Recover account indices from an older backup</summary>
-        <p>Derivation indices are preserved. Index 0 is Main account. Recover at most 20 indices at a time, then query the relevant networks. Derivation alone does not establish a zero balance.</p>
-        <label>First index <input id="recoverystart" value="0" type="number" min="0" max="999999"></label>
-        <label>Last index (inclusive) <input id="recoveryend" value="1" type="number" min="0" max="999999"></label>
-        <button id="discoveraccounts">Recover this index range</button>
-      </details>
-    </div>
-    <hr><p>Passwords and imported secrets are entered only in the separate native Go window. Generated phrases are never displayed.</p>
-    <p>Recovery requires the encrypted backup and its password. There is no password reset.</p>
-  </aside>
   <section class="workspace">
     <p id="message" role="status">Checking the local wallet…</p>
     <div id="operationerror" class="operation-error" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
@@ -60,11 +39,11 @@
       <div class="panel"><h2>Balance &amp; receive address</h2>
         <label>Asset <select id="asset"></select></label><p id="address"></p>
         <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p><p id="connectionstatus"></p>
-        <div class="actions"><button id="refresh">Refresh balance</button><button id="copy">Copy verified address</button><button id="saveqr">Save verified QR</button><button id="configure">Configure trusted RPC</button><button id="associate">Associate named / rotated account</button><button id="hideaccount">Hide selected</button></div>
-        <p id="decrednote" hidden>Decred spendable balance excludes immature outputs. Query bounded chain history for maturity details.</p><img id="qr" hidden alt="Public receive address QR">
+        <div class="actions"><button id="refresh">Refresh balance</button><button id="copy">Copy verified address</button><button id="saveqr">Save verified QR</button><button id="configure">Configure trusted RPC</button><button id="hideaccount">Hide selected</button></div>
+        <p id="decrednote" hidden>Decred spendable balance excludes immature outputs. Query bounded chain history for maturity details.</p>
         <p>Choose this exact network at the sender. A plain address QR does not identify an EVM network. Hiding an account preserves its derivation index and recovery data.</p>
       </div>
-      <div id="sendpanel" class="panel"><h2 id="sendheading" tabindex="-1">Send</h2><button id="scan">Scan local QR image</button>
+      <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div><button id="scan">Scan local QR image</button>
         <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Exact decimal amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
         <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Confirm in native signer</button></div><pre id="preview">No payment prepared.</pre>
       </div>
@@ -72,6 +51,7 @@
         <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
       <details><summary>Network details &amp; public diagnostics</summary>
+        <div id="associationcontrols" hidden><label>Named or rotated account address <input id="associateaddress" autocomplete="off" spellcheck="false"></label><button id="associate">Associate named / rotated account</button></div>
         <div id="dcrdiscoverycontrols" hidden>
         <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings in Go</button></div><pre id="diagnostics">Locked</pre>
       </details>
@@ -80,4 +60,29 @@
     <details id="release-status" class="release-details"><summary>Release status and remaining verification</summary><p>This unsigned development candidate has local security, recovery and protocol test evidence. Public funded testnet roundtrips, the full X11/Wayland OS matrix, the 24-hour soak and independent security review remain outstanding. Use disposable test wallets only. This is not a production-readiness or audit claim.</p></details>
   </section>
 </main>
+<div id="settingsdialog" class="modal-backdrop" hidden>
+  <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingstitle" tabindex="-1">
+    <div class="settings-heading"><h2 id="settingstitle">Wallet settings</h2><button id="closesettings" aria-label="Close settings">Close</button></div>
+    <button id="unlock" hidden>Unlock</button>
+    <div id="emptyactions" hidden>
+      <details><summary>Other setup options</summary>
+        <button id="create">Create 12-word BIP39 wallet</button><button id="create24">Create 24-word BIP39 wallet</button>
+        <button id="import">Import known BIP39 phrase</button><button id="restore">Restore into empty profile</button>
+      </details>
+    </div>
+    <div id="walletactions" hidden>
+      <button id="backup">Create &amp; verify encrypted backup</button><button id="password">Change app password</button>
+      <button id="add">Add deterministic account</button><label>Account index <input id="index" value="1" type="number" min="0" max="999999"></label>
+      <details><summary>Recover account indices from an older backup</summary>
+        <p>Derivation indices are preserved. Index 0 is Main account. Recover at most 20 indices at a time, then query the relevant networks. Derivation alone does not establish a zero balance.</p>
+        <label>First index <input id="recoverystart" value="0" type="number" min="0" max="999999"></label>
+        <label>Last index (inclusive) <input id="recoveryend" value="1" type="number" min="0" max="999999"></label>
+        <button id="discoveraccounts">Recover this index range</button>
+      </details>
+    </div>
+    <hr><p>Passwords and imported secrets are entered only in the separate native Go window. Generated phrases are never displayed.</p>
+    <p>Recovery requires the encrypted backup and its password. There is no password reset.</p>
+  </section>
+</div>
+
 </body></html>

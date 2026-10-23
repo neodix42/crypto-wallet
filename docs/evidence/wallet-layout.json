@@ -1,0 +1,538 @@
+{
+  "status": "PASS",
+  "date": "2026-10-23",
+  "scope": "Wallet overview table and row activation, top-right Settings, on-demand Send, middle-click tab closing and authoritative native Receive QR/address/copy; local source and installed-artifact verification only.",
+  "sourceCommit": "5c19c0d388f5a19e19fb5d275d5d1d7885c6fbac",
+  "sourceSHA256": {
+    "Makefile": "cbfddf8afd0a4427f01969b64d2bcb8c6fb4e1319dadee2ba482eb91c16cbd1d",
+    "VERSION": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
+    "cmd/wallet-core/main.go": "778e2b2fb37e7dc92924868cc790cb5a1c6011d642e65155a1d69dce9a1eaeda",
+    "cmd/wallet-core/main_test.go": "52b1014d0768ebae24c069e6e4ae996e5d134fa91ff44170bbf6207cad4433be",
+    "cmd/wallet-core/mainnet_profile_test.go": "17f3aec316a04d4c5029af36af71af62dad78cd8ec8259a01d2cde73eca9fe80",
+    "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
+    "cmd/wallet-core/session_test.go": "a85f871f36e4b06f5a867c0b94c79661835aa8e713664f99f2b0c865487db523",
+    "cmd/wallet-core/version_test.go": "73a3c98970dca9b8c62c8baaaf56c78c1b0c201ad115850efe5a9dce1b0cf34d",
+    "cmd/wallet-launcher/bootstrap_test.go": "5bba56800388ad6c00680edbb0b30bcda44c6938deaddda714851c08c543d953",
+    "cmd/wallet-launcher/main.go": "24d1344c31c60037c36382b809534b584e8becf018b45e0fc416f1b7211bfec6",
+    "cmd/wallet-launcher/main_test.go": "75ddbf33e025d90b235b4f70c97eba38a2e3472aa54e897b1e17c9d63d02fbcb",
+    "cmd/wallet-launcher/pdeath_test.go": "3e0325c5d8613e8c286cebee3e24b9494947eca71b0b2cf40f5b37ce4955deff",
+    "cmd/wallet-launcher/version_test.go": "6d334314c87ba140b8b6c5580a449e1cb36f9005fa59c54a16ac9b1bda8ac3e1",
+    "cmd/wallet-signer/errors.go": "97ae7f868043dc0d27b9b7745565d323fb86c906c4ab9bb41681a91d4b453a81",
+    "cmd/wallet-signer/errors_test.go": "ea980f4d5cc31b20bac2d7822f5020247efe274585d58b232450b81196d5504b",
+    "cmd/wallet-signer/main.go": "cdcfcf0ac10156739b79054175f75a088396915575f86d5eee3ecf69fc6a0f70",
+    "cmd/wallet-signer/main_test.go": "a8fe318dca9ecaa5b97a71fb97c98bc74fda97c78ec8dee29b908b1c12c91459",
+    "cmd/wallet-signer/version_test.go": "79754fe236875d176c6bc6b56de935dc23a2f40e6f1fe348a4b23aded49c38a0",
+    "desktop/package-lock.json": "d39ad314765ac8af099d034d426733d66b3895ca1783f17128de3ff7d4db3040",
+    "desktop/package.json": "12e65389a8bc4dbfdc901106de0c5c4011376cd47d090b0a6a0a95aad0dee1d8",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "a91f264d3c93eb2c03344bc3657a2434c65fd6afdd21680ff6371042476ae4e7",
+    "desktop/src/preload.ts": "dd9ae8a6bed4e435bebf92d682444e2a59d5a828bda4271687e89647c52fb3c0",
+    "desktop/src/validation.ts": "28d82325cb60125c6acaef82b7f48b0292332a84fb17cc45e6ea8701b8b66f35",
+    "desktop/tests/fixtures/networks-mainnet.json": "628d001a66ca81edeb44a475099ddd3034cc7f7517522a0d8898aedf73c8f9e4",
+    "desktop/tests/fixtures/networks-testnet.json": "9062e02e5af1e04d08ea32facfab36240ec409c66956c4dcb9eb83c11ef66a52",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/runtime.test.cjs": "843d9f2e2f51afda5acc804a8f229bcc0009aeb67c9b5bff6df593fa8e6fcfa0",
+    "desktop/tests/security.test.cjs": "c671b6d7e7a4fdf5d53976944bdf049ab2c346b099199444a2801fce75671487",
+    "desktop/tsconfig.json": "85a9e919aef78351388430a8946cce0a654d1f6888914b25c1c6949d26b7f53b",
+    "desktop/ui/index.html": "9bdb6c507e2a7dd25b6f4dae90ced44667e1bd8eb23e57c13da3b857bac72ff1",
+    "desktop/ui/renderer.js": "503d5493ab5de7e37b18fa098ac153dbcacdba962dfb6544daf9fc3db8b34ed1",
+    "desktop/ui/style.css": "e5dce2e5c44a196f715c3fe54e567b9fe927557a403156dfa4fa803e71d39603",
+    "go.mod": "66139c41fc8f6ffa10da02609f6efcaaf480691669e0f62327a1c91342abdb7b",
+    "go.sum": "0d1121b965162a4493b5ba7ed5dd430b43f177e051792ef7bf8e1a1dec75b204",
+    "internal/amount/amount.go": "1dc0c1084827aee26b9e95c820397b65f4db6daeaa3d31e0a105858038607636",
+    "internal/amount/amount_test.go": "a09599ddc8e814dd6f6871c5db59e53e3e9a3577566f7f09f68fe848e198c0cc",
+    "internal/buildinfo/version.go": "925bf6244a300a7bd9382980df899150289e5ff3b1e58f02b34c303c89ff2883",
+    "internal/chains/aptos/adversarial_test.go": "d0c43092a77ce46260814685361d965b03b508350a9984201af8ceeb450fbcf1",
+    "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
+    "internal/chains/aptos/aptos_test.go": "45b5e50d768f85581e2604c89a58c5ec1b29c356d127945918205727968da091",
+    "internal/chains/aptos/history.go": "ab4074949c3a5edf577705951ce35ba6fa24038f016ea15c90a9a054ec7c141d",
+    "internal/chains/aptos/history_test.go": "f49c33f2028377a1fdff2f2a028bd107c348c4149327741a246d7b8050636cee",
+    "internal/chains/chainutil/util.go": "0336be3e7a95c619f02524209501a66838bf7416795b26dac923df2c498ab88a",
+    "internal/chains/chainutil/util_test.go": "88e5c64cbaa34afba3c3eb0bd2118af314ca76b04cfa784d34d603179e504598",
+    "internal/chains/decred/adverse_test.go": "41c9a3840833675315f1ffd249e0bf8ba69393edecf58e458bba4eff80d53dfe",
+    "internal/chains/decred/codec_hazards_test.go": "1eec4b5f515bd91717b25d3aa3b3099d2cec7d61062fcfb96fd8216a4e2800fd",
+    "internal/chains/decred/decred.go": "da7ca49a095ad6fe251b11a3915001f1a9ff34b62b0af5951d608f7015db267c",
+    "internal/chains/decred/decred_test.go": "b734d9443caf7bf30129d90038bf43fd8d66e5ab8d18a01b24fc1009a06fc0da",
+    "internal/chains/decred/discovery_budget_test.go": "af2c1045d80decf57dfd1f1b3307ba22bbe0ae2543bf3beb989a29fcbc5476f3",
+    "internal/chains/decred/mainnet_metadata_test.go": "f6b7d98db72c343b943aff775808c21f1352cbd047776dd455a1fff801966ac2",
+    "internal/chains/decred/maturity_test.go": "c69bc1990993b30b8f508891d4e712e4572009fe5598a3c244df22d910c2d409",
+    "internal/chains/decred/node_hazards_test.go": "0372da995ff27ef4b577dad494a69a4484c57401760b62708c1d2209b9e3d872",
+    "internal/chains/decred/public_report.go": "2c9fd7004503390ef346d375c0fe0a8a1a7d039f084eb199e535a18d02cd4f1e",
+    "internal/chains/decred/public_report_test.go": "9685d11021b6553280079afbb8e75492d4e389b428b2a0d2484f80e234839063",
+    "internal/chains/decred/sync.go": "9988e85c8256ac9cbe468de276a58926d8dbff8c4394c896c951c8f291823aa5",
+    "internal/chains/decred/wire_bounds.go": "4d0625f72e887404b82bc94ed7286565555df012021798663beb3e1f43089fd3",
+    "internal/chains/decred/wire_bounds_test.go": "da8a37525e9707535dbc13798c373872da7dc0f01f74c9ad9fbfdb05fec14cb9",
+    "internal/chains/evm/adapter.go": "8000479c508821624388548d9b2775af315a68da2d0acac39b88f693d18b15a9",
+    "internal/chains/evm/adapter_test.go": "c67fdfccc7f8066b9a128ad1bc7a45cd0939ce404d149c60721ebe5e3f8e5def",
+    "internal/chains/evm/adversarial_test.go": "dfb972780faf2e7f542eae6af4908d84c71dd4abe267165442aed1b4fa842784",
+    "internal/chains/evm/history.go": "8a7ed5bf24b36425912a3172673455758ea109e0dcc267a6f6fd939310869fca",
+    "internal/chains/evm/history_test.go": "3507c63e8f6c7761779494a7aa952184629b8750c1edaa79e59de609ba22fb71",
+    "internal/chains/evm/integration_test.go": "db96c9bbf31c99457422507a15fbccbe1cdbd9562cc77b42d37c531559d6a863",
+    "internal/chains/evm/keys.go": "1083e6b7f3ba3ae783db1e244f5be8a35a87072ab485d682568cf8d421b7153e",
+    "internal/chains/evm/keys_test.go": "e867953114999db3f99300763c47e5a990d7e87114a1d9fa1514dc09513d9299",
+    "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
+    "internal/chains/evm/rpc.go": "4f6bacd119a3cd6371f8a2f5b46baf4746e2a97ff700e4f4396c6f2cd6e9882d",
+    "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
+    "internal/chains/hypercore/adapter_test.go": "d3f82a71d944ee7d1e152ce969d12efe4234dba0cd10ee86ae836f64217cdfb3",
+    "internal/chains/hypercore/adversarial_test.go": "fc66d5ff4f990cc1db51b5903916eb9ca08e27071e66e306bd87957783448feb",
+    "internal/chains/hypercore/history.go": "c342443b41a1f4432c3dfe26ce4fe563739b09555393c652af04c9b0727b7e84",
+    "internal/chains/hypercore/history_test.go": "b273419fa671edca4643835a99808c2186a5e529246719fe9fc43c11c2e734b3",
+    "internal/chains/hypercore/keys.go": "fe30d0b9766c669de05d878fac3626ad85e7ea06ee81e5288a2f4d2907bc3c71",
+    "internal/chains/hypercore/keys_test.go": "1b9ba974ec7dfe1a13da44e193c25bd8f916d402514c608a03aac5617d8bfd8b",
+    "internal/chains/near/adversarial_test.go": "4506b500bca8e57785edd8416a8493fd7ddae098571ef4a093f1b3e00e9d897e",
+    "internal/chains/near/history.go": "f3048c0fa60915d1519d0582893a112d6914bbf2da38aea151e0b78bd8f9f00e",
+    "internal/chains/near/history_test.go": "92fa6db09ae186245d30e0917538584a24c8c762ca992f737e7ebdaeed10b858",
+    "internal/chains/near/near.go": "ea66cf20a6545a625d8cdc531c128c2ad1f59f829ecc088f3440c5d396c3bb2b",
+    "internal/chains/near/near_test.go": "902c4c573cf29036a6fa241c46ec97abd05c5c03ff22a8c8138c35750fef2d79",
+    "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
+    "internal/chains/ton/adverse_test.go": "f2940bd56f98be4c730a997c8f657585e468dec2012e5c9065efb48b1fea4a5f",
+    "internal/chains/ton/archive_hazards_test.go": "eeb961f7bba8e440b6c4054b44d3bb0a6d66c068b176a738af3d50125bb8922e",
+    "internal/chains/ton/history.go": "478477bfd8298e6457b18da92a7258f30695dbd36edc286d9841cb7a5128a0f5",
+    "internal/chains/ton/history_test.go": "b5f35d08f02c624f1b8564d4bb6e663836029c078778e79e1edddd466febd284",
+    "internal/chains/ton/network.go": "6cb5088e3ed31d688ef9ac10d1c8ca008316b3076d4b0abf36715e7f8f643dfb",
+    "internal/chains/ton/network_hazards_test.go": "4fdf4da4c2c6d4cbb75d3c49b211c4a93370dcd3edbc1b2e41d5fe69a7b34695",
+    "internal/chains/ton/pacing.go": "f3cf4a9eef8222bb708897a74ef367386e55082889ab2992d66d2fd3a842be1d",
+    "internal/chains/ton/pacing_test.go": "deb6fe77368f40df84bb18f3bf292de4099b99cc158a66deb66c019cfca6f6ff",
+    "internal/chains/ton/receipts_test.go": "ff8def7d87752f77eddf17c8c531b88fe5dbd9ce8626b2dd0c3be1c7230f2367",
+    "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed",
+    "internal/chains/ton/ton_test.go": "3151f3645fab632ff19419068711540f74f8059fe25234093b5e6cf43d70bd09",
+    "internal/derivation/derivation.go": "c41a127f5f406503295ff9c9c85398d54c17cf9664e3cffc0499d67dd4208f4b",
+    "internal/derivation/derivation_test.go": "ba2a749933fcea40577988f1f6107280899a700ce3928d76e7370fc5c03e7cd5",
+    "internal/derivation/oracle_test.go": "6c40b65ae297c74eb80c43ef3bc08a12ab876cbd50647ec7420f071d7208512b",
+    "internal/ipc/errors.go": "a1ee54d0a2c5120413211b40a607770e75b2500d46d87c96794ac8bd85303d45",
+    "internal/ipc/errors_test.go": "fdbe8392492ca15735912f68d31a30d10be65e892f36c43ec06a1e6be4928b9d",
+    "internal/ipc/frame.go": "708eae48599c80425332aabb2a2cc2f641427fa50dbf167e254aefb3a39b2d63",
+    "internal/ipc/frame_test.go": "70c998c75025da7668d9a1700f619bd64f7b7107dbc592a45c9f56cb7c5bba61",
+    "internal/isolation/isolation_linux.go": "033d1524b377af9c37208310e487c01fb74890ad5ce21b28bced8d146a918984",
+    "internal/isolation/isolation_test.go": "225a9e6ac19ee2e5174e299ecd6671a51fee4470b2babd8deb7e975adc4a52aa",
+    "internal/isolation/selfcheck_linux_amd64_test.go": "bd989d78d1acffa5a24b7bfaa21cdd30849c45940d02a52c1477f639590c0db7",
+    "internal/journal/journal.go": "b054624918cf87f3da8e671b0c0b9d41f122698ad983edc384ed2fb99fa01224",
+    "internal/journal/journal_test.go": "3561ae6a5044c7852b67112f275ae698aefdf2a353d4cd2dc0f7135e0fef9dc6",
+    "internal/model/model.go": "4acc72e642b18028a7ed3ad2c320550a746aca1139e8d7e6927f392605a3bd6b",
+    "internal/qr/boundaries_test.go": "923362b654d950c2b476ddcb08206c55c1dd27df2f5b5d1ab49222512fa83fd8",
+    "internal/qr/qr.go": "1f78ea230e131cb7ad96d4f30d5cd3f8b72b97394e66e8bff9d528978ffa30b8",
+    "internal/qr/qr_test.go": "11426badc75c3bd7e234558bbad7e5bd99f0a70889c2e3af2c68b5fa6a3e6339",
+    "internal/secureui/activity.go": "66b9cccb7ad1ac7ed81cb3622ff9ec1eb66b7dd5707a007c3ccb325a7daf59e2",
+    "internal/secureui/activity_automation_test.go": "f7542af773d2f5286aca13645559d38f2a74432db1a40f6a362bd61352fbc9b9",
+    "internal/secureui/activity_test.go": "eaac5dd12fafcfa1c9b0b8b47455114b46e7033be34f2fec3c18a84c921c7ac2",
+    "internal/secureui/automation.go": "d6c2e4ae3f09b9a972fd962ec2cde44c40f5d93a677cf6f81966370b899cbd55",
+    "internal/secureui/automation_test.go": "0b89d5bab99dd703149ed9804b1491f24c06466c446a42fbf23bdf299d9732dd",
+    "internal/secureui/boundaries_automation_test.go": "2731f0899eed1bdf4bafeb7c24ec946ce57d4ea43e983414055080392db25000",
+    "internal/secureui/long_activity_automation_test.go": "8a3eac6c0a50f20fe455969525b12343336aaa621721c496efa5e81003f20b24",
+    "internal/secureui/native.go": "b8c5f34e384b990c7b05644e90806ed437f80552629f9355df8ad7261183b798",
+    "internal/secureui/ui.go": "1e38e8deb198008a2660589da3e559e6c55c7cd30ad57ce6a8b2b54c678f3f1d",
+    "internal/signer/accounts_test.go": "a31684cd038c08af30e190948dbce1919115b1fa7ef2543a9aa60d76fb1ef4d0",
+    "internal/signer/adversarial_test.go": "c403f3a0f3b691437a583027a68f522a5bf42173e170e1d47d55d491e98485d7",
+    "internal/signer/cancel_review_test.go": "b29af0fb678eeb194b88e2a1417523b9cc79039725a54819dc6827fc4c858fdc",
+    "internal/signer/engine.go": "2c398269791f1b0266751ac8ef445be9945c7ff78c375573322e96ddce770a57",
+    "internal/signer/engine_test.go": "4906d9b7675fdc28a0de25d744ca8e9632da55457884a9d4730e4b0bb9da1750",
+    "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
+    "internal/signer/errors.go": "deeb8fc8b307ae6a8eb50d2ffc07f927a487b37f1bbc99b89910c6b4d131ba19",
+    "internal/signer/feedback_test.go": "22c191cfe9aa48cce1631452ab6996010dbd9f72aab3b87aaae409f19b7f4874",
+    "internal/signer/mainnet_authorization_test.go": "7f29bd1f0a7bb751c206ccfa9fec2282431da3485998f847d377d44960d18750",
+    "internal/signer/mainnet_profile_test.go": "aa3ee7a67b202bc6d1b36689bc1473209ce33f438256256536764469cfca2167",
+    "internal/signer/maturity_notice_test.go": "05f0d0d67c13fd3547bcc9cdbe05bfcfabb6124618412869e1c96fe1e81f4ae2",
+    "internal/signer/presence_test.go": "3fcf3627bfda4bf5f96d8221810a5e340c2f74db0e89df74735d59ab3ac3aa0b",
+    "internal/signer/receive_copy_test.go": "8bb3cee77d8cff4a9abfa64d9c5c0f14e72abab02fa81faf9099a6fb841b8497",
+    "internal/signer/receive_guidance_review_test.go": "1b1bd598832f04152c3f6c6cd17c30fbc49118ba1abd13730ad86fa3d43da129",
+    "internal/signer/review_test.go": "c3c0bb6c0930080696efafe5ac29ca79928601abd9b2e1967b3d7cb46c0e2904",
+    "internal/strictjson/json.go": "d9d83b5ab8ae5d76f5282f92060ce20a8b68c79683b741c2cd279237a1dfd86f",
+    "internal/strictjson/json_test.go": "12126ea404e59efebf765dab4cdaafe90d8f06417d38d6779d49d6a1d8790c7c",
+    "internal/supervisor/child.go": "0c4a471aad984ffde154426651fea1a05882be082091e50fbd8120ef4766af0d",
+    "internal/supervisor/child_test.go": "87b3b89e62a0f9688b53b7a48ef926a9abc68d3cb7eb29e11ef484023438c89e",
+    "internal/supervisor/parentdeath_test.go": "a06c141276530216b5169d1b6a17d5608a8ee3a30f13d88a5760e069f7dad02d",
+    "internal/supervisor/thread_owner_test.go": "8a2a116ad20395820a84d4a58d2f732dae8cb2c60c3a3abaf2a3bbc177b541d4",
+    "internal/vault/adversarial_test.go": "b287662647df57f629c8499b7af8bd50dac7ce111d7170bd6fc5af6fdcff2b6a",
+    "internal/vault/backup.go": "858ad8d50207a11370337e8cf30df878bf027cb5c916a86b4c05feaac0449ee5",
+    "internal/vault/backup_test.go": "b20191ed5308635f064b11f092252a2f47bd6f7b3fb2f07bce208e2f840c753a",
+    "internal/vault/data.go": "f3b359c447976cfcf7e66be7ebaea881b47a407ae4c0f28645e415272086e536",
+    "internal/vault/envelope.go": "eef6fa8db52bca76841f52c1f11359c83377ceba88925c9c505a88e5ccf991b5",
+    "internal/vault/files.go": "911698b1cce8a0df649cd718000e3329d19ce7c835bc48321cf899fda974e340",
+    "internal/vault/presence_test.go": "953d094c3883374468578c31241182378cf367cd630985acc74ee96276fcfe55",
+    "internal/vault/vault_test.go": "f0132242b67ce48366faea4be73b0133e18fe6df1a012b842b369533e322c71b",
+    "scripts/bootstrap-node.py": "b67714e06d3bd61b63fa5f9ab853df0e4f93f308dfc26ee49763ada60eb9c0d8",
+    "scripts/build-pinned.sh": "9302189ea723fd6c547718af11c98650132c19a93b75111c844a8685719bb106",
+    "scripts/build-tools-test.py": "3b82756c67ed1256bddf4287b907542ead822aae52fda2bf11b584514bfd601b",
+    "scripts/build.sh": "7cce3a361bc9362b47e5979bdfd7acc3673620cb620303eea13ef1ebbf68afbe",
+    "scripts/coverage-test.py": "7b9f4ed56bbb6e5db3314b3aff5c317b27360bfc3f071c65ec4fe8b9722f2944",
+    "scripts/display-startup.py": "1a7aacb819764dd204d6f9fcbbdba9c14afe8cac1c455eaca95cc5fac14f663d",
+    "scripts/e2e.py": "39132f5b4728ae129b5c254769ff4e9459404ba0bc773917d83c32349e8c6c7e",
+    "scripts/frontend-coverage.py": "c4bb4a9c837c22f27c337109e010ab4128765049b8c179b193e6f750c3cd834a",
+    "scripts/fuzz.py": "23be48ded12e32114e891a953d92fbca619afaf4b5219b6667d51b1a8d8a8f64",
+    "scripts/go-build-test.py": "262dcf3b2313335e6a1e1a4e239eeb7066e464f985acb07b24a3b4c943f736ac",
+    "scripts/go-coverage.py": "e243eb1dafbae6ecf453c0f644024629bf44db313d6db60c9253ea3a164b720d",
+    "scripts/install.py": "395085a49b25935538f94100c12f70cef8b77277b774940ca1fc6347cb227126",
+    "scripts/integration.py": "b9d95b33f20a4483c2fe52c77d57939a6e2427167fc2383838fc271613d4c02e",
+    "scripts/mutation.py": "8b5d4fdd1c65ed7cfe9ea205d12302950880912198cd983bafd37da2e9abf200",
+    "scripts/native-duration.py": "4e5156368c252ffa309cfee9c017546142bb829cbb32d70e214171492097f166",
+    "scripts/native-input.py": "8e8dbf1ec1352ad13c94777e1a70784667de2af83a31f6f40d12f9bacb006d6f",
+    "scripts/next-version.py": "8f3368764f6ac37d01bdb01f3447ab022dc5258115ebcb47ab0609f104a09198",
+    "scripts/package-go.py": "ef158a88a5efd6dffd43017b632505d0665a8b9d4dc6942930ddabcd014ad459",
+    "scripts/package.cjs": "504ef4acf1ba28f394a9c7d1d6e9505fe598514b5561403137aa8e494bf56214",
+    "scripts/packaged-recovery.py": "7ed8659d89eb8a520af684e87fdaf3e86209bc136d5d412af55b1cfe5654e027",
+    "scripts/provision-tests.py": "ca0977191d1dc00ad639cd336d2405a4eb5468f3c9c3b0e9a48fce940f4949fa",
+    "scripts/record-evidence.py": "28f806b9a2858377f9e4c78eff5d3b74ad21ea45813257fbb69e3cd51bed68cd",
+    "scripts/sbom.py": "97882ee176650cd6888feee6fb5bfd135d5e8aac2ff27f740a03e489ae83a1c3",
+    "scripts/surface-check.py": "d9c9a6c890cd862a1bf57bec4a325567994540b0e4fd7ca04af83d55d34e01e4",
+    "scripts/testnet.py": "54fc98f2d77d66230fcc72d6a5f82dc24f273b5e498a5e18bd1c15c27eb308cf",
+    "scripts/verify-artifact.cjs": "693390023e4ad14f8e1230495c7a9e21a6023c5ae653895615799ed9b5e2d0ea",
+    "scripts/verify-release.py": "61f1a8285c649d46edbcb845aea375bd5d3e0fb807598002ee2793d20c77ed01",
+    "scripts/verify-version.py": "502bc80801b3fb629ad5a9ddd280bedc0b76c1398261a43f3c9bb806bc84204e",
+    "scripts/version.py": "478578ebd38607d152c7ae3bb75f66874aa1e2eea9a9870d58be44d83883c14c",
+    "scripts/with-go.sh": "bf641a154cd099a5cc1bedd1749518eaed504c569d3111676de32f4488b23890",
+    "scripts/with-toolchain.sh": "5a2f2e3b0616ceef1fb378e88e02fc6d2b0cf95794a0da69ab2ceb30b961bb8f",
+    "tests/e2e/container.sh": "33f5a9856417559404127d6ba13f26d15f175541ca4d7a57401feacec1c9e10b",
+    "tests/e2e/x11.py": "e7b199234d78ae57dd9f32fe0017b6b346c7fcff671881f0bbc1156d81f2eea6",
+    "tests/oracles/decred/main.go": "f4c6779b99e714fc36ae801587e69621bfed3b9e3f346152f32c4eee3c39dafd",
+    "tests/stress/lifecycle_test.go": "621f6007518bbe496add6aa7ee743218928565e29e88f689d92b39b8ca63c063",
+    "tests/stress/nodes_test.go": "e700a22cecd3bb7d23056f22c6002628a21a02f4409d8bd39d7f476662dc6e35",
+    "tests/stress/race_disabled_test.go": "468f30ebb556214e987f1b4cde5c0aad5730fa83e374b3aca6462e84b8a09d23",
+    "tests/stress/race_enabled_test.go": "4a3d2aa21cc702d918084871b056ded41619ceb8bb1b55fbeaf3739113d73142",
+    "tests/stress/resources_test.go": "b3c010c19c99d41e7d384070f7cf2b1e6a9d77d47ba26557935c5c23d76ebb22",
+    "tests/stress/scheduling_test.go": "b79df83a936ae5793246c56a8b407eebcd6c83087e48e074d1b351fdf177bc4c",
+    "tests/stress/stress_test.go": "12dbfa6028210f339a5b5d74b69ac2e32852f5f503680d571ae9174d0cce6264"
+  },
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "c3fc793fc3bf19c4a456f49143840e9233c99385608fe03472ff4b58c888776e",
+      "wallet-launcher": "1de8f31d6e7e12ed19fcb852920c7420e189764595c79b6109f44b0e6c2e9af4",
+      "wallet-signer": "cb200e3a00cb936a158804f6e2c1d01e6ede8fb3cfda3d99863cfd5d345483a3"
+    },
+    "asarSHA256": "ba816a8f59abe53f779b0eebbfd78caf0f81d36e9f6ae888dad9d72086b534ae"
+  },
+  "checks": [
+    {
+      "status": "PASS",
+      "command": "make install",
+      "log": "reports/layout-build-install.log",
+      "logSHA256": "81db09a06c37c15e4855dda2db50227891ab5403d361b497c231defd44b68816"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-toolchain.sh python3 scripts/go-coverage.py",
+      "log": "reports/layout-go-coverage.log",
+      "logSHA256": "15d335186657716637d6a0771aef3b3b138090307705d6df84b31248e8d41305"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-toolchain.sh python3 scripts/frontend-coverage.py",
+      "log": "reports/wallet-layout-frontend.log",
+      "logSHA256": "b2b038bb231c1927f9fff4165121b40a9749def4e0aaea18bedc113e83778b8f"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-go.sh go test -race -p 2 ./...",
+      "log": "reports/layout-race.log",
+      "logSHA256": "e88c62e25de802900c147c70f01791f09add76ad82349826fa57753b78c41c03"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-go.sh go vet ./...",
+      "log": "reports/layout-vet.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-toolchain.sh python3 scripts/packaged-recovery.py",
+      "log": "reports/layout-packaged-recovery.log",
+      "logSHA256": "7862a757df01529ab87c75bbf41292be7a310eeab1775f9c08d86a4e02c40190"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-toolchain.sh python3 scripts/display-startup.py",
+      "log": "reports/layout-display-startup.log",
+      "logSHA256": "bb3d2f7aa06e0e9e90e667d1cc40f1e892d36f46a9f6d0163e250d0eb483500b"
+    },
+    {
+      "status": "PASS",
+      "command": "make package-go",
+      "log": "reports/layout-go-package.log",
+      "logSHA256": "9f898ba0b68751037c33bc52b6d1c68bcd5a7f7dd0a3133afe94b45e75d28202"
+    },
+    {
+      "status": "PASS",
+      "command": "./scripts/with-toolchain.sh python3 scripts/verify-version.py",
+      "log": "reports/layout-version.log",
+      "logSHA256": "ef340dd79fe5335ae88b0c38058aa4f514c69104ba13cb117a3dab223001248a"
+    }
+  ],
+  "frontendTests": 53,
+  "nativeTests": 13,
+  "nativeShortSuiteNotRun": [
+    "Wayland native input",
+    "Five-minute wall-clock sustained typing",
+    "Clean installed desktop OS-lock/suspend matrix"
+  ],
+  "frontendCoverage": [
+    {
+      "file": "app/main.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/preload.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/validation.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/codec.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "ui/renderer.js",
+      "statements": 100,
+      "branches": 98.77,
+      "floors": {
+        "statements": 90,
+        "branches": 85
+      },
+      "status": "PASS"
+    }
+  ],
+  "goPackagesMeetingFloors": 22,
+  "goCoverageSeconds": 49.076,
+  "goSkippedTests": [
+    {
+      "package": "localwallet/cmd/wallet-launcher",
+      "test": "TestTP041BootstrapWorker",
+      "status": "NOT_RUN",
+      "reason": "Explicit test skip; inspect go-test.jsonl for prerequisites"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:263: NOT_RUN: pinned local validator required"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNodeRotation",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:392: NOT_RUN: independent TS SDK rotation setup required"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNodeCommittedFailure",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:462: NOT_RUN: local validator required"
+    },
+    {
+      "package": "localwallet/internal/chains/near",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "near_test.go:233: NOT_RUN: pinned sandbox harness required"
+    },
+    {
+      "package": "localwallet/internal/chains/evm",
+      "test": "TestTP050LocalEVMProtocolAcceptance",
+      "status": "NOT_RUN",
+      "reason": "integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node"
+    },
+    {
+      "package": "localwallet/tests/stress",
+      "test": "TestTP072Soak",
+      "status": "NOT_RUN",
+      "reason": "stress_test.go:222: NOT_RUN: invoke make test-soak for explicit 24-hour campaign"
+    }
+  ],
+  "localGates": [
+    {
+      "gate": "decred-simnet",
+      "status": "PASS",
+      "source": "github.com/decred/dcrd v1.10.9",
+      "binarySHA256": "efebac4b062c3a31b4caeb3dc01d1840aaeced52d311b8b994dbd6fdc7576b11"
+    },
+    {
+      "gate": "ton-v5r1-emulator",
+      "status": "PASS",
+      "source": "@ton/sandbox 0.45.0"
+    }
+  ],
+  "packagedChecks": 22,
+  "packagedSteps": [
+    {
+      "name": "short-password-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "password-mismatch-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit first-run password-only generation and Main account overview without phrase reveal",
+      "status": "PASS"
+    },
+    {
+      "name": "Verified owner-only encrypted backup in ordinary 0755 folder without folder mutation or lockfile",
+      "status": "PASS"
+    },
+    {
+      "name": "existing-backup-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "unsafe-backup-folder-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Rejected backups preserve existing ciphertext and leave the active wallet usable",
+      "status": "PASS"
+    },
+    {
+      "name": "Password-only generated root restored from verified encrypted backup into an empty profile",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid-recovery-phrase-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Native input-only BIP39 import with production KDF",
+      "status": "PASS"
+    },
+    {
+      "name": "Native encrypted portable backup creation and reopen verification",
+      "status": "PASS"
+    },
+    {
+      "name": "Go-owned verified receive QR and exact independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Wallet table copy icon invokes native verification and copies the full independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Receive popup shows authoritative QR and full address with explicit in-window native copying",
+      "status": "PASS"
+    },
+    {
+      "name": "Table row opens a wallet tab; Receive uses its own window and Send reveals its form on demand",
+      "status": "PASS"
+    },
+    {
+      "name": "Middle-click closes the active wallet tab and returns to its account table",
+      "status": "PASS"
+    },
+    {
+      "name": "Restart requires native unlock and preserves deterministic address",
+      "status": "PASS"
+    },
+    {
+      "name": "Portable restore into empty profile without original application state",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit testnet profile starts empty and preserves existing mainnet ciphertext without conversion",
+      "status": "PASS"
+    },
+    {
+      "name": "Additional deterministic account appears as its own top tab with index-one network wallets",
+      "status": "PASS"
+    },
+    {
+      "name": "Captured logs and persisted profile files contain no tested secret canaries",
+      "status": "PASS"
+    },
+    {
+      "name": "Invalid native inputs and backup failures produce guidance without ordinary IPC handler stack traces or Mesa loader errors",
+      "status": "PASS"
+    }
+  ],
+  "displayedQR": "Actual GTK popup screenshot independently decoded with pinned gozxing and matched to known public fixture; native clipboard independently read and checked against the same exact address.",
+  "smallDisplay": {
+    "status": "PASS",
+    "scope": "Real GTK allocation on an owned 1024x768 Xvfb display; bounded long receive guidance and mapped native Copy address/Done controls. No desktop OS or compositor acceptance claim.",
+    "screen": [
+      1024,
+      768
+    ],
+    "sourceSHA256": {
+      "internal/secureui/native.go": "b8c5f34e384b990c7b05644e90806ed437f80552629f9355df8ad7261183b798",
+      "internal/secureui/boundaries_automation_test.go": "2731f0899eed1bdf4bafeb7c24ec946ce57d4ea43e983414055080392db25000"
+    },
+    "exit": 0,
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-tags",
+      "automation",
+      "-run",
+      "^TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible$",
+      "-count=1",
+      "-v",
+      "./internal/secureui"
+    ]
+  },
+  "startup": "Owned X11 mapped-window and virtual Wayland process-startup only; native Wayland workflows not established.",
+  "sourceAndRawProfileHashesReverified": true,
+  "publicScreenshotsVisuallyReviewed": [
+    {
+      "file": "reports/packaged-wallet-table.png",
+      "sha256": "6058c8124a2f24438e70d4eb00b279352b966fb6e623612664ab155c68d5481a"
+    },
+    {
+      "file": "reports/packaged-wallet-tab.png",
+      "sha256": "9fa836036d09ea9d9ce444f7b169c8d12971acf74e954926459971c5a6d36ceb"
+    },
+    {
+      "file": "reports/packaged-account-tabs.png",
+      "sha256": "8efbd9590934c400b6731ba4447a278fad5dcc5de2cc9f83d50cc25669d4ef85"
+    },
+    {
+      "file": "reports/packaged-native-receive-qr.png",
+      "sha256": "ce620305f7c91d20d61669563d83478bf3b7a466704ec03feb79170154406e7e"
+    }
+  ],
+  "firstPackagedAttempt": {
+    "status": "FAIL",
+    "passedSteps": 3,
+    "reason": "Native file selection did not complete before the driver waited for a backup. Driver now waits for asynchronous GTK path resolution; fresh final run passed22checks.",
+    "report": "reports/wallet-layout-first-packaged-attempt.json",
+    "sha256": "6abf9c3f5d21eba372e06f32c934418816449d29ce039930e935bc5e75bb3b3a"
+  },
+  "notRun": [
+    "Mainnet funds sent by automation (never attempted)",
+    "Funded public testnet acceptance and third-party wallet application/version interoperability",
+    "Clean supported Ubuntu X11/Wayland/suspend/upgrade recovery matrix",
+    "24-hour campaign",
+    "Independent security review",
+    "Remote CI/release workflow execution"
+  ],
+  "blocked": [
+    {
+      "check": "Authenticated live Decred connection",
+      "reason": "Operator synchronized authenticated TLS dcrd configuration required; unchanged from prior mainnet campaign, not reprobed by this UI drill."
+    }
+  ],
+  "historicalEvidence": "Prior mainnet RPC, mutation, dependency and long-duration reports retain their own source/artifact scope; this UI campaign does not recertify those historical executions.",
+  "secretBoundary": "Only public synthetic fixtures/disposable generated roots. Native credentials remain outside Electron; production test hooks and clipboard secret transport absent. No mainnet transaction broadcast."
+}

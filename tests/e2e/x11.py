@@ -31,8 +31,9 @@ class Desktop:
   self.d=X.XOpenDisplay(display)
   if not self.d:raise RuntimeError('Private Xvfb unavailable')
   self.root=X.XDefaultRootWindow(self.d)
- def click(self,x,y):
-  T.XTestFakeMotionEvent(self.d,-1,x,y,0);T.XTestFakeButtonEvent(self.d,1,1,0);T.XTestFakeButtonEvent(self.d,1,0,0);X.XFlush(self.d);time.sleep(.15)
+ def click(self,x,y,button=1):
+  if button not in (1,2):raise ValueError('Only primary and middle test clicks are supported')
+  T.XTestFakeMotionEvent(self.d,-1,x,y,0);T.XTestFakeButtonEvent(self.d,button,1,0);T.XTestFakeButtonEvent(self.d,button,0,0);X.XFlush(self.d);time.sleep(.15)
  def focus(self,window):
   X.XRaiseWindow(self.d,window);X.XSetInputFocus(self.d,window,2,0);X.XFlush(self.d);time.sleep(.15)
  def fit(self,window):

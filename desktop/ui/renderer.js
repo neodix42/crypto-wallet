@@ -48,12 +48,12 @@ function clearLocked() {
   if (vaultMode === 'ready') vaultMode = 'present';
   accounts = []; networks = []; operations = []; balances = []; walletTabs = []; activeWalletID = ''; activeIndex = 0; prepared = undefined;
   $('account').replaceChildren(); $('asset').replaceChildren(); $('operations').replaceChildren(); $('accountgroups').replaceChildren(); $('viewtabs').replaceChildren();
-  $('walletpage').hidden = true; $('accountoverview').hidden = false;
+  $('walletpage').hidden = true; $('accountoverview').hidden = false; $('sendpanel').hidden = true; closeSettings();
   for (const id of ['wallettitle', 'walletsubtitle', 'gasbalance', 'connectionstatus']) show(id, '');
   $('address').removeAttribute('title');
   $('backupcallout').hidden = true; show('backupstatus', 'Locked');
-  $('qr').hidden = true; $('qr').removeAttribute('src'); $('send').disabled = true;
-  for (const id of ['recipient', 'amount', 'memo', 'birthday', 'gap', 'limit', 'blockbudget']) $(id).value = '';
+  $('send').disabled = true;
+  for (const id of ['recipient', 'amount', 'memo', 'associateaddress', 'birthday', 'gap', 'limit', 'blockbudget']) $(id).value = '';
   for (const id of ['address', 'diagnostics', 'preview', 'balance', 'chainhistoryresult']) show(id, 'Locked');
   if (!retainError) $('message').textContent = vaultMode === 'missing' ? 'Start by choosing your app password in the native Go window.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the native Go window.';
   renderGate();
@@ -101,15 +101,37 @@ function renderView() {
   $('accountoverview').hidden = !!activeWalletID;
   $('walletpage').hidden = !activeWalletID;
 }
+function closeWallet(id) {
+  if (!walletTabs.includes(id)) return;
+  const restoreFocus = activeWalletID === id || $('viewtabs').contains(document.activeElement);
+  walletTabs = walletTabs.filter(item => item !== id);
+  if (activeWalletID === id) {
+    activeWalletID = '';
+    const first = visibleAccounts().find(account => account.index === activeIndex);
+    $('account').value = first.id;
+    select(); renderAccountGroups(); renderView();
+  }
+  renderTabs();
+  if (restoreFocus) $('viewtabs').querySelector('[aria-selected="true"]').focus();
+}
 function renderTabs() {
   const visible = visibleAccounts();
   $('viewtabs').replaceChildren();
-  function tab(text, selected, page, activate) {
+  function tab(text, selected, page, activate, walletID = '') {
     const button = document.createElement('button');
     button.textContent = text; button.setAttribute('role', 'tab'); button.setAttribute('aria-selected', String(selected));
     button.setAttribute('aria-controls', page); button.tabIndex = selected ? 0 : -1;
-    button.onclick = activate;
+    button.dataset.walletId = walletID;
+    if (walletID) button.title = 'Middle-click or press Delete to close this wallet tab';
+    button.onclick = event => { if (!event || event.button === 0) return activate(); };
+    button.onpointerdown = event => { if (event.button === 1) event.preventDefault(); };
+    button.onauxclick = event => {
+      if (event.button !== 1) return;
+      event.preventDefault(); event.stopPropagation();
+      if (walletID) closeWallet(walletID);
+    };
     button.onkeydown = event => {
+      if (event.key === 'Delete' && walletID) { event.preventDefault(); closeWallet(walletID); return; }
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       const tabs = [...$('viewtabs').children], index = tabs.indexOf(button);
@@ -127,7 +149,7 @@ function renderTabs() {
   }
   for (const id of walletTabs) {
     const account = visible.find(account => account.id === id), network = networks.find(network => network.id === account.network);
-    tab(`${network?.name || account.network} · ${accountName(account.index)}`, activeWalletID === id, 'walletpage', () => openWallet(id));
+    tab(`${network?.name || account.network} · ${accountName(account.index)}`, activeWalletID === id, 'walletpage', () => openWallet(id), id);
   }
 }
 function copyIcon() {
@@ -144,30 +166,38 @@ function renderAccountGroups() {
   $('accountgroups').replaceChildren();
   const visible = visibleAccounts().filter(account => account.index === activeIndex);
   if (!visible.length) return;
-  const group = document.createElement('section'), heading = document.createElement('h2'), grid = document.createElement('div');
-  group.className = 'accountgroup'; grid.className = 'walletgrid';
+  const group = document.createElement('section'), heading = document.createElement('h2'), table = document.createElement('table');
+  group.className = 'accountgroup'; table.className = 'wallettable';
   heading.textContent = accountName(activeIndex);
   const detail = document.createElement('p'); detail.textContent = `Derivation index ${activeIndex} · Wallets from your shared BIP39 root`;
-  group.append(heading, detail, grid);
+  const head = table.createTHead().insertRow();
+  for (const label of ['Network', 'Assets', 'Receive address']) { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = label; head.append(cell); }
+  const body = table.createTBody();
+  group.append(heading, detail, table);
   for (const account of visible) {
     const network = networks.find(network => network.id === account.network);
-    const card = document.createElement('article'), name = document.createElement('h3'), address = document.createElement('p'), assets = document.createElement('p'), open = document.createElement('button');
-    const addressRow = document.createElement('div'), copy = document.createElement('button');
-    card.className = 'walletcard'; card.dataset.accountId = account.id;
-    name.textContent = network?.name || account.network;
+    const row = body.insertRow(), name = row.insertCell(), assets = row.insertCell(), addressCell = row.insertCell();
+    const address = document.createElement('span'), open = document.createElement('button'), copy = document.createElement('button');
+    row.className = 'walletrow'; row.dataset.accountId = account.id; row.tabIndex = 0;
+    row.setAttribute('aria-label', `Open ${network?.name || account.network} wallet, ${accountName(account.index)}`);
+    open.textContent = network?.name || account.network; open.className = 'openwallet';
+    open.onclick = event => { event?.stopPropagation(); return openWallet(account.id); };
+    row.onclick = event => { if (event.button === 0) return openWallet(account.id); };
+    row.onkeydown = event => {
+      if (event.target !== row || !['Enter', ' '].includes(event.key)) return;
+      event.preventDefault(); return openWallet(account.id);
+    };
+    name.append(open);
     address.textContent = account.address; address.title = account.address; address.className = 'walletaddress';
-    addressRow.className = 'addressrow'; copy.className = 'copyaddress'; copy.title = 'Copy verified address';
+    const addressRow = document.createElement('div'); addressRow.className = 'addressrow';
+    copy.className = 'copyaddress'; copy.title = 'Copy verified address';
     copy.setAttribute('aria-label', `Copy verified address for ${network?.name || account.network}, ${accountName(account.index)}`);
     copy.append(copyIcon()); copy.disabled = mainnetBackupRequired;
     if (mainnetBackupRequired) copy.title = 'Verify encrypted backup first';
-    // Only the account ID crosses IPC. Go independently derives and confirms the
-    // address; neither DOM text nor a renderer-supplied address reaches clipboard.
-    copy.onclick = () => run(() => addressAction('copyReceive', account.id), true);
-    addressRow.append(address, copy);
-    assets.textContent = (network?.assets || []).map(asset => asset.symbol).join(' · ') || 'Assets unavailable';
-    open.textContent = account.hidden ? 'Open hidden wallet' : 'Open wallet'; open.className = 'openwallet';
-    open.onclick = () => openWallet(account.id);
-    card.append(name, assets, addressRow, open); grid.append(card);
+    // Capture only the account ID. Go derives and confirms the copied address.
+    copy.onclick = event => { event?.stopPropagation(); return run(() => addressAction('copyReceive', account.id), true); };
+    addressRow.append(address, copy); addressCell.append(addressRow);
+    assets.className = 'walletassets'; assets.textContent = (network?.assets || []).map(asset => asset.symbol).join(' · ') || 'Assets unavailable';
   }
   $('accountgroups').append(group);
 }
@@ -204,6 +234,7 @@ async function refresh() {
 function current() { return accounts.find(account => account.id === $('account').value); }
 function select() {
   viewEpoch++;
+  $('sendpanel').hidden = true;
   const account = current();
   $('asset').replaceChildren();
   show('address', account ? account.address : 'Locked or no account');
@@ -212,8 +243,7 @@ function select() {
   show('balance', 'Balance unknown — query required.'); $('gasbalance').hidden = true;
   show('preview', 'No payment prepared.');
   show('chainhistoryresult', 'History has not been queried.'); $('operations').replaceChildren();
-  for (const id of ['recipient', 'amount', 'memo']) $(id).value = '';
-  $('qr').hidden = true; $('qr').removeAttribute('src');
+  for (const id of ['recipient', 'amount', 'memo', 'associateaddress']) $(id).value = '';
   $('hideaccount').textContent = account?.hidden ? 'Unhide selected' : 'Hide selected';
   prepared = undefined; $('send').disabled = true;
   const network = networks.find(network => network.id === account?.network);
@@ -222,7 +252,8 @@ function select() {
   show('connectionstatus', network?.family === 'decred' && !network.rpc ? 'Connection required — configure an authenticated TLS dcrd node before querying or sending.' : network ? `${network.rpc ? 'RPC: ' + network.rpc + ' · ' : ''}${network.trust || 'Provider verification required.'}` : 'Connection details unavailable.');
   loadDiscovery(network?.family === 'decred' ? account : null);
   $('decrednote').hidden = network?.family !== 'decred'; $('dcrdiscoverycontrols').hidden = network?.family !== 'decred';
-  $('associate').hidden = !['near', 'aptos'].includes(network?.family);
+  $('associationcontrols').hidden = !['near', 'aptos'].includes(network?.family);
+  $('associate').hidden = $('associationcontrols').hidden;
   show('diagnostics', { account: account || null, network: network || null });
   for (const asset of network?.assets || []) {
     const option = document.createElement('option');
@@ -283,6 +314,32 @@ function renderHistory() {
     $('operations').append(row);
   }
 }
+function closeSettings() {
+  const wasOpen = !$('settingsdialog').hidden;
+  $('settingsdialog').hidden = true; $('settings').setAttribute('aria-expanded', 'false');
+  document.querySelector('header').inert = false; document.querySelector('main').inert = false;
+  if (wasOpen) $('settings').focus();
+}
+function settingsFocusables() {
+  return [...$('settingsdialog').querySelectorAll('button, input, summary')].filter(element => {
+    const closed = element.closest('details:not([open])');
+    return !element.disabled && !element.closest('[hidden]') && (!closed || closed.querySelector('summary') === element);
+  });
+}
+$('settings').onclick = () => {
+  $('settingsdialog').hidden = false; $('settings').setAttribute('aria-expanded', 'true');
+  document.querySelector('header').inert = true; document.querySelector('main').inert = true;
+  $('closesettings').focus();
+};
+$('closesettings').onclick = closeSettings;
+$('settingsdialog').onclick = event => { if (event.target === $('settingsdialog')) closeSettings(); };
+$('settingsdialog').onkeydown = event => {
+  if (event.key === 'Escape') { event.preventDefault(); closeSettings(); return; }
+  if (event.key !== 'Tab') return;
+  const focusable = settingsFocusables(), first = focusable[0], last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+};
 const credentialActions = [
   ['unlock', 'unlock', {}], ['create', 'create', { words: 12 }], ['create24', 'create', { words: 24 }],
   ['import', 'import', { words: 12 }], ['backup', 'backup', {}], ['restore', 'restore', {}], ['password', 'password', {}],
@@ -291,6 +348,7 @@ const credentialActions = [
 let credentialPending = false;
 for (const [id, method, body] of credentialActions) $(id).onclick = async () => {
   if (credentialPending) return;
+  closeSettings();
   credentialPending = true;
   for (const [button] of credentialActions) $(button).disabled = true;
   try { await run(async () => { const epoch = sessionEpoch; await window.wallet[method](body); if (epoch === sessionEpoch) await refresh(); }); }
@@ -299,29 +357,40 @@ for (const [id, method, body] of credentialActions) $(id).onclick = async () => 
 $('release-link').onclick = event => { event.preventDefault(); $('release-status').open = true; $('release-status').querySelector('summary').focus(); };
 $('onboardretry').onclick = () => run(refresh);
 $('lock').onclick = () => { clearLocked(); return run(() => window.wallet.lock()); };
-$('add').onclick = () => run(() => result('addAccount', { index: Number($('index').value) }, refresh));
+$('add').onclick = () => { closeSettings(); return run(() => result('addAccount', { index: Number($('index').value) }, refresh)); };
 $('hideaccount').onclick = () => run(() => result('hideAccount', { accountId: current()?.id || '', hidden: !current()?.hidden }, refresh));
 $('showhidden').onchange = () => populateAccounts($('account').value);
-$('discoveraccounts').onclick = () => run(() => result('discoverAccounts', { start: Number($('recoverystart').value), end: Number($('recoveryend').value) }, refresh));
+$('discoveraccounts').onclick = () => { closeSettings(); return run(() => result('discoverAccounts', { start: Number($('recoverystart').value), end: Number($('recoveryend').value) }, refresh)); };
 $('account').onchange = () => openWallet($('account').value);
 $('refresh').onclick = () => run(loadBalance, true);
-$('receive').onclick = () => run(() => result('receive', { accountId: current()?.id || '' }, value => {
-  if (value.account) { const i = accounts.findIndex(account => account.id === value.account.id); if (i >= 0) accounts[i] = value.account; show('address', value.account.address); $('address').title = value.account.address; renderAccountGroups(); }
-  $('qr').src = 'data:image/png;base64,' + value.png; $('qr').hidden = false;
-}), true);
-$('sendview').onclick = () => $('sendheading').focus();
+$('receive').onclick = () => run(async () => {
+  const epoch = sessionEpoch, id = current()?.id || '';
+  const value = await window.wallet.receive({ accountId: id });
+  // The Go window owns the verified QR/address and clipboard. A committed
+  // Decred receive index must still refresh the overview after a tab switch.
+  if (epoch !== sessionEpoch || !value.account || value.account.id !== id || !accounts.some(account => account.id === id)) return;
+  accounts = accounts.map(account => account.id === id ? value.account : account); renderAccountGroups();
+  if (current()?.id === id) { show('address', value.account.address); $('address').title = value.account.address; show('diagnostics', { account: value.account, network: networks.find(network => network.id === value.account.network) }); }
+}, true);
+$('sendview').onclick = () => { if (!activeWalletID || mainnetBackupRequired) return; $('sendpanel').hidden = false; $('sendheading').focus(); };
+$('closesend').onclick = () => {
+  viewEpoch++; $('sendpanel').hidden = true; prepared = undefined; $('send').disabled = true;
+  for (const id of ['recipient', 'amount', 'memo']) $(id).value = '';
+  show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.');
+  $('sendview').focus();
+};
 function transfer() { return { accountId: current()?.id || '', asset: $('asset').value, recipient: $('recipient').value, amount: $('amount').value, memo: $('memo').value }; }
 async function prepare(method) {
   const body = transfer(); if (method === 'max') body.amount = '0';
   prepared = undefined; $('send').disabled = true;
   await result(method, body, async value => { prepared = value; show('preview', prepared); $('send').disabled = false; await history(); });
 }
-function startPrepare(method) { viewEpoch++; return run(() => prepare(method), true); }
+function startPrepare(method) { if ($('sendpanel').hidden) return; viewEpoch++; return run(() => prepare(method), true); }
 $('prepare').onclick = () => startPrepare('prepare');
 $('max').onclick = () => startPrepare('max');
-$('send').onclick = () => run(async () => { if (!prepared) return; const id = prepared.id; prepared = undefined; $('send').disabled = true; await result('send', { id }, async value => { show('preview', value); await history(); }); }, true);
+$('send').onclick = () => run(async () => { if ($('sendpanel').hidden || !prepared) return; const id = prepared.id; prepared = undefined; $('send').disabled = true; await result('send', { id }, async value => { show('preview', value); await history(); }); }, true);
 $('history').onclick = () => run(history, true);
-for (const id of ['recipient', 'amount', 'memo', 'asset']) $(id).addEventListener('input', () => { $('send').disabled = true; prepared = undefined; viewEpoch++; show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.'); if (id === 'asset') { renderBalance(); renderHistory(); $('qr').hidden = true; $('qr').removeAttribute('src'); show('chainhistoryresult', 'History has not been queried for this selection.'); } });
+for (const id of ['recipient', 'amount', 'memo', 'asset']) $(id).addEventListener('input', () => { $('send').disabled = true; prepared = undefined; viewEpoch++; show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.'); if (id === 'asset') { renderBalance(); renderHistory(); show('chainhistoryresult', 'History has not been queried for this selection.'); } });
 async function addressAction(method, id) {
   const epoch = sessionEpoch, account = accounts.find(account => account.id === id);
   await window.wallet[method]({ accountId: id });
@@ -334,13 +403,13 @@ async function addressAction(method, id) {
   const fresh = state.accounts?.find(item => item.id === id);
   if (!fresh) return;
   accounts = accounts.map(item => item.id === id ? fresh : item); renderAccountGroups();
-  if (current()?.id === id) { show('address', fresh.address); $('address').title = fresh.address; $('qr').hidden = true; $('qr').removeAttribute('src'); show('diagnostics', { account: fresh, network: networks.find(network => network.id === fresh.network) }); }
+  if (current()?.id === id) { show('address', fresh.address); $('address').title = fresh.address; show('diagnostics', { account: fresh, network: networks.find(network => network.id === fresh.network) }); }
 }
 $('copy').onclick = () => run(() => addressAction('copyReceive', current()?.id || ''), true);
 $('saveqr').onclick = () => run(() => addressAction('saveQR', current()?.id || ''), true);
-$('scan').onclick = () => run(() => result('scanQR', {}, value => { viewEpoch++; $('recipient').value = value; prepared = undefined; $('send').disabled = true; }), true);
+$('scan').onclick = () => { if ($('sendpanel').hidden) return; return run(() => result('scanQR', {}, value => { viewEpoch++; $('recipient').value = value; prepared = undefined; $('send').disabled = true; }), true); };
 $('configure').onclick = () => run(() => result('configure', { network: current()?.network || '' }, refresh), true);
-$('associate').onclick = () => run(() => result('associate', { accountId: current()?.id || '', address: $('recipient').value }, refresh));
+$('associate').onclick = () => run(() => result('associate', { accountId: current()?.id || '', address: $('associateaddress').value }, refresh));
 $('chainhistory').onclick = () => run(() => result('chainHistory', { accountId: current()?.id || '' }, value => show('chainhistoryresult', value)), true);
 $('discovery').onclick = () => run(() => result('discovery', { accountId: current()?.id || '', birthday: Number($('birthday').value), gap: Number($('gap').value), limit: Number($('limit').value), blockBudget: Number($('blockbudget').value) }, refresh));
 renderGate();

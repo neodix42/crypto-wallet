@@ -142,17 +142,17 @@
     },
     {
       "package": "localwallet/internal/secureui",
-      "statements": 110,
-      "covered": 109,
-      "percent": 99.09,
+      "statements": 137,
+      "covered": 136,
+      "percent": 99.27,
       "floor": 95,
       "status": "PASS"
     },
     {
       "package": "localwallet/internal/signer",
-      "statements": 602,
-      "covered": 583,
-      "percent": 96.84,
+      "statements": 608,
+      "covered": 589,
+      "percent": 96.88,
       "floor": 95,
       "status": "PASS"
     },

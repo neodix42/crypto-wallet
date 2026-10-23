@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "scope": "Real GTK allocation on an owned 1024x768 Xvfb display; bounded long receive guidance and mapped native Copy address/Done controls. No desktop OS or compositor acceptance claim.",
+  "screen": [
+    1024,
+    768
+  ],
+  "sourceSHA256": {
+    "internal/secureui/native.go": "b8c5f34e384b990c7b05644e90806ed437f80552629f9355df8ad7261183b798",
+    "internal/secureui/boundaries_automation_test.go": "2731f0899eed1bdf4bafeb7c24ec946ce57d4ea43e983414055080392db25000"
+  },
+  "exit": 0,
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-tags",
+    "automation",
+    "-run",
+    "^TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible$",
+    "-count=1",
+    "-v",
+    "./internal/secureui"
+  ]
+}

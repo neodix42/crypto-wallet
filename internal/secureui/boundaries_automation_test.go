@@ -61,6 +61,74 @@ func TestNativePublicReceiveAndScrollableApproval(t *testing.T) {
 	(Native{}).CopyPublic("public synthetic receive address")
 }
 
+func TestNativeReceiveCopyRequiresExplicitButtonAndExactAddress(t *testing.T) {
+	if err := Init(); err != nil {
+		t.Fatalf("BLOCKED native display: %v", err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, img); err != nil {
+		t.Fatal(err)
+	}
+	const address = "public synthetic receive address 79326"
+	const oldClipboard = "public synthetic prior clipboard 45182"
+	const summary = "Public fixture summary with a different address-shaped string: 0x0000000000000000000000000000000000000001"
+	ui := Native{}
+	ui.CopyPublic(oldClipboard)
+	autoSchedule("", -3)
+	if !ui.ReceiveAddress("TEST public receive without copy", summary, address, encoded.Bytes()) || autoPublicClipboard() != oldClipboard {
+		t.Fatal("accepting verified receive implicitly copied an address")
+	}
+	autoScheduleReceiveCopy(-3)
+	if !ui.ReceiveAddress("TEST public receive explicit copy", summary, address, encoded.Bytes()) || autoPublicClipboard() != address {
+		t.Fatal("native Copy address did not copy the exact separately supplied public address")
+	}
+	ui.CopyPublic(oldClipboard)
+	autoScheduleReceiveCopy(-6)
+	if ui.ReceiveAddress("TEST public copy then cancel", summary, address, encoded.Bytes()) || autoPublicClipboard() != address {
+		t.Fatal("cancellation changed the deliberate public copy or approved the view")
+	}
+	autoSchedule("", -6)
+	if ui.ReceiveAddress("TEST public receive cancel", summary, address, encoded.Bytes()) {
+		t.Fatal("cancel approved verified receive")
+	}
+	for _, invalid := range []struct {
+		address string
+		image   []byte
+	}{
+		{"", encoded.Bytes()},
+		{address + "\x00substitution", encoded.Bytes()},
+		{address, nil},
+		{address, []byte("not a PNG")},
+	} {
+		if ui.ReceiveAddress("TEST invalid public receive", summary, invalid.address, invalid.image) {
+			t.Fatal("invalid native receive accepted")
+		}
+	}
+}
+
+func TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible(t *testing.T) {
+	if err := Init(); err != nil {
+		t.Fatalf("BLOCKED native display: %v", err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 512, 512))
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, img); err != nil {
+		t.Fatal(err)
+	}
+	// Deliberately much longer than current funding guidance: the public body
+	// must scroll while its explicit copy and completion controls remain visible.
+	autoScheduleReceiveLayout()
+	if !(Native{}).ReceiveAddress("TEST bounded public receive", strings.Repeat("Public network prerequisite guidance\n", 100), "public synthetic receive address 79326", encoded.Bytes()) {
+		t.Fatal("bounded receive view unavailable")
+	}
+	fits, width, height, screenWidth, screenHeight := autoReceiveLayout()
+	t.Logf("receive=%dx%d display=%dx%d mapped Copy address and Done inside window=%v", width, height, screenWidth, screenHeight, fits)
+	if !fits || width > 650 || height > 680 {
+		t.Fatal("receive window or its action buttons overflowed the bounded display")
+	}
+}
+
 func TestNativeFileChooserCancelAndVerifiedSelection(t *testing.T) {
 	if err := Init(); err != nil {
 		t.Fatalf("BLOCKED native display: %v", err)

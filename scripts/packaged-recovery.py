@@ -15,7 +15,7 @@ selected_profile=parser.parse_args().profile
 vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 validation feedback, password-only generation, import, ordinary-folder encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 settings, wallet table, native receive QR/copy, on-demand send form, middle-click tab closing, validation feedback, password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
 report['environment']=selected_profile
 password='public-synthetic-password-79326';phrase='abandon '*11+'about'
 owned=[];app=None;display=None;desktop=None;logs=[];live_log_checks=[]
@@ -29,7 +29,7 @@ def until(fn,seconds=20):
  raise RuntimeError('Timed out waiting for packaged workflow')
 def capture():
  p=reports/'packaged-current.png';desktop.screenshot(p);return p
-def textboxes():
+def textboxes(region=None):
  # The public desktop uses light text on dark controls. Normalize its screenshot
  # for OCR; native credential windows are never parsed by this helper.
  if any(t.startswith(('Create local wallet','Unlock local wallet','Restore encrypted portable backup')) for _,t in desktop.windows()):
@@ -43,7 +43,7 @@ def textboxes():
   a=line.split('\t')
   if len(a)==12 and a[11].strip():
    for column in range(6,10):a[column]=str(int(a[column])//2)
-   rows.append(a)
+   if region is None or (region[0]<=int(a[6])<region[2] and region[1]<=int(a[7])<region[3]):rows.append(a)
  return rows
 def clickword(word,maxx=2000):
  for attempt in range(20):
@@ -62,14 +62,14 @@ def clickline(prefix):
   if ' '.join(a[11] for a in words).lower().startswith(prefix.lower()):
    a=words[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
  raise RuntimeError('Public UI button unavailable: '+prefix)
-def clickphrase(phrase):
+def clickphrase(phrase,button=1,region=None):
  words=phrase.lower().split()
  for attempt in range(16):
-  rows=textboxes()
+  rows=textboxes(region)
   for i,a in enumerate(rows):
    segment=rows[i:i+len(words)]
    if len(segment)==len(words) and [b[11].lower().strip('.,:') for b in segment]==words and all(b[1:5]==a[1:5] for b in segment):
-    desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+    desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2,button=button);return
   desktop.key('Home',ctrl=True) if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('Public UI phrase unavailable: '+phrase)
 def clickprimary(word):
@@ -153,33 +153,73 @@ def overview():
  desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
  clickphrase('Main account');time.sleep(.3)
 def openfirstwallet():
- overview();clickword('Open');time.sleep(.5)
+ overview();clickphrase('Ethereum');time.sleep(.5)
  until(lambda:'Balance' in ' '.join(a[11] for a in textboxes()))
-def copyfirstcard():
+def walletmenu(phrase):
+ desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
+ clickphrase('Settings');time.sleep(.3)
+ x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ # The settings panel is right-aligned and opaque; exclude matching controls
+ # dimmed behind it (for example the overview backup callout).
+ clickphrase(phrase,region=(x+w-500,y+24,x+w,y+h))
+def setupmenu(phrase):
+ desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
+ clickphrase('Settings');time.sleep(.3)
+ x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0]);region=(x+w-500,y+24,x+w,y+h)
+ if phrase.lower() not in ' '.join(a[11] for a in textboxes(region)).lower():clickphrase('Other setup options',region=region)
+ clickphrase(phrase,region=region)
+def copyfirstrow():
  overview()
- # Locate the actual public first card by its Open wallet button. The copy
- # control is at the right edge of its single-line address row immediately
- # above. This uses native XTest pointer input, never DOM/debug injection.
+ # Click the first table row's far-right copy control using its network label
+ # and the content area's right edge. No DOM/debug injection is used.
  for attempt in range(12):
   rows=textboxes()
-  for i,a in enumerate(rows[:-1]):
-   if a[11].lower()=='open' and rows[i+1][11].lower()=='wallet' and a[1:5]==rows[i+1][1:5]:
-    x=int(a[6]);y=int(a[7])
-    # First-card width is determined by the responsive grid, not host DPI.
-    # Find its two vertical border edges in the screenshot's own pixels.
-    picture=Image.open(capture()).convert('RGB')
-    border=(53,66,89)
-    edges=[xx for xx in range(max(0,x-40),min(1280,x+500)) if sum(abs(picture.getpixel((xx,max(0,y-10)))[c]-border[c]) for c in range(3))<9]
-    left=next((xx for xx in edges if xx<x),None)
-    right=next((xx for xx in edges if xx>x+100),None)
-    if left is None or right is None:raise RuntimeError('Public wallet card boundaries unavailable for native copy icon click')
-    desktop.click(right-35,y-42)
+  headers=[int(a[7]) for a in rows if a[11].lower()=='network']
+  for a in rows:
+   if a[11].lower()=='ethereum' and int(a[6])<400 and headers and int(a[7])>min(headers):
+    x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+    desktop.click(x+w-70,int(a[7])+int(a[9])//2)
     waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3);return clip()
   desktop.key('Page_Down');time.sleep(.2)
- raise RuntimeError('First public wallet card not available')
+ raise RuntimeError('First public wallet table row not available')
 def filechoice(prefix,path):
- waitnative(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.type(str(path));desktop.key('Return');time.sleep(.5)
- if any(t.startswith(prefix) for _,t in desktop.windows()):desktop.accept(prefix)
+ waitnative(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.key('a',ctrl=True);desktop.type(str(path))
+ # GTK resolves a typed absolute path asynchronously. Wait between accepting
+ # the location and the final file selection instead of racing that resolution.
+ desktop.key('Return');time.sleep(1.5)
+ for attempt in range(3):
+  if not any(t.startswith(prefix) for _,t in desktop.windows()):return
+  desktop.focus(desktop.wait(prefix)[0]);desktop.accept(prefix);time.sleep(1.5)
+ if any(t.startswith(prefix) for _,t in desktop.windows()):
+  desktop.screenshot(reports/'packaged-file-selection.png')
+  raise RuntimeError('Native file selection did not complete: '+prefix)
+def nativecopy():
+ x,y,w,h=waitnative('Verify receive address')
+ # Only this public QR/address dialog is cropped for OCR. Secret input dialogs
+ # are excluded; button coordinates come from the uninstrumented native UI.
+ picture=Image.open(capture()).crop((x,y,x+w,y+h)).convert('L')
+ picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS)
+ path=reports/'packaged-native-receive-controls.png';picture.save(path)
+ raw=subprocess.check_output(['tesseract',str(path),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
+ rows=[line.split('\t') for line in raw.splitlines()[1:] if len(line.split('\t'))==12 and line.split('\t')[11].strip()]
+ for i,a in enumerate(rows[:-1]):
+  if a[11]=='Copy' and rows[i+1][11].lower()=='address':
+   desktop.click(x+(int(a[6])+int(a[8])//2)//2,y+(int(a[7])+int(a[9])//2)//2);time.sleep(.3);return clip()
+ raise RuntimeError('Native Receive popup Copy address button unavailable')
+def decodereceive(expected):
+ # Decode the pixels actually displayed by GTK, independently of the original
+ # generated PNG and clipboard. This helper has no access to app internals.
+ x,y,w,h=waitnative('Verify receive address')
+ path=reports/'packaged-native-receive-qr.png'
+ Image.open(capture()).crop((x,y,x+w,y+h)).save(path)
+ oracle='''package main
+import("image";_ "image/png";"os";"fmt";"github.com/makiuchi-d/gozxing";"github.com/makiuchi-d/gozxing/qrcode")
+func main(){f,e:=os.Open(os.Args[1]);if e!=nil{panic(e)};defer f.Close();im,_,e:=image.Decode(f);if e!=nil{panic(e)};b,e:=gozxing.NewBinaryBitmapFromImage(im);if e!=nil{panic(e)};r,e:=qrcode.NewQRCodeReader().Decode(b,nil);if e!=nil{panic(e)};fmt.Print(r.GetText())}
+'''
+ with tempfile.TemporaryDirectory(prefix='localwallet-public-qr-oracle-') as temporary:
+  source=pathlib.Path(temporary)/'main.go';source.write_text(oracle)
+  decoded=subprocess.check_output([str(root/'scripts/with-go.sh'),'go','run',str(source),str(path)],cwd=root,text=True,timeout=60)
+ if decoded!=expected:raise RuntimeError('Displayed Receive QR pixels differ from the independent expected address')
 try:
  server=shutil.which('Xvfb') or str(root/'.tools/xvfb/root/usr/bin/Xvfb')
  display=next((f':{n}' for n in range(180,190) if not pathlib.Path(f'/tmp/.X11-unix/X{n}').exists() and not pathlib.Path(f'/tmp/.X{n}-lock').exists()),None)
@@ -213,58 +253,67 @@ try:
   desktop.screenshot(reports/'packaged-generated-main-account.png')
   passed('Explicit first-run password-only generation and Main account overview without phrase reveal')
   generated_backup=backupdir/'generated.lwv'
-  clickword('backup',350);filechoice('Save encrypted portable backup',generated_backup)
+  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',generated_backup)
   until(lambda:generated_backup.exists());time.sleep(2)
   if generated_backup.stat().st_mode&0o777!=0o600 or backupdir.stat().st_mode&0o777!=0o755 or (backupdir/'writer.lock').exists():raise RuntimeError('Backup altered folder policy or did not retain owner-only file permissions')
   original_backup=generated_backup.read_bytes()
   passed('Verified owner-only encrypted backup in ordinary 0755 folder without folder mutation or lockfile')
   generated_address=publicaddress()
   if generated_address=='0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused the fixed import fixture')
-  clickword('backup',350);filechoice('Save encrypted portable backup',generated_backup)
+  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',generated_backup)
   expectfailure('Choose a new backup filename','A file already exists','existing-backup-feedback')
   if generated_backup.read_bytes()!=original_backup:raise RuntimeError('Existing encrypted backup changed')
   unsafe=folder/'unsafe';unsafe.mkdir();unsafe.chmod(0o777)
-  clickword('backup',350);filechoice('Save encrypted portable backup',unsafe/'rejected.lwv')
+  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',unsafe/'rejected.lwv')
   expectfailure('other users cannot modify','destination is unavailable or unsafe','unsafe-backup-folder-feedback')
   if (unsafe/'rejected.lwv').exists():raise RuntimeError('Backup accepted writable-by-others folder')
   if publicaddress()!=generated_address:raise RuntimeError('Rejected backup damaged the active wallet')
   passed('Rejected backups preserve existing ciphertext and leave the active wallet usable')
   stopapp()
-  launch(folder/'generated-restored',env);clickword('Other',350);clickword('Restore',350);filechoice('Open encrypted backup',generated_backup)
+  launch(folder/'generated-restored',env);setupmenu('Restore into empty profile');filechoice('Open encrypted backup',generated_backup)
   waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup');time.sleep(3)
   if publicaddress()!=generated_address:raise RuntimeError('Generated root did not survive encrypted backup restore')
   passed('Password-only generated root restored from verified encrypted backup into an empty profile')
   stopapp()
-  launch(profile,env);clickword('Other',350);clickword('Import',350);waitnative('Create local wallet')
+  launch(profile,env);setupmenu('Import known BIP39 phrase');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,'bad','']);desktop.accept('Create local wallet')
   expectfailure('valid English BIP39','valid English BIP39','invalid-recovery-phrase-feedback')
   if (profile/vault_relative).exists():raise RuntimeError('Invalid phrase created a vault')
-  clickword('Import',350);x,y,w,h=waitnative('Create local wallet')
+  setupmenu('Import known BIP39 phrase');x,y,w,h=waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,phrase,''])
   desktop.screenshot(reports/'packaged-native-masked.png');desktop.accept('Create local wallet')
   waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits')
   until(lambda:(profile/vault_relative).exists());time.sleep(1);passed('Native input-only BIP39 import with production KDF')
   expected='0x9858EfFD232B4033E47d90003D41EC34EcaEda94'
-  clickword('backup',350);filechoice('Save encrypted portable backup',backup)
+  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',backup)
   until(lambda:backup.exists());time.sleep(3);passed('Native encrypted portable backup creation and reopen verification')
   if publicaddress()!=expected:raise RuntimeError('Imported independent fixture public address differs')
   passed('Go-owned verified receive QR and exact independent public address')
-  if copyfirstcard()!=expected:raise RuntimeError('Wallet cell copy icon copied a different public address')
-  passed('Wallet cell copy icon invokes native verification and copies the full independent public address')
+  if copyfirstrow()!=expected:raise RuntimeError('Wallet table copy icon copied a different public address')
+  passed('Wallet table copy icon invokes native verification and copies the full independent public address')
   openfirstwallet()
   words=' '.join(a[11] for a in textboxes())
   if 'Balance' not in words or 'HyperEVM' in words:raise RuntimeError('Open wallet did not show an isolated Ethereum tab with its balance instead of the portfolio grid')
   desktop.screenshot(reports/'packaged-wallet-tab.png')
-  clickprimary('Receive');waitnative('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3)
+  clickprimary('Receive');waitnative('Verify receive address')
+  desktop.screenshot(reports/'packaged-receive-window.png')
+  decodereceive(expected)
+  if nativecopy()!=expected:raise RuntimeError('Native Receive popup did not copy its exact displayed independent address')
+  desktop.accept('Verify receive address');time.sleep(.3)
+  passed('Receive popup shows authoritative QR and full address with explicit in-window native copying')
   clickprimary('Send');time.sleep(.3)
   if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Wallet Send button did not focus its own payment form')
-  passed('Open wallet selects a wallet tab with scoped balance and send/receive controls instead of the portfolio grid')
+  passed('Table row opens a wallet tab; Receive uses its own window and Send reveals its form on demand')
+  desktop.key('Home',ctrl=True);clickphrase('Ethereum',button=2);time.sleep(.4)
+  if 'Your wallets' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Middle-click did not close the wallet tab and restore its account page')
+  desktop.screenshot(reports/'packaged-wallet-table.png')
+  passed('Middle-click closes the active wallet tab and returns to its account table')
   stopapp();launch(profile,env)
   # A restart never resumes the signer session; unlock requires native input.
-  clickword('Unlock',350);x,y,w,h=waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(3)
+  clickphrase('Unlock wallet');x,y,w,h=waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Restart public address differs')
   passed('Restart requires native unlock and preserves deterministic address')
-  stopapp();fresh=folder/'fresh';launch(fresh,env);clickword('Other',350);clickword('Restore',350);filechoice('Open encrypted backup',backup)
+  stopapp();fresh=folder/'fresh';launch(fresh,env);setupmenu('Restore into empty profile');filechoice('Open encrypted backup',backup)
   x,y,w,h=waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup')
   until(lambda:(fresh/vault_relative).exists());time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Fresh-profile public address differs')
@@ -281,8 +330,8 @@ try:
    stopapp();launch(fresh,env)
    words=' '.join(a[11] for a in textboxes())
    if 'Mainnet profile' not in words or 'Welcome back' not in words:raise RuntimeError('Default launch failed to return to the existing locked mainnet profile')
-   clickword('Unlock',350);waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
-   clickword('Add',350);time.sleep(2)
+   clickphrase('Unlock wallet');waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
+   walletmenu('Add deterministic account');time.sleep(2)
    desktop.key('Home',ctrl=True);clickphrase('Account 2');time.sleep(.5)
    words=' '.join(a[11] for a in textboxes())
    if 'Derivation index 1' not in words:raise RuntimeError('Second deterministic account did not have its own top tab page')

@@ -15,11 +15,13 @@ extern void gtk_label_set_line_wrap(void*,int);
 extern void gtk_label_set_selectable(void*,int);
 extern void gtk_label_set_max_width_chars(void*,int);
 extern void gtk_label_set_xalign(void*,float);
+extern void gtk_label_set_text(void*,const char*);
 extern void*gtk_scrolled_window_new(void*,void*);
 extern void gtk_scrolled_window_set_policy(void*,int,int);
 extern void gtk_container_add(void*,void*);
 extern void gtk_widget_set_size_request(void*,int,int);
 extern void gtk_box_pack_start(void*,void*,int,int,unsigned);
+extern GtkWidget *gtk_box_new(int,int);
 extern GtkWidget *gtk_entry_new(void);
 extern void gtk_entry_set_visibility(void*,int);
 extern void gtk_entry_set_max_length(void*,int);
@@ -44,6 +46,7 @@ extern int gdk_pixbuf_loader_write(void*,const unsigned char*,size_t,void*);
 extern int gdk_pixbuf_loader_close(void*,void*);
 extern void *gdk_pixbuf_loader_get_pixbuf(void*);
 extern GtkWidget *gtk_image_new_from_pixbuf(void*);
+extern void *gdk_pixbuf_scale_simple(void*,int,int,int);
 extern void g_object_unref(void*);
 extern void *gdk_atom_intern_static_string(const char*);
 extern void *gtk_clipboard_get(void*);
@@ -63,12 +66,21 @@ static void add_label(void*box,const char*s){void*l=gtk_label_new(s);gtk_label_s
 static void add_scroll(void*b,const char*s){void*w=gtk_scrolled_window_new(0,0);gtk_scrolled_window_set_policy(w,1,1);gtk_widget_set_size_request(w,600,240);void*l=gtk_label_new(s);gtk_label_set_line_wrap(l,1);gtk_label_set_max_width_chars(l,80);gtk_label_set_selectable(l,1);gtk_container_add(w,l);gtk_box_pack_start(b,w,1,1,6);}
 static void *new_dialog(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Cancel",-6,"Continue",-3,(char*)0);gtk_window_set_default_size(d,650,240);gtk_window_set_keep_above(d,1);return d;}
 static void *new_notice(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Close",-7,(char*)0);gtk_window_set_default_size(d,650,180);gtk_window_set_keep_above(d,1);return d;}
+// Positive response 1 performs an explicit public-address copy without closing
+// the verified receive window. Done retains the existing accepted-view result.
+static void *new_receive(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Cancel",-6,"Copy address",1,"Done",-3,(char*)0);gtk_window_set_default_size(d,650,680);gtk_window_set_keep_above(d,1);return d;}
+// Keep the action buttons outside this bounded viewport, including when
+// network-specific funding guidance needs additional vertical space.
+static void *receive_body(void*d){void*w=gtk_scrolled_window_new(0,0);gtk_scrolled_window_set_policy(w,1,1);gtk_widget_set_size_request(w,600,460);void*b=gtk_box_new(1,0);gtk_container_add(w,b);gtk_box_pack_start(gtk_dialog_get_content_area(d),w,1,1,0);return b;}
 static void *add_entry(void*b,const char*l){add_label(b,l);void*e=gtk_entry_new();gtk_entry_set_visibility(e,0);gtk_entry_set_input_purpose(e,8);gtk_entry_set_input_hints(e,1026);gtk_entry_set_max_length(e,4096);gtk_box_pack_start(b,e,0,0,8);return e;}
 static void finish(void*d){gtk_widget_destroy(d);while(gtk_events_pending())gtk_main_iteration();}
 // Backups never overwrite files. Let the signer report BACKUP_EXISTS instead
 // of presenting GTK's misleading "Replace" confirmation.
 static void *file_dialog(const char*t,int save){void*d=gtk_file_chooser_dialog_new(t,0,save?1:0,"Cancel",-6,save?"Save":"Open",-3,(char*)0);gtk_file_chooser_set_do_overwrite_confirmation(d,0);return d;}
 static int add_png(void*b,const unsigned char*p,size_t n){void*l=gdk_pixbuf_loader_new();if(!gdk_pixbuf_loader_write(l,p,n,0)||!gdk_pixbuf_loader_close(l,0)){g_object_unref(l);return 0;}void*i=gtk_image_new_from_pixbuf(gdk_pixbuf_loader_get_pixbuf(l));gtk_box_pack_start(b,i,0,0,6);g_object_unref(l);return 1;}
+// Nearest-neighbor rendering preserves crisp QR modules. Only the displayed
+// pixbuf changes; the original PNG remains untouched for saving/verification.
+static int add_receive_png(void*b,const unsigned char*p,size_t n){void*l=gdk_pixbuf_loader_new();if(!gdk_pixbuf_loader_write(l,p,n,0)||!gdk_pixbuf_loader_close(l,0)){g_object_unref(l);return 0;}void*scaled=gdk_pixbuf_scale_simple(gdk_pixbuf_loader_get_pixbuf(l),320,320,0);if(!scaled){g_object_unref(l);return 0;}void*i=gtk_image_new_from_pixbuf(scaled);gtk_box_pack_start(b,i,0,0,6);g_object_unref(scaled);g_object_unref(l);return 1;}
 */
 import "C"
 import (
@@ -160,6 +172,42 @@ func Notice(title, message string) {
 }
 func Confirm(title, summary string) bool             { return display(title, summary, nil) }
 func Receive(title, summary string, png []byte) bool { return display(title, summary, png) }
+
+// ReceiveAddress displays a signer-validated public address and its QR. The
+// address is supplied separately from the public summary, never parsed from it.
+// Copying requires the native Copy address button and does not close the view.
+func ReceiveAddress(title, summary, address string, png []byte) bool {
+	if address == "" || strings.ContainsRune(address, '\x00') || len(png) == 0 {
+		return false
+	}
+	t, s, a := cstr(title), cstr(summary), cstr(address)
+	defer C.free(unsafe.Pointer(t))
+	defer C.free(unsafe.Pointer(s))
+	defer C.free(unsafe.Pointer(a))
+	d := C.new_receive(t)
+	b := C.receive_body(d)
+	C.add_label(b, s)
+	if C.add_receive_png(b, (*C.uchar)(unsafe.Pointer(&png[0])), C.size_t(len(png))) == 0 {
+		C.finish(d)
+		return false
+	}
+	empty := cstr("")
+	status := C.gtk_label_new(empty)
+	C.free(unsafe.Pointer(empty))
+	C.gtk_box_pack_start(C.gtk_dialog_get_content_area(d), status, 0, 0, 6)
+	C.gtk_widget_show_all(d)
+	r := C.gtk_dialog_run(d)
+	for r == 1 {
+		C.public_copy(a)
+		copied := cstr("Address copied.")
+		C.gtk_label_set_text(status, copied)
+		C.free(unsafe.Pointer(copied))
+		r = C.gtk_dialog_run(d)
+	}
+	C.finish(d)
+	return r == -3
+}
+
 func display(title, summary string, png []byte) bool {
 	t := cstr(title)
 	defer C.free(unsafe.Pointer(t))
