@@ -5,10 +5,12 @@ No clipboard secret transport, remote endpoint, debug port, or bypass is used.
 This is not the clean Ubuntu/Wayland acceptance matrix.
 """
 import base64, ctypes as C, hashlib, importlib.util, json, os, pathlib, shutil, signal, subprocess, tempfile, time
+from PIL import Image, ImageOps
+from install import verify_binaries
 root=pathlib.Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
-report={'status':'NOT_RUN','scope':'Uninstrumented packaged X11 import, encrypted backup, restart and fresh-profile restore; synthetic public root only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
 password='public-synthetic-password-79326';phrase='abandon '*11+'about'
 owned=[];app=None;display=None;desktop=None;logs=[]
 def passed(name): report['steps'].append({'name':name,'status':'PASS'});print('PASS '+name,flush=True)
@@ -22,19 +24,36 @@ def until(fn,seconds=20):
 def capture():
  p=reports/'packaged-current.png';desktop.screenshot(p);return p
 def textboxes():
- raw=subprocess.check_output(['tesseract',str(capture()),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
+ # The public desktop uses light text on dark controls. Normalize its screenshot
+ # for OCR; native credential windows are never parsed by this helper.
+ picture=ImageOps.invert(Image.open(capture()).convert('L'))
+ picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<140 else 255)
+ ocr=reports/'packaged-public-ocr.png';picture.save(ocr)
+ raw=subprocess.check_output(['tesseract',str(ocr),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
  rows=[]
  for line in raw.splitlines()[1:]:
   a=line.split('\t')
-  if len(a)==12 and a[11].strip():rows.append(a)
+  if len(a)==12 and a[11].strip():
+   for column in range(6,10):a[column]=str(int(a[column])//2)
+   rows.append(a)
  return rows
 def clickword(word,maxx=2000):
- for _ in range(20):
+ for attempt in range(20):
   for a in textboxes():
    if a[11].lower().strip('.,:')==word.lower() and int(a[6])<maxx:
     desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+  desktop.focus(desktop.wait('LocalWallet')[0])
+  desktop.key('Home',ctrl=True) if attempt in (8,16) else desktop.key('Page_Down')
   time.sleep(.2)
  raise RuntimeError('Public UI control unavailable: '+word)
+def clickline(prefix):
+ # Match the public button wording rather than clicking the similar heading.
+ lines={}
+ for a in textboxes():lines.setdefault(tuple(a[1:5]),[]).append(a)
+ for words in lines.values():
+  if ' '.join(a[11] for a in words).lower().startswith(prefix.lower()):
+   a=words[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+ raise RuntimeError('Public UI button unavailable: '+prefix)
 def waitnative(prefix):
  w,_=desktop.wait(prefix,25);desktop.focus(w);return desktop.geometry(w)
 def stopapp():
@@ -49,6 +68,10 @@ def launch(profile,env):
  env={**env,'XDG_CONFIG_HOME':str(profile)}
  log=tempfile.TemporaryFile(mode='w+');logs.append(log)
  launcher=root/'wallet' if (root/'wallet').exists() else root/'dist/LocalWallet-linux-x64/wallet-launcher'
+ runtime=launcher.resolve().parent
+ identity={'version':subprocess.check_output([str(launcher),'--version'],env=env,text=True,timeout=10).strip(),'binaryManifest':verify_binaries(runtime),'asarSHA256':hashlib.sha256((runtime/'resources/app.asar').read_bytes()).hexdigest()}
+ if 'artifact' in report and report['artifact']!=identity:raise RuntimeError('Portable runtime changed between recovery steps')
+ report['artifact']=identity
  app=subprocess.Popen([str(launcher),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
  desktop.wait('LocalWallet',20);time.sleep(1)
 def clip():
@@ -82,7 +105,27 @@ try:
   home=folder/'home';home.mkdir(mode=0o700);env['HOME']=str(home)
   os.environ['HOME']=str(home)
   for key in ['WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS']:os.environ.pop(key,None)
-  launch(profile,env);clickword('Import',350);x,y,w,h=waitnative('Create local wallet')
+  generated=folder/'generated';launch(generated,env)
+  if any(t.startswith(('Create local wallet','Unlock local wallet')) for _,t in desktop.windows()):raise RuntimeError('First launch opened a credential window without a user action')
+  desktop.screenshot(reports/'packaged-first-run.png')
+  clickline('Create app password');waitnative('Create local wallet')
+  desktop.inputs('Create local wallet',[password,password]);desktop.accept('Create local wallet')
+  until(lambda:(generated/'localwallet/testnet/vault.lwv').exists());time.sleep(2)
+  words=' '.join(a[11] for a in textboxes())
+  if 'Main account' not in words or 'Testnet profile' not in words:raise RuntimeError('Generated wallet did not show Main account and its testnet identity')
+  desktop.screenshot(reports/'packaged-generated-main-account.png')
+  generated_address=publicaddress()
+  if generated_address== '0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused the fixed import fixture')
+  passed('Explicit first-run password-only generation and Main account overview without phrase reveal')
+  generated_backup=backupdir/'generated.lwv'
+  clickword('backup',350);filechoice('Save encrypted portable backup',generated_backup)
+  until(lambda:generated_backup.exists());time.sleep(2);stopapp()
+  launch(folder/'generated-restored',env);clickword('Other',350);clickword('Restore',350);filechoice('Open encrypted backup',generated_backup)
+  waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup');time.sleep(3)
+  if publicaddress()!=generated_address:raise RuntimeError('Generated root did not survive encrypted backup restore')
+  passed('Password-only generated root restored from verified encrypted backup into an empty profile')
+  stopapp()
+  launch(profile,env);clickword('Other',350);clickword('Import',350);x,y,w,h=waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,phrase,''])
   desktop.screenshot(reports/'packaged-native-masked.png');desktop.accept('Create local wallet')
   waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits')
@@ -97,7 +140,7 @@ try:
   clickword('Unlock',350);x,y,w,h=waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Restart public address differs')
   passed('Restart requires native unlock and preserves deterministic address')
-  stopapp();fresh=folder/'fresh';launch(fresh,env);clickword('Restore',350);filechoice('Open encrypted backup',backup)
+  stopapp();fresh=folder/'fresh';launch(fresh,env);clickword('Other',350);clickword('Restore',350);filechoice('Open encrypted backup',backup)
   x,y,w,h=waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup')
   until(lambda:(fresh/'localwallet/testnet/vault.lwv').exists());time.sleep(3)
   if publicaddress()!=expected:raise RuntimeError('Fresh-profile public address differs')
@@ -121,6 +164,8 @@ try:
  report['status']='PASS'
 except Exception as error:
  report.update(status='FAIL',reason=str(error));print(str(error),flush=True)
+ if app is not None:
+  report['directChildProcesses']=subprocess.run(['ps','-o','pid,ppid,pgid,stat,comm','--ppid',str(app.pid)],text=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout
  if desktop:
   desktop.screenshot(reports/'packaged-failure.png');print(desktop.windows(),flush=True)
 finally:

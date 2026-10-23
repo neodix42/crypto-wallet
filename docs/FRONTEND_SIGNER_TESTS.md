@@ -6,12 +6,16 @@ The desktop exposes fixed public operations, a read-only `getVersion()` and a va
 
 Hidden accounts retain their original derivation indices and can be shown and unhidden. Explicit inclusive recovery ranges reconstruct at most twenty groups through the signer. Decred's block budget is visible and strictly bounded at two million. Editing a preview does not silently drop its durable reservation: a PREPARED journal row offers explicit cancellation of that original unsigned identity. Signed, awaiting-confirmation and submitted identities have no such cancellation control.
 
+The first screen uses the signer's explicit vault state. Only confirmed `missing` storage with `walletExists:false` offers creation/restoration; `present` offers unlock, and `unavailable` offers a storage retry. No credential dialog opens automatically. The explicit Create app password action sends `{words:12}` to the native signer and suppresses duplicate credential requests while it is pending. The renderer never receives the generated root or password. After success, every returned network descriptor appears under Main account at index zero. The current actual registry contributes twelve testnet/local-network wallets and fourteen asset identities. A generated public DTO fixture binds that list to the registry sources; its account addresses are synthetic renderer fixtures, not native derivation evidence. The Testnet profile label remains visible independently of the compact release-status link. Backup guidance requires the encrypted backup and its password; it does not offer a phrase reveal or password reset.
+
 | Check | Status | Evidence and scope |
 | --- | --- | --- |
-| All shipped JavaScript included in coverage | PASS | `python3 scripts/frontend-coverage.py`; 30 tests, zero skips; main, preload, validation, codec and renderer each 100% statements and 100% measured V8 branches |
+| All shipped JavaScript included in coverage | PASS | `python3 scripts/frontend-coverage.py`; 35 tests, zero skips; main, preload, validation, codec and renderer each 100% statements and 100% measured V8 branches |
 | Mandatory frontend floors | PASS | Main/preload/schema/codec remain at 95% statements and 90% branches; renderer remains at 90%/85%; no shipped file exclusions or reduced floors |
 | Hostile renderer and framed streams | PASS | Actual compiled sources in VM; faithful Electron API doubles; actual Node streams; sender/main-frame/origin binding, duplicate and escaped JSON members, replay, wrong method/session/ID, fragmented/coalesced/truncated frames, bounded buffers, permissions, navigation and lifecycle |
 | Actual renderer behavior | PASS | Actual HTML/JavaScript in jsdom; text-only hostile metadata, exact decimal strings, public receive/QR controls, hide/show/range controls, cancellation, lock clearing and delayed-reply rejection |
+| First-launch and existing-vault UI | PASS | Actual renderer in jsdom; missing/present/unavailable and inconsistent snapshots, explicit one-request native creation boundary, all twelve registry wallet cards/fourteen asset identities, index-zero Main account, native cancellation, backup guidance and lock clearing |
+| New generated-wallet onboarding in installed Electron | NOT_RUN by this suite | The jsdom public RPC boundary uses synthetic account descriptors; separate actual packaged/native acceptance must establish password entry, generation and backup with the production signer |
 | Signer command and real engine integration | PASS | `go test -race ./cmd/wallet-signer -count=1 -timeout=90s -coverprofile=/tmp/wallet-signer-main-race.cover`; Recorded 98.6% Go statement coverage; dispatch, response and bounded idle serve loop each 100%; final source-bound aggregate coverage is generated separately after version/transport changes |
 | Real signing and encrypted recovery | PASS | Actual encrypted `vault.Files`, authenticated backup/reopen/restore, password rotation, expected environment, native approval test UI, actual EIP-1559 bytes and independent sender recovery; signed identity is persisted before returning and retained across unknown-state recovery |
 | Native response activity | PASS | Actual GTK dialogs and public XTest key events on an owned private Xvfb display; activity contains only `{}` with the current request ID/session; broken-pipe suppression and callback removal after final reply, error and panic |
@@ -28,6 +32,7 @@ Reproduce from the repository root:
 npm --prefix desktop run check
 node --check desktop/ui/renderer.js
 python3 scripts/frontend-coverage.py
+./scripts/with-go.sh python3 desktop/tests/generate-registry-fixture.py # only after a reviewed registry change
 go test -race ./cmd/wallet-signer -count=1 -timeout=90s -coverprofile=/tmp/wallet-signer-main-race.cover
 go tool cover -func=/tmp/wallet-signer-main-race.cover
 go vet ./cmd/wallet-signer

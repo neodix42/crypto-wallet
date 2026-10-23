@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -22,6 +23,7 @@ type Child struct {
 	mu                      sync.Mutex
 	life                    sync.Mutex
 	cmd                     *exec.Cmd
+	owner                   *processOwner
 	channel                 *ipc.Channel
 	session                 string
 	counter                 uint64
@@ -30,6 +32,42 @@ type Child struct {
 	// OnActivity receives native key/button activity during an active request.
 	// Set it before the first Call. It receives no credential or event values.
 	OnActivity func()
+}
+
+type processOwner struct {
+	stop chan struct{}
+	done chan struct{}
+}
+
+// Linux Pdeathsig belongs to the creating OS thread. Keep that thread alive
+// until the child has been killed and reaped, even if the calling Go worker
+// migrates or ends. A short LockOSThread around Start would not provide this.
+func startOwned(cmd *exec.Cmd) (*processOwner, error) {
+	owner := &processOwner{stop: make(chan struct{}), done: make(chan struct{})}
+	started := make(chan error, 1)
+	go func() {
+		runtime.LockOSThread()
+		defer close(owner.done)
+		defer runtime.UnlockOSThread()
+		if err := cmd.Start(); err != nil {
+			started <- err
+			return
+		}
+		started <- nil
+		<-owner.stop
+		_ = cmd.Wait()
+	}()
+	if err := <-started; err != nil {
+		<-owner.done
+		return nil, err
+	}
+	return owner, nil
+}
+
+func (owner *processOwner) kill(cmd *exec.Cmd) {
+	_ = cmd.Process.Kill()
+	close(owner.stop)
+	<-owner.done
 }
 
 func Verify(path string) error {
@@ -80,18 +118,23 @@ func (c *Child) start() error {
 	}
 	w, e := cmd.StdinPipe()
 	if e != nil {
+		r.Close()
 		return e
 	}
 	cmd.Stderr = io.Discard
-	if e = cmd.Start(); e != nil {
+	owner, e := startOwned(cmd)
+	if e != nil {
+		r.Close()
+		w.Close()
 		return e
 	}
 	var b [16]byte
 	if _, e = rand.Read(b[:]); e != nil {
-		cmd.Process.Kill()
+		owner.kill(cmd)
 		return e
 	}
 	c.cmd = cmd
+	c.owner = owner
 	c.channel = &ipc.Channel{R: r, W: w}
 	c.session = hex.EncodeToString(b[:])
 	return nil
@@ -191,9 +234,9 @@ func (c *Child) Kill() {
 	c.generation++
 	if c.cmd != nil {
 		cmd := c.cmd
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		c.owner.kill(cmd)
 		c.cmd = nil
+		c.owner = nil
 		c.channel = nil
 		c.session = ""
 	}

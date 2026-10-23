@@ -1,0 +1,43 @@
+{
+  "status": "FAIL",
+  "scope": "Uninstrumented portable X11 password-only generation, import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
+  "steps": [
+    {
+      "name": "Explicit first-run password-only generation and Main account overview without phrase reveal",
+      "status": "PASS"
+    },
+    {
+      "name": "Password-only generated root restored from verified encrypted backup into an empty profile",
+      "status": "PASS"
+    },
+    {
+      "name": "Native input-only BIP39 import with production KDF",
+      "status": "PASS"
+    },
+    {
+      "name": "Go-owned verified receive QR and exact independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Native encrypted portable backup creation and reopen verification",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "clean Ubuntu24.04 desktop",
+    "Wayland",
+    "OS suspend/session lock",
+    "send from installed package",
+    "upgrade/uninstall recovery matrix"
+  ],
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "59455b6e39ed11c5c71746836d4d945e5ae52a8db5d29686cf227e6738b58034",
+      "wallet-launcher": "400beb0ec7b879ab40330dea348e90e8d65362191d6afe55ea1d8d232bbb516a",
+      "wallet-signer": "ed396c9a92c9023a40b69c0efeb2df9886bdd387bcef10761fdd00177937b213"
+    },
+    "asarSHA256": "d1a3ea7953db44fb586cd0b54a231e15a34b781ee245f51b43f8b685a4c36c21"
+  },
+  "reason": "Public UI control unavailable: Unlock"
+}

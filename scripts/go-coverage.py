@@ -196,7 +196,11 @@ def main():
         report["sourceCommit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
         if go_exit or native.returncode:
             raise RuntimeError("A Go/native suite failed; do not reuse old coverage as evidence")
-        profile = merge_profiles([reports / "go-base.cover", reports / "native-input.cover"])
+        # Retain the exact input to this measurement: a later standalone native
+        # security run rewrites native-input.cover with different counters.
+        native_profile = reports / "go-native.cover"
+        shutil.copyfile(reports / "native-input.cover", native_profile)
+        profile = merge_profiles([reports / "go-base.cover", native_profile])
         uncovered_blocks(profile)
         subprocess.run(["go", "tool", "cover", "-html=" + str(profile), "-o", str(reports / "go.html")], cwd=root, check=True)
         floor = subprocess.run(["python3", "scripts/coverage.py", str(profile)], cwd=root)

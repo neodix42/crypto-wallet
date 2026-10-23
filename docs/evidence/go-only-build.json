@@ -1,0 +1,17 @@
+{
+  "runtimeVersionsWithoutCacheOrToolchain": {
+    "wallet-core": "0.1.0",
+    "wallet-signer": "0.1.0",
+    "wallet-launcher": "0.1.0"
+  },
+  "status": "PASS",
+  "command": [
+    "make",
+    "package-go"
+  ],
+  "exit": 0,
+  "forbiddenToolsInvoked": [],
+  "debianArtifactsUnchanged": true,
+  "seconds": 7.729,
+  "scope": "Actual compiled Go executables/archive; frontend and blockchain tests are separate"
+}

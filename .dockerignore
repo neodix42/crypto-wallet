@@ -5,6 +5,9 @@
 desktop/app
 bin
 reports
-dist/LocalWallet-linux-x64
+wallet-runtime
+wallet
+dist/*.tar.gz
+dist/*.deb
 dist/deb
 dist/go-modules.json

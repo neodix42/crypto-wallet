@@ -1,0 +1,57 @@
+{
+  "scope": "Isolated actual Linux Pdeathsig and Go exec lifecycle, /bin/cat public challenge only; not a wallet/native acceptance test",
+  "cases": [
+    {
+      "mode": "other",
+      "exit": 42,
+      "stdout": "same=false creatorTID=146754 execTID=146750 childPID=146757\nCHILD_DIED_AFTER_EXEC write child-input: broken pipe\n"
+    },
+    {
+      "mode": "other",
+      "exit": 42,
+      "stdout": "same=false creatorTID=146765 execTID=146762 childPID=146769\nCHILD_DIED_AFTER_EXEC write child-input: broken pipe\n"
+    },
+    {
+      "mode": "other",
+      "exit": 42,
+      "stdout": "same=false creatorTID=146778 execTID=146775 childPID=146782\nCHILD_DIED_AFTER_EXEC write child-input: broken pipe\n"
+    },
+    {
+      "mode": "same",
+      "exit": 0,
+      "stdout": "same=true creatorTID=146787 execTID=146787 childPID=146794\nCHILD_SURVIVED_EXEC\n"
+    },
+    {
+      "mode": "same",
+      "exit": 0,
+      "stdout": "same=true creatorTID=146799 execTID=146799 childPID=146806\nCHILD_SURVIVED_EXEC\n"
+    },
+    {
+      "mode": "same",
+      "exit": 0,
+      "stdout": "same=true creatorTID=146811 execTID=146811 childPID=146818\nCHILD_SURVIVED_EXEC\n"
+    }
+  ],
+  "status": "PASS",
+  "sourceSHA256": {
+    "cmd/wallet-launcher/main.go": "aae182b859344867a6d910fb91cf155915151391ae227f1f4ab4dd900e9de4f5",
+    "cmd/wallet-launcher/main_test.go": "a0ad3912a0378bd1524fe35cf93c0e1678a2359b6de45d20f62e62246551edba",
+    "cmd/wallet-launcher/pdeath_test.go": "3e0325c5d8613e8c286cebee3e24b9494947eca71b0b2cf40f5b37ce4955deff"
+  },
+  "productionFix": "runtime.LockOSThread pins run before prepareLaunch/child.Start through syscall.Exec; failure returns unlock via defer. Pdeathsig SIGKILL remains enabled.",
+  "kernelEvidence": "Pinned Go1.27.3 syscall/exec_linux.go lines92-95 documents Linux Pdeathsig following the creating thread, which may terminate before its process.",
+  "deterministicRegression": {
+    "command": "./scripts/with-go.sh go test -count=1 -timeout=90s -race ./cmd/wallet-launcher",
+    "status": "PASS",
+    "seconds": 51.156,
+    "productionExecInheritanceAttempts": 32,
+    "kernelSameThreadCases": 3,
+    "kernelDifferentThreadCases": 3,
+    "publicFixtureOnly": true
+  },
+  "incidentAttribution": "Kernel mechanism confirmed and former unpinned code exposed to it; no thread trace was captured from the intermittent packaged restart, so that particular incident attribution remains unproven.",
+  "packagedNativeAcceptance": {
+    "status": "NOT_RUN by this helper",
+    "scope": "Parent owns separately artifact-bound packaged/native repeat and recovery runs; this report is process/thread lifetime evidence only."
+  }
+}

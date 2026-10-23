@@ -36,6 +36,8 @@ import (
 
 type snapshot struct {
 	Locked         bool                `json:"locked"`
+	WalletExists   bool                `json:"walletExists"`
+	VaultState     string              `json:"vaultState"`
 	Environment    string              `json:"environment"`
 	BackupVerified bool                `json:"backupVerified"`
 	Accounts       []model.Account     `json:"accounts"`

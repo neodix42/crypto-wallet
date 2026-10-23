@@ -55,7 +55,7 @@ while True:
  state.setdefault('calls',[]).append(method)
  output=None
  if method in state.get('reject',[]):error='SYNTHETIC_DENIED'
- elif method in ['snapshot','accounts','status']:output={'locked':state.get('locked',False),'environment':'testnet','accounts':state.get('accounts',[]),'operations':state.get('ops',[]),'backupVerified':True}
+ elif method in ['snapshot','accounts','status']:output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':state.get('accounts',[]),'operations':state.get('ops',[]),'backupVerified':True}
  elif method=='pending':output=state.get('ops',[])
  elif method=='settings':output=state.get('settings',{})
  elif method=='prepare':

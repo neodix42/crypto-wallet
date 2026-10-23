@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "scope": "Public network DTOs from chains.All().Networks(), filtered Testnet; no account seed, native UI, RPC or transaction operation.",
+  "sourceSHA256": {
+    "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
+    "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
+    "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
+    "internal/chains/near/near.go": "ea66cf20a6545a625d8cdc531c128c2ad1f59f829ecc088f3440c5d396c3bb2b",
+    "internal/chains/aptos/aptos.go": "1ec117b7e22ade103df48f2065d31e8e12591dd6ce5f3d22cd86a88510e36a39",
+    "internal/chains/decred/decred.go": "dfddadc5329088e92730f0969ba33588328a8b92641ee1791f4691962778e094",
+    "internal/chains/ton/ton.go": "4d737b7ce887f1b315d8b2bd79739a72ce81481f209e4e8aa0b8057eaa774f18"
+  },
+  "networks": [
+    {
+      "id": "ethereum-sepolia",
+      "family": "evm",
+      "name": "Ethereum Sepolia",
+      "testnet": true,
+      "chainId": "11155111",
+      "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+      "assets": [
+        {
+          "id": "ethereum-sepolia:native",
+          "symbol": "ETH",
+          "decimals": 18
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "hyperevm-testnet",
+      "family": "evm",
+      "name": "HyperEVM Testnet",
+      "testnet": true,
+      "chainId": "998",
+      "rpc": "https://rpc.hyperliquid-testnet.xyz/evm",
+      "assets": [
+        {
+          "id": "hyperevm-testnet:native",
+          "symbol": "HYPE",
+          "decimals": 18
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "base-sepolia",
+      "family": "evm",
+      "name": "Base Sepolia",
+      "testnet": true,
+      "chainId": "84532",
+      "rpc": "https://sepolia.base.org",
+      "assets": [
+        {
+          "id": "base-sepolia:native",
+          "symbol": "ETH",
+          "decimals": 18
+        },
+        {
+          "id": "base-sepolia:erc20:0x107fdE93838e3404934877935993782F977324BB",
+          "symbol": "ZEN",
+          "decimals": 18,
+          "contract": "0x107fdE93838e3404934877935993782F977324BB"
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "horizen-testnet",
+      "family": "evm",
+      "name": "Horizen Testnet",
+      "testnet": true,
+      "chainId": "2651420",
+      "rpc": "https://horizen-testnet.rpc.caldera.xyz/http",
+      "assets": [
+        {
+          "id": "horizen-testnet:native",
+          "symbol": "ETH",
+          "decimals": 18
+        },
+        {
+          "id": "horizen-testnet:erc20:0xb06EC4ce262D8dbDc24Fac87479A49A7DC4cFb87",
+          "symbol": "ZEN",
+          "decimals": 18,
+          "contract": "0xb06EC4ce262D8dbDc24Fac87479A49A7DC4cFb87"
+        }
+      ],
+      "trust": "TLS RPC provider; chain ID checked, not a consensus proof"
+    },
+    {
+      "id": "hypercore-testnet",
+      "family": "hypercore",
+      "name": "HyperCore Testnet spot",
+      "testnet": true,
+      "chainId": "HyperCore Testnet",
+      "rpc": "https://api.hyperliquid-testnet.xyz",
+      "assets": [
+        {
+          "id": "hypercore-testnet:HYPE:0x7317beb7cceed72ef0b346074cc8e7ab",
+          "symbol": "HYPE",
+          "decimals": 8,
+          "contract": "HYPE:0x7317beb7cceed72ef0b346074cc8e7ab"
+        }
+      ],
+      "trust": "official TLS API and explorer; HYPE token identity checked; not a consensus proof"
+    },
+    {
+      "id": "near-testnet",
+      "family": "near",
+      "name": "NEAR testnet",
+      "testnet": true,
+      "chainId": "testnet",
+      "rpc": "https://rpc.testnet.near.org",
+      "assets": [
+        {
+          "id": "near-testnet:native",
+          "symbol": "NEAR",
+          "decimals": 24
+        }
+      ],
+      "trust": "TLS RPC; provider assertion, not verified consensus"
+    },
+    {
+      "id": "near-localnet",
+      "family": "near",
+      "name": "NEAR localnet",
+      "testnet": true,
+      "chainId": "localnet",
+      "rpc": "http://127.0.0.1:3030",
+      "assets": [
+        {
+          "id": "near-localnet:native",
+          "symbol": "NEAR",
+          "decimals": 24
+        }
+      ],
+      "trust": "TLS RPC; provider assertion, not verified consensus"
+    },
+    {
+      "id": "aptos-testnet",
+      "family": "aptos",
+      "name": "Aptos testnet",
+      "testnet": true,
+      "chainId": "2",
+      "rpc": "https://fullnode.testnet.aptoslabs.com/v1",
+      "assets": [
+        {
+          "id": "aptos-testnet:native",
+          "symbol": "APT",
+          "decimals": 8
+        }
+      ],
+      "trust": "TLS RPC; provider assertion, not verified consensus"
+    },
+    {
+      "id": "aptos-localnet",
+      "family": "aptos",
+      "name": "Aptos localnet",
+      "testnet": true,
+      "chainId": "4",
+      "rpc": "http://127.0.0.1:8080/v1",
+      "assets": [
+        {
+          "id": "aptos-localnet:native",
+          "symbol": "APT",
+          "decimals": 8
+        }
+      ],
+      "trust": "TLS RPC; provider assertion, not verified consensus"
+    },
+    {
+      "id": "decred-testnet3",
+      "family": "decred",
+      "name": "testnet3",
+      "testnet": true,
+      "chainId": "a649dce53918caf422e9c711c858837e08d626ecfcd198969b24f7b634a49bac",
+      "rpc": "",
+      "assets": [
+        {
+          "id": "decred-testnet3:DCR",
+          "symbol": "DCR",
+          "decimals": 8
+        }
+      ],
+      "trust": "Authenticated trusted dcrd; bounded full-block scan; no SPV proof claim"
+    },
+    {
+      "id": "decred-simnet",
+      "family": "decred",
+      "name": "simnet",
+      "testnet": true,
+      "chainId": "6bef82c645999585f7255cb02672921ac2f5492820090cd635fe3a59d16b4f87",
+      "rpc": "",
+      "assets": [
+        {
+          "id": "decred-simnet:DCR",
+          "symbol": "DCR",
+          "decimals": 8
+        }
+      ],
+      "trust": "Authenticated trusted dcrd; bounded full-block scan; no SPV proof claim"
+    },
+    {
+      "id": "ton-testnet",
+      "family": "ton",
+      "name": "ton-testnet",
+      "testnet": true,
+      "chainId": "-3",
+      "rpc": "https://testnet.toncenter.com/api/v2/jsonRPC",
+      "assets": [
+        {
+          "id": "ton-testnet:TON",
+          "symbol": "TON",
+          "decimals": 9
+        }
+      ],
+      "trust": "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"
+    }
+  ]
+}

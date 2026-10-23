@@ -3,7 +3,7 @@
 
 No wallet binary, dependency downloader, remote publisher or real profile is run.
 The ASAR fixture reader is a test double; package acceptance tests exercise the
-actual Electron archive separately. Git, cc and dpkg-deb operate in temp dirs.
+actual Electron archive separately. Git, cc and portable archives operate in temp dirs.
 """
 import contextlib
 import hashlib
@@ -46,7 +46,7 @@ def digest(path):
 class BuildTools(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        for command in ('cc', 'git', 'dpkg-deb'):
+        for command in ('cc', 'git'):
             if not shutil.which(command):
                 raise RuntimeError('BLOCKED: fixture prerequisite unavailable: ' + command)
         cls.fixtures = tempfile.TemporaryDirectory(prefix='wallet-build-tool-elf-')
@@ -107,24 +107,63 @@ class BuildTools(unittest.TestCase):
         source = self.root / 'bin'
         shutil.copytree(app / 'resources/bin', source)
         (self.root / 'VERSION').write_text(metadata + '\n')
-        stage = self.root / 'deb-stage'
-        (stage / 'DEBIAN').mkdir(parents=True)
-        (stage / 'DEBIAN/control').write_text('Package: localwallet-development\nVersion: ' + metadata + '\nArchitecture: amd64\nMaintainer: Public Test <fixture@example.invalid>\nDescription: public fixture\n')
-        shutil.copytree(app, stage / 'opt/localwallet')
-        deb = self.root / 'dist' / f'localwallet-development_{metadata}_amd64.deb'
-        subprocess.run(['dpkg-deb', '--root-owner-group', '--build', str(stage), str(deb)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         portable = self.root / 'dist' / f'localwallet-{metadata}-linux-amd64.tar.gz'
         with tarfile.open(portable, 'w:gz') as archive:
             archive.add(app, arcname='LocalWallet-linux-x64')
-        manifest = {'version': metadata, 'package': deb.name, 'sha256': digest(deb), 'binaryManifest': json.loads((source / 'manifest.json').read_text()), 'portable': {'file': portable.name, 'sha256': digest(portable)}}
+        manifest = {'format': 'portable-desktop-v1', 'version': metadata, 'binaryManifest': json.loads((source / 'manifest.json').read_text()), 'portable': {'file': portable.name, 'sha256': digest(portable)}}
         (self.root / 'dist/build-manifest.json').write_text(json.dumps(manifest))
         return app, manifest
 
     def verify(self):
-        # Only the tiny fixture ASAR reader is substituted. Debian metadata,
+        # Only the tiny fixture ASAR reader is substituted. Portable payloads,
         # artifact hashes and all seven actual ELF --version calls are real.
         with mock.patch.object(verifier, '_electron_version', lambda _base, app: json.loads((app / 'resources/app.asar').read_text())['version']), contextlib.redirect_stdout(io.StringIO()):
             verifier.verify_version(self.root)
+
+    def go_project(self, value='0.1.1', packaged=False, binaries=None):
+        source = self.root / 'bin'
+        source.mkdir()
+        for name in verifier._COMPONENTS:
+            shutil.copy2(self.elf[binaries or value], source / name)
+        hashes = {name: digest(source / name) for name in verifier._COMPONENTS}
+        (source / 'manifest.json').write_text(json.dumps(hashes))
+        manifest = {'schemaVersion': 1, 'kind': 'go-components', 'version': value, 'status': 'DEVELOPMENT_UNSIGNED', 'source': 'a' * 40, 'dirty': False, 'go': 'go version fixture', 'platform': 'linux-amd64', 'binaryManifest': hashes}
+        (source / 'go-build-manifest.json').write_text(json.dumps(manifest))
+        (self.root / 'VERSION').write_text(value + '\n')
+        if packaged:
+            dist = self.root / 'dist'
+            dist.mkdir()
+            folder = self.root / f'localwallet-go-{value}-linux-amd64'
+            shutil.copytree(source, folder)
+            (folder / 'README.md').write_text('Public component fixture; not a standalone desktop wallet.')
+            artifact = dist / (folder.name + '.tar.gz')
+            with tarfile.open(artifact, 'w:gz') as archive:
+                archive.add(folder, arcname=folder.name)
+            manifest['archive'] = {'file': artifact.name, 'sha256': digest(artifact)}
+            for name in (*verifier._COMPONENTS, 'manifest.json'):
+                shutil.copy2(source / name, dist / name)
+            (dist / 'go-build-manifest.json').write_text(json.dumps(manifest))
+            (source / 'go-build-manifest.json').write_text(json.dumps(manifest))
+        return source, manifest
+
+    def verify_go(self):
+        # Actual version subprocesses and archive reads run, without Node,
+        # Electron metadata readers or any native wallet initialization.
+        with mock.patch.object(verifier, '_electron_version', side_effect=AssertionError('Go-only must not read Electron')), contextlib.redirect_stdout(io.StringIO()):
+            verifier.verify_go_only(self.root)
+
+    def rewrite_go_archive(self, manifest, transform):
+        path = self.root / 'dist' / manifest['archive']['file']
+        with tarfile.open(path, 'r:gz') as archive:
+            entries = [(member, archive.extractfile(member).read() if member.isfile() else None) for member in archive]
+        with tarfile.open(path, 'w:gz') as archive:
+            for member, content in transform(entries):
+                if content is not None:
+                    member.size = len(content)
+                archive.addfile(member, io.BytesIO(content) if content is not None else None)
+        manifest['archive']['sha256'] = digest(path)
+        for folder in ('bin', 'dist'):
+            (self.root / folder / 'go-build-manifest.json').write_text(json.dumps(manifest))
 
     def test_numeric_semver_maximum_is_not_lexical(self):
         self.assertEqual(next_release.next_version('0.1.0', ['v1.9.99', 'v1.10.2', 'v1.2.999', 'v0.99.999']), '1.10.3')
@@ -335,26 +374,122 @@ class BuildTools(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'manifest mismatch'):
             self.verify()
 
-    def test_tampered_debian_and_portable_artifacts_fail_closed(self):
-        _, manifest = self.project()
-        deb = self.root / 'dist' / manifest['package']
-        original = deb.read_bytes()
-        deb.write_bytes(original + b'public tampering')
-        with self.assertRaisesRegex(RuntimeError, 'Debian artifact hash differs'):
-            self.verify()
-        deb.write_bytes(original)
+    def test_portable_artifact_identity_and_payload_fail_closed(self):
+        app, manifest = self.project()
         portable = self.root / 'dist' / manifest['portable']['file']
-        portable.write_bytes(portable.read_bytes() + b'public tampering')
+        original = portable.read_bytes()
+        portable.write_bytes(original + b'public tampering')
         with self.assertRaisesRegex(RuntimeError, 'Portable artifact identity differs'):
             self.verify()
+        portable.write_bytes(original)
+        # A self-consistent archive digest must still bind the actual runtime.
+        (app / 'LocalWallet').write_bytes(b'PUBLIC wrong archived Electron runtime')
+        with tarfile.open(portable, 'w:gz') as archive:
+            archive.add(app, arcname='LocalWallet-linux-x64')
+        shutil.copy2(self.elf['0.1.1'], app / 'LocalWallet')
+        manifest['portable']['sha256'] = digest(portable)
+        (self.root / 'dist/build-manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(RuntimeError, 'Portable runtime payload differs'):
+            self.verify()
+
+    def test_go_only_build_has_actual_exact_versions_without_desktop_dependencies(self):
+        self.go_project()
+        self.verify_go()
+        self.assertFalse((self.root / 'dist').exists())
+        self.assertFalse((self.root / 'desktop').exists())
+
+    def test_go_only_archive_raw_payload_and_base_manifests_agree(self):
+        self.go_project(packaged=True)
+        self.verify_go()
+
+    def test_go_only_rejects_runtime_version_prefix_despite_consistent_hashes(self):
+        self.go_project(binaries='0.1.10')
+        with self.assertRaisesRegex(RuntimeError, 'Go runtime version differs'):
+            self.verify_go()
+
+    def test_go_only_rejects_source_tampering_before_running_binary(self):
+        source, _ = self.go_project()
+        (source / 'wallet-core').write_bytes(b'PUBLIC broken ELF')
+        with mock.patch.object(verifier.subprocess, 'check_output', side_effect=AssertionError('tampered bytes must not run')), self.assertRaisesRegex(RuntimeError, 'binary hash differs'):
+            self.verify_go()
+
+    def test_go_only_archive_hash_mismatch_and_distributed_payload_mismatch_fail(self):
+        _, manifest = self.go_project(packaged=True)
+        path = self.root / 'dist' / manifest['archive']['file']
+        original = path.read_bytes()
+        path.write_bytes(original + b'public tampering')
+        with self.assertRaisesRegex(RuntimeError, 'archive identity differs'):
+            self.verify_go()
+        path.write_bytes(original)
+        shutil.copy2(self.elf['0.1.10'], self.root / 'dist/wallet-signer')
+        with self.assertRaisesRegex(RuntimeError, 'Distributed Go binary hash differs'):
+            self.verify_go()
+
+    def test_go_only_self_consistent_archive_hash_cannot_hide_stale_binary(self):
+        _, manifest = self.go_project(packaged=True)
+        def stale(entries):
+            return [(member, self.elf['0.1.0'].read_bytes() if member.name.endswith('/wallet-core') else content) for member, content in entries]
+        self.rewrite_go_archive(manifest, stale)
+        with self.assertRaisesRegex(RuntimeError, 'Archived Go payload (size )?differs'):
+            self.verify_go()
+
+    def test_go_only_archive_rejects_traversal_duplicate_links_and_metadata_substitution(self):
+        _, manifest = self.go_project(packaged=True)
+        path = self.root / 'dist' / manifest['archive']['file']
+        original = path.read_bytes()
+        def restore():
+            path.write_bytes(original)
+        def traversal(entries):
+            item = tarfile.TarInfo('../PUBLIC-must-not-extract')
+            return entries + [(item, b'public fixture')]
+        def duplicate(entries):
+            return entries + [next(entry for entry in entries if entry[0].name.endswith('/wallet-core'))]
+        def link(entries):
+            for member, content in entries:
+                if member.name.endswith('/wallet-core'):
+                    member.type, member.linkname, content = tarfile.SYMTYPE, '/external/public', None
+                yield member, content
+        def metadata(entries):
+            return [(member, b'{"schemaVersion":1}' if member.name.endswith('/go-build-manifest.json') else content) for member, content in entries]
+        for change, reason in ((traversal, 'Unsafe Go archive path'), (duplicate, 'ambiguous Go archive'), (link, 'ambiguous Go archive'), (metadata, 'Archived Go build identity differs')):
+            with self.subTest(case=change.__name__):
+                restore()
+                self.rewrite_go_archive(manifest, change)
+                with self.assertRaisesRegex(RuntimeError, reason):
+                    self.verify_go()
+        self.assertFalse((self.root.parent / 'PUBLIC-must-not-extract').exists())
+
+    def test_go_only_manifest_schema_duplicates_and_archive_path_fail_closed(self):
+        source, manifest = self.go_project()
+        filename = source / 'go-build-manifest.json'
+        for value in ([], {**manifest, 'schemaVersion': True}, {**manifest, 'status': 'PRODUCTION'}, {**manifest, 'version': '0.1.10'}, {**manifest, 'archive': {'file': '../public', 'sha256': '0' * 64}}):
+            filename.write_text(json.dumps(value))
+            with self.subTest(value=value), self.assertRaises(RuntimeError):
+                self.verify_go()
+        filename.write_text(json.dumps(manifest)[:-1] + ',"version":"0.1.1"}')
+        with self.assertRaisesRegex(RuntimeError, 'Duplicate manifest member'):
+            self.verify_go()
+
+    def test_optional_desktop_packager_only_produces_portable_desktop(self):
+        text = (ROOT / 'scripts/package.cjs').read_text()
+        for forbidden in ('dpkg-deb', '.deb', 'DEBIAN', 'apparmor', 'stagecontrol'):
+            self.assertNotIn(forbidden, text.lower() if forbidden == 'apparmor' else text)
+        self.assertRegex(text, r"format:\s*'portable-desktop-v1'")
+        self.assertIn('tar.gz', text)
+        self.assertIn('sha256', text)
 
     def test_release_publish_step_follows_mandatory_gates_and_version_check(self):
         text = (ROOT / '.github/workflows/release.yml').read_text()
         publish = text.index('gh release create ')
         gate = next(line.split('run: ', 1)[1] for line in text[:publish].splitlines() if 'run: make test ' in line)
         self.assertTrue(set(('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'coverage', 'check-deps')).issubset(shlex.split(gate)))
-        self.assertLess(text.index('scripts/packaged-recovery.py'), publish)
         self.assertLess(text.index('scripts/verify-version.py'), publish)
+        self.assertIn('scripts/verify-version.py --go-only', text[:publish])
+        self.assertTrue('make package-go' in text[:publish] or 'scripts/go-build-test.py' in text[:publish])
+        self.assertIn('dist/wallet-core dist/wallet-signer dist/wallet-launcher', text[publish:])
+        for inventory in ('go-sbom.cdx.json', 'go-dependency-licenses.json', 'go-source-manifest.json'):
+            self.assertIn('dist/' + inventory, text[publish:])
+        self.assertNotIn('.deb', text[publish:])
         self.assertNotIn('git tag ', text[:publish])
         self.assertNotIn('git push ', text[:publish])
         self.assertIn('--prerelease', text[publish:])
@@ -406,10 +541,13 @@ class BuildTools(unittest.TestCase):
         external.write_bytes(b'PUBLIC-content-must-not-be-read')
         link = self.root / 'public-source-link'
         link.symlink_to(external)
+        go_dependency = self.root / 'public-go-dependency'
+        go_dependency.mkdir()
+        (go_dependency / 'LICENSE').write_text('Public license fixture; not a legal opinion.')
         original = subprocess.check_output
         def public_tools(args, **kwargs):
             if args[:2] == ['go', 'list']:
-                return json.dumps({'Main': True, 'Path': 'publicfixture'})
+                return json.dumps({'Main': True, 'Path': 'publicfixture'}) + json.dumps({'Path': 'example.invalid/public-dependency', 'Version': 'v1.0.0', 'Dir': str(go_dependency), 'Sum': 'h1:PUBLIC'})
             if args[:2] == ['git', 'status']:
                 return ' M public-source.go\n'
             if args[:2] == ['git', 'ls-files']:
@@ -419,7 +557,7 @@ class BuildTools(unittest.TestCase):
             if args[:2] == ['python3', 'scripts/version.py']:
                 return original(args, **kwargs)
             self.fail('Unexpected build-tool capability: ' + repr(args))
-        with mock.patch.object(subprocess, 'check_output', side_effect=public_tools), contextlib.redirect_stdout(io.StringIO()):
+        with mock.patch.object(sys, 'argv', [str(scripts / 'sbom.py')]), mock.patch.object(subprocess, 'check_output', side_effect=public_tools), contextlib.redirect_stdout(io.StringIO()):
             runpy.run_path(str(scripts / 'sbom.py'), run_name='__main__')
         sbom = json.loads((self.root / 'dist/sbom.cdx.json').read_text())
         components = {entry['name']: entry for entry in sbom['components']}
@@ -429,6 +567,19 @@ class BuildTools(unittest.TestCase):
         self.assertEqual(manifest['workingTree'], 'dirty')
         self.assertEqual(manifest['sha256'][link.name], hashlib.sha256(os.readlink(link).encode()).hexdigest())
         self.assertNotEqual(manifest['sha256'][link.name], digest(external))
+        # Go-only mode never reads a package lock or invokes an npm/Node tool.
+        (desktop / 'package-lock.json').unlink()
+        with mock.patch.object(sys, 'argv', [str(scripts / 'sbom.py'), '--go-only']), mock.patch.object(subprocess, 'check_output', side_effect=public_tools), contextlib.redirect_stdout(io.StringIO()):
+            runpy.run_path(str(scripts / 'sbom.py'), run_name='__main__')
+        go_sbom = json.loads((self.root / 'dist/go-sbom.cdx.json').read_text())
+        self.assertEqual([component['name'] for component in go_sbom['components']], ['example.invalid/public-dependency'])
+        self.assertTrue(all(component['purl'].startswith('pkg:golang/') for component in go_sbom['components']))
+        self.assertEqual(go_sbom['metadata']['component']['version'], '0.1.1')
+        licenses = json.loads((self.root / 'dist/go-dependency-licenses.json').read_text())
+        self.assertEqual(licenses[0]['licenseSHA256'], {'LICENSE': digest(go_dependency / 'LICENSE')})
+        self.assertIn('NOT_RUN', licenses[0]['review'])
+        go_source = json.loads((self.root / 'dist/go-source-manifest.json').read_text())
+        self.assertEqual(go_source['sha256'], manifest['sha256'])
 
 
 class EvidenceResult(unittest.TextTestResult):
@@ -458,12 +609,12 @@ class EvidenceRunner(unittest.TextTestRunner):
 
     def run(self, test):
         result = super().run(test)
-        filenames = ['scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', '.github/workflows/release.yml']
+        filenames = ['scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/release.yml']
         report = {
             'status': 'PASS' if result.wasSuccessful() and not result.skipped else 'FAIL' if not result.wasSuccessful() else 'NOT_RUN',
             'command': [sys.executable, 'scripts/build-tools-test.py'],
             'tests': result.outcomes,
-            'scope': 'Hermetic public fixture ELFs, real temporary Debian files and Git repository; ASAR fixture reader and SBOM inventory tool outputs are substituted. No wallet profiles, network, funding or remote publication.',
+            'scope': 'Hermetic public fixture ELFs, real temporary portable archives and Git repository; ASAR fixture reader and SBOM inventory tool outputs are substituted. No wallet profiles, network, funding or remote publication.',
             'sourceSHA256': {name: digest(ROOT / name) for name in filenames},
         }
         (ROOT / 'reports').mkdir(exist_ok=True)

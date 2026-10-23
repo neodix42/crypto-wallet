@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "scope": "Linux creator-thread parent-death lifecycle; public synthetic framed peer, no real secrets or funds",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "./internal/supervisor",
+    "-count=1",
+    "-coverprofile=reports/supervisor-lifecycle.cover"
+  ],
+  "seconds": 4.008,
+  "statementsPct": 95.7,
+  "tests": [
+    {
+      "name": "TestKernelPdeathsigControlKillsChildWhenCreatorThreadRetires",
+      "status": "PASS",
+      "proof": "Actual non-leader creator OS thread retires; direct Pdeathsig child is SIGKILLed while the Go test parent remains alive"
+    },
+    {
+      "name": "TestOwnedChildSurvivesCallerThreadRetirementAndReapsOnKill",
+      "status": "PASS",
+      "proof": "Manifest-checked Child has a distinct live creator thread; original calling thread retires, a subsequent framed RPC succeeds, then Kill waits for owner release and child reaping"
+    },
+    {
+      "name": "TestRestartedChildrenReleaseEveryLifetimeOwner",
+      "status": "PASS",
+      "proof": "Eight complete start/RPC/kill generations close every owner completion channel and reap every child"
+    },
+    {
+      "name": "TestOwnedChildDiesOnAbruptParentProcessDeath",
+      "status": "PASS",
+      "proof": "Actual manifest-verified Child answers two private RPCs while parent lives; abrupt parent SIGKILL causes required child SIGKILL, independently reaped by an isolated subreaper. Peer waits on EOF, excluding pipe-close success."
+    }
+  ],
+  "implementation": "Dedicated per-child goroutine locks its OS thread from cmd.Start through child kill and cmd.Wait; parent-death SIGKILL and Setpgid retained",
+  "go": "go version go1.27.3 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic",
+  "sourceSHA256": {
+    "internal/supervisor/child.go": "0c18a0c55b37696ebaaaab5805103190d4e8bc2c0fb19fedf2725994f5e6f670",
+    "internal/supervisor/thread_owner_test.go": "8a2a116ad20395820a84d4a58d2f732dae8cb2c60c3a3abaf2a3bbc177b541d4",
+    "internal/supervisor/parentdeath_test.go": "a06c141276530216b5169d1b6a17d5608a8ee3a30f13d88a5760e069f7dad02d"
+  },
+  "profileSHA256": "1c55ec68116608479b35ab9acec5a9121372e2d8c0d40abf8c8aaf9d613bcff7",
+  "primarySources": [
+    "https://pkg.go.dev/syscall@go1.27.3#SysProcAttr",
+    "https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html"
+  ],
+  "limitations": [
+    "These process/thread lifecycle regressions do not establish a clean OS/Wayland/suspend acceptance matrix",
+    "The isolated Linux mechanism is confirmed; the exact earlier packaged restart incident remains unproven without its thread/process trace"
+  ]
+}

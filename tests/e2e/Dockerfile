@@ -1,9 +1,8 @@
 ARG BASE=ubuntu:24.04
 FROM ${BASE}
 ENV DEBIAN_FRONTEND=noninteractive
-ARG WALLET_DEB=dist/localwallet-development_0.1.0_amd64.deb
-COPY ${WALLET_DEB} /tmp/wallet.deb
-RUN apt-get update && apt-get install -y /tmp/wallet.deb xvfb dbus-x11 xdotool procps && rm /tmp/wallet.deb && useradd -m wallet
+RUN apt-get update && apt-get install -y libgtk-3-0t64 libseccomp2 libnss3 libasound2t64 libgbm1 libxss1 libxtst6 libdrm2 libatspi2.0-0t64 libxcomposite1 libxdamage1 libxrandr2 xvfb dbus-x11 xdotool procps && useradd -m wallet
+COPY dist/LocalWallet-linux-x64 /opt/localwallet
 COPY tests/e2e/container.sh /usr/local/bin/wallet-package-test
 RUN chmod 755 /usr/local/bin/wallet-package-test
 USER wallet

@@ -26,6 +26,38 @@
       "status": "PASS"
     },
     {
+      "test": "test_go_only_archive_hash_mismatch_and_distributed_payload_mismatch_fail (__main__.BuildTools.test_go_only_archive_hash_mismatch_and_distributed_payload_mismatch_fail)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_archive_raw_payload_and_base_manifests_agree (__main__.BuildTools.test_go_only_archive_raw_payload_and_base_manifests_agree)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_archive_rejects_traversal_duplicate_links_and_metadata_substitution (__main__.BuildTools.test_go_only_archive_rejects_traversal_duplicate_links_and_metadata_substitution)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_build_has_actual_exact_versions_without_desktop_dependencies (__main__.BuildTools.test_go_only_build_has_actual_exact_versions_without_desktop_dependencies)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_manifest_schema_duplicates_and_archive_path_fail_closed (__main__.BuildTools.test_go_only_manifest_schema_duplicates_and_archive_path_fail_closed)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_rejects_runtime_version_prefix_despite_consistent_hashes (__main__.BuildTools.test_go_only_rejects_runtime_version_prefix_despite_consistent_hashes)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_rejects_source_tampering_before_running_binary (__main__.BuildTools.test_go_only_rejects_source_tampering_before_running_binary)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_only_self_consistent_archive_hash_cannot_hide_stale_binary (__main__.BuildTools.test_go_only_self_consistent_archive_hash_cannot_hide_stale_binary)",
+      "status": "PASS"
+    },
+    {
       "test": "test_incomplete_runtime_or_ambiguous_manifest_never_creates_launcher (__main__.BuildTools.test_incomplete_runtime_or_ambiguous_manifest_never_creates_launcher)",
       "status": "PASS"
     },
@@ -66,6 +98,14 @@
       "status": "PASS"
     },
     {
+      "test": "test_optional_desktop_packager_only_produces_portable_desktop (__main__.BuildTools.test_optional_desktop_packager_only_produces_portable_desktop)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_portable_artifact_identity_and_payload_fail_closed (__main__.BuildTools.test_portable_artifact_identity_and_payload_fail_closed)",
+      "status": "PASS"
+    },
+    {
       "test": "test_release_publish_step_follows_mandatory_gates_and_version_check (__main__.BuildTools.test_release_publish_step_follows_mandatory_gates_and_version_check)",
       "status": "PASS"
     },
@@ -82,10 +122,6 @@
       "status": "PASS"
     },
     {
-      "test": "test_tampered_debian_and_portable_artifacts_fail_closed (__main__.BuildTools.test_tampered_debian_and_portable_artifacts_fail_closed)",
-      "status": "PASS"
-    },
-    {
       "test": "test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap (__main__.BuildTools.test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap)",
       "status": "PASS"
     },
@@ -98,16 +134,19 @@
       "status": "PASS"
     }
   ],
-  "scope": "Hermetic public fixture ELFs, real temporary Debian files and Git repository; ASAR fixture reader and SBOM inventory tool outputs are substituted. No wallet profiles, network, funding or remote publication.",
+  "scope": "Hermetic public fixture ELFs, real temporary portable archives and Git repository; ASAR fixture reader and SBOM inventory tool outputs are substituted. No wallet profiles, network, funding or remote publication.",
   "sourceSHA256": {
-    "scripts/version.py": "b0baaf4dd3ba3c336f7d7edcd0a3a52a4f2f5bf0a698207c3fb9af9a4ab10ca1",
+    "scripts/version.py": "478578ebd38607d152c7ae3bb75f66874aa1e2eea9a9870d58be44d83883c14c",
     "scripts/next-version.py": "8f3368764f6ac37d01bdb01f3447ab022dc5258115ebcb47ab0609f104a09198",
     "scripts/install.py": "25b4a4d25b48c64fcf15df4c9425d1b8e39322748d3d4742f6164c3b687ee063",
-    "scripts/verify-version.py": "30e9a26b949a3f9e52336845dee186d29ca731bb8034151f93a779d3043961dd",
+    "scripts/verify-version.py": "502bc80801b3fb629ad5a9ddd280bedc0b76c1398261a43f3c9bb806bc84204e",
+    "scripts/package.cjs": "504ef4acf1ba28f394a9c7d1d6e9505fe598514b5561403137aa8e494bf56214",
+    "scripts/package-go.py": "ef158a88a5efd6dffd43017b632505d0665a8b9d4dc6942930ddabcd014ad459",
     "scripts/with-toolchain.sh": "5a2f2e3b0616ceef1fb378e88e02fc6d2b0cf95794a0da69ab2ceb30b961bb8f",
     "scripts/bootstrap-node.py": "b67714e06d3bd61b63fa5f9ab853df0e4f93f308dfc26ee49763ada60eb9c0d8",
-    "scripts/sbom.py": "cb3c141478e8830ca1055e7328b84ea70fafb761fd72c65b4955cf0e4d6d3878",
-    "scripts/build-tools-test.py": "130ada1383bc489183d26dd5609c4230e53cf68c7e04597369d4b9bc3d81e7bb",
-    ".github/workflows/release.yml": "0ec274a794efb341735852345be24c14dc36d74e64fb9f45d26003dc96de0da1"
+    "scripts/sbom.py": "97882ee176650cd6888feee6fb5bfd135d5e8aac2ff27f740a03e489ae83a1c3",
+    "scripts/build-tools-test.py": "cd47d8ae46328b01f07a592a836ddbd8b421b70dcb73861f8948ce807deb16b9",
+    "Makefile": "b719791d8e5b2b86c66f6d4053f44b9253ea63341c4f0771566787158b3d7183",
+    ".github/workflows/release.yml": "9fe373993759ee5c75f2c6fd5f6396a6ac9853fe0aa633b87086e380acbf2381"
   }
 }

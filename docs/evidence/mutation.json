@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "elapsedSeconds": 76.961,
+  "elapsedSeconds": 92.764,
   "mutants": [
     {
       "id": "aead-authentication",

@@ -1,4 +1,4 @@
-name: Build and publish versioned development wallet
+name: Build and publish versioned Go wallet components
 on:
   push:
     branches: [main, master]
@@ -38,11 +38,11 @@ jobs:
       - name: Run mandatory local gates
         run: make test test-security test-race test-interop test-integration test-fuzz coverage check-deps
       - name: Build the same version into the application and artifacts
-        run: make install
-      - name: Exercise uninstrumented package recovery on isolated X11
-        run: ./scripts/with-toolchain.sh python3 scripts/packaged-recovery.py
+        run: python3 scripts/go-build-test.py
       - name: Verify candidate version consistency
-        run: ./scripts/with-toolchain.sh python3 scripts/verify-version.py
+        run: ./scripts/with-toolchain.sh python3 scripts/verify-version.py --go-only
+      - name: Retain evidence for the actual Go artifact
+        run: python3 scripts/record-evidence.py --go-only
       - name: Prepare accurate release notes
         run: |
           python3 - <<'PY'
@@ -50,8 +50,8 @@ jobs:
           v=os.environ['WALLET_VERSION']
           pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet v{v} — unsigned development testnet candidate.
 
-          The tag, release, Debian package, Go build identity and visible application version use {v}.
-          Included: Ubuntu amd64 installer, complete portable runtime, SHA256 checksums, source/build manifests and dependency inventory.
+          The tag, release and Go executable versions use {v}.
+          Included: Linux amd64 Go component executables, their portable archive, SHA256 checksums, manifests and source/test evidence. No Debian installer is built. The Go components expose framed IPC and native credential dialogs; the existing Electron desktop UI is not included in these component assets.
 
           Public funded testnet roundtrips, the clean X11/Wayland OS matrix,24-hour soak and independent security review remain separate production gates. This prerelease is not a production-readiness or audit claim. Mainnet spending is never automated.
           ''')
@@ -62,7 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --title "v$RELEASE_VERSION" --prerelease --notes-file dist/RELEASE-NOTES.md dist/*.deb dist/localwallet-*-linux-amd64.tar.gz dist/SHA256SUMS dist/build-manifest.json dist/source-manifest.json dist/sbom.cdx.json dist/dependency-licenses.json dist/go-modules.json dist/npm-package-lock.json dist/test-evidence.tar.gz
+          gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --title "v$RELEASE_VERSION" --prerelease --notes-file dist/RELEASE-NOTES.md dist/localwallet-go-*-linux-amd64.tar.gz dist/wallet-core dist/wallet-signer dist/wallet-launcher dist/manifest.json dist/GO-SHA256SUMS dist/go-build-manifest.json dist/go-sbom.cdx.json dist/go-dependency-licenses.json dist/go-source-manifest.json dist/test-evidence.tar.gz
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -70,5 +70,4 @@ jobs:
           path: |
             reports/
             dist/
-            !dist/deb/
             !dist/LocalWallet-linux-x64/

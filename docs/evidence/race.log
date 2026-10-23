@@ -1,27 +1,26 @@
-./scripts/with-toolchain.sh go test -race -p 2 ./...
-ok  	localwallet/cmd/wallet-core	2.092s
-ok  	localwallet/cmd/wallet-launcher	(cached)
-ok  	localwallet/cmd/wallet-signer	20.294s
-ok  	localwallet/internal/amount	(cached)
+ok  	localwallet/cmd/wallet-core	2.059s
+ok  	localwallet/cmd/wallet-launcher	51.156s
+ok  	localwallet/cmd/wallet-signer	17.420s
+ok  	localwallet/internal/amount	1.014s
 ?   	localwallet/internal/buildinfo	[no test files]
 ?   	localwallet/internal/chains	[no test files]
-ok  	localwallet/internal/chains/aptos	(cached)
-ok  	localwallet/internal/chains/chainutil	(cached)
-ok  	localwallet/internal/chains/decred	(cached)
-ok  	localwallet/internal/chains/evm	(cached)
-ok  	localwallet/internal/chains/hypercore	(cached)
-ok  	localwallet/internal/chains/near	(cached)
-ok  	localwallet/internal/chains/ton	(cached)
-ok  	localwallet/internal/derivation	(cached)
-ok  	localwallet/internal/ipc	(cached)
-ok  	localwallet/internal/isolation	(cached)
-ok  	localwallet/internal/journal	(cached)
+ok  	localwallet/internal/chains/aptos	1.858s
+ok  	localwallet/internal/chains/chainutil	1.213s
+ok  	localwallet/internal/chains/decred	17.890s
+ok  	localwallet/internal/chains/evm	2.363s
+ok  	localwallet/internal/chains/hypercore	1.464s
+ok  	localwallet/internal/chains/near	2.413s
+ok  	localwallet/internal/chains/ton	1.828s
+ok  	localwallet/internal/derivation	1.226s
+ok  	localwallet/internal/ipc	1.046s
+ok  	localwallet/internal/isolation	4.081s
+ok  	localwallet/internal/journal	1.014s
 ?   	localwallet/internal/model	[no test files]
-ok  	localwallet/internal/qr	(cached)
-ok  	localwallet/internal/secureui	(cached)
-ok  	localwallet/internal/signer	41.004s
-ok  	localwallet/internal/strictjson	(cached)
-ok  	localwallet/internal/supervisor	(cached)
-ok  	localwallet/internal/vault	(cached)
+ok  	localwallet/internal/qr	3.049s
+ok  	localwallet/internal/secureui	1.027s
+ok  	localwallet/internal/signer	44.544s
+ok  	localwallet/internal/strictjson	1.077s
+ok  	localwallet/internal/supervisor	2.540s
+ok  	localwallet/internal/vault	7.884s
 ?   	localwallet/tests/oracles/decred	[no test files]
-ok  	localwallet/tests/stress	55.888s
+ok  	localwallet/tests/stress	70.148s

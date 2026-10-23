@@ -56,6 +56,31 @@ func (f *Files) Close() error {
 func validName(s string) bool {
 	return s != "" && s != "." && s != ".." && filepath.Base(s) == s && !strings.ContainsRune(s, 0) && len(s) < 200
 }
+
+// Exists checks an entry relative to the already verified directory without
+// opening or reading its contents. Only an absent entry returns false, nil;
+// unsafe entries and unavailable storage remain errors, never an empty vault.
+func (f *Files) Exists(name string) (bool, error) {
+	if f == nil || f.dir == nil || !validName(name) {
+		return false, ErrFile
+	}
+	dir := int(f.dir.Fd())
+	var s unix.Stat_t
+	if unix.Fstat(dir, &s) != nil || s.Uid != uint32(os.Getuid()) || s.Mode&unix.S_IFMT != unix.S_IFDIR || s.Mode&0077 != 0 || s.Nlink == 0 {
+		return false, ErrFile
+	}
+	if err := unix.Fstatat(dir, name, &s, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		if err == unix.ENOENT {
+			return false, nil
+		}
+		return false, ErrFile
+	}
+	if s.Uid != uint32(os.Getuid()) || s.Nlink != 1 || s.Mode&unix.S_IFMT != unix.S_IFREG || s.Mode&0077 != 0 || s.Mode&0400 == 0 || s.Size > MaxSize+HeaderSize+16 || s.Size < 0 {
+		return false, ErrFile
+	}
+	return true, nil
+}
+
 func (f *Files) Read(name string) ([]byte, error) {
 	if !validName(name) {
 		return nil, ErrFile

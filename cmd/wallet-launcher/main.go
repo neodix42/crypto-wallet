@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -33,6 +34,11 @@ func run() int {
 		fmt.Println(buildinfo.Version)
 		return 0
 	}
+	// Linux Pdeathsig follows the thread that creates the child. Exec kills
+	// the other threads, so Start and Exec must stay on this same thread or
+	// the core can receive SIGKILL while Electron starts successfully.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	exe, e := os.Executable()
 	if e != nil {
 		return 2

@@ -47,9 +47,12 @@ type Engine struct {
 	password      []byte
 	parameters    vault.Parameters
 	persistFailed bool
+	initializing  bool
 }
 type Snapshot struct {
 	Locked         bool                `json:"locked"`
+	WalletExists   bool                `json:"walletExists"`
+	VaultState     string              `json:"vaultState"`
 	Environment    string              `json:"environment"`
 	BackupVerified bool                `json:"backupVerified"`
 	Accounts       []model.Account     `json:"accounts"`
@@ -76,11 +79,35 @@ func (e *Engine) adapter(network string) (model.Adapter, error) {
 	}
 	return nil, ErrDenied
 }
-func (e *Engine) Snapshot() Snapshot {
-	if e.data == nil {
-		return Snapshot{Locked: true}
+
+// walletPresence never opens ciphertext. A surviving previous generation is
+// recovery data, not an empty destination for a different wallet root.
+func (e *Engine) walletPresence() (bool, string) {
+	exists, err := e.Files.Exists("vault.lwv")
+	if err != nil {
+		return true, "unavailable"
 	}
-	s := Snapshot{Environment: e.data.Environment, BackupVerified: e.data.BackupVerified, Accounts: e.data.Accounts}
+	if exists {
+		return true, "present"
+	}
+	previous, err := e.Files.Exists("vault.previous.lwv")
+	if err != nil || previous {
+		return true, "unavailable"
+	}
+	return false, "missing"
+}
+
+func (e *Engine) Snapshot() Snapshot {
+	exists, state := e.walletPresence()
+	if !exists && e.data != nil {
+		// Storage uncertainty cannot authorize creating a replacement wallet.
+		exists, state = true, "unavailable"
+	}
+	s := Snapshot{Locked: e.data == nil, WalletExists: exists, VaultState: state}
+	if e.data == nil {
+		return s
+	}
+	s.Environment, s.BackupVerified, s.Accounts = e.data.Environment, e.data.BackupVerified, e.data.Accounts
 	for _, op := range e.data.Operations {
 		op.Signed = nil
 		s.Operations = append(s.Operations, op)
@@ -127,6 +154,23 @@ func (e *Engine) persist() (result error) {
 	defer clear(opened)
 	if !bytes.Equal(plain, opened) {
 		return ErrDenied
+	}
+	if e.initializing {
+		// Native file/password input and KDF work can take time. Recheck at
+		// commit and use the kernel's no-replace rename even after that check.
+		// Initialization must never consume either existing generation.
+		if exists, state := e.walletPresence(); exists || state != "missing" {
+			return ErrDenied
+		}
+		if err = e.Files.Write("vault.lwv", encrypted, false); err != nil {
+			return err
+		}
+		if previous, err := e.Files.Exists("vault.previous.lwv"); err != nil || previous {
+			// An uncoordinated filesystem writer appeared during commit. Keep
+			// both files intact and stop this session rather than replacing it.
+			return ErrDenied
+		}
+		return nil
 	}
 	if old, err := e.Files.Read("vault.lwv"); err == nil {
 		if err = e.Files.Write("vault.previous.lwv", old, true); err != nil {
@@ -189,7 +233,7 @@ func (e *Engine) Create(environment string, words int, importing bool) error {
 	if e.data != nil || (environment != "testnet" && environment != "mainnet") || (e.Environment != "" && e.Environment != environment) {
 		return ErrDenied
 	}
-	if _, err := e.Files.Read("vault.lwv"); !errors.Is(err, os.ErrNotExist) {
+	if exists, state := e.walletPresence(); exists || state != "missing" {
 		return ErrDenied
 	}
 	labels := []string{"New storage password (12–4096 UTF-8 bytes)", "Repeat storage password"}
@@ -215,6 +259,8 @@ func (e *Engine) Create(environment string, words int, importing bool) error {
 		return ErrDenied
 	}
 	d := &vault.Data{Version: 1, WalletID: ID(), Generation: 1, Scheme: "bip39-english-v1", Entropy: entropy, Passphrase: pass, Environment: environment, Birthday: time.Now().Unix(), Endpoints: map[string]vault.Endpoint{}}
+	e.initializing = true
+	defer func() { e.initializing = false }()
 	e.data = d
 	e.password = append([]byte(nil), in[0]...)
 	if err = e.AddAccount(0); err != nil {
@@ -454,7 +500,7 @@ func (e *Engine) Restore() error {
 	if e.data != nil {
 		return ErrDenied
 	}
-	if _, err := e.Files.Read("vault.lwv"); !errors.Is(err, os.ErrNotExist) {
+	if exists, state := e.walletPresence(); exists || state != "missing" {
 		return ErrDenied
 	}
 	path, err := e.UI.File("Open encrypted backup — restores into an empty profile", false)
@@ -497,6 +543,8 @@ func (e *Engine) Restore() error {
 	}
 	d.BackupVerified = true
 	journal.Recover(d.Operations)
+	e.initializing = true
+	defer func() { e.initializing = false }()
 	e.data = d
 	e.password = append([]byte(nil), in[0]...)
 	return e.persist()

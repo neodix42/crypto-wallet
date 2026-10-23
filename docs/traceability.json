@@ -209,13 +209,13 @@
     {
       "id": "TP-031",
       "status": "PASS",
-      "evidence": "vault and signer actual FD/file/resource-limit and staged write/fsync/rename/directory-sync failure tests; old/new generation recovery",
+      "evidence": "vault and signer actual FD/file/resource-limit and staged write/fsync/rename/directory-sync failure tests; old/new generation recovery; metadata-only first-run gating, nine late Create/import/Restore collision cases and actual atomic no-replace publication preserve existing ciphertext",
       "remaining": ""
     },
     {
       "id": "TP-032",
       "status": "NOT_RUN",
-      "evidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented packaged fresh-profile recovery PASS",
+      "evidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented portable generated-root and phrase-import fresh-profile recovery PASS",
       "remaining": "Clean separate supported OS/account recovery matrix and upgrade/migration drills not completed; only schema1 supported"
     },
     {
@@ -246,7 +246,7 @@
       "id": "TP-043",
       "status": "NOT_RUN",
       "evidence": "Epoch/generation/queued-work/dialog/signing/persistence race tests; actual X11 native key/button activity; Electron OS callback and cache clearing tests PASS; actual native XTest5m12s campaignPASS in reports/native-input-long.json",
-      "remaining": "Real OS screen lock/logout/suspend/Wayland matrix and five-minute sustained native typing wall-clock drill NOT_RUN"
+      "remaining": "Current-candidate full real OS screen lock/logout/suspend and Wayland acceptance NOT_RUN; preceding scoped long native-typing runs do not certify that complete lifecycle matrix"
     },
     {
       "id": "TP-050",
@@ -281,7 +281,7 @@
     {
       "id": "TP-070",
       "status": "NOT_RUN",
-      "evidence": "Actual Ubuntu26.04 host private X11 package drill PASS; .deb container installs/native startup probes",
+      "evidence": "Actual Ubuntu26.04 host private X11 portable password-only setup/import/backup/restart/fresh restore drill PASS; Ubuntu24.04/26.04 portable container startup probes BLOCKED by Chromium SUID-helper configuration",
       "remaining": "Clean Ubuntu24.04/26.04 x X11/Wayland full flows/upgrade/uninstall matrix NOT_RUN; container Chromium sandbox obstacles BLOCKED"
     },
     {
@@ -299,7 +299,7 @@
     {
       "id": "TP-080",
       "status": "NOT_RUN",
-      "evidence": "verify-release.py rejects missing/incomplete evidence; release.yml only publishes visibly labeled development prereleases after local gates",
+      "evidence": "verify-release.py rejects missing/incomplete evidence; release.yml publishes visibly labeled development Go-component prereleases with matching executable/tag versions after local gates; remote workflow execution NOT_RUN",
       "remaining": "Public networks, packaged OS matrix, full soak, source-stable final evidence and independent security review required"
     }
   ]

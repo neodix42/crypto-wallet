@@ -71,11 +71,11 @@
   "profiles": [
     {
       "file": "reports/go-base.cover",
-      "sha256": "274ea75132a0b43a65aafeab6a85ca972e9575c3047b17d5ff1ea219a099f40b"
+      "sha256": "80b4b211b645681660813d9dbb29fbda90f5e870b8394c5fa6a101a38326b6c2"
     },
     {
-      "file": "reports/native-input.cover",
-      "sha256": "fcf6dad542725c21aa6b1d3c2b0e93842bc2197b669237cb836d62f66e4795ef"
+      "file": "reports/go-native.cover",
+      "sha256": "41793f4f272007363e2b6ff8f936b54a96c8ac83f9ccc14090cd0742207b5e56"
     }
   ],
   "goTests": {
@@ -90,19 +90,19 @@
       "localwallet/internal/secureui": "PASS",
       "localwallet/internal/derivation": "PASS",
       "localwallet/internal/strictjson": "PASS",
-      "localwallet/internal/chains/chainutil": "PASS",
       "localwallet/internal/isolation": "PASS",
-      "localwallet/internal/chains": "PASS",
-      "localwallet/internal/qr": "PASS",
-      "localwallet/tests/oracles/decred": "PASS",
+      "localwallet/internal/chains/chainutil": "PASS",
       "localwallet/internal/chains/aptos": "PASS",
+      "localwallet/tests/oracles/decred": "PASS",
+      "localwallet/internal/qr": "PASS",
+      "localwallet/internal/chains": "PASS",
       "localwallet/internal/chains/hypercore": "PASS",
       "localwallet/internal/chains/near": "PASS",
       "localwallet/internal/chains/evm": "PASS",
-      "localwallet/cmd/wallet-launcher": "PASS",
       "localwallet/internal/chains/ton": "PASS",
-      "localwallet/internal/supervisor": "PASS",
       "localwallet/cmd/wallet-core": "PASS",
+      "localwallet/internal/supervisor": "PASS",
+      "localwallet/cmd/wallet-launcher": "PASS",
       "localwallet/internal/vault": "PASS",
       "localwallet/internal/chains/decred": "PASS",
       "localwallet/cmd/wallet-signer": "PASS",
@@ -123,17 +123,17 @@
       {
         "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
         "status": "PASS",
-        "seconds": 0.2
+        "seconds": 0.18
       },
       {
         "name": "TestRealX11NativeKeyAndButtonActivity",
         "status": "PASS",
-        "seconds": 3.81
+        "seconds": 3.8
       },
       {
         "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
         "status": "PASS",
-        "seconds": 0.01
+        "seconds": 0
       },
       {
         "name": "TestTP033RealNativeMaskedInput",
@@ -158,17 +158,17 @@
       {
         "name": "TestNativeFileChooserCancelAndVerifiedSelection",
         "status": "PASS",
-        "seconds": 0.98
+        "seconds": 0.93
       },
       {
         "name": "TestNativeInitUnavailableDisplayFailsClosed",
         "status": "PASS",
-        "seconds": 1.03
+        "seconds": 1.02
       },
       {
         "name": "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
         "status": "PASS",
-        "seconds": 0.05
+        "seconds": 0.07
       },
       {
         "name": "TestRealX11NativeActivityBeyondFiveMinutes",
@@ -178,16 +178,18 @@
     ],
     "exit": 0,
     "coverage": "total:\t\t\t\t\t\t(statements)\t\t98.1%",
-    "seconds": 8.505
+    "seconds": 8.281
   },
   "sourceSHA256": {
-    "cmd/wallet-core/main.go": "66be1eed3fe04147a32be1a519877807341c5061e293ad0ce2636809e2e18e48",
-    "cmd/wallet-core/main_test.go": "69d7fa2d0f9c6f50b7e2733e38ded73c151322e79b770c4c00b7fa729366250c",
+    "cmd/wallet-core/main.go": "de568086ccbe43db14823a4becb4fe66b44a46b623e18375371c963e81ee016c",
+    "cmd/wallet-core/main_test.go": "d1e4f014affef4da835f0834986b119b76058528e1215e1883988032609b25c7",
+    "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
     "cmd/wallet-core/session_test.go": "a85f871f36e4b06f5a867c0b94c79661835aa8e713664f99f2b0c865487db523",
     "cmd/wallet-core/version_test.go": "73a3c98970dca9b8c62c8baaaf56c78c1b0c201ad115850efe5a9dce1b0cf34d",
     "cmd/wallet-launcher/bootstrap_test.go": "e1a3a71caea62add0147aa6e3aabbd38e868c5801ea820bb710d9003e410b0a7",
-    "cmd/wallet-launcher/main.go": "57907140adee26e50ee94fd54c3cc11977573062761b7fd841015062a506d0db",
-    "cmd/wallet-launcher/main_test.go": "7afdc82b095c86d9865ca306f00e53176736ece57688651cfcc00a5de701dcd2",
+    "cmd/wallet-launcher/main.go": "aae182b859344867a6d910fb91cf155915151391ae227f1f4ab4dd900e9de4f5",
+    "cmd/wallet-launcher/main_test.go": "a0ad3912a0378bd1524fe35cf93c0e1678a2359b6de45d20f62e62246551edba",
+    "cmd/wallet-launcher/pdeath_test.go": "3e0325c5d8613e8c286cebee3e24b9494947eca71b0b2cf40f5b37ce4955deff",
     "cmd/wallet-launcher/version_test.go": "6d334314c87ba140b8b6c5580a449e1cb36f9005fa59c54a16ac9b1bda8ac3e1",
     "cmd/wallet-signer/main.go": "69da0625d023b8698ef2b13760004bfdd31d499998e4d8575e38bea685eb0c27",
     "cmd/wallet-signer/main_test.go": "3c87e7f93b90c9db2d707fb22e1c0d4528aef28e052e60eb0659155ecc9315ac",
@@ -274,20 +276,24 @@
     "internal/signer/accounts_test.go": "a31684cd038c08af30e190948dbce1919115b1fa7ef2543a9aa60d76fb1ef4d0",
     "internal/signer/adversarial_test.go": "075a91507f0277830699c017e1cc1f87f18ad5fdbda5e0eaa3489fb7f7d6d25c",
     "internal/signer/cancel_review_test.go": "b29af0fb678eeb194b88e2a1417523b9cc79039725a54819dc6827fc4c858fdc",
-    "internal/signer/engine.go": "33889894f27cfdd1238d342325b01b81adc0a32541f8902d4144bfcce08a680a",
+    "internal/signer/engine.go": "f044874a87afe81117dc964cf547dc83393d2c2286e964d9b6fc9d7b9f1c2d07",
     "internal/signer/engine_test.go": "c0bd36e450270ab62b6824f8f989d0c691d9fb10768481931b5fa48f931da6c8",
     "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
     "internal/signer/maturity_notice_test.go": "05f0d0d67c13fd3547bcc9cdbe05bfcfabb6124618412869e1c96fe1e81f4ae2",
+    "internal/signer/presence_test.go": "3fcf3627bfda4bf5f96d8221810a5e340c2f74db0e89df74735d59ab3ac3aa0b",
     "internal/signer/receive_guidance_review_test.go": "1b1bd598832f04152c3f6c6cd17c30fbc49118ba1abd13730ad86fa3d43da129",
     "internal/signer/review_test.go": "c3c0bb6c0930080696efafe5ac29ca79928601abd9b2e1967b3d7cb46c0e2904",
     "internal/strictjson/json.go": "d9d83b5ab8ae5d76f5282f92060ce20a8b68c79683b741c2cd279237a1dfd86f",
     "internal/strictjson/json_test.go": "12126ea404e59efebf765dab4cdaafe90d8f06417d38d6779d49d6a1d8790c7c",
-    "internal/supervisor/child.go": "1e33c51729e853620b7da4a2e48cd18f36eb1ddfc33bc60dea7f9a3802416d5e",
+    "internal/supervisor/child.go": "0c18a0c55b37696ebaaaab5805103190d4e8bc2c0fb19fedf2725994f5e6f670",
     "internal/supervisor/child_test.go": "c6a2e9e3a4b78e6b0a3c30b235ae0f64b2ae882168cd4dcf92255704043c3cb4",
+    "internal/supervisor/parentdeath_test.go": "a06c141276530216b5169d1b6a17d5608a8ee3a30f13d88a5760e069f7dad02d",
+    "internal/supervisor/thread_owner_test.go": "8a2a116ad20395820a84d4a58d2f732dae8cb2c60c3a3abaf2a3bbc177b541d4",
     "internal/vault/adversarial_test.go": "b287662647df57f629c8499b7af8bd50dac7ce111d7170bd6fc5af6fdcff2b6a",
     "internal/vault/data.go": "f3b359c447976cfcf7e66be7ebaea881b47a407ae4c0f28645e415272086e536",
     "internal/vault/envelope.go": "f056761a831d6b9c319760cab89400c10507dc9d59c5857b5731bb82cb9d61c2",
-    "internal/vault/files.go": "4ed97475501df1c7bb4e52ea6e9577ea66bf34477f1658c2765db41987c59dce",
+    "internal/vault/files.go": "31e8822e01f8b3cdc8dbb8ff35e6f2f9498201bbaaad6f346d5218e76c93badd",
+    "internal/vault/presence_test.go": "953d094c3883374468578c31241182378cf367cd630985acc74ee96276fcfe55",
     "internal/vault/vault_test.go": "f0132242b67ce48366faea4be73b0133e18fe6df1a012b842b369533e322c71b",
     "tests/oracles/decred/main.go": "f4c6779b99e714fc36ae801587e69621bfed3b9e3f346152f32c4eee3c39dafd",
     "tests/stress/lifecycle_test.go": "621f6007518bbe496add6aa7ee743218928565e29e88f689d92b39b8ca63c063",
@@ -298,7 +304,7 @@
     "tests/stress/scheduling_test.go": "b79df83a936ae5793246c56a8b407eebcd6c83087e48e074d1b351fdf177bc4c",
     "tests/stress/stress_test.go": "12dbfa6028210f339a5b5d74b69ac2e32852f5f503680d571ae9174d0cce6264"
   },
-  "sourceCommit": "88ae7006c4492eb3415d40821d664dcb5890d9c2",
+  "sourceCommit": "96f9836c0463dba908dd1cc5b177cb235af0ae09",
   "floors": "PASS",
-  "seconds": 44.24
+  "seconds": 45.967
 }

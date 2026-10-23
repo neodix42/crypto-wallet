@@ -1,15 +1,35 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let accounts = [], networks = [], prepared, viewEpoch = 0, sessionEpoch = 0;
+let accounts = [], networks = [], prepared, viewEpoch = 0, sessionEpoch = 0, vaultMode = 'checking';
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+const gates = {
+  checking: ['Checking your local wallet', 'Reading the local vault status. No password dialog opens until you choose an action.'],
+  missing: ['Create your app password', 'Choose your password in the native Go window. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Your generated phrase stays inside the signer.'],
+  present: ['Welcome back', 'Your encrypted wallet is already on this device. Enter its app password in the native Go window to unlock your accounts.'],
+  unavailable: ['Wallet storage unavailable', 'The local vault could not be inspected safely. Check storage access and retry. Creation and restoration remain unavailable while its state is uncertain.']
+};
+function renderGate() {
+  const ready = vaultMode === 'ready', missing = vaultMode === 'missing', present = vaultMode === 'present';
+  $('onboarding').hidden = ready; $('walletcontent').hidden = !ready;
+  $('emptyactions').hidden = !missing; $('walletactions').hidden = !ready;
+  $('unlock').hidden = !present; $('lock').disabled = !ready;
+  $('onboardcreate').hidden = !missing; $('onboardunlock').hidden = !present;
+  $('onboardretry').hidden = vaultMode !== 'unavailable';
+  if (ready) return;
+  const [title, description] = gates[vaultMode];
+  show('onboardtitle', title); show('onboarddescription', description);
+}
 function clearLocked() {
   viewEpoch++; sessionEpoch++;
+  if (vaultMode === 'ready') vaultMode = 'present';
   accounts = []; networks = []; prepared = undefined;
-  $('account').replaceChildren(); $('asset').replaceChildren(); $('operations').replaceChildren();
+  $('account').replaceChildren(); $('asset').replaceChildren(); $('operations').replaceChildren(); $('accountgroups').replaceChildren();
+  $('backupcallout').hidden = true; show('backupstatus', 'Locked');
   $('qr').hidden = true; $('qr').removeAttribute('src'); $('send').disabled = true;
   for (const id of ['recipient', 'amount', 'memo']) $(id).value = '';
   for (const id of ['address', 'diagnostics', 'preview', 'balance', 'chainhistoryresult']) show(id, 'Locked');
-  $('message').textContent = 'Wallet locked. Unlock through the native Go window.';
+  $('message').textContent = vaultMode === 'missing' ? 'Start by choosing your app password in the native Go window.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the native Go window.';
+  renderGate();
 }
 const removeLockListener = window.wallet.onLocked(clearLocked);
 window.addEventListener('beforeunload', removeLockListener, { once: true });
@@ -21,6 +41,7 @@ async function run(fn) {
     await fn();
     if (epoch === sessionEpoch) $('message').textContent = 'Request completed. Check the returned state and any limitations.';
   } catch {
+    if (vaultMode === 'checking') { vaultMode = 'unavailable'; renderGate(); }
     if (epoch === sessionEpoch) $('message').textContent = 'Request failed, unavailable or cancelled. Balance is unknown until verified; reconcile any pending payment before retrying.';
   }
 }
@@ -41,17 +62,49 @@ function populateAccounts(selected) {
     $('account').append(option);
   }
   if (visible.some(account => account.id === selected)) $('account').value = selected;
+  renderAccountGroups(visible);
   select();
+}
+function renderAccountGroups(visible) {
+  $('accountgroups').replaceChildren();
+  const indices = [...new Set(visible.map(account => account.index))].sort((a, b) => a - b);
+  for (const index of indices) {
+    const group = document.createElement('section'), heading = document.createElement('h2'), grid = document.createElement('div');
+    group.className = 'accountgroup'; grid.className = 'walletgrid';
+    heading.textContent = index === 0 ? 'Main account' : `Account ${index + 1}`;
+    const detail = document.createElement('p'); detail.textContent = `Derivation index ${index} · Wallets from your shared BIP39 root`;
+    group.append(heading, detail, grid);
+    for (const account of visible.filter(account => account.index === index)) {
+      const network = networks.find(network => network.id === account.network);
+      const card = document.createElement('article'), name = document.createElement('h3'), address = document.createElement('p'), assets = document.createElement('p'), open = document.createElement('button');
+      card.className = 'walletcard'; card.dataset.accountId = account.id;
+      name.textContent = network?.name || account.network;
+      address.textContent = account.address; address.className = 'walletaddress';
+      assets.textContent = (network?.assets || []).map(asset => asset.symbol).join(' · ') || 'Assets unavailable';
+      open.textContent = account.hidden ? 'Open hidden wallet' : 'Open wallet';
+      open.onclick = () => { $('account').value = account.id; select(); $('account').focus(); };
+      card.append(name, assets, address, open); grid.append(card);
+    }
+    $('accountgroups').append(group);
+  }
 }
 async function refresh() {
   const epoch = viewEpoch, selected = $('account').value;
   const state = await window.wallet.accounts();
   if (epoch !== viewEpoch) return;
-  if (state.locked) { clearLocked(); return; }
+  if (state.environment === 'testnet' || state.environment === 'mainnet') {
+    $('profile').textContent = state.environment === 'testnet' ? 'Testnet profile' : 'Mainnet profile';
+    $('profile').dataset.environment = state.environment;
+  }
+  vaultMode = state.vaultState === 'missing' && state.walletExists === false ? 'missing' : state.vaultState === 'present' && state.walletExists === true ? 'present' : 'unavailable';
+  if (state.locked !== false || vaultMode !== 'present') { clearLocked(); return; }
   const availableNetworks = await window.wallet.networks();
   if (epoch !== viewEpoch) return;
   accounts = state.accounts || [];
   networks = availableNetworks;
+  vaultMode = 'ready'; renderGate();
+  $('backupcallout').hidden = state.backupVerified === true;
+  show('backupstatus', state.backupVerified === true ? 'Encrypted backup verified' : 'Encrypted backup verification required');
   populateAccounts(selected);
   show('diagnostics', state);
   await history();
@@ -99,10 +152,21 @@ async function history() {
     }
   });
 }
-for (const [id, method, body] of [
+const credentialActions = [
   ['unlock', 'unlock', {}], ['create', 'create', { words: 12 }], ['create24', 'create', { words: 24 }],
-  ['import', 'import', { words: 12 }], ['backup', 'backup', {}], ['restore', 'restore', {}], ['password', 'password', {}]
-]) $(id).onclick = () => run(() => result(method, body, refresh));
+  ['import', 'import', { words: 12 }], ['backup', 'backup', {}], ['restore', 'restore', {}], ['password', 'password', {}],
+  ['onboardcreate', 'create', { words: 12 }], ['onboardunlock', 'unlock', {}], ['backupnow', 'backup', {}]
+];
+let credentialPending = false;
+for (const [id, method, body] of credentialActions) $(id).onclick = async () => {
+  if (credentialPending) return;
+  credentialPending = true;
+  for (const [button] of credentialActions) $(button).disabled = true;
+  try { await run(() => result(method, body, refresh)); }
+  finally { credentialPending = false; for (const [button] of credentialActions) $(button).disabled = false; }
+};
+$('release-link').onclick = event => { event.preventDefault(); $('release-status').open = true; $('release-status').querySelector('summary').focus(); };
+$('onboardretry').onclick = () => run(refresh);
 $('lock').onclick = () => { clearLocked(); return run(() => window.wallet.lock()); };
 $('add').onclick = () => run(() => result('addAccount', { index: Number($('index').value) }, refresh));
 $('hideaccount').onclick = () => run(() => result('hideAccount', { accountId: current()?.id || '', hidden: !current()?.hidden }, refresh));
@@ -133,4 +197,5 @@ $('configure').onclick = () => run(() => window.wallet.configure({ network: curr
 $('associate').onclick = () => run(() => result('associate', { accountId: current()?.id || '', address: $('recipient').value }, refresh));
 $('chainhistory').onclick = () => run(() => result('chainHistory', { accountId: current()?.id || '' }, value => show('chainhistoryresult', value)));
 $('discovery').onclick = () => run(() => result('discovery', { accountId: current()?.id || '', birthday: Number($('birthday').value), gap: Number($('gap').value), limit: Number($('limit').value), blockBudget: Number($('blockbudget').value) }, refresh));
+renderGate();
 run(refresh);

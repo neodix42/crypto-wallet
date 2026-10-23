@@ -5,17 +5,17 @@
     {
       "os": "24.04",
       "status": "BLOCKED",
-      "scope": "container Xvfb install/startup only",
+      "scope": "container Xvfb portable runtime startup only",
       "reason": "Inspect sandbox/native startup log; no weakening applied",
-      "seconds": 81.714,
+      "seconds": 23.646,
       "exit": 1
     },
     {
       "os": "26.04",
       "status": "BLOCKED",
-      "scope": "container Xvfb install/startup only",
+      "scope": "container Xvfb portable runtime startup only",
       "reason": "Inspect sandbox/native startup log; no weakening applied",
-      "seconds": 94.902,
+      "seconds": 21.006,
       "exit": 1
     }
   ]

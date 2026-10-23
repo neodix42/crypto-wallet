@@ -1,0 +1,70 @@
+{
+  "status": "PASS",
+  "date": "2026-10-23",
+  "scope": "Metadata-only first-run presence, orphan preservation, late initialization collisions, affected Go/native signer race suites; internal review, not external audit",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "2",
+    "./internal/vault",
+    "./internal/signer",
+    "./cmd/wallet-core",
+    "./cmd/wallet-signer",
+    "-count=1",
+    "-coverprofile=reports/presence-coverage.out",
+    "-covermode=atomic"
+  ],
+  "results": [
+    {
+      "package": "internal/vault",
+      "seconds": 12.138,
+      "statementsPct": 95.6,
+      "status": "PASS"
+    },
+    {
+      "package": "internal/signer",
+      "seconds": 69.378,
+      "statementsPct": 96.5,
+      "status": "PASS"
+    },
+    {
+      "package": "cmd/wallet-core",
+      "seconds": 2.777,
+      "statementsPct": 95.8,
+      "status": "PASS"
+    },
+    {
+      "package": "cmd/wallet-signer",
+      "seconds": 33.687,
+      "statementsPct": 98.7,
+      "status": "PASS"
+    }
+  ],
+  "checks": [
+    "primary/previous missing required before first-run Create and Restore native prompts",
+    "symlink, FIFO, directory, hardlink, unreadable/unsafe permissions, closed descriptor and traversal fail closed",
+    "orphan encrypted previous generation preserved byte-for-byte and independently authenticated to original WalletID",
+    "Create/import/Restore each reject primary, previous or both appearing during native input: nine deterministic collision cases",
+    "after-sync late primary collision rejected by real RENAME_NOREPLACE with original ciphertext intact",
+    "locked presence JSON omits account data and secret fields",
+    "fresh encrypted creation and restore remain passing in affected suites"
+  ],
+  "limitations": [
+    "No universal atomic exclusion across both filenames against arbitrary uncoordinated same-user filesystem modification",
+    "Post-commit previous collision locks the current session and preserves both files; no durable cross-restart conflict quarantine is claimed",
+    "No public funded testnet, installed OS/display matrix, 24-hour soak or external audit evidence added"
+  ],
+  "sourceSHA256": {
+    "internal/vault/files.go": "31e8822e01f8b3cdc8dbb8ff35e6f2f9498201bbaaad6f346d5218e76c93badd",
+    "internal/vault/presence_test.go": "953d094c3883374468578c31241182378cf367cd630985acc74ee96276fcfe55",
+    "internal/signer/engine.go": "f044874a87afe81117dc964cf547dc83393d2c2286e964d9b6fc9d7b9f1c2d07",
+    "internal/signer/presence_test.go": "3fcf3627bfda4bf5f96d8221810a5e340c2f74db0e89df74735d59ab3ac3aa0b",
+    "cmd/wallet-core/main.go": "de568086ccbe43db14823a4becb4fe66b44a46b623e18375371c963e81ee016c",
+    "cmd/wallet-core/main_test.go": "d1e4f014affef4da835f0834986b119b76058528e1215e1883988032609b25c7",
+    "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
+    "cmd/wallet-signer/main.go": "69da0625d023b8698ef2b13760004bfdd31d499998e4d8575e38bea685eb0c27"
+  },
+  "atomicProfileSHA256": "09d75e059533954a4eb179cf207b956e2750cccc18a68befb834921fbd2d049e"
+}

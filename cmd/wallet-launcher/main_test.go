@@ -90,15 +90,17 @@ func TestTP041LauncherExecInheritanceAndFixedPipes(t *testing.T) {
 	if e = os.WriteFile(filepath.Join(bin, "manifest.json"), manifest, 0600); e != nil {
 		t.Fatal(e)
 	}
-	cmd := exec.Command(filepath.Join(dir, "launcher-test-entry"))
-	cmd.Env = append(os.Environ(), "LD_PRELOAD=synthetic-ignored-by-launcher")
-	if b, e := cmd.CombinedOutput(); e != nil {
-		t.Fatalf("public bootstrap failed: %v %s", e, b)
+	for attempt := 0; attempt < 32; attempt++ {
+		cmd := exec.Command(filepath.Join(dir, "launcher-test-entry"))
+		cmd.Env = append(os.Environ(), "LD_PRELOAD=synthetic-ignored-by-launcher")
+		if b, e := cmd.CombinedOutput(); e != nil {
+			t.Fatalf("public bootstrap attempt %d failed: %v %s", attempt, e, b)
+		}
 	}
 	if e = os.WriteFile(filepath.Join(bin, "wallet-signer"), []byte("tampered public test executable"), 0700); e != nil {
 		t.Fatal(e)
 	}
-	cmd = exec.Command(filepath.Join(dir, "launcher-test-entry"))
+	cmd := exec.Command(filepath.Join(dir, "launcher-test-entry"))
 	if e = cmd.Run(); e == nil {
 		t.Fatal("tampered packaged child launched")
 	}

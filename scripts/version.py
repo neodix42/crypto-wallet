@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One bounded canonical version for Go, Electron, Debian and release artifacts."""
+"""One bounded canonical version for Go, Electron and portable release artifacts."""
 import os
 import pathlib
 import re
