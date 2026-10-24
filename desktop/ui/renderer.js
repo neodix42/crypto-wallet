@@ -455,7 +455,6 @@ for (const [id, method, body] of credentialActions) $(id).onclick = async () => 
   try { await run(async () => { const epoch = sessionEpoch; await window.wallet[method](body); if (epoch === sessionEpoch) await refresh(); }); }
   finally { credentialPending = false; for (const [button] of credentialActions) $(button).disabled = false; void drainBalanceQueue(); }
 };
-$('release-link').onclick = event => { event.preventDefault(); $('release-status').open = true; $('release-status').querySelector('summary').focus(); };
 $('onboardretry').onclick = () => run(refresh);
 $('lock').onclick = () => { clearLocked(); return run(() => window.wallet.lock()); };
 $('add').onclick = () => { closeSettings(); return run(() => committedMetadata('addAccount', { index: Number($('index').value) })); };

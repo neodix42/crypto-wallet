@@ -1,0 +1,29 @@
+# Remaining production-readiness work
+
+Removing the development banner changes presentation. It does not complete the release gates. This checklist separates missing functionality from unexecuted acceptance and known operating limits; the detailed requirement statuses remain in [traceability.json](traceability.json) and [STATUS.md](STATUS.md).
+
+## Implementation and distribution
+
+- [ ] Implement and verify **fresh HyperCore recipient activation**, including the prerequisite fee funding/selection and an accepted first transfer. Current [preparation](../internal/chains/hypercore/adapter.go) rejects a missing recipient, and [receive guidance](../internal/signer/engine.go) explicitly states that initial activation is not implemented. Existing activated standard-owner accounts have a separate supported path. See [Core evidence and limitations](EVM_CORE.md).
+- [ ] Resolve **large-history and saturated reconciliation** cases with bounded pagination and, where necessary, persisted incremental synchronization. The [desktop schema](../desktop/src/validation.ts) and [coordinator](../cmd/wallet-core/main.go) return a whole history/report without a pagination cursor; [Decred synchronization](../internal/chains/decred/sync.go) stops at its record ceiling, while [Core reconciliation](../internal/chains/hypercore/adapter.go) leaves saturated ledger queries unknown. Retain resource limits and reservations; never truncate silently or turn uncertainty into failure or zero.
+- [ ] Add **publisher-authenticated releases and verification instructions**. Current checksums/manifests do not authenticate a publisher. If a release promises the ready-to-run desktop wallet, include its complete portable Electron/Go runtime: the current [release workflow](../.github/workflows/release.yml) uploads Go backend components only. Exercise the actual workflow and installation path. See [build instructions](BUILD.md) and [dependency/release limitations](DEPENDENCIES.md). Automatic updating is intentionally disabled in v1; an updater is not a prerequisite.
+
+## Required acceptance — NOT_RUN
+
+- [ ] Complete receive/send-back roundtrips on **all supported networks with testnet counterparts**, recording accepted execution/finality and independently queried recipient state. Complete actual Core action acceptance. Local nodes, emulator traces and read-only mainnet observations do not replace this gate. Use disposable test wallets and capped test funds, never automated mainnet spending. See the [chain matrix](../TEST_PLAN.md).
+- [ ] Test interoperability with **identified third-party wallet versions and exact profiles**, including supported phrase lengths and multiple indices. SDK vectors alone do not establish application-import compatibility. See [compatibility requirements](../BLOCKCHAIN_COMPATIBILITY.md).
+- [ ] Complete the installed **Ubuntu 24.04/26.04 × X11/Wayland** matrix: real send/receive, prompt focus, screen lock/logout/suspend, restart, install/upgrade/uninstall preservation, and high-DPI/resize/QR behavior. Repeat phrase recovery on a **separate physical machine**; isolated application copies on one host do not establish that acceptance. See [desktop test requirements](../TEST_PLAN.md) and [recovery limits](RECOVERY.md).
+- [ ] Finish the **full process/crash/secret-canary campaign**, including successful, failed, cancelled, locked and restored workflows under the current Electron secret boundary. Establish the supported host crash-collection policy; post-exec Electron non-dumpability is not currently established. See [Electron evidence](ELECTRON_INTERFACE.md) and [threat model](THREAT_MODEL.md).
+- [ ] Run the complete **24-hour soak** and longer scheduled fuzz campaigns, retaining resource/latency measurements and final payment reconciliation. Short smoke and bounded stress results have narrower scopes. See [stress evidence](STRESS.md).
+- [ ] Obtain **independent security review** of vault/recovery, the expanded Electron/coordinator secret boundary, every signing adapter and build/distribution chain; address relevant findings. Complete license/redistribution review. Run all mandatory gates against the exact final candidate and require [the production release verifier](../scripts/verify-release.py) to pass.
+
+## Configuration and demonstrated blockers
+
+- [ ] Configure and verify an **authenticated, synchronized, trusted-TLS Decred node**. Mainnet observation remains blocked without it; this is not evidence that the adapter is absent. Follow [Decred setup](MAINNET.md).
+- [ ] Complete supported-OS sandbox installation and acceptance without bypasses. Earlier container startup probes remain blocked; they do not establish failure on stock supported desktops. See [build/runtime constraints](BUILD.md).
+
+## Constraints requiring explicit review, not fictitious completion
+
+The phrase restores canonical keys, not missing journal entries, named/rotated associations, RPC credentials or Decred discovery counters. Existing recovery controls and reconciliation procedures must be validated without reintroducing the removed encrypted-backup workflow. Bounded histories are not exhaustive archival recovery. Unsupported agent/vault/unified Core authorities are deliberately rejected; adding trading functionality is outside v1.
+
+Some chains cannot encode an absolute signed ceiling for every fee component; the current reserve/estimate disclosures need review and network acceptance. Whole-directory rollback, compromised trusted Electron/OS/display components and complete erasure of runtime copies remain documented limits. Production acceptance requires an honest supported scope and review of these limits, not claims that tests remove them. See [recovery](RECOVERY.md), [EVM/Core](EVM_CORE.md), [DCR/TON](DCR_TON.md) and [threat model](THREAT_MODEL.md).

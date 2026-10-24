@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "cb0b687c36d9756b5b3d49cd489b106058f6413f",
+  "sourceCommit": "07ca7217e64fb4fb18399e616c41908e27f4e876",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "6bef53f87480946aa701d85e8757f55ec0d0ce00390c3fb26a2ff9995e0dd53e",
+  "sha256": "d554665ef16091b1e65ed060606ccefb37ab65223a59a8e3113842244723c144",
   "binaryManifest": {
-    "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
-    "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
-    "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
+    "wallet-core": "fa9803e3870f29ea86220ca584e901c7a7f54bdcd227180f248ade955c40e85b",
+    "wallet-launcher": "464c524303e538079fc364c5c7889b01ce8bba8feba5f18f330e8c7189fb3066",
+    "wallet-signer": "c3d70a068f2203667550a526a6d120687ff2290e00feede554767a8e8a9ebb90"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -157,6 +157,12 @@
       "sha256": "6773718845c6aee39dad039dc83f1c8a0e01409b745d5696d11021d1812e0128"
     },
     {
+      "report": "release-banner-removal",
+      "status": "PASS",
+      "file": "release-banner-removal.json",
+      "sha256": "238aa0a4b90b4866481b5eafb7a5d4e72b7a45850df5b947df805fb10134686b"
+    },
+    {
       "report": "receive-small-display",
       "status": "PASS",
       "file": "receive-small-display.json",
@@ -226,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "7971066b01b002cdc3f77a108c08eb4fea6b4b2410d77ed44a2b1150634d9208"
+      "sha256": "82b4f8d8e9732d770257480493f76471c3ecd5a54dfbb9e47197ec529cd3d544"
     }
   ],
   "node": "v24.19.0",

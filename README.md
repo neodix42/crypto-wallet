@@ -92,7 +92,7 @@ The top-right **Settings** button contains phrase restoration for an empty profi
 
 [Electron interface evidence and limits](docs/ELECTRON_INTERFACE.md) records the current window/protocol tests and the changed trust boundary.
 
-The release-status panel lists the outstanding public-network, installed-OS, soak and independent-review gates. Passing local tests does not establish production readiness, so the application continues to state its actual verification status.
+The outstanding implementation, public-network, installed-OS, soak and independent-review work is tracked in the [production-readiness checklist](docs/PRODUCTION_READINESS.md) and [release evidence](docs/STATUS.md).
 
 ## Automatic versioned releases
 

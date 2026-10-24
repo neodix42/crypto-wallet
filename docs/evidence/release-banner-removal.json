@@ -1,0 +1,114 @@
+{
+  "status": "PASS",
+  "scope": "Remove development release banner and explanatory text only; no production-readiness claim",
+  "sourceCommit": "07ca7217e64fb4fb18399e616c41908e27f4e876",
+  "dirty": true,
+  "sourceSHA256": {
+    "README.md": "d618a4ba48d7d5b512d3d922d5856c32a2e82b3b55aa1d3606d3b83dbc23cd73",
+    "SHA256SUMS": "eaf58f808f6f2be85923a368fa18cedbfe56607f0b383615d0ae157adbdf957a",
+    "desktop/ui/index.html": "8f970988aa9f7c77080cc69fe1446deac50ed9374367b5e4dc3155f0fb7541e3",
+    "desktop/ui/style.css": "96455ae4ee91c7ab8d7eb69e7356bc16d75d08078713f1c922cae35cd88e8c09",
+    "desktop/ui/renderer.js": "44107ef188935f1a41212c6ae94ffdf51b327f0cacb5f63277c84ec33ce53ed1",
+    "desktop/tests/runtime.test.cjs": "b80b25a82453bfc800feb011d1e96d16e7d41f31bd3cf9ec27e6338dea166091",
+    "docs/STATUS.md": "6ac4fc0564bafb1268205bfcf712b70580ef3833191e587656ebb84005bdcabd",
+    "docs/PRODUCTION_READINESS.md": "61b7173b468d5a4e4845da578dae03aa677eed716b3438c8223d63f5df28416d",
+    "scripts/record-evidence.py": "01ab31537036b4e2686808328fd0719699ecb64c658a4f2b2667ab6a424776ef"
+  },
+  "artifact": {
+    "version": "0.1.0",
+    "portable": {
+      "file": "localwallet-0.1.0-linux-amd64.tar.gz",
+      "sha256": "d554665ef16091b1e65ed060606ccefb37ab65223a59a8e3113842244723c144"
+    },
+    "binaryManifest": {
+      "wallet-core": "fa9803e3870f29ea86220ca584e901c7a7f54bdcd227180f248ade955c40e85b",
+      "wallet-launcher": "464c524303e538079fc364c5c7889b01ce8bba8feba5f18f330e8c7189fb3066",
+      "wallet-signer": "c3d70a068f2203667550a526a6d120687ff2290e00feede554767a8e8a9ebb90"
+    },
+    "asarSHA256": "a00839e17ce39e39059b03e98db45b2025203c3c8349dadc6de361f25a696d86"
+  },
+  "checks": [
+    {
+      "name": "Frontend components and enforced coverage",
+      "status": "PASS",
+      "tests": 96,
+      "passed": 96,
+      "skipped": 0,
+      "report": "frontend-coverage.json"
+    },
+    {
+      "name": "Complete desktop build and repository-local install",
+      "status": "PASS",
+      "log": "banner-build.log"
+    },
+    {
+      "name": "Runtime and archive version consistency",
+      "status": "PASS",
+      "log": "banner-version.log"
+    },
+    {
+      "name": "Packaged fuses and production resource inventory",
+      "status": "PASS",
+      "report": "artifact-security.json"
+    },
+    {
+      "name": "Installed production application/UI bytes match source and removed text is absent",
+      "status": "PASS",
+      "filesCompared": 12
+    }
+  ],
+  "previousEvidence": {
+    "packagedRecoveryStatus": "PASS",
+    "packagedRecoveryArtifact": {
+      "version": "0.1.0",
+      "binaryManifest": {
+        "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
+        "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
+        "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
+      },
+      "asarSHA256": "5cc7a106d01b16ed6ff4898a54570c7404b9f553557c8f0bd3ed4d5a80a5833f"
+    },
+    "matchesCurrentASAR": false,
+    "matchesCurrentBinaryManifest": false,
+    "goCoverageSourceHashesStillMatch": 149
+  },
+  "notRun": [
+    "Full packaged recovery drill was not repeated for this presentation-only change",
+    "Backend/security/race/fuzz/stress suites were not repeated; Go source unchanged"
+  ],
+  "productionRelease": {
+    "status": "FAIL",
+    "reason": "Outstanding mandatory acceptance/configuration/review gates remain",
+    "log": "banner-production-gate.log",
+    "output": [
+      "FAIL: production release blocked",
+      " - BC-APTOS: NOT_RUN",
+      " - BC-CORE: NOT_RUN",
+      " - BC-DCR: NOT_RUN",
+      " - BC-EVM: NOT_RUN",
+      " - BC-NEAR: NOT_RUN",
+      " - BC-TON: NOT_RUN",
+      " - S-01: NOT_RUN",
+      " - S-02: NOT_RUN",
+      " - S-03: NOT_RUN",
+      " - S-04: NOT_RUN",
+      " - S-05: NOT_RUN",
+      " - S-06: NOT_RUN",
+      " - S-07: NOT_RUN",
+      " - S-08: NOT_RUN",
+      " - TP-040: NOT_RUN",
+      " - TP-043: NOT_RUN",
+      " - TP-050: NOT_RUN",
+      " - TP-061: NOT_RUN",
+      " - TP-070: NOT_RUN",
+      " - TP-072: NOT_RUN",
+      " - TP-080: NOT_RUN",
+      " - OPS-MAINNET-CONNECTIVITY: BLOCKED",
+      " - soak missing or incomplete",
+      " - desktop-e2e missing or incomplete",
+      " - public-testnets missing or incomplete",
+      " - independent-review missing or incomplete"
+    ]
+  },
+  "remainingWork": "docs/PRODUCTION_READINESS.md"
+}

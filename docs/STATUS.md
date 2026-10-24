@@ -4,6 +4,8 @@ This is an unsigned development candidate with mainnet selected by default. It i
 
 PASS means the named scope actually ran. NOT_RUN means execution has not occurred. BLOCKED identifies a demonstrated obstacle. Local nodes, isolated installations, short campaigns and component tests do not substitute for external acceptance. No real user secret was used and no mainnet funds were automatically sent.
 
+The owner-requested removal of the release banner and its explanatory text passed all 96 current frontend tests with zero skips and the enforced coverage floors. The rebuilt, installed `./wallet` passed version, fuse and resource checks; all 12 application/UI files in its ASAR match source. The [scoped report](evidence/release-banner-removal.json) binds these results to the new artifact. The earlier 20-step packaged recovery drill below ran against the preceding artifact and was not repeated for this presentation change. All 149 Go source/test/module hashes still match the earlier coverage snapshot; the rebuilt binary hashes differ, so earlier installed checks do not certify this exact artifact. The production gate was rerun and still fails on the outstanding requirements. See the [remaining production work](PRODUCTION_READINESS.md).
+
 | Milestone | Implementation/evidence | Remaining release gate |
 |---|---|---|
 | 0 Repository and feasibility | PASS: Go 1.27.3, Node 24.19.0/npm 11.17.0, Electron 45.0.0; Ubuntu 26.04 amd64; libseccomp, isolated Electron dialogs and current portable desktop launch | Independent build/supply-chain review NOT_RUN |

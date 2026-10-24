@@ -222,10 +222,9 @@ test('TP031 unavailable or inconsistent storage never authorizes onboarding crea
  }
 });
 
-test('TP031 initial status failure is unavailable, native cancellation preserves setup, and release status opens specific honest evidence limits',async t=>{
+test('TP031 initial status failure is unavailable and password-dialog cancellation preserves setup',async t=>{
  const h=await rendererHarness({readAccounts:()=>{throw Error('CANARY-private-storage-error')}});t.after(h.close);assert.equal(h.$('onboardtitle').textContent,'Wallet storage unavailable');assert.equal(h.$('onboardcreate').hidden,true);assert.ok(!h.dom.window.document.body.textContent.includes('CANARY-private-storage-error'));
  h.handlers.accounts=()=>({locked:true,walletExists:false,vaultState:'missing',accounts:[]});await h.invoke('onboardretry');h.handlers.create=()=>{throw Error('CANARY-native-password-cancel')};await h.invoke('onboardcreate');assert.equal(h.$('onboardcreate').disabled,false);assert.equal(h.$('onboardcreate').hidden,false);assert.match(h.$('message').textContent,/failed or is unavailable/);assert.ok(!h.dom.window.document.body.textContent.includes('CANARY-native-password-cancel'));assert.equal(h.$('accountgroups').children.length,0);
- const link=h.$('release-link');assert.match(link.textContent,/development; verification outstanding/);assert.equal(h.$('release-status').open,false);link.click();assert.equal(h.$('release-status').open,true);assert.equal(h.dom.window.location.hash,'');assert.match(h.$('release-status').textContent,/Public funded testnet roundtrips/);assert.match(h.$('release-status').textContent,/24-hour soak and independent security review remain outstanding/);assert.equal(h.dom.window.document.querySelector('.notice'),null);
 });
 
 const safeOperationCodes=['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN'];
