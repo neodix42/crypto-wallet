@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-Create a noncustodial desktop wallet using Go and Electron, with first-class support for Ubuntu 24.04 and later supported LTS releases. Produce amd64 `.deb` packages first. An AppImage is optional and must preserve sandboxing. Arm64 is a separate tested build target, not an inferred claim.
+Create a noncustodial desktop wallet using Go and Electron, with first-class support for Ubuntu 24.04 and later supported LTS releases. The owner requests amd64 Go executable artifacts and the complete portable desktop runtime without a Debian package. Portable packaging must preserve sandboxing. Arm64 is a separate tested build target, not an inferred claim.
 
 The application must create one cryptographically random BIP39 master recovery root and derive multiple deterministic accounts on the requested blockchains. It must be able to receive and send real protocol transactions after validation, not just display addresses. All secret material stays locally encrypted when not in active use. There are no custodial backend accounts or remote signing services.
 
@@ -32,7 +32,7 @@ Generate entropy with Go's operating-system-backed cryptographic random source. 
 
 Use the standard English BIP39 word list and standard mnemonic-to-seed conversion. Default generation is 12 words for the TON interoperability convention documented in TEP-3. An advanced 24-word BIP39 creation option is permitted, explicitly labeled and saved as BIP39; it must not be represented as a native TON phrase. Import valid English BIP39 lengths 12, 15, 18, 21, and 24, with exact checksum and normalization rules. Cross-wallet acceptance of each length is a separate compatibility claim. Do not translate the words or silently repair a phrase.
 
-The app never displays the generated phrase. The word-count option describes the underlying recovery format, not a promise of paper backup. Preserve the actual entropy/word-list/profile information inside the encrypted vault so restoration is deterministic.
+After the app password is specified, the isolated native Go surface displays the generated phrase for offline recording and confirms selected words. The phrase never enters Electron or public IPC. Preserve the actual entropy/word-list/profile information inside the encrypted vault so restoration is deterministic.
 
 New wallets default to an empty BIP39 passphrase. Import supports an explicit optional BIP39 passphrase using the secure input path, with independent vectors. A passphrase typo creates a different valid wallet; no checksum can prove the passphrase is correct. Confirm imported public addresses and warn against interpreting an unexpectedly empty balance as proof of an empty wallet.
 
@@ -40,23 +40,19 @@ New wallets default to an empty BIP39 passphrase. Import supports an explicit op
 
 Start with one wallet root and one account per required family. “Add account” increments the documented index, not a random new seed. EVM Account 1 can use the same EOA address across Ethereum, Base, Horizen and HyperEVM; display the networks separately. HyperCore associates with the same explicitly selected EVM key, with its own balance domain.
 
-Account index, derivation profile, authentication scheme, network, public key, TON contract parameters, Decred change branch, and any account association must be durable metadata. Labels are not identifiers. Removing an account from the UI hides it; it never renumbers remaining accounts or destroys its recovery mapping. Restoring an older backup must offer bounded rescan and manual index-range discovery for accounts added later.
+Account index, derivation profile, authentication scheme, network, public key, TON contract parameters, Decred change branch, and any account association must be durable metadata. Labels are not identifiers. Removing an account from the UI hides it; it never renumbers remaining accounts or destroys its recovery mapping. Restoring a phrase must offer bounded rescan and manual index-range discovery for accounts added later.
 
 Do not imply that keys on different chains are literally identical, or that identical EVM addresses imply balances can be transferred between networks without a bridge.
 
-### 3.3 Strict no-reveal and portable backup
+### 3.3 Native phrase recording and fresh-install recovery
 
-The generated/imported phrase, binary seed, BIP39 passphrase, private keys and extended private keys have no display/export/debug endpoint. A native Go input dialog may accept a known phrase, but must not provide a reveal toggle or echo it in errors. This is an intentional product choice.
+Owner policy update: recovery uses a written BIP39 phrase, replacing the former encrypted portable-backup requirement. Generate the phrase after native app-password entry, persist the root encrypted before showing it, then display it only in the isolated native Go window. Require deliberate recording acknowledgment and correct masked word challenges before enabling receiving or payment authorization. Cancellation leaves the same encrypted root pending; it must never create a replacement root.
 
-For a generated wallet, require creating an encrypted portable backup before enabling its mainnet receive/deposit or send workflow. Reopen the written backup, authenticate/decrypt it in the secure component, and compare public recovery descriptors with the active vault. Do not call a successful filesystem write a verified backup. Verification must not overwrite the live vault or broadcast anything.
+The phrase has no Electron display/input, public IPC response, plaintext-file export, clipboard or QR operation. Private keys, extended private keys, binary seeds and BIP39 passphrases remain undisplayed. A pending or legacy vault can finish setup only after native app-password reauthentication. After confirmation, the current generation has no repeated phrase-reveal operation. Whole-directory rollback to an older valid pending generation cannot be prevented without an external monotonic anchor.
 
-The backup includes the encrypted root material, any imported BIP39 passphrase, exact derivation profiles, account indices, network descriptors, TON contract parameters, NEAR named associations, Aptos address associations, DCR discovery settings and wallet birthday, plus the schema version. It must restore on a fresh supported Ubuntu installation without the original OS keyring, machine identity, user account name, or application installation.
+A completely fresh installation must restore canonical wallets with the recorded phrase and a specified local app password; an optional original BIP39 passphrase is additionally required when one was used. The app password encrypts this installation and does not derive blockchain keys: either the same or a different app password must recover identical canonical addresses. Keep the encrypted local vault, current generation and prior crash-recovery generation protected by the existing file/cryptography rules.
 
-The app password is a storage-encryption password. Changing it must not change any blockchain address. Old backups still require their old password; password rotation cannot revoke already copied backups. Communicate this during rotation and offer creation and verification of a replacement backup.
-
-A backup contains secrets only in authenticated encrypted form. No plaintext seed JSON, recovery QR, email/cloud upload, or clipboard export. Forgotten passwords have no reset. Do not implement a hidden master password. A local, offline-capable recovery mode may restore and sign within the same security boundaries; it must not become a key-dumping utility.
-
-Phrase-only import must reproduce this app's canonical accounts when the user already knows the phrase and any passphrase. It cannot guarantee recovery of arbitrary named associations, historical TON contracts, rotated Aptos accounts, or unknown third-party paths without discovery/metadata. Explain exactly what was searched and what remains unresolved.
+Remove encrypted-backup creation, file verification and file restore from product UI/public IPC. Phrase recovery does not carry named/rotated associations, account labels, discovery counters, RPC settings or the local payment journal. Offer explicit account-index/discovery controls and explain those limits; never invent missing history or claim an incomplete scan means zero funds. Do not silently change derivation profiles or contract parameters.
 
 ## 4. Receive flow
 
@@ -89,7 +85,7 @@ Never automatically create a second payment after a timeout. Retry of the same s
 
 ## 6. Application UX and local operations
 
-Provide creation, import, unlock/lock, account management, asset/network selection, balances, receive, send, transaction history, encrypted backup/restore, password change, network settings and an accurate support-status screen. Show advanced derivation metadata in a read-only public diagnostics view without exposing keys.
+Provide creation, import, unlock/lock, account management, asset/network selection, balances, receive, send, transaction history, native phrase recording/restore, password change, network settings and an accurate support-status screen. Show advanced derivation metadata in a read-only public diagnostics view without exposing keys.
 
 Use clear mainnet/testnet labels throughout. Test wallets and production wallets live in distinct profiles and directories; never import a test fixture automatically into a real vault. State the synchronization/trust mode for each chain, especially Decred SPV or trusted node access. Allow approved custom RPCs with explicit network verification and encrypted credential storage.
 
@@ -101,6 +97,6 @@ No analytics, remote fonts, remote script execution, background advertisements, 
 
 Deliver all required chain adapters, not a reduced EVM-only wallet. Each required domain must pass independent derivation/signing fixtures, meaningful local protocol integration, clean recovery, transaction-state tests and the defined external testnet gate. Record PASS, FAIL, BLOCKED and NOT RUN honestly.
 
-The repository must include reproducible build instructions, the actual Ubuntu package, dependency lockfiles and inventory, versioned vault and recovery-format documentation, an offline restoration procedure, a requirement-to-test map, coverage reports, retained fuzz regressions, mutation evidence, threat model and release checklist. CI must enforce the security floors instead of printing advisory numbers.
+The repository must include reproducible build instructions, the actual Ubuntu-compatible portable artifacts, dependency lockfiles and inventory, versioned vault and recovery-format documentation, an offline restoration procedure, a requirement-to-test map, coverage reports, retained fuzz regressions, mutation evidence, threat model and release checklist. CI must enforce the security floors instead of printing advisory numbers.
 
 Independent review of the vault, secret-handling boundary and every signing adapter is a production release requirement. Automated tests are necessary evidence, not a substitute for that review. Finish everything that can be implemented and tested without real funds, then identify any genuinely unavailable external gate. Do not fabricate faucet success, blockchain receipts, benchmark results, audit approval or compatibility with a wallet version that was not tested.

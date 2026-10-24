@@ -1,5 +1,8 @@
 # Linux child process lifetime evidence
 
+> Historical portable-recovery row: its eight checks used the former encrypted-file backup workflow and apply to that recorded artifact. The child-lifetime mechanism is separate from recovery policy. Current recovery uses native phrase recording/import; see [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) for new artifact-bound results.
+
+
 Linux parent-death signals follow the OS thread that creates a child. A Go goroutine can move to another thread, and its original thread can end while the Go process remains alive. The [Go syscall documentation](https://pkg.go.dev/syscall@go1.27.3#SysProcAttr) and [Linux manual](https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html) describe this behavior.
 
 The launcher now pins its thread before starting the public coordinator and keeps it pinned through `Exec`. The supervisor gives each signer a dedicated locked creator thread, retained until the signer is killed and reaped. Startup failures close the pipes; explicit lock and failure teardown wait for child reaping and owner completion. Parent-death `SIGKILL`, process groups, executable manifests and the existing network restrictions remain enabled. Public `--version` still returns without opening a profile or starting a child.

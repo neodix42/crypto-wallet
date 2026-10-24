@@ -123,7 +123,7 @@ func TestTP071BoundedStress(t *testing.T) {
 	// <=8 residual goroutines;16 scheduling workers; parserp99<10ms,
 	// schedulingp99<1s; production lifecyclep99<60s; KDF reopenp99<15s.
 	r := beginReport(t, "stress")
-	r.Scope = "Production IPC/amount/address parsers for every registered testnet family; real EVM encoding/signature/verification against bounded fake ledger; actual signer encrypted persistence/lock/restart/backup/discovery/history. Public synthetic test UI replaces GTK; fake node ledger is not consensus acceptance or packaged desktop stress."
+	r.Scope = "Production IPC/amount/address parsers for every registered testnet family; real EVM encoding/signature/verification against bounded fake ledger; actual signer encrypted persistence/lock/restart/phrase recovery/discovery/history. Public synthetic test UI replaces GTK; fake node ledger is not consensus acceptance or packaged desktop stress."
 	rng := rand.New(rand.NewPCG(0x79326, 0x16482))
 	latencies := make([]int64, 0, 100000)
 	for i := 0; i < 100000; i++ {
@@ -226,7 +226,7 @@ func TestTP072Soak(t *testing.T) {
 	}
 	r := beginReport(t, "soak")
 	r.Seed = "public BIP39 abandon/about fixture; scenario ordinal modulo 55; fixed 30-second cadence; cryptographic RNG is not replaced"
-	r.Scope = "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/backup; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
+	r.Scope = "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/phrase recovery; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
 	r.RequestedSeconds = soak.Seconds()
 	r.Campaign24hStatus = "NOT_RUN"
 	if *soak < 24*time.Hour {

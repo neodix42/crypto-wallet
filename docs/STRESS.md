@@ -1,5 +1,8 @@
 # Stress and soak evidence
 
+> Historical measured workload: the timings/counts below include the former encrypted-file backup operation. Current product recovery records/confirms the phrase in Go and restores from that phrase; no portable backup API remains. These old measurements do not recertify changed recovery code. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) and the current evidence checklist for rerun status.
+
+
 Measured on Ubuntu 26.04 amd64, Go 1.27.3, AMD Ryzen 9 5950X 16-core CPU (32 logical CPUs). Every credential, phrase, seed and approval in this harness is public synthetic test material. No public endpoint or live funds are used.
 
 The bounded profile runs production code for 100,000 malformed/bounded IPC requests and 10,000 address/amount/unsupported-URI/duplicate-metadata cases spanning 12 registered testnet profiles. It also runs 1,000 scheduling scenarios with 16 competing workers, real EVM transaction encoding/signing/signature verification, a bounded fake RPC ledger, lost acceptance responses, reopened journal identities and final reconciliation. The fake node independently decodes the transaction, enforces nonce/source/chain/value/gas and records one credit per signed identity. These tests establish scheduling and rejection behavior; actual consensus acceptance is covered by the independent integration report.

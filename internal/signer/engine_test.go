@@ -20,11 +20,26 @@ const syntheticPassword = "CANARY-public-synthetic-password-79326"
 const syntheticPhrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
 type testUI struct {
-	inputs    [][][]byte
-	path      string
-	approve   bool
-	summaries []string
-	copied    string
+	inputs          [][][]byte
+	path            string
+	approve         bool
+	summaries       []string
+	copied          string
+	recoveryPhrase  []byte
+	recoveryApprove *bool
+	recoveryHook    func()
+}
+
+func (u *testUI) Recovery(_ string, phrase []byte) bool {
+	clear(u.recoveryPhrase)
+	u.recoveryPhrase = bytes.Clone(phrase)
+	if u.recoveryHook != nil {
+		u.recoveryHook()
+	}
+	if u.recoveryApprove != nil {
+		return *u.recoveryApprove
+	}
+	return u.approve
 }
 
 func (u *testUI) Input(_ string, _ ...string) ([][]byte, error) {
@@ -122,7 +137,7 @@ func TestTP032AllProfilesCleanPortableRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := e.Snapshot()
-	if !expected.BackupVerified {
+	if !expected.RecoveryConfirmed {
 		t.Fatal("backup not verified")
 	}
 	f, e2 := vault.NewFiles(filepath.Join(t.TempDir(), "fresh-machine"))
@@ -150,8 +165,8 @@ func TestTP032AllProfilesCleanPortableRecovery(t *testing.T) {
 	if err := e.ChangePassword(); err != nil {
 		t.Fatal(err)
 	}
-	if e.Snapshot().BackupVerified {
-		t.Fatal("rotation backup state")
+	if !e.Snapshot().RecoveryConfirmed {
+		t.Fatal("storage password rotation revoked recorded phrase")
 	}
 	e.Lock()
 	u.inputs = append(u.inputs, input(syntheticPassword))
@@ -321,9 +336,10 @@ func TestTP042CancelledAndExpiredAuthorization(t *testing.T) {
 		t.Fatal("overwrite existing root")
 	}
 }
-func TestTP033NoRevealAndMainnetBackupGate(t *testing.T) {
+func TestTP033PendingRecoveryGateAndNoRepeatedDisclosure(t *testing.T) {
 	e, u, _ := newEngine(t, []model.Adapter{evm.New()})
 	createImported(t, e, u, "mainnet")
+	e.data.RecoveryConfirmed = false
 	a := e.Snapshot().Accounts[0]
 	if _, err := e.Receive(a.ID); err == nil {
 		t.Fatal("mainnet deposit before backup")

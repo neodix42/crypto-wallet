@@ -2,7 +2,7 @@
 export GOTOOLCHAIN := go1.27.3
 TOOLS := ./scripts/with-toolchain.sh
 GO_TOOLS := ./scripts/with-go.sh
-.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-fuzz test-packaged test-e2e test-testnet test-stress test-soak coverage package-desktop package-go verify-release check-deps
+.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-fuzz test-packaged test-recovery test-e2e test-testnet test-stress test-soak coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
 build-go: build
@@ -39,6 +39,8 @@ test-native:
 	$(TOOLS) python3 scripts/native-input.py
 test-packaged: install
 	$(TOOLS) python3 scripts/packaged-recovery.py
+test-recovery: build
+	$(GO_TOOLS) python3 scripts/phrase-recovery.py
 test-e2e: test-packaged
 	$(TOOLS) python3 scripts/e2e.py
 test-testnet:

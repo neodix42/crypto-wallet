@@ -26,7 +26,7 @@ func (u *backupRevocationUI) Confirm(title, summary string) bool {
 	return approved
 }
 
-func TestPreparedMainnetTransferRequiresCurrentVerifiedBackupAtEveryAuthorizationBoundary(t *testing.T) {
+func TestPreparedMainnetTransferRequiresRecordedPhraseAtEveryAuthorizationBoundary(t *testing.T) {
 	for _, revokeAt := range []string{"before-sign", "during-confirmation", "during-reauthentication"} {
 		t.Run(revokeAt, func(t *testing.T) {
 			e, ui, _ := newEngine(t, []model.Adapter{evm.New()})
@@ -51,11 +51,9 @@ func TestPreparedMainnetTransferRequiresCurrentVerifiedBackupAtEveryAuthorizatio
 			ui.summaries = nil
 			ui.inputs = append(ui.inputs, input(syntheticPassword))
 			revoke := func() {
-				if err := e.AddAccount(1); err != nil {
-					t.Fatal("account metadata change failed", err)
-				}
-				if e.Snapshot().BackupVerified {
-					t.Fatal("account metadata change retained stale backup authorization")
+				e.data.RecoveryConfirmed = false
+				if e.Snapshot().RecoveryConfirmed {
+					t.Fatal("pending recovery retained authorization")
 				}
 			}
 			switch revokeAt {

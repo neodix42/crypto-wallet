@@ -5,15 +5,15 @@
   "settledCheckpoints": [
     {
       "cycle": 1,
-      "rssBytes": 2282455040,
-      "heapBytes": 4072080,
+      "rssBytes": 2291421184,
+      "heapBytes": 4097656,
       "goroutines": 18,
       "journalRecords": 2
     },
     {
       "cycle": 2,
-      "rssBytes": 2295963648,
-      "heapBytes": 4091664,
+      "rssBytes": 2296877056,
+      "heapBytes": 4102312,
       "goroutines": 18,
       "journalRecords": 4
     }
@@ -45,52 +45,52 @@
     "productionKDFBackupReopen": 8,
     "productionSignedJournalReconciled": 2,
     "productionSignerCreate": 1,
-    "productionSignerVerifiedBackups": 2,
+    "productionSignerPhraseRecoveries": 2,
     "realSignedFakeNodeTransfers": 1000,
     "testnetAddressProfiles": 12
   },
-  "elapsedSeconds": 59.895948503,
-  "p50Micros": 6,
-  "p99Micros": 608,
+  "elapsedSeconds": 121.853080388,
+  "p50Micros": 7,
+  "p99Micros": 830,
   "rssBudgetMiB": 3072,
   "goMemoryLimitMiB": 768,
-  "StartHeap": 1843088,
-  "EndHeap": 4209168,
+  "StartHeap": 1848352,
+  "EndHeap": 4304008,
   "StartGoroutines": 2,
   "EndGoroutines": 2,
-  "startRSSBytes": 39387136,
-  "endRSSBytes": 2268770304,
-  "peakObservedRSSBytes": 2304524288,
-  "kernelHighWaterRSSBytes": 2304524288,
-  "resourceSamples": 2996,
+  "startRSSBytes": 39612416,
+  "endRSSBytes": 2265559040,
+  "peakObservedRSSBytes": 2305806336,
+  "kernelHighWaterRSSBytes": 2305806336,
+  "resourceSamples": 6094,
   "peakGoroutines": 22,
   "latencies": {
     "boundedIPCParser": {
       "count": 100000,
-      "p50Micros": 6,
-      "p99Micros": 608,
-      "maxMicros": 3783,
+      "p50Micros": 7,
+      "p99Micros": 830,
+      "maxMicros": 4023,
       "budgetP99Micros": 10000
     },
     "concurrentSchedulingTransfer": {
       "count": 1000,
-      "p50Micros": 12710,
-      "p99Micros": 17972,
-      "maxMicros": 28419,
+      "p50Micros": 14729,
+      "p99Micros": 20212,
+      "maxMicros": 22036,
       "budgetP99Micros": 1000000
     },
     "productionKDFSealReopen": {
       "count": 8,
-      "p50Micros": 1298508,
-      "p99Micros": 1514644,
-      "maxMicros": 1514644,
+      "p50Micros": 1573398,
+      "p99Micros": 1637570,
+      "maxMicros": 1637570,
       "budgetP99Micros": 15000000
     },
     "productionSignerLifecycle": {
       "count": 2,
-      "p50Micros": 15879038,
-      "p99Micros": 15879038,
-      "maxMicros": 15879038,
+      "p50Micros": 43400129,
+      "p99Micros": 43400129,
+      "maxMicros": 43400129,
       "budgetP99Micros": 60000000
     }
   },
@@ -104,5 +104,5 @@
     "reconciledPayments": 1000,
     "unresolvedPayments": 0
   },
-  "scope": "Production IPC/amount/address parsers for every registered testnet family; real EVM encoding/signature/verification against bounded fake ledger; actual signer encrypted persistence/lock/restart/backup/discovery/history. Public synthetic test UI replaces GTK; fake node ledger is not consensus acceptance or packaged desktop stress."
+  "scope": "Production IPC/amount/address parsers for every registered testnet family; real EVM encoding/signature/verification against bounded fake ledger; actual signer encrypted persistence/lock/restart/phrase recovery/discovery/history. Public synthetic test UI replaces GTK; fake node ledger is not consensus acceptance or packaged desktop stress."
 }

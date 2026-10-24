@@ -21,12 +21,14 @@ func TestMainnetRootAllFamiliesBackupAndNativeAuthorization(t *testing.T) {
 	if s := e.Snapshot(); !s.Locked || s.Environment != "mainnet" || s.WalletExists || len(s.Accounts) != 0 {
 		t.Fatalf("locked first-run profile metadata: %+v", s)
 	}
+	pending := false
+	ui.recoveryApprove = &pending
 	ui.inputs = append(ui.inputs, input(syntheticPassword, syntheticPassword))
 	if err := e.Create("mainnet", 12, false); err != nil {
 		t.Fatal(err)
 	}
 	initial := e.Snapshot()
-	if initial.Environment != "mainnet" || initial.BackupVerified || len(initial.Accounts) != 9 {
+	if initial.Environment != "mainnet" || initial.RecoveryConfirmed || len(initial.Accounts) != 9 {
 		t.Fatal("mainnet initial account coverage or backup gate missing")
 	}
 	families := map[string]bool{}
@@ -61,7 +63,7 @@ func TestMainnetRootAllFamiliesBackupAndNativeAuthorization(t *testing.T) {
 		t.Fatal(err)
 	}
 	ui.path = filepath.Join(backupDir, "synthetic-mainnet.lwv")
-	if err := e.Backup(); err != nil || !e.Snapshot().BackupVerified {
+	if err := e.Backup(); err != nil || !e.Snapshot().RecoveryConfirmed {
 		t.Fatal("mainnet portable backup not authenticated", err)
 	}
 	if _, err := e.Receive(ac.ID); err != nil {
@@ -90,7 +92,7 @@ func TestMainnetRootAllFamiliesBackupAndNativeAuthorization(t *testing.T) {
 	}
 	before, _ := json.Marshal(initial.Accounts)
 	after, _ := json.Marshal(restored.Snapshot().Accounts)
-	if !bytes.Equal(before, after) || !restored.Snapshot().BackupVerified {
+	if !bytes.Equal(before, after) || !restored.Snapshot().RecoveryConfirmed {
 		t.Fatal("mainnet recovery changed deterministic descriptors or verified state")
 	}
 	restored.Lock()

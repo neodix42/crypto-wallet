@@ -60,9 +60,10 @@ func TestVerifiedReceiveCopyBindsEachNetworkAddressAndQR(t *testing.T) {
 	}
 }
 
-func TestVerifiedReceiveCopyKeepsMainnetBackupGate(t *testing.T) {
+func TestVerifiedReceiveCopyKeepsRecoveryGate(t *testing.T) {
 	e, base, _ := newEngine(t, []model.Adapter{evm.New()})
 	createImported(t, e, base, "mainnet")
+	e.data.RecoveryConfirmed = false
 	ui := &receiveCopyUI{testUI: base}
 	e.UI = ui
 	a := findAccount(t, e, "ethereum-mainnet")

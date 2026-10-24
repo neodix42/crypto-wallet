@@ -133,7 +133,8 @@ def merge_profiles(paths):
         for line in lines[1:]:
             location, statements, count = line.rsplit(" ", 2)
             source = location.rsplit(":", 1)[0]
-            if source == "localwallet/internal/secureui/automation.go":
+            if source in ("localwallet/internal/secureui/automation.go",
+                          "localwallet/internal/secureui/recovery_automation.go"):
                 excluded[source] = "automation build tag: test-only GTK fixture injector, absent from production"
                 continue
             if source.startswith("localwallet/tests/oracles/"):

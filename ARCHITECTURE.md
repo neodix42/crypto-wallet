@@ -2,14 +2,14 @@
 
 ## A-01: Components and ownership
 
-Use a Go workspace/module layout and a separately packaged Electron/TypeScript application. A small Go native GUI component is part of the required Go stack, solely for credential input and authoritative confirmation; Electron remains the main desktop interface.
+Use a Go workspace/module layout and a separately packaged Electron/TypeScript application. A small Go native GUI component is part of the required Go stack, for credential input, pending recovery-phrase recording/confirmation and authoritative receive/send confirmation; Electron remains the main desktop interface.
 
 | Component | Responsibilities | Must not receive |
 | --- | --- | --- |
 | Electron renderer | Portfolio, network/account selection, ordinary previews, history, QR import UI | Passwords, phrases, seeds, private keys, arbitrary native APIs |
 | Electron preload/main | Narrow public IPC, windows/permissions, fixed child-process supervision | Recovery secrets, vault decryption keys, signing authority derived from UI events |
 | Go wallet-core | Network adapters, public account state, fee preparation, transaction scheduling and reconciliation | Recovery entropy, phrase/passphrase, private derivation/signing keys |
-| Go secure signer/vault | Secret generation and storage, exact derivation, input dialogs, receive verification, final policy checks and signing | Unbounded renderer objects, arbitrary code or unreviewed signing payloads |
+| Go secure signer/vault | Secret generation and storage, native phrase setup, exact derivation, input dialogs, receive verification, final policy checks and signing | Unbounded renderer objects, arbitrary code or unreviewed signing payloads |
 
 The core launches the secure child using inherited private handles. The secure component owns its native confirmation surface and its authority state. It has no remote IP access. Signed transactions may flow to the Go network core; they are public broadcast artifacts, but must not be exposed to Electron as an unnecessary raw signing API.
 
@@ -21,7 +21,7 @@ Use Go packages with narrow interfaces so an adapter cannot read a root seed sim
 | --- | --- |
 | `cmd/wallet-core/` | Network/coordinator process |
 | `cmd/wallet-signer/` | Vault, signing policy and native input/confirmation process |
-| `internal/vault/` | Versioned envelope, atomic writes, backup/migration |
+| `internal/vault/` | Versioned envelope, atomic writes, crash-recovery generations and migrations |
 | `internal/derivation/` | Versioned profiles, mnemonic validation, key derivation |
 | `internal/policy/` | Immutable plans, approval binding, allowed operations |
 | `internal/secureui/` | Minimal native Go input and confirmation integration |
@@ -46,7 +46,7 @@ All API quantities are decimal strings of atomic integers with explicit units. D
 
 Define explicit protobuf or equally strict versioned schemas for IPC. Include request ID, session generation, protocol version and operation type. Unknown fields/actions, duplicate IDs, oversized frames, invalid enums and inappropriate state transitions fail closed. Send cancellation and lifecycle events explicitly. Every error response is sanitized.
 
-Allowed public application operations can include `ListNetworks`, `ListAccounts`, `GetBalances`, `GetHistory`, `RequestCreateWallet`, `RequestImportWallet`, `RequestUnlock`, `Lock`, `AddAccount`, `ShowVerifiedReceive`, `PrepareTransfer`, `RequestTransferConfirmation`, `GetOperationStatus`, `RequestEncryptedBackup`, `RequestRestore`, and `RequestPasswordChange`. Credential parameters are absent; these methods trigger the secure native input flow. No `GetMnemonic`, `ExportPrivateKey`, `SignBytes`, `Eval`, `ReadFile` or generic wallet JSON-RPC passthrough exists.
+Allowed public application operations can include `ListNetworks`, `ListAccounts`, `GetBalances`, `GetHistory`, `RequestCreateWallet`, `RequestImportWallet`, `RequestUnlock`, `Lock`, `AddAccount`, `ShowVerifiedReceive`, `PrepareTransfer`, `RequestTransferConfirmation`, `GetOperationStatus`, `RequestRecoveryConfirmation`, `RequestPhraseRestore`, and `RequestPasswordChange`. Credential parameters are absent; these methods trigger the secure native input flow. No `GetMnemonic`, `ExportPrivateKey`, `SignBytes`, `Eval`, `ReadFile` or generic wallet JSON-RPC passthrough exists.
 
 ## A-04: Derivation and account discovery
 
@@ -88,7 +88,7 @@ The core owns scheduling and public network caches. Sensitive metadata/journal r
 
 Before lock, preserve critical transaction records; after lock, stop background account queries by default and clear volatile state. Pending results can be reconciled after unlock using the prior durable record. Do not keep a hidden unlocked signer solely to continue UI updates. An on-chain transaction already in flight continues independently of application lock.
 
-The live database, encrypted backups and schema upgrades must support clean recovery after interruption. Public chain data may be redownloaded; missing secrets may not be regenerated. Never create a new wallet automatically when the existing one fails to unlock.
+The encrypted live database, phrase recovery and schema upgrades must support clean recovery after interruption. Public chain data may be redownloaded; missing secrets may not be regenerated. Never create a new wallet automatically when the existing one fails to unlock.
 
 ## A-08: Networking and trust
 
@@ -96,13 +96,13 @@ Go wallet-core performs all remote chain operations over validated TLS endpoints
 
 RPC endpoints can lie, censor and correlate public addresses. Matching two providers is a consistency check, not proof of consensus. Prefer validated chain/proof data where the chosen SDK offers it, and use the documented Decred SPV/trusted-node model. Show incomplete synchronization, stale heads and provider disagreement explicitly. Test fallback so switching an endpoint cannot switch the ledger.
 
-No hosted service is required to create a wallet, encrypt/decrypt backups, derive addresses or verify signing fixtures offline. Live balances and submission require a chain connection. An optional fiat-price service is outside v1 and must never be part of a signing decision.
+No hosted service is required to create a wallet, record or restore its phrase, derive addresses or verify signing fixtures offline. Live balances and submission require a chain connection. An optional fiat-price service is outside v1 and must never be part of a signing decision.
 
 ## A-09: Build and deployment
 
 Pin a currently supported stable Go toolchain, Electron version, Node build runtime and package-manager version at implementation time. Record minimum Ubuntu runtime libraries. Prefer maintained, tagged SDK releases and check Go module compatibility; do not use unreviewed repository master branches in production.
 
-Build for stock Ubuntu as a non-root user. Package the fixed Go binaries, native GUI runtime dependencies and Electron assets together in the `.deb`. Installation may need normal package-manager permissions; application execution must not. Account for Linux sandbox/AppArmor integration through package-specific configuration rather than system-wide weakening.
+Build for stock Ubuntu as a non-root user. Ship Go executable artifacts and an explicit complete portable Electron/Go runtime with fixed binaries/assets and documented native shared-library prerequisites. The owner excludes Debian packaging; local installation needs no sudo. Application execution must use an ordinary user and preserve the sandbox. Resolve Linux sandbox/AppArmor compatibility through supported application-specific configuration rather than system-wide weakening.
 
 Provide separate development/testnet and production build profiles. Test-only RNG injection, secret fixture hooks, debug automation and native confirmation bypasses must be absent from production binaries. Mainnet send logic remains part of the implementation, but production release requires the recorded gates. No automated test or build script should spend mainnet funds.
 

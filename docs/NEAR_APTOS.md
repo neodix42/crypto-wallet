@@ -1,5 +1,8 @@
 # NEAR and Aptos adapter evidence
 
+> Recovery-policy update: the adapter fixtures and node observations below retain their recorded scope. Product recovery now records/confirms a phrase in Go and restores it into a fresh profile; encrypted-file backup/restore are absent from the application API. Earlier signer backup tests are historical or retained low-level compatibility tests, not current wallet actions. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md).
+
+
 Status recorded on 2026-10-23, Node 24.19.0, Linux amd64. Initial interoperability/fuzz/node runs used Go 1.26.8; final hermetic unit/race/vet checks and both real local-node harnesses were repeated after the parent upgraded to Go 1.27.3. These are development implementation and test results, not an independent security audit. All phrases and keys used by these tests are public synthetic fixtures. No mainnet transaction was submitted.
 
 ## Implemented behavior

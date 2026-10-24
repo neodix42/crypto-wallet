@@ -33,7 +33,7 @@ func TestTP041AllHandlersRejectNonObjectBodiesWithoutStartingSigner(t *testing.T
 	c, _ := fakeCoordinator(t, &publicAdapter{}, nil)
 	// The executable must never start for malformed top-level arguments.
 	c.child.Path = filepath.Join(t.TempDir(), "unavailable-peer")
-	for _, method := range []string{"networks", "accounts", "status", "history", "unlock", "import", "restore", "backup", "receive", "configure", "hideAccount", "discoverAccounts", "cancelPrepared", "discovery", "balances", "prepare", "send"} {
+	for _, method := range []string{"networks", "accounts", "status", "history", "unlock", "import", "confirmRecovery", "receive", "configure", "hideAccount", "discoverAccounts", "cancelPrepared", "discovery", "balances", "prepare", "send"} {
 		for _, body := range []string{"null", "[]", "false", `"public synthetic value"`, "123", "", " \n null \t"} {
 			out, err := c.handle(ipc.Message{Method: method, Body: []byte(body)})
 			if err == nil || out != nil || err.Error() != "request body must be an object" {
@@ -44,7 +44,7 @@ func TestTP041AllHandlersRejectNonObjectBodiesWithoutStartingSigner(t *testing.T
 }
 
 func TestTP043NativeCompletionsCannotReactivateChangedSession(t *testing.T) {
-	for _, method := range []string{"create", "import", "unlock", "backup", "restore", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery"} {
+	for _, method := range []string{"create", "import", "unlock", "confirmRecovery", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery"} {
 		t.Run(method, func(t *testing.T) {
 			c, path := fakeCoordinator(t, &publicAdapter{}, nil)
 			state := readPublicState(t, path)

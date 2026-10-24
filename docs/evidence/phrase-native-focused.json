@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "scope": "Focused real GTK recovery recording/confirmation on an owned 1024x768 Xvfb display; public synthetic BIP39 vectors only",
+  "command": "go test -race -tags automation -count=1 -timeout=90s -run=TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets -v ./internal/secureui",
+  "display": {
+    "backend": "X11/Xvfb",
+    "width": 1024,
+    "height": 768,
+    "attachExistingUserDisplay": false
+  },
+  "checks": [
+    "12 and 24 word synthetic vectors",
+    "Explicit record and masked positions 2, 6, final word",
+    "Cancel each stage",
+    "Wrong and overlong word rejected with fixed notice",
+    "Phrase label nonselectable",
+    "Phrase label and all entries empty at destroy signal",
+    "Copy of caller phrase not modified",
+    "Public clipboard unchanged",
+    "Programmatic automation does not count as user activity",
+    "Phrase dialog 650x600 and challenge 650x480 with buttons mapped inside display"
+  ],
+  "notRun": [
+    "Second physical machine",
+    "Clean OS matrix",
+    "Wayland native recording workflow",
+    "Independent security review"
+  ],
+  "sourceSHA256": {
+    "internal/secureui/native.go": "53ab969bf1e3ca1831e393e5df261a4fda55196fa1cc31cd3d3870279339a377",
+    "internal/secureui/ui.go": "b4c10c493704ea3327a689408ee511220f77825f745599176792ab5c8b09a4ad",
+    "internal/secureui/activity.go": "66b9cccb7ad1ac7ed81cb3622ff9ec1eb66b7dd5707a007c3ccb325a7daf59e2",
+    "internal/secureui/recovery_automation.go": "4c370247e5118bc2b23bb9db57381c290ab8285e5ff3b5ffb1bf128b8126a8fe",
+    "internal/secureui/recovery_automation_test.go": "12c50d8ac45e3df947f4bc329a1236b669ad02c0846e48e93792e0a6daafa88d"
+  },
+  "log": "reports/phrase-native-focused.log",
+  "logSHA256": "fbb81255418ebc2686293ad788d012e19475ab2a3c6d8608823f4f191ae16ed0"
+}

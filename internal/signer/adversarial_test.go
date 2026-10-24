@@ -205,7 +205,7 @@ func TestTP032NamedAndRotatedMetadataAssociation(t *testing.T) {
 			t.Fatal(err)
 		}
 		actual := findAccount(t, e, network)
-		if actual.ID != original.ID || actual.Address != updated.Address || e.data.BackupVerified {
+		if actual.ID != original.ID || actual.Address != updated.Address || !e.data.RecoveryConfirmed {
 			t.Fatal("association identity or backup state")
 		}
 		bad := updated
@@ -500,6 +500,9 @@ func TestTP031PersistenceQuarantinesAllFailureStages(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "prior-generation-write":
+				if err := os.Remove(filepath.Join(dir, "vault.previous.lwv")); err != nil {
+					t.Fatal(err)
+				}
 				if err := os.Symlink("vault.lwv", filepath.Join(dir, "vault.previous.lwv")); err != nil {
 					t.Fatal(err)
 				}
@@ -774,13 +777,13 @@ func TestTP022DerivationAndDescriptorFailureBoundaries(t *testing.T) {
 		t.Fatal("foreign account index")
 	}
 	e.data.Environment = "mainnet"
-	e.data.BackupVerified = false
+	e.data.RecoveryConfirmed = false
 	p = evmPlan(e.data.Accounts[0])
 	if e.Prepare(p) == nil {
 		t.Fatal("mainnet send before verified backup")
 	}
 	e.data.Environment = "testnet"
-	e.data.BackupVerified = true
+	e.data.RecoveryConfirmed = true
 	p = evmPlan(e.data.Accounts[0])
 	e.data.Operations = []journal.Operation{{Plan: p, Digest: journal.Digest(p), State: "CANCELLED"}}
 	if e.Prepare(p) == nil {
@@ -891,7 +894,7 @@ func TestTP022BoundedDiscoveryRequiresNativeApproval(t *testing.T) {
 	if err := json.Unmarshal(updated.Parameters, &p); err != nil {
 		t.Fatal(err)
 	}
-	if p.Birthday != 123 || p.GapLimit != 25 || p.ScanLimit != 200 || updated.ID != a.ID || updated.Address != a.Address || e.data.BackupVerified {
+	if p.Birthday != 123 || p.GapLimit != 25 || p.ScanLimit != 200 || updated.ID != a.ID || updated.Address != a.Address || !e.data.RecoveryConfirmed {
 		t.Fatal("discovery changed root or lost explicit bounds")
 	}
 }

@@ -20,12 +20,13 @@
       <p class="eyebrow">Your keys stay on this device</p>
       <h1 id="onboardtitle">Checking your local wallet</h1><p id="onboarddescription">Reading the local vault status.</p>
       <button id="onboardcreate" class="primary" hidden>Create app password &amp; wallet</button>
+      <button id="onboardrestore" hidden>Restore from recovery phrase</button>
       <button id="onboardunlock" class="primary" hidden>Unlock wallet</button><button id="onboardretry" hidden>Retry storage check</button>
-      <p class="recovery-note">The generated phrase remains hidden. After creation, make and verify an encrypted backup in the native Go window. Keep that backup and its password safe; both are required for recovery.</p>
+      <p class="recovery-note">After choosing your app password, write down the recovery phrase shown only in the native Go window and confirm the requested words. Your phrase restores the same wallets on another device; the app password encrypts this device’s storage.</p>
     </div>
     <div id="walletcontent" hidden>
-      <div class="overview-heading"><div><h1>Your wallets</h1><p>One shared root. Separate wallets for each network.</p></div><span id="backupstatus">Encrypted backup verification required</span></div>
-      <div id="backupcallout" class="backup-callout" role="status" hidden><div><strong>Back up your wallet before receiving funds</strong><p>Your generated BIP39 phrase stays hidden. Recovery needs a verified encrypted backup and its password.</p></div><button id="backupnow">Create &amp; verify encrypted backup</button></div>
+      <div class="overview-heading"><div><h1>Your wallets</h1><p>One shared root. Separate wallets for each network.</p></div><span id="recoverystatus">Recovery phrase setup required</span></div>
+      <div id="recoverycallout" class="recovery-callout" role="status" hidden><div><strong>Write down your recovery phrase</strong><p>Finish recording your phrase in the native Go window, then confirm the requested words to enable receiving and sending.</p></div><button id="recoverycontinue">Finish recovery phrase setup</button></div>
       <div id="viewtabs" class="viewtabs" role="tablist" aria-label="Accounts and open wallets"></div>
       <div id="accountoverview" role="tabpanel">
       <button id="refreshbalances">Refresh balances</button><p id="overviewbalancestatus">Balances are queried once per visible wallet. Refresh explicitly for new network data.</p>
@@ -36,7 +37,7 @@
       <select id="account" hidden aria-hidden="true" tabindex="-1"></select>
       <div id="walletpage" role="tabpanel" hidden>
       <div class="wallet-heading"><div><h1 id="wallettitle" tabindex="-1">Network wallet</h1><p id="walletsubtitle"></p></div><div class="actions"><button id="sendview" class="primary">Send</button><button id="receive" class="primary">Receive</button></div></div>
-      <p id="walletbackupnotice" class="backup-callout" hidden>Verify an encrypted backup before receiving funds or preparing a payment. Send and Receive explain the next step.</p>
+      <p id="walletrecoverynotice" class="recovery-callout" hidden>Finish recording your recovery phrase before receiving funds or preparing a payment. Send and Receive explain the next step.</p>
       <div class="panel"><h2>Balance &amp; receive address</h2>
         <label>Asset <select id="asset"></select></label><p id="address"></p>
         <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p><p id="connectionstatus"></p>
@@ -45,7 +46,7 @@
         <p>Choose this exact network at the sender. A plain address QR does not identify an EVM network. Hiding an account preserves its derivation index and recovery data.</p>
       </div>
       <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div><button id="scan">Scan local QR image</button>
-        <div id="sendbackupnotice" class="backup-callout" hidden><p>Create and verify an encrypted backup before preparing this payment. Your recipient and amount stay in this form.</p><button id="sendbackup">Create &amp; verify encrypted backup</button></div>
+        <div id="sendrecoverynotice" class="recovery-callout" hidden><p>Record your recovery phrase and confirm the requested words before preparing this payment. Your recipient and amount stay in this form.</p><button id="sendrecovery">Finish recovery phrase setup</button></div>
         <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Exact decimal amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
         <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Confirm in native signer</button></div><pre id="preview">No payment prepared.</pre>
       </div>
@@ -67,13 +68,13 @@
     <div id="emptyactions" hidden>
       <details><summary>Other setup options</summary>
         <button id="create">Create 12-word BIP39 wallet</button><button id="create24">Create 24-word BIP39 wallet</button>
-        <button id="import">Import known BIP39 phrase</button><button id="restore">Restore into empty profile</button>
+        <button id="import">Restore from recovery phrase</button>
       </details>
     </div>
     <div id="walletactions" hidden>
-      <button id="backup">Create &amp; verify encrypted backup</button><button id="password">Change app password</button>
+      <button id="recoverysettings">Finish recovery phrase setup</button><button id="password">Change app password</button>
       <button id="add">Add deterministic account</button><label>Account index <input id="index" value="1" type="number" min="0" max="999999"></label>
-      <details><summary>Recover account indices from an older backup</summary>
+      <details><summary>Recover additional account indices</summary>
         <p>Derivation indices are preserved. Index 0 is Main account. Recover at most 20 indices at a time, then query the relevant networks. Derivation alone does not establish a zero balance.</p>
         <label>First index <input id="recoverystart" value="0" type="number" min="0" max="999999"></label>
         <label>Last index (inclusive) <input id="recoveryend" value="1" type="number" min="0" max="999999"></label>
@@ -85,15 +86,15 @@
         <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
     </div>
-    <hr><p>Passwords and imported secrets are entered only in the separate native Go window. Generated phrases are never displayed.</p>
-    <p>Recovery requires the encrypted backup and its password. There is no password reset.</p>
+    <hr><p>Passwords and recovery phrases are entered or displayed only in the separate native Go window.</p>
+    <p>Keep your written recovery phrase offline. It recreates canonical accounts; named or rotated account associations and historical discovery state may require additional recovery steps. The app password protects local storage and does not change your addresses.</p>
   </section>
 </div>
-<div id="receivebackupdialog" class="modal-backdrop" hidden>
-  <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="receivebackuptitle" tabindex="-1">
-    <div class="settings-heading"><h2 id="receivebackuptitle">Back up before receiving funds</h2><button id="closereceivebackup">Cancel</button></div>
-    <p id="receivebackupcontext"></p><p>Your recovery phrase stays hidden. Create and verify an encrypted backup first; then the Go signer opens this wallet’s verified address and QR code. Keep the backup and its password safe.</p>
-    <button id="receivebackup" class="primary">Create &amp; verify encrypted backup</button>
+<div id="receiverecoverydialog" class="modal-backdrop" hidden>
+  <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="receiverecoverytitle" tabindex="-1">
+    <div class="settings-heading"><h2 id="receiverecoverytitle">Finish recovery phrase setup</h2><button id="closereceiverecovery">Cancel</button></div>
+    <p id="receiverecoverycontext"></p><p>Write down your recovery phrase in the native Go window and confirm the requested words. Once complete, the Go signer opens this wallet’s verified address and QR code. Keep the phrase offline and never share it.</p>
+    <button id="receiverecovery" class="primary">Finish recovery phrase setup</button>
   </section>
 </div>
 

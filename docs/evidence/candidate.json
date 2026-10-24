@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "f7ecd3b1004c2b0e21a7e4c61cd6e7820af18fdf",
+  "sourceCommit": "eb4b34e70df9f774c43bf639c5f2a894a7a78a70",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "bd5eaaa294723ed32c41343c02c72a3f6199ebdca0dc12fac922720bfecbc86a",
+  "sha256": "92311fd16d896b950aaade43cac73e429881fa37e6fa2557779335ee19f575ee",
   "binaryManifest": {
-    "wallet-core": "2bff2d45778fcd1c59bea5e67c3e0c1dd209951621c2a63db274cf37e1026b18",
-    "wallet-launcher": "92fd1a514fe5f80a59e217ceb7cc3a7221b52e7980df1d39e048b8ca141f1cb1",
-    "wallet-signer": "5aa8ca0c4020c67432bc002d55afa1b1be1625102524c017b44bbb766ff6c376"
+    "wallet-core": "1111dbfadb696f1f60de871cee427bdedb303acb91c6922f5cf475e1ceb0caee",
+    "wallet-launcher": "69cf422fc21b4c524ee952f0d30e90ea0b1d6921394e9fbb685d9dbeb5a0873d",
+    "wallet-signer": "bd4337cb0b54474ea9712deb466048a90dda3d92dd9e1b7c61a27284e5c78350"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -16,31 +16,31 @@
       "report": "coverage",
       "status": "PASS",
       "file": "coverage.json",
-      "sha256": "43e11d022e8fb5eed8bc254a7a68d69d9fa0faf040b45fa06a60d2fa36825666"
+      "sha256": "0afc60ba035f2c213cecee6ad6fe2f684a3e31af698410eb6ace85b302e530cf"
     },
     {
       "report": "go-coverage",
       "status": "PASS",
       "file": "go-coverage.json",
-      "sha256": "31b1dc7d1d95716df731778d4cc3293b0ea6cf069f34c17622be9455d300f276"
+      "sha256": "3e80e9d91e6aea8948ba420ae7c37dca686fee71445cd415b0289e7be997258f"
     },
     {
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "656c9cc74f5e7b23f679580d1d1a38076cd0ef4c652b04981ff3cd0cd4fee1da"
+      "sha256": "68103e55245ea3b8dbaf2e83207cbc60dab618ab69cb91971b09c91018f7f722"
     },
     {
       "report": "mutation",
       "status": "PASS",
       "file": "mutation.json",
-      "sha256": "859a883f4678cf09205723b4820451f9652b476ccaf58fc83377b02bf2cba7c3"
+      "sha256": "f762c55ceb1ef506dae72aeb66a9406dd28c496f602d50f68e523306a9be7894"
     },
     {
       "report": "fuzz",
       "status": "PASS",
       "file": "fuzz.json",
-      "sha256": "98bee664ffd722bbfd7ab0b1eec6e7c9123b6a67020b460f6b1932f9da3a03a0"
+      "sha256": "da4e00f7ce6a17f23e3bd3d7437a510cc29cf24d2793ca4fae76f0025bd5b222"
     },
     {
       "report": "integration",
@@ -52,13 +52,13 @@
       "report": "stress",
       "status": "PASS",
       "file": "stress.json",
-      "sha256": "a71de570bb5d85dad703c7ccbac406d417bc06b643100816a53b314bee1ce641"
+      "sha256": "fc49220601a01cfa79a8e24e53f093da11eb0bfc9144d53954f427d13054295e"
     },
     {
       "report": "stress-race",
       "status": "PASS",
       "file": "stress-race.json",
-      "sha256": "c2d72fc198dad1efc4350f6244bd1a4d86725ab502b9937a9409a1de696b4102"
+      "sha256": "c1ce444ff8f7ed655e4b0ac3a30df3a2bf9517f7502d5b6af5f8430ec8eb363f"
     },
     {
       "report": "stress-race-reference-budget",
@@ -76,7 +76,7 @@
       "report": "native-input",
       "status": "PASS",
       "file": "native-input.json",
-      "sha256": "8cb8708ab5a0749a2d76fb794249685ce7ef49355b8a377c3fa858181b5fb04e"
+      "sha256": "320b5a480c0bcaf2b5f2c9ee5ee7cef6b5505dc81503888b88a5928cc3bc03ff"
     },
     {
       "report": "native-input-long",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "133f899cb77771eff5071161d8bd551f16d4ecb641e1bd7dd3dd6bf1d7b8835f"
+      "sha256": "46f70441047cee918949304cc104034aff3deced1971e7ebf250913c4e9bb4ba"
     },
     {
       "report": "display-startup",
@@ -125,6 +125,24 @@
       "status": "PASS",
       "file": "wallet-actions.json",
       "sha256": "01b7717fb86793303f7b016ca18dc3db16c7899423f40f3f34217d726221fb29"
+    },
+    {
+      "report": "phrase-recovery",
+      "status": "PASS",
+      "file": "phrase-recovery.json",
+      "sha256": "73c5b892f10a71db42b78ee0076de440d3f396b107d9583dfde31cd239ff9a0e"
+    },
+    {
+      "report": "phrase-onboarding",
+      "status": "PASS",
+      "file": "phrase-onboarding.json",
+      "sha256": "2d005a6d8ddc2f46c9a97e4d4a3aa060d6f51f1da9aeb90d99be1c4f044fd98a"
+    },
+    {
+      "report": "phrase-native-focused",
+      "status": "PASS",
+      "file": "phrase-native-focused.json",
+      "sha256": "8a304a563d76435092515c492b6d4fa96f7e5fb53dc17a602fce82662146476e"
     },
     {
       "report": "receive-small-display",
@@ -178,7 +196,7 @@
       "report": "build-tools",
       "status": "PASS",
       "file": "build-tools.json",
-      "sha256": "76108597e3dca09de942d0833ef2746ad70bdae25ff745b18612ef78de63d1f8"
+      "sha256": "4617cdf8a9f36269ff2fbdd44eae99336c4991af3d19e53ba79ec36ba73f2e4a"
     },
     {
       "report": "go-only-build",
@@ -196,7 +214,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "d238adf3f0ab653ca9ca7ad74421b7d8039dca6b7de04d9c9dcc928c079e0303"
+      "sha256": "ad66d75bb65860e345d0a943d422527dce5673ba8d989e93af2882a45cbf3ca4"
     }
   ],
   "node": "v24.19.0",

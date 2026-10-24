@@ -52,17 +52,19 @@ make test                 # Go plus existing desktop TypeScript/component tests
 make test-security        # vault/IPC/lifecycle, real native X11 tests, mutations, API surface checks
 make test-race            # Go race detector
 make test-interop         # independent derivation/serialization/signing fixtures
+make test-recovery        # independent fresh app copies; phrase-only restore of all wallets
 make coverage             # enforced per-package Go and Electron/UI floors
 make check-deps           # checksums, vet, reachable Go vulnerabilities, npm audit
 make test-stress          # bounded malformed input, concurrent scheduling, production KDF lifecycle
 ```
 
-Native tests and full coverage require isolated Xvfb and XTest. Packaged recovery also uses Pillow and Tesseract to operate the public screen:
+Native tests and full coverage require isolated Xvfb and XTest. Both fresh-install phrase recovery and packaged recovery use Pillow and Tesseract to operate the disposable native/public screens:
 
 ```sh
 sudo apt-get install xvfb libxtst6 python3-pil tesseract-ocr
 make test-native
-make test-packaged       # actual packaged app: invalid inputs, visible errors, backup/restart/restore
+make test-recovery       # Go app copies and native recovery, without Node/Electron
+make test-packaged       # actual packaged app: native phrase setup, validation, restart/restore
 ```
 
 Real local node/emulator integration also requires Docker and explicitly provisioned test dependencies:
@@ -77,17 +79,15 @@ make test-e2e             # package recovery on private X11, then disposable Ubu
 
 ## First run
 
-A verified empty profile offers **Create app password & wallet**. The password is entered and confirmed only in the native Go window and must contain **12–4096 UTF-8 bytes**, with both entries identical. After that, Go draws random entropy, generates one shared English BIP39 recovery root, encrypts it and derives the initial wallet for every configured supported network at index0. The generated phrase is hidden; it is not a common fixed phrase or a password-derived seed. Import requires an existing valid English BIP39 phrase with its correct checksum; arbitrary short text is rejected.
+A verified empty profile offers **Create app password & wallet** and **Restore from recovery phrase**. Choose and repeat an app password of **12–4096 UTF-8 bytes** in the native Go window. Go then generates one random English BIP39 recovery phrase and derives every supported network wallet. The native Go window shows the phrase for you to write down offline. Confirm the requested words before receiving or sending. Cancelling leaves the same encrypted wallet pending; **Finish recovery phrase setup** resumes it after native password reauthentication. There is no encrypted backup file to create or verify.
+
+On a fresh installation, choose **Restore from recovery phrase**, specify the app password and enter the recorded phrase only in the native Go window. Include the original optional BIP39 passphrase if one was used. The app password protects local storage and does not change your wallet addresses: either the same or a new app password restores the same canonical wallets. Phrase restoration reconstructs account index0; the Settings recovery-range control reconstructs additional indices. Named/rotated associations, Decred discovery history, RPC settings and the local payment journal are separate metadata and need explicit recovery/reconciliation.
 
 Deterministic account groups appear as tabs across the top, starting with **Main account**. Each group's table contains nine mainnet network wallets and eleven asset identities, with a native-currency balance in every row (ETH on Base/Horizen and separate HYPE balances on HyperEVM/Core). The overview queries configured providers once per visible wallet; **Refresh balances** requests a new observation. Failed or incomplete queries stay unknown/unavailable. Click a row to open its wallet tab. Keys follow each chain's pinned derivation profile; EVM networks can share an address while their balances remain separate. Table addresses stay on one line; the copy-icon button requests the full verified address from the native signer without opening the wallet.
 
-Each wallet tab contains its own balances, asset selector, Send/Receive buttons and network settings. **Send** reveals the otherwise hidden payment form. **Receive** opens the authoritative Go window with QR code, full address and an explicit **Copy address** button; copying keeps the window open. Before mainnet backup verification, Send still opens its form with a backup action, and Receive opens a backup guide. Its explicit **Create & verify encrypted backup** action opens the native backup chooser and continues to that wallet’s verified QR only after successful verification. Cancellation or navigation abandons that continuation. Middle-click a wallet tab, or focus it and press Delete, to close it. Account-group tabs remain open. Closing a tab or form does not cancel durable payment reservations. Opening a wallet queries its balance through Go; no other wallet's amount, payment preview or history is carried into the page. Balance errors remain unknown. Sending uses the existing real transaction preparation and native approval/reauthentication flow. Deriving an address does not activate its network account.
+Each wallet tab contains its own balances, asset selector, Send/Receive buttons and network settings. **Send** reveals the otherwise hidden payment form. **Receive** opens the authoritative Go window with QR code, full address and an explicit **Copy address** button. These actions are enabled after recording and confirming the phrase; pending setup offers a native completion action. Middle-click a wallet tab, or focus it and press Delete, to close it. Closing a tab or form preserves durable reservations. Amounts, network state and authoritative native approval/reauthentication use the existing real transaction pipeline.
 
-The top-right **Settings** button contains wallet creation/import/unlock, backup/restore, password change, adding deterministic accounts, recovery ranges and the **Local payment journal**. The journal has independent wallet and asset selectors for inspecting, cancelling an unsigned preparation or reconciling its original identity without changing an open payment draft. It replaces the former left sidebar. Escape or the Close button dismisses Settings. See the [wallet action and balance checklist](docs/WALLET_ACTIONS.md) and [layout checklist](docs/WALLET_LAYOUT.md).
-
-Create and verify an encrypted backup after setup. Mainnet receive/copy and signing remain gated on backup verification. Both the backup and its password are needed for recovery; no password reset or seed reveal exists. Existing profiles open an unlock screen. Unreadable storage or an orphaned previous vault opens a storage-unavailable state instead of offering a new root. The current profile is labeled **Mainnet** or **Testnet** independently of the **Main account** name for derivation index0. Backups retain their environment and cannot be silently restored into the other profile.
-
-Select a new filename in an existing folder you own, such as Documents. Ordinary `0755` folders are supported; folders writable by other users and symbolic links are rejected. The encrypted backup is always `0600`, is reopened and verified, and never overwrites an existing file. The operation does not change the folder's permissions or create a lockfile there. Validation failures show fixed guidance in a native notice and a focused GUI error banner. See the [failure analysis and regression checklist](docs/FAILURE_FEEDBACK.md).
+The top-right **Settings** button contains phrase restoration for an empty profile, pending phrase-setup completion, password change, deterministic accounts, recovery ranges and the **Local payment journal** with independent wallet/asset selectors. Escape or Close dismisses it. The confirmed current vault has no repeated phrase-display/export API. Existing profiles keep their keys and encrypted data; older vaults require native phrase recording once under the new policy. See [phrase recovery and verification](docs/PHRASE_RECOVERY.md), [recovery instructions](docs/RECOVERY.md) and the [layout checklist](docs/WALLET_LAYOUT.md).
 
 The release-status panel lists the outstanding public-network, installed-OS, soak and independent-review gates. Passing local tests does not establish production readiness, so the application continues to state its actual verification status.
 
@@ -99,6 +99,6 @@ For example, after `v0.1.4`, the next successful workflow publishes `v0.1.5`. A 
 
 ## Security and recovery
 
-Only the isolated Go signer receives passwords, phrases, passphrases and keys. Electron supplies the ordinary interface; masked native Go windows supply credential input and authoritative receive/send confirmation. Generated phrases are never displayed/exported. The vault and portable backup use Argon2id (256 MiB/3/4 default) and XChaCha20-Poly1305. Recovery requires a verified encrypted backup and its password; there is no password reset. Read [recovery instructions](docs/RECOVERY.md), [vault format](docs/VAULT_FORMAT.md), [threat model](docs/THREAT_MODEL.md) and [evidence](docs/STATUS.md) before use.
+Only the isolated Go signer receives passwords, phrases, passphrases and keys. The phrase is displayed solely in its native recording window; Electron, public IPC, clipboard, QR, files, logs and network requests never receive it in plaintext. Native challenge/import/password inputs are masked. The local vault remains encrypted with Argon2id (256 MiB/3/4 default) and XChaCha20-Poly1305. Phrase recovery replaces encrypted-file backup/export/restore. OS/display compromise and whole-directory rollback remain limitations; see the [threat model](docs/THREAT_MODEL.md), [vault format](docs/VAULT_FORMAT.md) and [evidence](docs/STATUS.md).
 
 The original normative specifications remain [TASK.md](TASK.md), [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md), [BLOCKCHAIN_COMPATIBILITY.md](BLOCKCHAIN_COMPATIBILITY.md), [TEST_PLAN.md](TEST_PLAN.md) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). Their requirements are not an audit attestation.

@@ -1,5 +1,8 @@
 # Native activity evidence
 
+> Historical campaign scope: the encrypted-file restore and backup cases below describe the preceding API. Current native activity also covers pending phrase recording/confirmation and known-phrase import; file backup/restore operations have been removed. Previous wall-clock/native results retain their original source scope. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) and [FRONTEND_SIGNER_TESTS.md](FRONTEND_SIGNER_TESTS.md) for current verification.
+
+
 Recorded 2026-10-23 on Linux amd64, Go 1.27.3. These are implementation and local test results, not an external security audit. All test inputs are public synthetic values.
 
 The signer installs a native GDK event dispatcher that recognizes only key presses and mouse button presses. It inspects the event type alone, passes every event unchanged to GTK, and never reads key text, key codes, pointer coordinates or credential values for activity. Focus, redraw, timer and programmatic entry changes do not produce activity. The dispatcher mechanism is shared by GTK's X11 and Wayland backends; only X11 has been tested here.

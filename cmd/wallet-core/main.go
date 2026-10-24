@@ -35,13 +35,13 @@ import (
 )
 
 type snapshot struct {
-	Locked         bool                `json:"locked"`
-	WalletExists   bool                `json:"walletExists"`
-	VaultState     string              `json:"vaultState"`
-	Environment    string              `json:"environment"`
-	BackupVerified bool                `json:"backupVerified"`
-	Accounts       []model.Account     `json:"accounts"`
-	Operations     []journal.Operation `json:"operations"`
+	Locked            bool                `json:"locked"`
+	WalletExists      bool                `json:"walletExists"`
+	VaultState        string              `json:"vaultState"`
+	Environment       string              `json:"environment"`
+	RecoveryConfirmed bool                `json:"recoveryConfirmed"`
+	Accounts          []model.Account     `json:"accounts"`
+	Operations        []journal.Operation `json:"operations"`
 }
 type core struct {
 	child          *supervisor.Child
@@ -142,7 +142,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "backup", "restore", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign":
+	case "create", "import", "unlock", "confirmRecovery", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign":
 		interactive = true
 	}
 	if interactive {
@@ -343,7 +343,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}()
 	switch m.Method {
-	case "networks", "accounts", "status", "history":
+	case "networks", "accounts", "status", "history", "confirmRecovery":
 		if strictjson.Decode(m.Body, &struct{}{}) != nil {
 			return nil, errors.New("invalid fields")
 		}
@@ -367,12 +367,12 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			Version string `json:"version"`
 			snapshot
 		}{buildinfo.Version, s}, err
-	case "create", "import", "unlock", "backup", "restore", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
+	case "create", "import", "unlock", "confirmRecovery", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
 		var out json.RawMessage
 		if e := c.childCallAt(epoch, m.Method, json.RawMessage(m.Body), &out); e != nil {
 			return nil, e
 		}
-		if m.Method == "unlock" || m.Method == "restore" || m.Method == "configure" {
+		if m.Method == "unlock" || m.Method == "configure" {
 			if err := c.applySettingsAt(epoch); err != nil {
 				return nil, err
 			}

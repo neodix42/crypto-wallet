@@ -18,7 +18,9 @@ jobs:
       - run: ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
       - run: make test test-security test-race test-interop test-integration test-fuzz coverage
       - run: make check-deps
-      - name: Check native failures and backup recovery through the production desktop
+      - name: Restore all wallets in independent fresh application copies
+        run: make test-recovery
+      - name: Check native phrase setup and recovery through the production desktop
         run: make test-packaged
       - uses: actions/upload-artifact@v4
         if: always()

@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let accounts = [], networks = [], operations = [], balances = [], walletTabs = [], activeWalletID = '', activeIndex = 0;
-let prepared, viewEpoch = 0, sessionEpoch = 0, vaultMode = 'checking', mainnetBackupRequired = false;
+let prepared, viewEpoch = 0, sessionEpoch = 0, vaultMode = 'checking', recoveryRequired = false;
 let journalEpoch = 0, receiveIntent, balanceRunning = false, nativeActionsPending = 0;
 const rowBalances = new Map(), balanceQueue = [];
 const nativeResultMethods = new Set(['send', 'scanQR']);
@@ -11,11 +11,6 @@ const operationErrors = Object.freeze({
   INPUT_TOO_LONG: 'An input exceeds 4,096 UTF-8 bytes. Shorten it in the native window.',
   PASSWORD_MISMATCH: 'The passwords did not match. Enter the same app password in both native fields and try again.',
   INVALID_MNEMONIC: 'Enter a valid English BIP39 recovery phrase (12, 15, 18, 21 or 24 words) in the native Go window. A new wallet generates its phrase automatically.',
-  BACKUP_DESTINATION_UNSAFE: 'The backup destination is unavailable or unsafe. Choose a writable folder and a new file name. The wallet will not follow a link or overwrite an existing file.',
-  BACKUP_EXISTS: 'A file already exists at that backup destination. Choose a new file name; the wallet will not overwrite it.',
-  BACKUP_WRITE_FAILED: 'The encrypted backup could not be saved or verified. Check folder permissions and free space, then choose a new file name. Backup verification is still required.',
-  BACKUP_VERIFY_FAILED: 'The encrypted backup could not be verified. Keep the wallet open and choose a new file name to create and verify another backup. This backup is not verified for recovery.',
-  RESTORE_SOURCE_UNSAFE: 'The selected backup could not be read safely. Choose a regular encrypted backup file you can read; links and unsafe files are refused.',
   REQUEST_CANCELLED: 'Request cancelled. Check the wallet state before retrying.',
   REQUEST_FAILED_STATE_UNKNOWN: 'Request failed or is unavailable. Balance is unknown until verified; reconcile any pending payment before retrying.'
 });
@@ -29,7 +24,7 @@ function showOperationError(error) {
 }
 const gates = {
   checking: ['Checking your local wallet', 'Reading the local vault status. No password dialog opens until you choose an action.'],
-  missing: ['Create your app password', 'Choose your password in the native Go window. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Your generated phrase stays inside the signer.'],
+  missing: ['Create your app password', 'Choose your password in the native Go window. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Write down your generated phrase in the native Go window, then confirm the requested words to finish setup.'],
   present: ['Welcome back', 'Your encrypted wallet is already on this device. Enter its app password in the native Go window to unlock your accounts.'],
   unavailable: ['Wallet storage unavailable', 'The local vault could not be inspected safely. Check storage access and retry. Creation and restoration remain unavailable while its state is uncertain.']
 };
@@ -38,7 +33,7 @@ function renderGate() {
   $('onboarding').hidden = ready; $('walletcontent').hidden = !ready;
   $('emptyactions').hidden = !missing; $('walletactions').hidden = !ready;
   $('unlock').hidden = !present; $('lock').disabled = !ready;
-  $('onboardcreate').hidden = !missing; $('onboardunlock').hidden = !present;
+  $('onboardcreate').hidden = !missing; $('onboardrestore').hidden = !missing; $('onboardunlock').hidden = !present;
   $('onboardretry').hidden = vaultMode !== 'unavailable';
   if (ready) return;
   const [title, description] = gates[vaultMode];
@@ -47,7 +42,7 @@ function renderGate() {
 function clearLocked() {
   const retainError = vaultMode !== 'ready' && !$('operationerror').hidden;
   viewEpoch++; sessionEpoch++; journalEpoch++;
-  rowBalances.clear(); balanceQueue.length = 0; closeReceiveBackup();
+  rowBalances.clear(); balanceQueue.length = 0; closeReceiveRecovery();
   if (!retainError) clearOperationError();
   if (vaultMode === 'ready') vaultMode = 'present';
   accounts = []; networks = []; operations = []; balances = []; walletTabs = []; activeWalletID = ''; activeIndex = 0; prepared = undefined;
@@ -56,7 +51,7 @@ function clearLocked() {
   $('walletpage').hidden = true; $('accountoverview').hidden = false; $('sendpanel').hidden = true; closeSettings();
   for (const id of ['wallettitle', 'walletsubtitle', 'gasbalance', 'connectionstatus']) show(id, '');
   $('address').removeAttribute('title');
-  $('backupcallout').hidden = true; show('backupstatus', 'Locked');
+  $('recoverycallout').hidden = true; show('recoverystatus', 'Locked');
   $('send').disabled = true;
   for (const id of ['recipient', 'amount', 'memo', 'associateaddress', 'birthday', 'gap', 'limit', 'blockbudget']) $(id).value = '';
   for (const id of ['address', 'diagnostics', 'preview', 'balance', 'chainhistoryresult', 'journalcontext', 'journalresult']) show(id, 'Locked');
@@ -208,8 +203,8 @@ function renderAccountGroups() {
     const addressRow = document.createElement('div'); addressRow.className = 'addressrow';
     copy.className = 'copyaddress'; copy.title = 'Copy verified address';
     copy.setAttribute('aria-label', `Copy verified address for ${network?.name || account.network}, ${accountName(account.index)}`);
-    copy.append(copyIcon()); copy.disabled = mainnetBackupRequired;
-    if (mainnetBackupRequired) copy.title = 'Verify encrypted backup first';
+    copy.append(copyIcon()); copy.disabled = recoveryRequired;
+    if (recoveryRequired) copy.title = 'Finish recovery phrase setup first';
     // Capture only the account ID. Go derives and confirms the copied address.
     copy.onclick = event => { event?.stopPropagation(); return run(() => addressAction('copyReceive', account.id), true); };
     addressRow.append(address, copy); addressCell.append(addressRow);
@@ -289,20 +284,20 @@ async function refresh(queryActive = true) {
   if (epoch !== sessionEpoch) return;
   accounts = state.accounts || [];
   networks = availableNetworks;
-  vaultMode = 'ready'; mainnetBackupRequired = state.environment === 'mainnet' && state.backupVerified !== true; renderGate();
-  $('walletbackupnotice').hidden = !mainnetBackupRequired;
+  vaultMode = 'ready'; recoveryRequired = state.recoveryConfirmed !== true; renderGate();
+  $('walletrecoverynotice').hidden = !recoveryRequired;
   $('receive').disabled = false; $('sendview').disabled = false;
-  for (const id of ['copy', 'saveqr', 'prepare', 'max']) $(id).disabled = mainnetBackupRequired;
-  $('sendbackupnotice').hidden = !mainnetBackupRequired;
-  $('backupcallout').hidden = state.backupVerified === true;
-  show('backupstatus', state.backupVerified === true ? 'Encrypted backup verified' : 'Encrypted backup verification required');
+  for (const id of ['copy', 'saveqr', 'prepare', 'max']) $(id).disabled = recoveryRequired;
+  $('sendrecoverynotice').hidden = !recoveryRequired;
+  $('recoverycallout').hidden = !recoveryRequired; $('recoverysettings').hidden = !recoveryRequired;
+  show('recoverystatus', recoveryRequired ? 'Recovery phrase setup required' : 'Recovery phrase recorded');
   populateAccounts($('account').value);
   if (activeWalletID && queryActive) await Promise.all([loadBalance(), history()]);
 }
 function current() { return accounts.find(account => account.id === $('account').value); }
 function select() {
   viewEpoch++;
-  closeReceiveBackup();
+  closeReceiveRecovery();
   $('sendpanel').hidden = true;
   const account = current();
   $('asset').replaceChildren();
@@ -432,7 +427,7 @@ function settingsFocusables() {
   });
 }
 $('settings').onclick = () => {
-  closeReceiveBackup();
+  closeReceiveRecovery();
   $('settingsdialog').hidden = false; $('settings').setAttribute('aria-expanded', 'true');
   document.querySelector('header').inert = true; document.querySelector('main').inert = true;
   $('closesettings').focus();
@@ -448,12 +443,12 @@ $('settingsdialog').onkeydown = event => {
 };
 const credentialActions = [
   ['unlock', 'unlock', {}], ['create', 'create', { words: 12 }], ['create24', 'create', { words: 24 }],
-  ['import', 'import', { words: 12 }], ['backup', 'backup', {}], ['restore', 'restore', {}], ['password', 'password', {}],
-  ['onboardcreate', 'create', { words: 12 }], ['onboardunlock', 'unlock', {}], ['backupnow', 'backup', {}]
+  ['import', 'import', { words: 12 }], ['recoverysettings', 'confirmRecovery', {}], ['password', 'password', {}],
+  ['onboardcreate', 'create', { words: 12 }], ['onboardrestore', 'import', { words: 12 }], ['onboardunlock', 'unlock', {}], ['recoverycontinue', 'confirmRecovery', {}]
 ];
 let credentialPending = false;
 for (const [id, method, body] of credentialActions) $(id).onclick = async () => {
-  if (credentialPending) return;
+  if (credentialPending || method === 'confirmRecovery' && (vaultMode !== 'ready' || !recoveryRequired)) return;
   closeSettings();
   credentialPending = true;
   for (const [button] of credentialActions) $(button).disabled = true;
@@ -485,50 +480,50 @@ async function nativeAction(action) {
   try { return await action(); }
   finally { nativeActionsPending--; void drainBalanceQueue(); }
 }
-function closeReceiveBackup() {
-  const wasOpen = !$('receivebackupdialog').hidden;
-  receiveIntent = undefined; $('receivebackupdialog').hidden = true;
+function closeReceiveRecovery() {
+  const wasOpen = !$('receiverecoverydialog').hidden;
+  receiveIntent = undefined; $('receiverecoverydialog').hidden = true;
   if (wasOpen) { document.querySelector('header').inert = false; document.querySelector('main').inert = false; $('receive').focus(); }
 }
 $('receive').onclick = () => {
-  if (mainnetBackupRequired) {
+  if (recoveryRequired) {
     closeSettings(); receiveIntent = { id: current()?.id || '', view: viewEpoch, session: sessionEpoch };
-    show('receivebackupcontext', `${$('wallettitle').textContent} · ${accountName(activeIndex)}`);
-    $('receivebackupdialog').hidden = false; document.querySelector('header').inert = true; document.querySelector('main').inert = true; $('receivebackup').focus();
+    show('receiverecoverycontext', `${$('wallettitle').textContent} · ${accountName(activeIndex)}`);
+    $('receiverecoverydialog').hidden = false; document.querySelector('header').inert = true; document.querySelector('main').inert = true; $('receiverecovery').focus();
     return;
   }
   return run(() => receiveWallet(current()?.id || ''), true);
 };
-$('closereceivebackup').onclick = () => { closeReceiveBackup(); void drainBalanceQueue(); };
-$('receivebackupdialog').onclick = event => { if (event.target === $('receivebackupdialog')) $('closereceivebackup').click(); };
-$('receivebackupdialog').onkeydown = event => {
-  if (event.key === 'Escape') { event.preventDefault(); $('closereceivebackup').click(); return; }
+$('closereceiverecovery').onclick = () => { closeReceiveRecovery(); void drainBalanceQueue(); };
+$('receiverecoverydialog').onclick = event => { if (event.target === $('receiverecoverydialog')) $('closereceiverecovery').click(); };
+$('receiverecoverydialog').onkeydown = event => {
+  if (event.key === 'Escape') { event.preventDefault(); $('closereceiverecovery').click(); return; }
   if (event.key !== 'Tab') return;
-  const first = $('closereceivebackup'), last = $('receivebackup');
+  const first = $('closereceiverecovery'), last = $('receiverecovery');
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 };
-async function backupForWorkflow(receive = false) {
-  if (credentialPending || vaultMode !== 'ready') return;
+async function recoveryForWorkflow(receive = false) {
+  if (credentialPending || vaultMode !== 'ready' || !recoveryRequired) return;
   const intent = receive ? receiveIntent : { id: current()?.id || '', view: viewEpoch, session: sessionEpoch };
   if (!intent) return;
   const draft = ['recipient', 'amount', 'memo'].map(id => $(id).value), assetID = $('asset').value, sendOpen = !$('sendpanel').hidden;
-  closeReceiveBackup(); credentialPending = true;
-  $('sendbackup').disabled = true; $('receivebackup').disabled = true;
+  closeReceiveRecovery(); credentialPending = true;
+  $('sendrecovery').disabled = true; $('receiverecovery').disabled = true;
   try {
     await run(async () => {
-      await window.wallet.backup({});
+      await window.wallet.confirmRecovery({});
       if (intent.session !== sessionEpoch) return;
       const unchanged = intent.view === viewEpoch && activeWalletID === intent.id;
       await refresh(false);
       if (!unchanged || viewEpoch !== intent.view + 1 || intent.session !== sessionEpoch || activeWalletID !== intent.id || vaultMode !== 'ready') return;
-      if (receive && !mainnetBackupRequired) await receiveWallet(intent.id);
+      if (receive && !recoveryRequired) await receiveWallet(intent.id);
       else if (!receive && sendOpen) { $('sendpanel').hidden = false; if ([...$('asset').options].some(option => option.value === assetID)) $('asset').value = assetID; renderBalance(); populateJournal(intent.id, assetID); ['recipient', 'amount', 'memo'].forEach((id, index) => { $(id).value = draft[index]; }); $('sendheading').focus(); }
     });
-  } finally { credentialPending = false; $('sendbackup').disabled = false; $('receivebackup').disabled = false; void drainBalanceQueue(); }
+  } finally { credentialPending = false; $('sendrecovery').disabled = false; $('receiverecovery').disabled = false; void drainBalanceQueue(); }
 }
-$('receivebackup').onclick = () => backupForWorkflow(true);
-$('sendbackup').onclick = () => backupForWorkflow();
+$('receiverecovery').onclick = () => recoveryForWorkflow(true);
+$('sendrecovery').onclick = () => recoveryForWorkflow();
 $('sendview').onclick = () => { if (!activeWalletID) return; $('sendpanel').hidden = false; $('sendheading').focus(); };
 $('closesend').onclick = () => {
   viewEpoch++; $('sendpanel').hidden = true; prepared = undefined; $('send').disabled = true;
@@ -542,7 +537,7 @@ async function prepare(method) {
   prepared = undefined; $('send').disabled = true;
   await result(method, body, async value => { prepared = value; show('preview', prepared); $('send').disabled = false; await history(); });
 }
-function startPrepare(method) { if ($('sendpanel').hidden || mainnetBackupRequired) return; viewEpoch++; return run(() => prepare(method), true); }
+function startPrepare(method) { if ($('sendpanel').hidden || recoveryRequired) return; viewEpoch++; return run(() => prepare(method), true); }
 $('prepare').onclick = () => startPrepare('prepare');
 $('max').onclick = () => startPrepare('max');
 $('send').onclick = () => run(async () => { if ($('sendpanel').hidden || !prepared) return; const id = prepared.id; prepared = undefined; $('send').disabled = true; await result('send', { id }, async value => { show('preview', value); await history(); }); }, true);

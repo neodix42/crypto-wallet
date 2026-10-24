@@ -1,0 +1,218 @@
+{
+  "status": "PASS",
+  "scope": "Owner-authorized native recorded recovery phrase replaces product encrypted file backup/verification/restore. Current local evidence only; not production release approval.",
+  "sourceCommit": "eb4b34e70df9f774c43bf639c5f2a894a7a78a70",
+  "dirty": true,
+  "sourceSHA256": {
+    ".github/workflows/ci.yml": "09301d7f90a2340ad4e5e34b436040e98c35db1c0567d554235ac34c90860a8c",
+    ".github/workflows/release.yml": "452540b736164a8c791e0252d8233578b10362367933403b0b0ec19acb28eb10",
+    "Makefile": "09cdacf3d6e53b2c72afef40444302aa082143f9b9afe423b709d71d69fef7d7",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "8104d72a9ce8c95626c97a5ba8ceea0944bad989db4a3f814a1ea143b5c2824b",
+    "desktop/src/preload.ts": "205f4f31a52f7cf5d59380d0995c023cb225ba0c66a1db66d5eb3be45d431886",
+    "desktop/src/validation.ts": "75c2f5c70578df967d458aee6de869cbe0cc7f61a5fec4202b12cdef47c02b75",
+    "desktop/tests/fixtures/networks-mainnet.json": "628d001a66ca81edeb44a475099ddd3034cc7f7517522a0d8898aedf73c8f9e4",
+    "desktop/tests/fixtures/networks-testnet.json": "9062e02e5af1e04d08ea32facfab36240ec409c66956c4dcb9eb83c11ef66a52",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/runtime.test.cjs": "8fb49d9ee45498018043227cb10dae4407bf0c9796b5f9632cbc935d1d16cf8b",
+    "desktop/tests/security.test.cjs": "fd15e38224393cbafdf003f605e9fffe954475b765869f69163292bc7c3ed5ca",
+    "desktop/ui/index.html": "3dc559d703cdb8fcae6ba6bca8879641364b0873627c67bb66645bbb39ef1d0a",
+    "desktop/ui/renderer.js": "18dae442749e2746922e56d5a0b8341f21a2e167ff7f513d329c57d018e2faa3",
+    "desktop/ui/style.css": "ea1f029ca90d1ef1f7dc63d08c959f148f978205d133d97b48db2effd3eb4217",
+    "scripts/coverage-test.py": "1a1aa71fe04e9a56fafa95186061238594e2181642d30b77edf4c36e5cbf39a2",
+    "scripts/go-coverage.py": "49541a81871f750f07bfe4d382169bec00d0e17397d8741d58dab3014c0958fa",
+    "scripts/mutation.py": "8a102b978068bb3f75a305b38ac80682c300a8b7779ef200ed7cba62b581a2e3",
+    "scripts/native-input.py": "5553ba1e478e61325a6ebc7c5047eebb0043075547b4ff601440ebd2a88dd734",
+    "scripts/packaged-recovery.py": "5287588707c47e04b05de8a3757fcae705fc2e2056a26a42fbf0c7f50bac37d4",
+    "scripts/phrase-recovery.py": "4f5bc7ddace908e5c648863f2334e4772d9c2de0ac12c603bcd9db7558bb5eda",
+    "scripts/surface-check.py": "e199c2c54143fcaa72a1ef72aba66a10efa58f0734534be933548169e0d2a570",
+    "tests/e2e/phrase.py": "52eab22da69ce266248328700439c866bec9ee5a4334496d8703899a2f3a4686",
+    "tests/e2e/x11.py": "6f2f8aae59b0a604f2eb5ea25b1fda73456666f4d89d61070908ad42a8927762"
+  },
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "1111dbfadb696f1f60de871cee427bdedb303acb91c6922f5cf475e1ceb0caee",
+      "wallet-launcher": "69cf422fc21b4c524ee952f0d30e90ea0b1d6921394e9fbb685d9dbeb5a0873d",
+      "wallet-signer": "bd4337cb0b54474ea9712deb466048a90dda3d92dd9e1b7c61a27284e5c78350"
+    },
+    "asarSHA256": "ef0d6d1ad8db74c1eb8fcef5d9bf49809da987ba3ed92faaa6272daff4c3088f"
+  },
+  "checks": [
+    {
+      "check": "Fresh independent Go app recovery",
+      "steps": 6,
+      "installationCopies": 3,
+      "walletDescriptors": 27,
+      "mainnetNetworks": 9,
+      "accountIndices": [
+        0,
+        1,
+        127
+      ],
+      "passwordCases": [
+        "same app password",
+        "different app password"
+      ],
+      "report": "phrase-recovery.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Installed uninstrumented desktop phrase setup/recovery",
+      "steps": 20,
+      "report": "packaged-recovery.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Frontend components and shipped JS coverage",
+      "tests": 68,
+      "skips": 0,
+      "statementPercentAllFiles": 100,
+      "rendererBranchPercent": 97.98,
+      "report": "frontend-coverage.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Source-stable Go/native coverage",
+      "packagesMeetingFloors": 22,
+      "sourceTestModuleHashes": 142,
+      "report": "go-coverage.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Real native GTK input",
+      "passed": 14,
+      "optionalLongTypingSkipped": 1,
+      "report": "native-input.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Full Go race suite",
+      "log": "phrase-race.log",
+      "status": "PASS"
+    },
+    {
+      "check": "Bounded production KDF/signing/scheduling/phrase recovery stress",
+      "report": "stress.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Semantic security mutants",
+      "killed": 12,
+      "invalid": 0,
+      "survived": 0,
+      "report": "mutation.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Bounded fuzz campaigns",
+      "targets": 13,
+      "secondsPerTarget": 3,
+      "report": "fuzz.json",
+      "status": "PASS"
+    },
+    {
+      "check": "Module checksums, vet, workflow lint, reachable Go scan and npm audit",
+      "reachableGoVulnerabilities": 0,
+      "uncalledRequiredModuleAdvisories": 1,
+      "npmVulnerabilities": 0,
+      "log": "phrase-dependencies.log",
+      "status": "PASS"
+    },
+    {
+      "check": "Build-tool and coverage-integrity regressions",
+      "logs": [
+        "phrase-build-tools.log",
+        "phrase-coverage-integrity.log"
+      ],
+      "status": "PASS"
+    },
+    {
+      "check": "Final Go/archive/desktop runtime versions and ASAR source equality",
+      "packagedProductionFilesCompared": 7,
+      "report": "artifact-security.json",
+      "status": "PASS"
+    }
+  ],
+  "secretChecks": {
+    "scope": "Synthetic generated/public fixture roots only; tested phrase/password plaintext, hex and base64 canaries in public IPC, files and logs",
+    "secretScreenshotsOrReportWords": "none retained",
+    "transport": "Native test events only; no secret CLI/environment/clipboard/QR/public bridge payload"
+  },
+  "developmentAttempts": [
+    {
+      "status": "FAIL",
+      "scope": "Early memory-only native OCR could not safely identify all numbered phrase rows; resizing/punctuation handling corrected and full final drills passed"
+    },
+    {
+      "status": "FAIL",
+      "scope": "Early fresh-driver third import did not reach native dialog; exact cause unproven. Pinned build capture and empty-profile preflight added; complete final drills passed"
+    },
+    {
+      "status": "FAIL",
+      "scope": "Early public-screen driver clicked repeated prose instead of Receive; button-fill targeting corrected and full final drills passed"
+    }
+  ],
+  "notRun": [
+    "Separate physical-machine recovery",
+    "Clean supported Ubuntu X11/Wayland lock/suspend/install/upgrade matrix",
+    "Installed-package sending",
+    "Funded public testnet roundtrips and external wallet/version acceptance",
+    "Full 24-hour workload",
+    "Independent external security/build/license review"
+  ],
+  "blocked": [
+    "Authenticated Decred mainnet observations require operator TLS dcrd configuration",
+    "Earlier container desktop acceptance obstacles remain scoped historical evidence"
+  ],
+  "goOptionalSkips": [
+    {
+      "package": "localwallet/cmd/wallet-launcher",
+      "test": "TestTP041BootstrapWorker",
+      "status": "NOT_RUN",
+      "reason": "Explicit test skip; inspect go-test.jsonl for prerequisites"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:263: NOT_RUN: pinned local validator required"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNodeRotation",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:392: NOT_RUN: independent TS SDK rotation setup required"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNodeCommittedFailure",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:462: NOT_RUN: local validator required"
+    },
+    {
+      "package": "localwallet/internal/chains/near",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "near_test.go:233: NOT_RUN: pinned sandbox harness required"
+    },
+    {
+      "package": "localwallet/internal/chains/evm",
+      "test": "TestTP050LocalEVMProtocolAcceptance",
+      "status": "NOT_RUN",
+      "reason": "integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node"
+    },
+    {
+      "package": "localwallet/tests/stress",
+      "test": "TestTP072Soak",
+      "status": "NOT_RUN",
+      "reason": "stress_test.go:222: NOT_RUN: invoke make test-soak for explicit 24-hour campaign"
+    }
+  ],
+  "limitations": [
+    "Native challenge checks transcription, not safe physical storage",
+    "Phrase does not encode associations, discovery counters, RPC settings or payment journal",
+    "OS/display compromise and whole-directory rollback remain outside guarantees",
+    "No mainnet funds automatically sent; no production-readiness claim"
+  ]
+}

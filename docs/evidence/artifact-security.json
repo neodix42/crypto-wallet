@@ -24,5 +24,15 @@
     "/ui/index.html",
     "/ui/renderer.js",
     "/ui/style.css"
-  ]
+  ],
+  "productionPayloadMatchesSource": true,
+  "payloadSHA256": {
+    "app/main.js": "7e36b6f2b653a865a9ab0cdb6cde2e8ef888172604fcad32f9c6d583627e12bd",
+    "app/preload.js": "3089cd146c29d77ef24ca6bc4389a143a1904e43a54dedc9eafc51c7807b6d61",
+    "app/validation.js": "88e7359579d0675277a4d79c530adfcfc84e14afe846bb0ef645035f35b72fbb",
+    "app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
+    "ui/renderer.js": "18dae442749e2746922e56d5a0b8341f21a2e167ff7f513d329c57d018e2faa3",
+    "ui/index.html": "3dc559d703cdb8fcae6ba6bca8879641364b0873627c67bb66645bbb39ef1d0a",
+    "ui/style.css": "ea1f029ca90d1ef1f7dc63d08c959f148f978205d133d97b48db2effd3eb4217"
+  }
 }

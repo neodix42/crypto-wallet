@@ -26,10 +26,7 @@ func TestNativeFailureGuidanceAndPublicFramesContainNoInputOrPath(t *testing.T) 
 	}{
 		{signer.ErrPasswordPolicy, "PASSWORD_POLICY"}, {secureui.ErrInputTooLong, "INPUT_TOO_LONG"},
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"}, {signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},
-		{signer.ErrBackupDestination, "BACKUP_DESTINATION_UNSAFE"}, {signer.ErrBackupExists, "BACKUP_EXISTS"},
-		{signer.ErrBackupWrite, "BACKUP_WRITE_FAILED"}, {signer.ErrBackupVerification, "BACKUP_VERIFY_FAILED"},
-		{signer.ErrRestoreSource, "RESTORE_SOURCE_UNSAFE"}, {secureui.ErrCancelled, "REQUEST_CANCELLED"},
-		{signer.ErrDenied, "REQUEST_DENIED"}, {errors.New("PASSWORD_POLICY"), "REQUEST_DENIED"},
+		{secureui.ErrCancelled, "REQUEST_CANCELLED"}, {signer.ErrDenied, "REQUEST_DENIED"}, {errors.New("PASSWORD_POLICY"), "REQUEST_DENIED"},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			err := fmt.Errorf("CANARY-private-password-or-path: %w", tc.err)

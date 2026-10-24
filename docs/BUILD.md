@@ -38,7 +38,7 @@ Pins for this optional desktop build are Node24.19.0, npm11.17.0, Electron45.0.0
 
 The launcher starts the network coordinator on anonymous inherited pipes, then installs process-wide IP restrictions before execing Electron. The secret signer independently applies the same restriction. Running the app as root is rejected. Mainnet is the default; `--profile=mainnet` is explicit and `--profile=testnet` opens the separate developer profile without changing mainnet data. Profile selection is consumed by the Go launcher and passed to the coordinator/signer, not chosen by renderer input. Explicit `--ozone-platform=x11` and `--ozone-platform=wayland` select matching Electron/GTK backends. Start the complete desktop with its Go launcher, rather than bypassing the process boundary by invoking Electron directly.
 
-The desktop uses CPU rendering, selected before Electron is ready, to avoid unnecessary GPU-driver initialization for its forms and account lists. This does not disable Chromium's sandbox or change system GPU-library permissions. A `MESA-LOADER` driver warning is separate from a rejected password, phrase or backup operation; those failures must appear in the native dialog or public status message.
+The desktop uses CPU rendering, selected before Electron is ready, to avoid unnecessary GPU-driver initialization for its forms and account lists. This does not disable Chromium's sandbox or change system GPU-library permissions. A `MESA-LOADER` driver warning is separate from a rejected password, phrase or recovery-confirmation operation; those failures must appear in the native dialog or public status message.
 
 After `make install`, run `python3 scripts/display-startup.py` to probe the actual portable runtime on disposable X11 and virtual Wayland displays, with private home/config/runtime directories and a private session bus. The optional test prerequisites are Xvfb (system or provisioned test cache), Python/Pillow, libX11/libXtst, `dbus-daemon` and `kwin_wayland`; missing prerequisites report **BLOCKED**. `--backend x11` or `--backend wayland` selects one probe. Results are in `reports/display-startup.json`. The probes do not attach to your desktop, enter credentials or access your wallet profile. X11 checks a mapped public window; virtual Wayland checks process startup only. Passing these probes leaves the real supported OS/display acceptance matrix **NOT_RUN**.
 
@@ -59,7 +59,17 @@ All generated outputs/cache directories stay out of Git. The source manifest has
 
 ## Tests
 
-`make test-go` runs Go unit/corpus tests. `make test` also builds/types/tests the existing desktop. `make test-security`, `make test-race`, `make coverage`, `make test-fuzz`, and `make check-deps` enforce their respective boundaries. The native X11 suite needs Xvfb and XTest. Packaged recovery additionally uses Python/Pillow and `tesseract-ocr` to operate the public screen. Go command tests explicitly report a skip if an isolated display cannot be provided. A skip is not a pass.
+`make test-go` runs Go unit/corpus tests. `make test` also builds/types/tests the existing desktop. `make test-security`, `make test-race`, `make coverage`, `make test-fuzz`, and `make check-deps` enforce their respective boundaries. The native X11 suite needs Xvfb and XTest. Packaged recovery additionally uses Python/Pillow and `tesseract-ocr` to operate the public screen. Native phrase setup stays inside the Go signer; the disposable test driver reads only its generated synthetic root in memory and refuses saved credential/phrase screenshots. Go command tests explicitly report a skip if an isolated display cannot be provided. A skip is not a pass.
+
+The dedicated recovery drill builds the production Go components and runs a fresh-install phrase restoration test:
+
+```sh
+make test-recovery
+```
+
+It creates disposable independent application profiles, records a generated phrase only in test memory, restores it under the chosen app password and compares the supported canonical wallets. No original vault, machine keyring or encrypted portable backup file is provided to the destination. The app password encrypts the destination; a different app password must preserve the same derived wallets. Any explicitly used BIP39 passphrase remains a separate recovery input. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) for exact executed cases and whether they passed; a same-host isolated-profile drill is not a second-physical-machine or clean-OS acceptance result.
+
+`make test-packaged` rebuilds/installs and operates the real portable desktop on a private display, including native phrase setup/confirmation, phrase restoration, receive QR/copy and public navigation. It does not create or verify encrypted backup files. Dependencies for those GUI tests are Xvfb/XTest, Pillow and Tesseract. Passing local drills does not establish native Wayland, OS lock/suspend or independent review.
 
 Protocol tests need explicit developer provisioning, not runtime user installation:
 

@@ -1,3 +1,5 @@
+> Historical backup-policy regression evidence: the current app uses native recovery-phrase confirmation and phrase restoration. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) for current behavior and executed evidence.
+
 # Password and backup failure analysis
 
 The reported failures had two independent causes. A three-byte password is below the existing 12–4096 UTF-8-byte policy; arbitrary three-character text is also not a valid English BIP39 recovery phrase. Both should have produced useful guidance. Instead, signer errors were collapsed to a generic denial, then to a generic core failure. Electron rejected its IPC handler and logged a stack trace; the renderer's vague status message could be offscreen and could be cleared by locked-status polling. The absence of a readable error was an application defect.

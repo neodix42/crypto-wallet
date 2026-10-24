@@ -15,11 +15,11 @@ protocol.registerSchemesAsPrivileged([{scheme:'wallet',privileges:{standard:true
 const origin='wallet://app'; const sessionID=randomBytes(16).toString('hex');
 let core:{stdin:WriteStream,stdout:ReadStream}|undefined;let win:BrowserWindow|undefined;let serial=0;let buffered=Buffer.alloc(0);
 let statusTimer:NodeJS.Timeout|undefined;let statusInFlight=false;
-const nativeMethods=new Set(['create','import','unlock','backup','restore','password','receive','copyReceive','saveQR','scanQR','configure','associate','discovery','discoverAccounts','send']);
+const nativeMethods=new Set(['create','import','unlock','confirmRecovery','password','receive','copyReceive','saveQR','scanQR','configure','associate','discovery','discoverAccounts','send']);
 // Only reviewed, value-free operation codes may cross the desktop boundary.
 // Ordinary failures resolve the IPC handler, avoiding Electron's rejected-handler
 // stack logging. Core/session protocol failures still terminate the session.
-const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','BACKUP_DESTINATION_UNSAFE','BACKUP_EXISTS','BACKUP_WRITE_FAILED','BACKUP_VERIFY_FAILED','RESTORE_SOURCE_UNSAFE','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
+const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
 function operationCode(value:unknown):string{return typeof value==='string'&&operationErrors.has(value)?value:'REQUEST_FAILED_STATE_UNKNOWN';}
 class OperationError extends Error{readonly code:string;constructor(value:unknown){const code=operationCode(value);super(code);this.code=code;}}
 type Pending={method:string,resolve:(x:unknown)=>void,reject:(e:Error)=>void,timer:NodeJS.Timeout|undefined,deadline:number,activityWindow:number,activityCount:number};

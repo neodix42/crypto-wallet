@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 24.19.0
       - name: Install native and isolated display test prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil
+        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil tesseract-ocr
       - name: Choose the next version
         id: version
         run: |
@@ -37,6 +37,8 @@ jobs:
         run: ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
       - name: Run mandatory local gates
         run: make test test-security test-race test-interop test-integration test-fuzz coverage check-deps
+      - name: Restore all wallets in independent fresh application copies
+        run: make test-recovery
       - name: Build the same version into the application and artifacts
         run: python3 scripts/go-build-test.py
       - name: Verify candidate version consistency

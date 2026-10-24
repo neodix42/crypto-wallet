@@ -1,7 +1,7 @@
 import {contextBridge,ipcRenderer} from 'electron';
 // No generic IPC, native objects, files, credentials or signing methods escape.
-const methods=['networks','accounts','status','create','import','unlock','lock','balances','receive','history','prepare','send','retry','reconcile','backup','restore','password','addAccount','hideAccount','discoverAccounts','cancelPrepared','copyReceive','saveQR','scanQR','configure','associate','chainHistory','max','discovery'] as const;
-const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','BACKUP_DESTINATION_UNSAFE','BACKUP_EXISTS','BACKUP_WRITE_FAILED','BACKUP_VERIFY_FAILED','RESTORE_SOURCE_UNSAFE','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
+const methods=['networks','accounts','status','create','import','unlock','lock','balances','receive','history','prepare','send','retry','reconcile','confirmRecovery','password','addAccount','hideAccount','discoverAccounts','cancelPrepared','copyReceive','saveQR','scanQR','configure','associate','chainHistory','max','discovery'] as const;
+const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
 function unwrap(value:unknown):unknown{
  if(value!==null&&typeof value==='object'&&!Array.isArray(value)){
   const result=value as Record<string,unknown>;

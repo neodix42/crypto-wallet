@@ -127,7 +127,7 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 	var out any
 	var err error
 	switch m.Method {
-	case "unlock", "lock", "snapshot", "settings", "scanQR", "backup", "restore", "password", "pending":
+	case "unlock", "lock", "snapshot", "settings", "scanQR", "confirmRecovery", "password", "pending":
 		if signer.DecodeBody(m.Body, &struct{}{}) != nil {
 			return nil, signer.ErrDenied
 		}
@@ -246,15 +246,8 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		out = e.Snapshot()
 	case "scanQR":
 		out, err = e.ScanQR()
-	case "backup":
-		err = e.Backup()
-		out = e.Snapshot()
-	case "restore":
-		err = e.Restore()
-		if err == nil && e.Snapshot().Environment != environment {
-			e.Lock()
-			err = signer.ErrDenied
-		}
+	case "confirmRecovery":
+		err = e.ConfirmRecovery()
 		out = e.Snapshot()
 	case "password":
 		err = e.ChangePassword()

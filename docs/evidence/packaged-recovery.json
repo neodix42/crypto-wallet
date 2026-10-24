@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 clickable Send/Receive before backup, explicit verified-backup continuation, Settings journal, native table balances, native receive QR/copy, middle-click tab closing, validation feedback, generation/import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-native-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing and validation feedback; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -11,39 +11,23 @@
       "status": "PASS"
     },
     {
-      "name": "Explicit first-run password-only generation and Main account overview without phrase reveal",
+      "name": "Password setup generates and encrypts a random phrase; incorrect recorded words leave setup pending",
       "status": "PASS"
     },
     {
-      "name": "Send opens before mainnet backup verification and displays the required backup action",
+      "name": "Pending recovery offers an actionable Send form without enabling payment preparation",
       "status": "PASS"
     },
     {
-      "name": "Receive opens actionable backup guidance; cancelling does not open an unverified QR",
+      "name": "Pending Receive guide cancels without opening an unconfirmed address workflow",
       "status": "PASS"
     },
     {
-      "name": "Explicit receive backup action verifies the encrypted file then opens the original wallet authoritative QR",
+      "name": "Native password reauthentication and correct recorded words enable the original wallet receive QR without a file backup",
       "status": "PASS"
     },
     {
-      "name": "Verified owner-only encrypted backup in ordinary 0755 folder without folder mutation or lockfile",
-      "status": "PASS"
-    },
-    {
-      "name": "existing-backup-feedback",
-      "status": "PASS"
-    },
-    {
-      "name": "unsafe-backup-folder-feedback",
-      "status": "PASS"
-    },
-    {
-      "name": "Rejected backups preserve existing ciphertext and leave the active wallet usable",
-      "status": "PASS"
-    },
-    {
-      "name": "Password-only generated root restored from verified encrypted backup into an empty profile",
+      "name": "Actual packaged app restores its generated wallet in an empty profile using only app password and recorded phrase",
       "status": "PASS"
     },
     {
@@ -51,15 +35,7 @@
       "status": "PASS"
     },
     {
-      "name": "Native input-only BIP39 import with production KDF",
-      "status": "PASS"
-    },
-    {
-      "name": "Native encrypted portable backup creation and reopen verification",
-      "status": "PASS"
-    },
-    {
-      "name": "Go-owned verified receive QR and exact independent public address",
+      "name": "Known phrase restoration reproduces the independently generated public address without backup files",
       "status": "PASS"
     },
     {
@@ -75,31 +51,27 @@
       "status": "PASS"
     },
     {
-      "name": "Receive popup shows authoritative QR and full address with explicit in-window native copying",
+      "name": "Native Receive displays independently decoded QR pixels and copies the exact address",
       "status": "PASS"
     },
     {
-      "name": "Table row opens a wallet tab; Receive uses its own window and Send reveals its form on demand",
+      "name": "Confirmed recovery enables Send form without any encrypted-backup prompt",
       "status": "PASS"
     },
     {
-      "name": "Middle-click closes the active wallet tab and returns to its account table",
+      "name": "Middle-click closes wallet tab and returns to account table",
       "status": "PASS"
     },
     {
-      "name": "Restart requires native unlock and preserves deterministic address",
+      "name": "Restart requires native unlock and preserves confirmed recovery and wallet address",
       "status": "PASS"
     },
     {
-      "name": "Portable restore into empty profile without original application state",
+      "name": "Explicit testnet remains isolated from the restored mainnet profile",
       "status": "PASS"
     },
     {
-      "name": "Explicit testnet profile starts empty and preserves existing mainnet ciphertext without conversion",
-      "status": "PASS"
-    },
-    {
-      "name": "Additional deterministic account appears as its own top tab with index-one network wallets",
+      "name": "Adding deterministic account preserves phrase confirmation and creates its own account tab",
       "status": "PASS"
     },
     {
@@ -107,7 +79,7 @@
       "status": "PASS"
     },
     {
-      "name": "Invalid native inputs and backup failures produce guidance without ordinary IPC handler stack traces or Mesa loader errors",
+      "name": "Native validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors",
       "status": "PASS"
     }
   ],
@@ -122,16 +94,16 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "2bff2d45778fcd1c59bea5e67c3e0c1dd209951621c2a63db274cf37e1026b18",
-      "wallet-launcher": "92fd1a514fe5f80a59e217ceb7cc3a7221b52e7980df1d39e048b8ca141f1cb1",
-      "wallet-signer": "5aa8ca0c4020c67432bc002d55afa1b1be1625102524c017b44bbb766ff6c376"
+      "wallet-core": "1111dbfadb696f1f60de871cee427bdedb303acb91c6922f5cf475e1ceb0caee",
+      "wallet-launcher": "69cf422fc21b4c524ee952f0d30e90ea0b1d6921394e9fbb685d9dbeb5a0873d",
+      "wallet-signer": "bd4337cb0b54474ea9712deb466048a90dda3d92dd9e1b7c61a27284e5c78350"
     },
-    "asarSHA256": "8fb3ee24dc9a9785d832c6e222a8fc639ed5481d6f07806a41e0e9cf54fc53f1"
+    "asarSHA256": "ef0d6d1ad8db74c1eb8fcef5d9bf49809da987ba3ed92faaa6272daff4c3088f"
   },
   "nativeBalanceObservation": {
     "status": "PASS",
     "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - 0xa48b341\u00a232f560b0bd3431 e5ad7484d64ac7dfc8 f0a0566d3ab04432dd6ff2ed"
+    "publicText": "0 ETH - provider-observed - 0x1 1cdc1e8bc976f8cfd89f0f6c5d 16909d350879e9 76150a83c74974ca96a72a3"
   },
   "liveLogChecks": [
     {
@@ -157,11 +129,7 @@
     {
       "mesaLoaderError": false,
       "ordinaryIPCStackTrace": false
-    },
-    {
-      "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
     }
   ],
-  "backupSHA256": "41f113feaeb4135bdf496128ece4e2cd8e89ccd4d67c54cdb802c1e3e18f0dda"
+  "recoveryMethod": "Native recorded-word confirmation and phrase import; no encrypted backup API or file needed"
 }

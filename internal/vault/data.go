@@ -18,18 +18,21 @@ type Endpoint struct {
 	APIKey   string `json:"apiKey"`
 }
 type Data struct {
-	Version        uint32              `json:"version"`
-	WalletID       string              `json:"walletId"`
-	Generation     uint64              `json:"generation"`
-	Scheme         string              `json:"scheme"`
-	Entropy        []byte              `json:"entropy"`
-	Passphrase     []byte              `json:"passphrase"`
-	Environment    string              `json:"environment"`
-	Birthday       int64               `json:"birthday"`
-	BackupVerified bool                `json:"backupVerified"`
-	Accounts       []model.Account     `json:"accounts"`
-	Operations     []journal.Operation `json:"operations"`
-	Endpoints      map[string]Endpoint `json:"endpoints"`
+	Version     uint32 `json:"version"`
+	WalletID    string `json:"walletId"`
+	Generation  uint64 `json:"generation"`
+	Scheme      string `json:"scheme"`
+	Entropy     []byte `json:"entropy"`
+	Passphrase  []byte `json:"passphrase"`
+	Environment string `json:"environment"`
+	Birthday    int64  `json:"birthday"`
+	// DeprecatedBackupVerified exists solely to read existing v1 vaults. It is
+	// never an authority to reveal a phrase, receive funds or sign a payment.
+	DeprecatedBackupVerified bool                `json:"backupVerified,omitempty"`
+	RecoveryConfirmed        bool                `json:"recoveryConfirmed,omitempty"`
+	Accounts                 []model.Account     `json:"accounts"`
+	Operations               []journal.Operation `json:"operations"`
+	Endpoints                map[string]Endpoint `json:"endpoints"`
 }
 
 func (d *Data) Destroy() {

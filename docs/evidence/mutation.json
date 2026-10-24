@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "elapsedSeconds": 114.901,
+  "elapsedSeconds": 276.047,
   "mutants": [
     {
       "id": "aead-authentication",
@@ -38,7 +38,12 @@
       "exit": 1
     },
     {
-      "id": "mainnet-backup-authorization",
+      "id": "recovery-authorization",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "recorded-phrase-confirmation",
       "status": "KILLED",
       "exit": 1
     },

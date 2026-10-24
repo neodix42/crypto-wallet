@@ -1,6 +1,6 @@
 """Test-only X11 input against a private Xvfb display. No clipboard or secret
 arguments/environment. Public synthetic credentials belong only in test code."""
-import ctypes as C,time,tempfile
+import ctypes as C,time
 from PIL import Image
 X=C.CDLL('libX11.so.6');T=C.CDLL('libXtst.so.6')
 X.XOpenDisplay.argtypes=[C.c_char_p];X.XOpenDisplay.restype=C.c_void_p
@@ -74,9 +74,8 @@ class Desktop:
   window,_=self.wait(prefix,25);self.focus(window);x,y,w,h=self.geometry(window)
   # Private fresh-HOME test displays use the default light GTK theme. Locate
   # empty input rectangles rather than assuming the host's font/DPI spacing.
-  with tempfile.NamedTemporaryFile(suffix='.png') as f:
-   self.screenshot(f.name);im=Image.open(f.name).convert('RGB')
-   rows=[yy for yy in range(max(0,y),min(1024,y+h-45)) if all(min(im.getpixel((xx,yy)))>250 for xx in [x+50,x+w//2,x+w-50])]
+  im=self.image().convert('RGB')
+  rows=[yy for yy in range(max(0,y),min(1024,y+h-45)) if all(min(im.getpixel((xx,yy)))>250 for xx in [x+50,x+w//2,x+w-50])]
   groups=[]
   for yy in rows:
    if not groups or yy!=groups[-1][-1]+1:groups.append([])
@@ -91,8 +90,11 @@ class Desktop:
    if found:return found[0]
    time.sleep(.1)
   raise RuntimeError('Expected native/public window did not appear: '+prefix)
- def screenshot(self,path):
+ def image(self):
   p=X.XGetImage(self.d,self.root,0,0,1280,1024,0xffffffff,2)
   try:
-   data=C.string_at(p.contents.data,p.contents.bytes_per_line*1024);Image.frombytes('RGB',(1280,1024),data,'raw','BGRX',p.contents.bytes_per_line,1).save(path)
+   data=C.string_at(p.contents.data,p.contents.bytes_per_line*1024);return Image.frombytes('RGB',(1280,1024),data,'raw','BGRX',p.contents.bytes_per_line,1)
   finally:X.XDestroyImage(p)
+ def screenshot(self,path):
+  if any(title.startswith(('Create local wallet','Unlock local wallet','Complete recovery setup','Record recovery phrase','Confirm recovery phrase')) for _,title in self.windows()):raise RuntimeError('Refusing to save native secret-window pixels')
+  self.image().save(path)

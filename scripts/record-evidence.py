@@ -3,7 +3,7 @@
 import argparse,hashlib,json,pathlib,shutil,subprocess
 parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--go-only',action='store_true');args=parser.parse_args()
 root=pathlib.Path(__file__).resolve().parents[1];out=root/'docs/evidence';out.mkdir(exist_ok=True)
-names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','mainnet-rpc','mainnet-tabs','wallet-layout','wallet-actions','receive-small-display','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
+names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','mainnet-rpc','mainnet-tabs','wallet-layout','wallet-actions','phrase-recovery','phrase-onboarding','phrase-native-focused','receive-small-display','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
 index=[]
 for name in names:
  source=root/'reports'/(name+'.json')
@@ -11,7 +11,7 @@ for name in names:
  data=json.loads(source.read_text());shutil.copyfile(source,out/source.name)
  status=data.get('status','PASS' if name=='coverage' and all(r['status']=='PASS' for r in data.get('packages',[])) else 'NOT_RUN')
  index.append({'report':name,'status':status,'file':source.name,'sha256':hashlib.sha256(source.read_bytes()).hexdigest()})
-for name in ['govulncheck.txt','npm-audit.json','race.log']:
+for name in ['govulncheck.txt','npm-audit.json','race.log','phrase-dependencies.log','phrase-race.log','phrase-recovery.log','phrase-packaged.log']:
  source=root/'reports'/name
  if source.is_file():shutil.copyfile(source,out/name)
 manifest=json.loads((root/'dist'/('go-build-manifest.json' if args.go_only else 'build-manifest.json')).read_text())

@@ -66,6 +66,13 @@ static void add_label(void*box,const char*s){void*l=gtk_label_new(s);gtk_label_s
 static void add_scroll(void*b,const char*s){void*w=gtk_scrolled_window_new(0,0);gtk_scrolled_window_set_policy(w,1,1);gtk_widget_set_size_request(w,600,240);void*l=gtk_label_new(s);gtk_label_set_line_wrap(l,1);gtk_label_set_max_width_chars(l,80);gtk_label_set_selectable(l,1);gtk_container_add(w,l);gtk_box_pack_start(b,w,1,1,6);}
 static void *new_dialog(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Cancel",-6,"Continue",-3,(char*)0);gtk_window_set_default_size(d,650,240);gtk_window_set_keep_above(d,1);return d;}
 static void *new_notice(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Close",-7,(char*)0);gtk_window_set_default_size(d,650,180);gtk_window_set_keep_above(d,1);return d;}
+// Recovery secrets are deliberately confined to this native window. Unlike
+// public address labels, the phrase label is never selectable or copyable.
+static void *new_recovery(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Cancel",-6,"I wrote it down",-3,(char*)0);gtk_window_set_default_size(d,650,600);gtk_window_set_keep_above(d,1);return d;}
+static void *recovery_phrase(void*b,const char*s){void*w=gtk_scrolled_window_new(0,0);gtk_scrolled_window_set_policy(w,1,1);gtk_widget_set_size_request(w,600,340);void*l=gtk_label_new(s);gtk_label_set_selectable(l,0);gtk_label_set_xalign(l,0);gtk_container_add(w,l);gtk_box_pack_start(b,w,1,1,6);return l;}
+static void *new_recovery_check(void){void*d=gtk_dialog_new_with_buttons("Confirm recovery phrase — Go signer",0,1,"Cancel",-6,"Confirm recorded words",-3,(char*)0);gtk_window_set_default_size(d,650,480);gtk_window_set_keep_above(d,1);return d;}
+static void secret_wipe(void*p,size_t n){volatile unsigned char*v=p;while(n--)*v++=0;}
+static void secret_free(void*p,size_t n){if(p){secret_wipe(p,n);free(p);}}
 // Positive response 1 performs an explicit public-address copy without closing
 // the verified receive window. Done retains the existing accepted-view result.
 static void *new_receive(const char*t){void*d=gtk_dialog_new_with_buttons(t,0,1,"Cancel",-6,"Copy address",1,"Done",-3,(char*)0);gtk_window_set_default_size(d,650,680);gtk_window_set_keep_above(d,1);return d;}
@@ -84,8 +91,11 @@ static int add_receive_png(void*b,const unsigned char*p,size_t n){void*l=gdk_pix
 */
 import "C"
 import (
+	"bytes"
+	"crypto/subtle"
 	"errors"
 	"runtime"
+	"strconv"
 	"strings"
 	"unsafe"
 )
@@ -172,6 +182,114 @@ func Notice(title, message string) {
 }
 func Confirm(title, summary string) bool             { return display(title, summary, nil) }
 func Receive(title, summary string, png []byte) bool { return display(title, summary, png) }
+
+// Recovery displays an engine-owned canonical English mnemonic only in GTK,
+// then asks for three recorded words in separate masked entries. It never
+// copies the phrase, creates an immutable Go string from it or returns words.
+// The caller retains ownership of phrase and must clear it after this call.
+func Recovery(title string, phrase []byte) bool {
+	words := bytes.Fields(phrase)
+	validLength := len(words) == 12 || len(words) == 15 || len(words) == 18 || len(words) == 21 || len(words) == 24
+	if !validLength || len(phrase) > 256 {
+		return false
+	}
+	n := len(words) - 1
+	for _, word := range words {
+		n += len(word)
+		for _, c := range word {
+			if c < 'a' || c > 'z' {
+				return false
+			}
+		}
+	}
+	if n != len(phrase) { // Engine phrases use single spaces, never repaired input.
+		return false
+	}
+	numbered := make([]byte, 0, len(phrase)+len(words)*5)
+	for i, word := range words {
+		numbered = strconv.AppendInt(numbered, int64(i+1), 10)
+		numbered = append(numbered, '.', ' ')
+		numbered = append(numbered, word...)
+		numbered = append(numbered, '\n')
+	}
+	defer clear(numbered)
+	secret := C.malloc(C.size_t(len(numbered) + 1))
+	if secret == nil {
+		return false
+	}
+	copy(unsafe.Slice((*byte)(secret), len(numbered)+1), numbered)
+	unsafe.Slice((*byte)(secret), len(numbered)+1)[len(numbered)] = 0
+	defer C.secret_free(secret, C.size_t(len(numbered)+1))
+	t := cstr(title)
+	defer C.free(unsafe.Pointer(t))
+	d := C.new_recovery(t)
+	b := C.gtk_dialog_get_content_area(d)
+	guidance := cstr("Write these words in order and store them somewhere private and offline. Anyone with this phrase can spend your funds. Do not photograph or share them, copy them to the clipboard, or enter them on a website. Your app password encrypts this device; it does not change these wallets. Also keep any original optional BIP39 passphrase separately: these words and the app password cannot replace it.")
+	C.add_label(b, guidance)
+	C.free(unsafe.Pointer(guidance))
+	label := C.recovery_phrase(b, (*C.char)(secret))
+	C.gtk_widget_show_all(d)
+	response := C.gtk_dialog_run(d)
+	empty := cstr("")
+	C.gtk_label_set_text(label, empty)
+	C.free(unsafe.Pointer(empty))
+	// Clear our additional phrase copies before destroying the native label.
+	// Only caller-owned word slices remain for the subsequent masked check.
+	clear(numbered)
+	C.secret_wipe(secret, C.size_t(len(numbered)+1))
+	C.finish(d)
+	if response != -3 {
+		return false
+	}
+	positions := []int{1, 5, len(words) - 1}
+	labels := make([]string, len(positions))
+	for i, position := range positions {
+		labels[i] = "Recorded word " + strconv.Itoa(position+1)
+	}
+	return recoveryCheck(words, positions, labels)
+}
+
+func recoveryCheck(words [][]byte, positions []int, labels []string) bool {
+	d := C.new_recovery_check()
+	b := C.gtk_dialog_get_content_area(d)
+	guidance := cstr("Enter the requested words from your offline copy. The phrase stays hidden here. Confirm only after checking that your complete phrase is safely recorded.")
+	C.add_label(b, guidance)
+	C.free(unsafe.Pointer(guidance))
+	entries := make([]unsafe.Pointer, len(labels))
+	for i, label := range labels {
+		l := cstr(label)
+		entries[i] = C.add_entry(b, l)
+		C.free(unsafe.Pointer(l))
+	}
+	C.gtk_widget_show_all(d)
+	response := C.gtk_dialog_run(d)
+	matched := response == -3
+	empty := cstr("")
+	for i, entry := range entries {
+		p := C.gtk_entry_get_text(entry)
+		n := C.strlen(p)
+		if response == -3 {
+			// Fixed mnemonic words are short. Bound byte copying even if GTK's
+			// character limit accepted a much longer multibyte submission.
+			if n > 32 {
+				matched = false
+			} else {
+				word := C.GoBytes(unsafe.Pointer(p), C.int(n))
+				if subtle.ConstantTimeCompare(word, words[positions[i]]) != 1 {
+					matched = false
+				}
+				clear(word)
+			}
+		}
+		C.gtk_entry_set_text(entry, empty)
+	}
+	C.free(unsafe.Pointer(empty))
+	C.finish(d)
+	if response == -3 && !matched {
+		Notice("Recovery phrase not confirmed", "The recorded words did not match. Record the complete phrase in order, then try the confirmation again. Your wallet remains unavailable for payments until this is complete.")
+	}
+	return matched
+}
 
 // ReceiveAddress displays a signer-validated public address and its QR. The
 // address is supplied separately from the public summary, never parsed from it.

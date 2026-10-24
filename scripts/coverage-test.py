@@ -36,12 +36,14 @@ class CoverageEvidence(unittest.TestCase):
         self.assertIn("localwallet/internal/vault/vault.go:5.1,6.1 3 0", merged)
 
     def test_only_test_fixture_generators_are_excluded_explicitly(self):
-        profile = self.profile("input.cover", ["localwallet/internal/secureui/native.go:1.1,2.1 1 1", "localwallet/internal/secureui/automation.go:1.1,2.1 1 0", "localwallet/tests/oracles/decred/main.go:1.1,2.1 1 0"])
+        profile = self.profile("input.cover", ["localwallet/internal/secureui/native.go:1.1,2.1 1 1", "localwallet/internal/secureui/automation.go:1.1,2.1 1 0", "localwallet/internal/secureui/recovery_automation.go:1.1,2.1 1 0", "localwallet/internal/secureui/other_automation.go:1.1,2.1 1 1", "localwallet/tests/oracles/decred/main.go:1.1,2.1 1 0"])
         merged = coverage.merge_profiles([profile]).read_text()
         self.assertIn("secureui/native.go", merged)
-        self.assertNotIn("automation.go", merged)
+        self.assertNotIn("secureui/automation.go:", merged)
+        self.assertNotIn("secureui/recovery_automation.go:", merged)
+        self.assertIn("secureui/other_automation.go:", merged)
         self.assertNotIn("tests/oracles", merged)
-        self.assertEqual(len(coverage.report["exclusions"]), 2)
+        self.assertEqual(len(coverage.report["exclusions"]), 3)
 
     def test_mixed_modes_and_changed_block_shapes_are_refused(self):
         first = self.profile("first.cover", ["localwallet/internal/vault/vault.go:1.1,2.1 4 1"])

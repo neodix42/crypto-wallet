@@ -55,7 +55,7 @@ while True:
  state.setdefault('calls',[]).append(method)
  output=None
  if method in state.get('reject',[]):error='SYNTHETIC_DENIED'
- elif method in ['snapshot','accounts','status']:output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':state.get('accounts',[]),'operations':state.get('ops',[]),'backupVerified':True}
+ elif method in ['snapshot','accounts','status','confirmRecovery']:output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':state.get('accounts',[]),'operations':state.get('ops',[]),'recoveryConfirmed':True}
  elif method=='pending':output=state.get('ops',[])
  elif method=='settings':output=state.get('settings',{})
  elif method=='prepare':
@@ -203,7 +203,7 @@ func message(method string, body any) ipc.Message {
 func TestTP041PublicHandlerSchemas(t *testing.T) {
 	a := &publicAdapter{}
 	c, path := fakeCoordinator(t, a, nil)
-	for _, method := range []string{"balances", "prepare", "send", "retry", "reconcile", "associate"} {
+	for _, method := range []string{"balances", "prepare", "send", "retry", "reconcile", "associate", "confirmRecovery"} {
 		if _, e := c.handle(message(method, map[string]any{"password": "untrusted"})); e == nil {
 			t.Fatalf("secret/unknown field accepted by %s", method)
 		}
@@ -214,7 +214,7 @@ func TestTP041PublicHandlerSchemas(t *testing.T) {
 	if _, e := c.adapter("unknown"); e == nil {
 		t.Fatal("unknown adapter")
 	}
-	for _, method := range []string{"create", "import", "unlock", "backup", "restore", "password", "addAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure"} {
+	for _, method := range []string{"create", "import", "unlock", "confirmRecovery", "password", "addAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure"} {
 		if _, e := c.handle(message(method, map[string]any{})); e != nil {
 			t.Fatalf("forward %s %v", method, e)
 		}
@@ -569,9 +569,9 @@ func TestTP060SignerBoundaryAndUnsupportedState(t *testing.T) {
 		t.Fatal(e)
 	}
 	state := readPublicState(t, path)
-	state["reject"] = []string{"backup"}
+	state["reject"] = []string{"confirmRecovery"}
 	writePublicState(t, path, state)
-	if _, e := c.handle(message("backup", map[string]any{})); e == nil {
+	if _, e := c.handle(message("confirmRecovery", map[string]any{})); e == nil {
 		t.Fatal("forwarded rejection")
 	}
 	state = readPublicState(t, path)
@@ -903,5 +903,35 @@ func TestTP040PublicJSONPreservesAtomicStringsAndRedactsRPCCredentials(t *testin
 	}
 	if _, e = publicJSON(make(chan int)); e == nil {
 		t.Fatal("unencodable public response")
+	}
+}
+
+func TestTP033RecoveryConfirmationHasOnlyPublicSnapshotAndRemovedMethodsCannotReachSigner(t *testing.T) {
+	c, _ := fakeCoordinator(t, &publicAdapter{}, nil)
+	out, err := c.handle(message("confirmRecovery", struct{}{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(out)
+	if err != nil || !bytes.Contains(raw, []byte(`"recoveryConfirmed":true`)) {
+		t.Fatal("confirmation did not return fresh public state", err)
+	}
+	for _, name := range []string{`"backupVerified"`, `"entropy"`, `"mnemonic"`, `"passphrase"`, `"password"`, `"seed"`} {
+		if bytes.Contains(raw, []byte(name)) {
+			t.Fatal("confirmation exposed an obsolete authority field or secret")
+		}
+	}
+	c.child.Kill()
+	c.child.Path = filepath.Join(t.TempDir(), "unavailable-peer")
+	for _, method := range []string{"backup", "restore", "getMnemonic", "revealPhrase", "exportPhrase"} {
+		if out, err := c.handle(message(method, struct{}{})); err == nil || out != nil {
+			t.Fatal("removed or secret method accepted", method)
+		}
+	}
+	for _, body := range []string{`{"password":"PUBLIC-FORBIDDEN"}`, `{"mnemonic":"PUBLIC-FORBIDDEN"}`, `{"phrase":"PUBLIC-FORBIDDEN"}`, `{"words":["PUBLIC-FORBIDDEN"]}`, `{"x":1,"x":2}`} {
+		out, err := c.handle(ipc.Message{ID: "recovery-public-schema", Session: "fixture", Method: "confirmRecovery", Body: []byte(body)})
+		if err == nil || out != nil || err.Error() != "invalid fields" {
+			t.Fatal("credential or malformed confirmation reached signer", body, err)
+		}
 	}
 }

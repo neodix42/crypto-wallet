@@ -1,5 +1,8 @@
 # Decred and TON implementation evidence
 
+> Recovery-policy update: canonical DCR/TON keys restore from the recorded BIP39 phrase and any original optional BIP39 passphrase. The phrase does not encode DCR discovery counters or noncanonical contract metadata; use explicit bounded discovery and preserve known parameters. Encrypted portable-backup authentication mentioned in historical campaigns below is superseded as a product workflow. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md).
+
+
 This records adapter development evidence on Ubuntu 26.04 amd64, Go 1.27.3 and Node 24.19.0. Public deterministic fixtures are test material, never wallets for deposits. No mainnet funds were sent, and no real user secret was imported. These results do not satisfy the complete production release gates.
 
 ## Implemented boundaries

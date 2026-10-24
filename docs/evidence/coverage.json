@@ -22,9 +22,9 @@
     },
     {
       "package": "localwallet/cmd/wallet-signer",
-      "statements": 162,
-      "covered": 160,
-      "percent": 98.77,
+      "statements": 157,
+      "covered": 155,
+      "percent": 98.73,
       "floor": 95,
       "status": "PASS"
     },
@@ -102,9 +102,9 @@
     },
     {
       "package": "localwallet/internal/derivation",
-      "statements": 57,
-      "covered": 55,
-      "percent": 96.49,
+      "statements": 76,
+      "covered": 74,
+      "percent": 97.37,
       "floor": 95,
       "status": "PASS"
     },
@@ -142,17 +142,17 @@
     },
     {
       "package": "localwallet/internal/secureui",
-      "statements": 137,
-      "covered": 136,
-      "percent": 99.27,
+      "statements": 216,
+      "covered": 214,
+      "percent": 99.07,
       "floor": 95,
       "status": "PASS"
     },
     {
       "package": "localwallet/internal/signer",
-      "statements": 608,
-      "covered": 589,
-      "percent": 96.88,
+      "statements": 558,
+      "covered": 544,
+      "percent": 97.49,
       "floor": 95,
       "status": "PASS"
     },

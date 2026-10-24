@@ -41,8 +41,9 @@
     {
       "id": "INV-01-secret-boundary",
       "status": "PASS",
-      "evidence": "Engine/snapshot/publicJSON/surface-check/frontend strict schema; native-only input tests",
-      "remaining": ""
+      "evidence": "Current strict public API/snapshot schemas, 68 frontend tests, surface enumeration, 14 native tests and phrase-recovery public IPC/log/file canary checks; phrase appears only in native Go setup",
+      "remaining": "Complete clean-OS leakage campaign and independent review retain their own NOT_RUN gates",
+      "previousEvidence": "Engine/snapshot/publicJSON/surface-check/frontend strict schema; native-only input tests"
     },
     {
       "id": "INV-02-auth-before-plaintext",
@@ -65,8 +66,9 @@
     {
       "id": "INV-05-exact-approval",
       "status": "PASS",
-      "evidence": "Changed recipient/amount/network/fee/nonce/memo/contracts/outputs fail chain validators and approval digest; current mainnet verified-backup eligibility rechecked before approval, after confirmation and after reauthentication; revocation and critical mutant regressions pass",
-      "remaining": ""
+      "evidence": "Current all-profile recorded-phrase eligibility checked at receive/preparation/signing and native approval/reauthentication boundaries; callback lock/root-replacement tests and 12 semantic mutants PASS",
+      "remaining": "",
+      "previousEvidence": "Changed recipient/amount/network/fee/nonce/memo/contracts/outputs fail chain validators and approval digest; current mainnet verified-backup eligibility rechecked before approval, after confirmation and after reauthentication; revocation and critical mutant regressions pass"
     },
     {
       "id": "INV-06-durable-before-submit",
@@ -83,8 +85,9 @@
     {
       "id": "INV-08-address-recovery",
       "status": "PASS",
-      "evidence": "Independent profiles, password-preserving addresses and all-family verified encrypted backup rederive",
-      "remaining": ""
+      "evidence": "Current random 12/24-word unit restoration and independent copied-app native recovery: all nine mainnet domains at indices0/1/127 with same/different app passwords and restart",
+      "remaining": "Physical second-machine and full clean-OS matrix NOT_RUN; phrase does not encode installation metadata",
+      "previousEvidence": "Independent profiles, password-preserving addresses and all-family verified encrypted backup rederive"
     },
     {
       "id": "INV-09-networks-distinct",
@@ -125,7 +128,7 @@
     {
       "id": "S-04",
       "status": "NOT_RUN",
-      "evidence": "Private no-follow atomic files, verified portable backups, old/new generation tests",
+      "evidence": "Private no-follow atomic live vault, authenticated generations, native phrase restoration and retained test-only historical file-hardening fixtures",
       "remaining": "Full OS recovery/migration matrix NOT_RUN; no whole-directory rollback detector"
     },
     {
@@ -167,14 +170,14 @@
     {
       "id": "TP-010",
       "status": "PASS",
-      "evidence": "reports/go-coverage.json source-stable cross-package+real-native measurement:22/22 packages meet95/90 floors; reports/frontend-coverage.json all5shippedJS files100% measured statements/branches; docs/COVERAGE.md indexes all180 remainingblocks",
-      "remaining": "Coverage does not replace external acceptance or independent review; C/GTK/third-party modules not instrumented"
+      "evidence": "reports/go-coverage.json: frozen source-hashed 22/22 shipped package floors PASS; 14 real native tests PASS; all five shipped JS files100% statements, critical four100% branches and renderer97.98%; full block index in docs/COVERAGE.md",
+      "remaining": "Coverage is statement instrumentation for Go, not a cryptographic audit; C/GTK/third-party code remains unmeasured"
     },
     {
       "id": "TP-011",
       "status": "PASS",
-      "evidence": "reports/mutation.json:10/10 killed; retained EVM/Core and DCR/TON mutants; go vet, race and reachable-vulnerability/dependency scans",
-      "remaining": "An uncalled required-module advisory is recorded separately; external audit NOT_RUN"
+      "evidence": "Current reports/mutation.json:12/12 semantic mutants killed, including recovery gate and recorded-word confirmation; full Go race suite, vet and workflow actionlint PASS",
+      "remaining": "Existing dependency/vulnerability reports retain their recorded scope; external audit NOT_RUN"
     },
     {
       "id": "TP-012",
@@ -197,8 +200,8 @@
     {
       "id": "TP-022",
       "status": "PASS",
-      "evidence": "all-family indices0/1/17 fixtures; signer full encrypted restore, metadata associations, DCR counters/budgets, bounded account range and hide recovery",
-      "remaining": ""
+      "evidence": "Published all-family fixture profiles and current canonical generated-phrase fresh-installation recovery across nine mainnet networks at indices0/1/127; historical encrypted-container tests retained only as test fixtures",
+      "remaining": "Named/rotated associations, discovery counters/settings and journal are not encoded in a phrase"
     },
     {
       "id": "TP-030",
@@ -214,20 +217,22 @@
     },
     {
       "id": "TP-032",
-      "status": "NOT_RUN",
-      "evidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented portable generated-root and phrase-import fresh-profile recovery PASS",
-      "remaining": "Clean separate supported OS/account recovery matrix and upgrade/migration drills not completed; only schema1 supported"
+      "status": "PASS",
+      "evidence": "Current native password-to-random-phrase setup and three independent installation recovery copies reproduce27 descriptors, restart locked and preserve identities with same/different app passwords; packaged phrase restore PASS",
+      "remaining": "Separate physical-machine/full supported-OS matrix NOT_RUN",
+      "previousEvidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented portable generated-root and phrase-import fresh-profile recovery PASS"
     },
     {
       "id": "TP-033",
       "status": "PASS",
-      "evidence": "surface-check.py; Electron public schema/menus/routes tests; actual masked native input; no reveal/export endpoint",
-      "remaining": ""
+      "evidence": "Removed encrypted-file backup/restore and secret reveal/export IPC; strict confirmRecovery:{} API, masked native-only import/challenge and nonselectable recording window; component, native and installed checks PASS",
+      "remaining": "Trusted OS/display can observe native phrase pixels; clearing does not prove erasure of every external copy",
+      "previousEvidence": "surface-check.py; Electron public schema/menus/routes tests; actual masked native input; no reveal/export endpoint"
     },
     {
       "id": "TP-040",
       "status": "NOT_RUN",
-      "evidence": "Synthetic canary scans pass exercised signer/IPC/QR/backup/log/profile paths and packaged recovery",
+      "evidence": "Current tested synthetic password/phrase plaintext/hex/base64 canary checks across public IPC, persisted profile files and process logs; signer secret/snapshot and native clearing tests PASS",
       "remaining": "Complete every-encoding/process/env/network/crash path installed campaign is not established by this session"
     },
     {
@@ -281,13 +286,13 @@
     {
       "id": "TP-070",
       "status": "NOT_RUN",
-      "evidence": "Actual Ubuntu26.04 host private X11 portable password-only setup/import/backup/restart/fresh restore drill PASS; Ubuntu24.04/26.04 portable container startup probes BLOCKED by Chromium SUID-helper configuration",
+      "evidence": "Current Ubuntu26.04 private X11 installed desktop20-step native phrase setup/import/restart/fresh restore PASS; historical portable container sandbox probes BLOCKED",
       "remaining": "Clean Ubuntu24.04/26.04 x X11/Wayland full flows/upgrade/uninstall matrix NOT_RUN; container Chromium sandbox obstacles BLOCKED"
     },
     {
       "id": "TP-071",
       "status": "PASS",
-      "evidence": "reports/stress.json, stress-race.json and docs/STRESS.md; predefined ordinary/instrumented resource profiles and retained failed reference-budget run",
+      "evidence": "Current reports/stress.json and full Go race run exercise bounded scheduling, production-KDF lifecycle and actual phrase restoration; older reference-budget/stress reports retain their historical policy scope",
       "remaining": ""
     },
     {
@@ -311,14 +316,20 @@
     {
       "id": "UX-WALLET-TABS",
       "status": "PASS",
-      "evidence": "46 frontend tests and 20-check actual packaged drill; top account/wallet tabs, one-line card address with native copy, selected wallet/asset balances/history, stale-response/lock tests",
-      "remaining": "Full supported OS/display matrix remains NOT_RUN"
+      "evidence": "Current68 frontend tests and20-step installed drill: account/wallet tabs, table rows/native balances, one-line public addresses/native copy, selected-wallet Send/Receive, Settings journal and stale-response tests",
+      "remaining": "Full supported OS/display matrix NOT_RUN"
     },
     {
       "id": "OPS-MAINNET-CONNECTIVITY",
       "status": "BLOCKED",
       "evidence": "mainnet-rpc.json:29 read-only identity/metadata checks PASS across eight public mainnet domains; all nine wallets retained",
       "remaining": "Authenticated synchronized Decred mainnet dcrd endpoint and TLS trust must be configured by operator; no user credentials were accessed"
+    },
+    {
+      "id": "INV-12-native-recorded-phrase",
+      "status": "PASS",
+      "evidence": "Durable pending root, masked recorded-word challenge, password-reauthenticated resumption, legacy flag denied, widget/buffer clearing, current native and copied-app checks PASS",
+      "remaining": "Transcription challenge cannot establish physical backup quality; OS/display compromise and whole-directory rollback remain limitations"
     }
   ]
 }

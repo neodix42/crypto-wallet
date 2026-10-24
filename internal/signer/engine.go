@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -50,13 +49,13 @@ type Engine struct {
 	initializing  bool
 }
 type Snapshot struct {
-	Locked         bool                `json:"locked"`
-	WalletExists   bool                `json:"walletExists"`
-	VaultState     string              `json:"vaultState"`
-	Environment    string              `json:"environment"`
-	BackupVerified bool                `json:"backupVerified"`
-	Accounts       []model.Account     `json:"accounts"`
-	Operations     []journal.Operation `json:"operations"`
+	Locked            bool                `json:"locked"`
+	WalletExists      bool                `json:"walletExists"`
+	VaultState        string              `json:"vaultState"`
+	Environment       string              `json:"environment"`
+	RecoveryConfirmed bool                `json:"recoveryConfirmed"`
+	Accounts          []model.Account     `json:"accounts"`
+	Operations        []journal.Operation `json:"operations"`
 }
 
 func New(f *vault.Files, ui UI, adapters []model.Adapter) *Engine {
@@ -107,7 +106,7 @@ func (e *Engine) Snapshot() Snapshot {
 	if e.data == nil {
 		return s
 	}
-	s.Environment, s.BackupVerified, s.Accounts = e.data.Environment, e.data.BackupVerified, e.data.Accounts
+	s.Environment, s.RecoveryConfirmed, s.Accounts = e.data.Environment, e.data.RecoveryConfirmed, e.data.Accounts
 	for _, op := range e.data.Operations {
 		op.Signed = nil
 		s.Operations = append(s.Operations, op)
@@ -240,7 +239,7 @@ func (e *Engine) Create(environment string, words int, importing bool) error {
 	if importing {
 		labels = append(labels, "Known English BIP39 phrase (masked, input only)", "Optional BIP39 passphrase (distinct from storage password)")
 	}
-	in, err := e.UI.Input("Create local wallet — encrypted backup is required for recovery", labels...)
+	in, err := e.UI.Input("Create local wallet — set app password", labels...)
 	if err != nil {
 		return err
 	}
@@ -269,17 +268,76 @@ func (e *Engine) Create(environment string, words int, importing bool) error {
 	}
 	d := &vault.Data{Version: 1, WalletID: ID(), Generation: 1, Scheme: "bip39-english-v1", Entropy: entropy, Passphrase: pass, Environment: environment, Birthday: time.Now().Unix(), Endpoints: map[string]vault.Endpoint{}}
 	e.initializing = true
-	defer func() { e.initializing = false }()
 	e.data = d
 	e.password = append([]byte(nil), in[0]...)
 	if err = e.AddAccount(0); err != nil {
+		e.initializing = false
 		e.Lock()
 		return err
 	}
+	// The encrypted root must survive cancellation or process failure while the
+	// native phrase window is open. Subsequent writes update this same root.
+	e.initializing = false
 	if importing {
-		e.UI.Confirm("Imported account recovery limits", "Check every public address. A mistyped BIP39 passphrase produces a different valid wallet. Phrase import does not discover unknown NEAR names, rotated Aptos accounts, historical TON contracts or DCR address gaps. Offline or empty results never establish zero funds.")
+		if !e.UI.Confirm("Imported account recovery limits", "Keep your recovery phrase and any BIP39 passphrase offline. The app password encrypts this installation and is not part of key derivation. Check every public address. A mistyped BIP39 passphrase produces a different valid wallet. Phrase import does not discover unknown NEAR names, rotated Aptos accounts, historical TON contracts or DCR address gaps. Offline or empty results never establish zero funds.") {
+			return nil
+		}
+		if e.data != d || e.persistFailed || d.RecoveryConfirmed {
+			return ErrDenied
+		}
+		d.RecoveryConfirmed = true
+		return e.persist()
 	}
-	return nil
+	return e.recordRecovery()
+}
+
+// ConfirmRecovery resumes interrupted setup only. Once acknowledged there is
+// no reveal/export endpoint. Password reauthentication happens before a secret
+// is passed to the native Go window; none of its contents enter public IPC.
+func (e *Engine) ConfirmRecovery() error {
+	if e.data == nil || e.persistFailed || e.data.RecoveryConfirmed {
+		return ErrDenied
+	}
+	d := e.data
+	in, err := e.UI.Input("Complete recovery setup", "App password")
+	if err != nil {
+		return err
+	}
+	defer wipeInputs(in)
+	if e.data != d || e.persistFailed || d.RecoveryConfirmed || len(in) != 1 || !hmac.Equal(in[0], e.password) {
+		return ErrDenied
+	}
+	return e.recordRecovery()
+}
+
+func (e *Engine) recordRecovery() error {
+	if e.data == nil || e.persistFailed || e.data.RecoveryConfirmed {
+		return ErrDenied
+	}
+	d := e.data
+	ui, ok := e.UI.(interface{ Recovery(string, []byte) bool })
+	if !ok {
+		return ErrDenied
+	}
+	if len(d.Passphrase) != 0 && !e.UI.Confirm("Keep your separate BIP39 passphrase", "This wallet uses an optional BIP39 passphrase. You must keep that exact passphrase separately from the recovery words. The app password only encrypts this installation; it cannot replace the BIP39 passphrase. Without both the words and original BIP39 passphrase, recovery produces a different wallet.") {
+		return nil
+	}
+	if e.data != d || e.persistFailed || d.RecoveryConfirmed {
+		return ErrDenied
+	}
+	phrase, err := derivation.Phrase(d.Entropy)
+	if err != nil {
+		return ErrDenied
+	}
+	defer clear(phrase)
+	if !ui.Recovery("Record recovery phrase — Go signer", phrase) {
+		return nil
+	}
+	if e.data != d || e.persistFailed || d.RecoveryConfirmed {
+		return ErrDenied
+	}
+	d.RecoveryConfirmed = true
+	return e.persist()
 }
 func (e *Engine) Unlock() error {
 	if e.data != nil {
@@ -314,6 +372,9 @@ func (e *Engine) Unlock() error {
 		d.Destroy()
 		return err
 	}
+	// Old portable-file verification never substitutes for acknowledging the
+	// recovery words. Clear the retired flag without changing the root or paths.
+	d.DeprecatedBackupVerified = false
 	e.data = d
 	e.password = append([]byte(nil), in[0]...)
 	journal.Recover(d.Operations)
@@ -329,7 +390,7 @@ func (e *Engine) DiscoverAccounts(start, end uint32) error {
 	if e.data == nil || start > end || end >= derivation.MaxIndex || end-start >= 20 {
 		return ErrDenied
 	}
-	if !e.UI.Confirm("Recover bounded account index range", fmt.Sprintf("Canonical account indices %d through %d (inclusive). Existing identities are preserved. This derives public accounts locally; balances remain unknown until queried. NEAR names, rotated Aptos associations and Decred address gaps need separate discovery. Create a new verified encrypted backup afterward.", start, end)) {
+	if !e.UI.Confirm("Recover bounded account index range", fmt.Sprintf("Canonical account indices %d through %d (inclusive). Existing identities are preserved. This derives public accounts locally; balances remain unknown until queried. Record the indices and any noncanonical associations separately. NEAR names, rotated Aptos associations and Decred address gaps need separate discovery.", start, end)) {
 		return ErrDenied
 	}
 	return e.addAccounts(start, end)
@@ -376,7 +437,6 @@ func (e *Engine) addAccounts(index, end uint32) error {
 		return ErrDenied
 	}
 	e.data.Accounts = append(e.data.Accounts, additions...)
-	e.data.BackupVerified = false
 	return e.persist()
 }
 
@@ -391,7 +451,6 @@ func (e *Engine) HideAccount(id string, hidden bool) error {
 				return nil
 			}
 			e.data.Accounts[i].Hidden = hidden
-			e.data.BackupVerified = false
 			return e.persist()
 		}
 	}
@@ -413,7 +472,7 @@ func (e *Engine) Receive(id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if e.data.Environment == "mainnet" && !e.data.BackupVerified {
+	if !e.canAuthorize() {
 		return nil, ErrDenied
 	}
 	if a.Family == "decred" {
@@ -446,7 +505,7 @@ func (e *Engine) Receive(id string) ([]byte, error) {
 	case "ton":
 		guidance = "\nTON BIP39 Wallet V5R1, workchain0, network-specific wallet ID. This is a non-bounceable funding address suitable for an uninitialized wallet."
 	case "decred":
-		guidance = "\nReceive index was durably advanced before this display. Keep a current verified backup and rescan beyond older address gaps."
+		guidance = "\nReceive index was durably advanced before this display. Phrase recovery may require a wider bounded address rescan and an earlier wallet birthday."
 	}
 	title := "Verify receive address — Go signer"
 	summary := fmt.Sprintf("Network: %s\nAccount: %s\nAddress: %s\nProfile: %s\nChoose this exact network at the sender. A plain QR does not encode the network.\nActivation/account prerequisites must be checked before funding.", a.Network, a.ID, a.Address, a.Profile) + guidance
@@ -463,119 +522,11 @@ func (e *Engine) Receive(id string) ([]byte, error) {
 	}
 	return png, nil
 }
-func (e *Engine) Backup() error {
-	if e.data == nil {
-		return ErrDenied
-	}
-	path, err := e.UI.File("Save encrypted portable backup", true)
-	if err != nil {
-		return err
-	}
-	f, err := vault.NewBackupFiles(filepath.Dir(path), true)
-	if err != nil {
-		return ErrBackupDestination
-	}
-	defer f.Close()
-	plain, err := e.data.Encode()
-	if err != nil {
-		return err
-	}
-	defer clear(plain)
-	b, err := vault.Seal(plain, e.password, e.parameters)
-	if err != nil {
-		return err
-	}
-	if err = f.Write(filepath.Base(path), b); err != nil {
-		if errors.Is(err, vault.ErrExists) {
-			return ErrBackupExists
-		}
-		return ErrBackupWrite
-	}
-	r, err := f.Read(filepath.Base(path))
-	if err != nil {
-		return ErrBackupVerification
-	}
-	opened, err := vault.Open(r, e.password)
-	if err != nil {
-		return ErrBackupVerification
-	}
-	defer clear(opened)
-	d, err := vault.Decode(opened)
-	if err != nil {
-		return ErrBackupVerification
-	}
-	defer d.Destroy()
-	if err = vault.VerifyRecovery(e.data, d); err != nil {
-		return ErrBackupVerification
-	}
-	if e.Environment != "" && d.Environment != e.Environment {
-		d.Destroy()
-		return ErrDenied
-	}
-	if err = e.validateAccounts(d); err != nil {
-		return ErrBackupVerification
-	}
-	e.data.BackupVerified = true
-	return e.persist()
-}
-func (e *Engine) Restore() error {
-	if e.data != nil {
-		return ErrDenied
-	}
-	if exists, state := e.walletPresence(); exists || state != "missing" {
-		return ErrDenied
-	}
-	path, err := e.UI.File("Open encrypted backup — restores into an empty profile", false)
-	if err != nil {
-		return err
-	}
-	f, err := vault.NewBackupFiles(filepath.Dir(path), false)
-	if err != nil {
-		return ErrRestoreSource
-	}
-	defer f.Close()
-	b, err := f.Read(filepath.Base(path))
-	if err != nil {
-		return ErrRestoreSource
-	}
-	in, err := e.UI.Input("Restore encrypted portable backup", "Password that encrypted this backup")
-	if err != nil {
-		return err
-	}
-	defer wipeInputs(in)
-	if len(in) != 1 {
-		return ErrDenied
-	}
-	plain, err := vault.Open(b, in[0])
-	if err != nil {
-		return vault.ErrUnlock
-	}
-	defer clear(plain)
-	d, err := vault.Decode(plain)
-	if err != nil {
-		return err
-	}
-	if e.Environment != "" && d.Environment != e.Environment {
-		d.Destroy()
-		return ErrDenied
-	}
-	if err = e.validateAccounts(d); err != nil {
-		d.Destroy()
-		return err
-	}
-	d.BackupVerified = true
-	journal.Recover(d.Operations)
-	e.initializing = true
-	defer func() { e.initializing = false }()
-	e.data = d
-	e.password = append([]byte(nil), in[0]...)
-	return e.persist()
-}
 func (e *Engine) ChangePassword() error {
 	if e.data == nil {
 		return ErrDenied
 	}
-	in, err := e.UI.Input("Change storage password — old backups retain their OLD password", "Current password", "New password", "Repeat new password")
+	in, err := e.UI.Input("Change app storage password", "Current password", "New password", "Repeat new password")
 	if err != nil {
 		return err
 	}
@@ -598,7 +549,6 @@ func (e *Engine) ChangePassword() error {
 		return err
 	}
 	clear(old)
-	e.data.BackupVerified = false
 	return e.persist()
 }
 func (e *Engine) Prepare(p model.Plan) error {
@@ -621,7 +571,7 @@ func (e *Engine) Prepare(p model.Plan) error {
 	if !bytes.Equal(x, y) || journal.Conflicts(e.data.Operations, p) {
 		return ErrDenied
 	}
-	if e.data.Environment == "mainnet" && !e.data.BackupVerified {
+	if !e.canAuthorize() {
 		return ErrDenied
 	}
 	adapter, err := e.adapter(a.Network)
@@ -637,11 +587,10 @@ func (e *Engine) Prepare(p model.Plan) error {
 	return e.persist()
 }
 
-// canAuthorize is checked at each native authorization boundary. A prepared
-// plan cannot retain permission after account metadata or password changes have
-// invalidated the current mainnet backup.
+// canAuthorize is checked at every authorization boundary. Metadata and storage
+// password changes preserve acknowledgement because they do not change the root.
 func (e *Engine) canAuthorize() bool {
-	return e.data != nil && !e.persistFailed && (e.data.Environment != "mainnet" || e.data.BackupVerified)
+	return e.data != nil && !e.persistFailed && e.data.RecoveryConfirmed
 }
 
 func (e *Engine) Sign(id string) (model.Signed, error) {
@@ -931,7 +880,6 @@ func (e *Engine) Associate(updated model.Account) error {
 			e.data.Accounts[i] = updated
 		}
 	}
-	e.data.BackupVerified = false
 	return e.persist()
 }
 
@@ -981,7 +929,7 @@ func (e *Engine) Discovery(id string, birthday, gap, limit uint32, blockBudget .
 	if err != nil {
 		return ErrDenied
 	}
-	if !e.UI.Confirm("Change bounded Decred discovery", fmt.Sprintf("Network: %s\nStart height: %d\nAddress gap: %d\nAddress limit per branch: %d\nBlock budget: %d (0 uses default 10000)\nAn older backup or phrase import may need earlier heights and wider address ranges. An incomplete scan is never a zero balance.", a.Network, birthday, gap, limit, budget)) {
+	if !e.UI.Confirm("Change bounded Decred discovery", fmt.Sprintf("Network: %s\nStart height: %d\nAddress gap: %d\nAddress limit per branch: %d\nBlock budget: %d (0 uses default 10000)\nPhrase recovery may need earlier heights and wider address ranges. An incomplete scan is never a zero balance.", a.Network, birthday, gap, limit, budget)) {
 		return ErrDenied
 	}
 	for i := range e.data.Accounts {
@@ -989,6 +937,5 @@ func (e *Engine) Discovery(id string, birthday, gap, limit uint32, blockBudget .
 			e.data.Accounts[i] = updated
 		}
 	}
-	e.data.BackupVerified = false
 	return e.persist()
 }

@@ -20,11 +20,11 @@ Build a minimal non-secret prototype of Electron plus Go core plus the native Go
 
 ## Milestone 1 — Vault, mnemonic profiles and recovery
 
-Implement secure entropy generation, BIP39 validation and import, immutable profile registration, native input, the authenticated vault format and atomic persistence. Implement lock lifecycle, password change, encrypted portable backup and verification, and restore into a fresh profile. No production renderer may receive a secret even temporarily.
+Implement secure entropy generation, BIP39 validation and import, immutable profile registration, native input, the authenticated vault format and atomic persistence. Implement lock lifecycle, password change and phrase restoration into a fresh profile. No production renderer may receive a secret even temporarily. During setup, show the phrase only in native Go after password entry, persist the root encrypted before display, and confirm recorded words. Restore a fresh installation using the phrase with an independent local storage password.
 
 Implement derivation for every required family now, including DCR's exact child semantics and TON's StateInit-based address. Add public recovery descriptors and account-index persistence. An extra account must be reproducible without a new seed. Explicitly test nonempty imported BIP39 passphrases separately from storage passwords.
 
-**Exit evidence:** independent vectors, no-reveal/canary checks, tamper/fault tests, 95% critical-package statement floors, explicit uncovered-code review, and clean-machine encrypted recovery producing matching addresses. Do not enable mainnet deposit workflows before the backup verification mechanism exists.
+**Exit evidence:** independent vectors, native phrase-containment/canary checks, tamper/fault tests, 95% critical-package statement floors, explicit uncovered-code review, and fresh-install phrase recovery producing matching canonical addresses. Do not enable receiving/preparation/signing before native phrase recording is confirmed.
 
 ## Milestone 2 — Desktop read/receive workflow
 
@@ -32,7 +32,7 @@ Implement the sandboxed Electron shell and narrow typed IPC. Add wallet creation
 
 Implement bounded account discovery and honest unknown/synchronizing/error states. Ensure no renderer navigation, remote resources, script injection, unexpected window creation or generic native methods. Create security tests for the packaged configuration as it evolves.
 
-**Exit evidence:** end-to-end creation → verified encrypted backup → account selection → independently decoded receive QR → lock/restart → restore. The QR/verification window must match the exact account and network even under renderer substitution tests.
+**Exit evidence:** end-to-end creation → native phrase recording/confirmation → account selection → independently decoded receive QR → lock/restart → restore. The QR/verification window must match the exact account and network even under renderer substitution tests.
 
 ## Milestone 3 — Transaction foundation and EVM family
 
@@ -56,7 +56,7 @@ Implement TON with the pinned V5R1 code/parameters, user-friendly address rules,
 
 Implement DCR through reviewed official primitives and the selected genuine synchronization engine. Support ordinary receive/change tracking, spendability, transaction trees, coin selection, signature verification, fees and durable UTXO reservations. Ensure no hidden second secret keystore remains outside the vault boundary.
 
-**Exit evidence:** TON contract emulator and testnet traces; DCR simnet and current testnet transactions; leading-zero derivation regression; UTXO/change/gap recovery; first-send TON deployment; both adapters integrated into backup/recovery and transaction-journal tests.
+**Exit evidence:** TON contract emulator and testnet traces; DCR simnet and current testnet transactions; leading-zero derivation regression; UTXO/change/gap recovery; first-send TON deployment; both adapters integrated into phrase-recovery, discovery and transaction-journal tests.
 
 ## Milestone 6 — HyperCore HYPE
 
@@ -76,7 +76,7 @@ Run the recorded bounded stress profile and a 24-hour soak. Measure actual memor
 
 ## Milestone 8 — Package and release candidate
 
-Build the actual amd64 `.deb` and test the required Ubuntu/display-server matrix. Verify production fuses, sandbox behavior, native dialogs, debug restrictions and exclusion of test-only secret hooks. Provide installation, upgrade, uninstall-with-data-preservation and offline recovery instructions.
+Build the actual amd64 Go executables and complete portable desktop runtime, without a Debian package, and test the required Ubuntu/display-server matrix. Verify production fuses, sandbox behavior, native dialogs, debug restrictions and exclusion of test-only secret hooks. Provide installation, upgrade, uninstall-with-data-preservation and offline recovery instructions.
 
 Produce the SBOM, dependency/license list, package hashes and release-signature instructions. If publisher-signing credentials are unavailable, clearly mark the package unsigned/development; local build completion is still useful. Do not publish or auto-update the user's machine without a separate request.
 
@@ -90,9 +90,9 @@ Implement documented commands equivalent to the following targets; exact build t
 
 | Target | Required effect |
 | --- | --- |
-| `make dev` | Start development app with testnet-only profile and synthetic/local test data chosen explicitly |
+| `make dev` | Build/install and start the app with the current mainnet default; testnet/local profiles and synthetic fixtures require explicit selection |
 | `make test` | Hermetic unit tests, public vectors and deterministic regression corpora |
-| `make test-security` | Vault, IPC, approval, no-reveal, leak, parser and mutation-critical checks |
+| `make test-security` | Vault, IPC, approval, native phrase containment, leak, parser and mutation-critical checks |
 | `make test-race` | Go race checks across relevant stateful components |
 | `make test-interop` | Independent fixture parity for every profile/adapter |
 | `make test-integration` | Local nodes/emulators and durable transaction-state scenarios |
@@ -101,7 +101,9 @@ Implement documented commands equivalent to the following targets; exact build t
 | `make test-stress` | Bounded repeatable stress workload and measured report |
 | `make test-soak` | Scheduled 24-hour scenario campaign |
 | `make coverage` | Enforced per-package thresholds and readable coverage reports |
-| `make package-deb` | Actual Ubuntu installer plus manifest/checksums |
+| `make package-go` | Go executables and portable archive plus manifests/checksums; no Debian package |
+| `make package-desktop` | Complete portable Electron/Go runtime and archive with integrity checks; no Debian package |
+| `make test-recovery` | Fresh installation copies and native phrase restoration with same/different app passwords and public wallet comparison |
 | `make verify-release` | Aggregate evidence/fuse/package gate; fails on missing mandatory evidence |
 
 Go checks normally include `go test`, `go test -race`, `go vet`, an appropriate static analyzer and `govulncheck`; frontend checks include strict TypeScript, linting, meaningful unit/IPC tests and packaged E2E checks. Record supported tool versions. Do not claim that a command was executed merely because a script exists.

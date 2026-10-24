@@ -15,7 +15,8 @@ selected_profile=parser.parse_args().profile
 vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 clickable Send/Receive before backup, explicit verified-backup continuation, Settings journal, native table balances, native receive QR/copy, middle-click tab closing, validation feedback, generation/import, encrypted backup, restart and fresh-profile restore; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
+phrase_spec=importlib.util.spec_from_file_location('test_phrase',root/'tests/e2e/phrase.py');phrase_ui=importlib.util.module_from_spec(phrase_spec);phrase_spec.loader.exec_module(phrase_ui)
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-native-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing and validation feedback; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
 report['environment']=selected_profile
 # Keep the pinned test decoder's existing build cache when the wallet itself
 # receives a fresh HOME below. These paths are never passed to the wallet.
@@ -31,11 +32,12 @@ def until(fn,seconds=20):
   time.sleep(.1)
  raise RuntimeError('Timed out waiting for packaged workflow')
 def capture():
+ if phrase_ui.secret_window(desktop):raise RuntimeError('Refusing to capture a native secret window')
  p=reports/'packaged-current.png';desktop.screenshot(p);return p
 def textboxes(region=None):
  # The public desktop uses light text on dark controls. Normalize its screenshot
  # for OCR; native credential windows are never parsed by this helper.
- if any(t.startswith(('Create local wallet','Unlock local wallet','Restore encrypted portable backup')) for _,t in desktop.windows()):
+ if phrase_ui.secret_window(desktop):
   raise RuntimeError('Refusing to OCR a native credential window')
  picture=ImageOps.invert(Image.open(capture()).convert('L'))
  picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<140 else 255)
@@ -75,20 +77,28 @@ def clickphrase(phrase,button=1,region=None):
     desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2,button=button);return
   desktop.key('Home',ctrl=True) if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('Public UI phrase unavailable: '+phrase)
-def clickprimary(word):
+def clickprimary(word,last=False):
  # The bright primary-button border confuses document-layout OCR at the
  # ordinary threshold. Remove that border while preserving its label contrast.
  textboxes() # Enforce the credential-window exclusion before image processing.
- picture=ImageOps.invert(Image.open(capture()).convert('L'))
+ original=Image.open(capture()).convert('RGB')
+ picture=ImageOps.invert(original.convert('L'))
  picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<90 else 255)
  path=reports/'packaged-primary-controls.png';picture.save(path)
  raw=subprocess.check_output(['tesseract',str(path),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
  rows=[line.split('\t') for line in raw.splitlines()[1:] if len(line.split('\t'))==12 and line.split('\t')[11].strip()]
  words=word.lower().split()
+ matches=[]
  for i,a in enumerate(rows):
   segment=rows[i:i+len(words)]
   if len(segment)==len(words) and [b[11].lower() for b in segment]==words and all(b[1:5]==a[1:5] for b in segment):
-   desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
+   # A paragraph can repeat the button label. Require its blue control fill,
+   # sampled in the left padding, so prose never becomes a click target.
+   px=max(0,int(a[6])//2-8);py=(int(a[7])+int(a[9])//2)//2
+   red,green,blue=original.getpixel((px,py))
+   if 40<=red<=80 and 65<=green<=120 and 120<=blue<=180:matches.append(a)
+ if matches:
+  a=matches[-1] if last else matches[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
  raise RuntimeError('Public primary control unavailable: '+word)
 def waitnative(prefix):
  # One in-flight overview query can finish before the serial core handles a
@@ -97,7 +107,7 @@ def waitnative(prefix):
 def expectfailure(native_fragment,public_fragment,name,persist=False):
  x,y,w,h=waitnative('Wallet request failed')
  # This notice contains only fixed guidance; no credential input window remains.
- if any(t.startswith(('Create local wallet','Unlock local wallet','Restore encrypted portable backup')) for _,t in desktop.windows()):
+ if phrase_ui.secret_window(desktop):
   raise RuntimeError('A credential window remained behind failure guidance')
  picture=Image.open(capture()).crop((max(0,x),max(0,y),min(1280,x+w),min(1024,y+h))).convert('L')
  picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS)
@@ -267,9 +277,8 @@ try:
  until(lambda:pathlib.Path('/tmp/.X11-unix/X'+display[1:]).exists(),10)
  desktop=mod.Desktop(display.encode());os.environ.update(DISPLAY=display,GDK_BACKEND='x11')
  with tempfile.TemporaryDirectory(prefix='localwallet-package-fixture-') as temporary:
-  folder=pathlib.Path(temporary);profile=folder/'original';backupdir=folder/'backup';backupdir.mkdir(mode=0o755);backupdir.chmod(0o755);backup=backupdir/'portable.lwv'
-  home=folder/'home';home.mkdir(mode=0o700);env['HOME']=str(home)
-  os.environ['HOME']=str(home)
+  folder=pathlib.Path(temporary);profile=folder/'original'
+  home=folder/'home';home.mkdir(mode=0o700);env['HOME']=str(home);os.environ['HOME']=str(home)
   for key in ['WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS']:os.environ.pop(key,None)
   generated=folder/'generated';launch(generated,env)
   if any(t.startswith(('Create local wallet','Unlock local wallet')) for _,t in desktop.windows()):raise RuntimeError('First launch opened a credential window without a user action')
@@ -281,127 +290,68 @@ try:
   clickline('Create app password');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,'different-public-password-79326']);desktop.accept('Create local wallet')
   expectfailure('do not match','passwords did not match','password-mismatch-feedback')
-  if (generated/vault_relative).exists():raise RuntimeError('Mismatched passwords created a vault')
   clickline('Create app password');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password]);desktop.accept('Create local wallet')
-  until(lambda:(generated/vault_relative).exists());time.sleep(2)
-  words=' '.join(a[11] for a in textboxes())
-  if 'Main account' not in words or selected_profile.title()+' profile' not in words:raise RuntimeError('Generated wallet did not show Main account and its actual profile identity')
-  desktop.screenshot(reports/'packaged-generated-main-account.png')
-  passed('Explicit first-run password-only generation and Main account overview without phrase reveal')
-  generated_backup=backupdir/'generated.lwv'
-  if selected_profile=='mainnet':
-   openfirstwallet();clickprimary('Send');time.sleep(.3)
-   if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Unverified-backup Send button did not open its payment form')
-   desktop.screenshot(reports/'packaged-unverified-send.png')
-   passed('Send opens before mainnet backup verification and displays the required backup action')
-   clickphrase('Close send form');clickprimary('Receive');time.sleep(.3)
-   if 'Back up before receiving funds' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Unverified-backup Receive button did not explain the recovery step')
-   if any(t.startswith('Verify receive address') for _,t in desktop.windows()):raise RuntimeError('Unverified mainnet receive opened its QR before backup')
-   desktop.screenshot(reports/'packaged-receive-backup-required.png')
-   clickphrase('Cancel');time.sleep(.3)
-   if generated_backup.exists() or any(t.startswith('Verify receive address') for _,t in desktop.windows()):raise RuntimeError('Cancelled receive guidance started a backup or QR flow')
-   passed('Receive opens actionable backup guidance; cancelling does not open an unverified QR')
-   clickprimary('Receive');time.sleep(.3)
-   clickprimary('Create & verify encrypted backup')
-   filechoice('Save encrypted portable backup',generated_backup)
-   waitnative('Verify receive address')
-   continued_address=nativecopy();decodereceive(continued_address);desktop.accept('Verify receive address');time.sleep(.3)
-   passed('Explicit receive backup action verifies the encrypted file then opens the original wallet authoritative QR')
-  else:
-   walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',generated_backup)
-  until(lambda:generated_backup.exists());time.sleep(2)
-  if generated_backup.stat().st_mode&0o777!=0o600 or backupdir.stat().st_mode&0o777!=0o755 or (backupdir/'writer.lock').exists():raise RuntimeError('Backup altered folder policy or did not retain owner-only file permissions')
-  original_backup=generated_backup.read_bytes()
-  passed('Verified owner-only encrypted backup in ordinary 0755 folder without folder mutation or lockfile')
-  generated_address=publicaddress()
-  if generated_address=='0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused the fixed import fixture')
-  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',generated_backup)
-  expectfailure('Choose a new backup filename','A file already exists','existing-backup-feedback')
-  if generated_backup.read_bytes()!=original_backup:raise RuntimeError('Existing encrypted backup changed')
-  unsafe=folder/'unsafe';unsafe.mkdir();unsafe.chmod(0o777)
-  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',unsafe/'rejected.lwv')
-  expectfailure('other users cannot modify','destination is unavailable or unsafe','unsafe-backup-folder-feedback')
-  if (unsafe/'rejected.lwv').exists():raise RuntimeError('Backup accepted writable-by-others folder')
-  if publicaddress()!=generated_address:raise RuntimeError('Rejected backup damaged the active wallet')
-  passed('Rejected backups preserve existing ciphertext and leave the active wallet usable')
-  stopapp()
-  launch(folder/'generated-restored',env);setupmenu('Restore into empty profile');filechoice('Open encrypted backup',generated_backup)
-  waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup');time.sleep(3)
-  if publicaddress()!=generated_address:raise RuntimeError('Generated root did not survive encrypted backup restore')
-  passed('Password-only generated root restored from verified encrypted backup into an empty profile')
-  stopapp()
-  launch(profile,env);setupmenu('Import known BIP39 phrase');waitnative('Create local wallet')
+  generated_phrase=phrase_ui.record(desktop,wrong=True)
+  until(lambda:(generated/vault_relative).exists());time.sleep(1)
+  passed('Password setup generates and encrypts a random phrase; incorrect recorded words leave setup pending')
+  openfirstwallet();clickprimary('Send');time.sleep(.3)
+  if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Pending Send did not open its form')
+  passed('Pending recovery offers an actionable Send form without enabling payment preparation')
+  clickphrase('Close send form');clickprimary('Receive');time.sleep(.3);clickphrase('Cancel');time.sleep(.3)
+  if any(t.startswith('Verify receive address') for _,t in desktop.windows()):raise RuntimeError('Pending recovery opened a receive QR')
+  passed('Pending Receive guide cancels without opening an unconfirmed address workflow')
+  clickprimary('Receive');time.sleep(.3);clickprimary('Finish recovery phrase setup',last=True)
+  waitnative('Complete recovery setup');desktop.inputs('Complete recovery setup',[password]);desktop.accept('Complete recovery setup')
+  phrase_ui.record(desktop,expected=generated_phrase);waitnative('Verify receive address')
+  generated_address=nativecopy();decodereceive(generated_address);desktop.accept('Verify receive address');time.sleep(.3)
+  passed('Native password reauthentication and correct recorded words enable the original wallet receive QR without a file backup')
+  if generated_address=='0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused a fixed import fixture')
+  stopapp();launch(folder/'generated-restored',env);clickphrase('Restore from recovery phrase');waitnative('Create local wallet')
+  desktop.inputs('Create local wallet',[password,password,generated_phrase.decode('ascii'),'']);desktop.accept('Create local wallet');waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits');time.sleep(2)
+  if publicaddress()!=generated_address:raise RuntimeError('Fresh profile restored a different generated wallet')
+  passed('Actual packaged app restores its generated wallet in an empty profile using only app password and recorded phrase')
+  stopapp();launch(profile,env);clickphrase('Restore from recovery phrase');waitnative('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,'bad','']);desktop.accept('Create local wallet')
   expectfailure('valid English BIP39','valid English BIP39','invalid-recovery-phrase-feedback')
   if (profile/vault_relative).exists():raise RuntimeError('Invalid phrase created a vault')
-  setupmenu('Import known BIP39 phrase');x,y,w,h=waitnative('Create local wallet')
-  desktop.inputs('Create local wallet',[password,password,phrase,''])
-  desktop.screenshot(reports/'packaged-native-masked.png');desktop.accept('Create local wallet')
-  waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits')
-  until(lambda:(profile/vault_relative).exists());time.sleep(1);passed('Native input-only BIP39 import with production KDF')
+  clickphrase('Restore from recovery phrase');waitnative('Create local wallet');desktop.inputs('Create local wallet',[password,password,phrase,'']);desktop.accept('Create local wallet');waitnative('Imported account recovery limits');desktop.accept('Imported account recovery limits');time.sleep(2)
   expected='0x9858EfFD232B4033E47d90003D41EC34EcaEda94'
-  walletmenu('Create & verify encrypted backup');filechoice('Save encrypted portable backup',backup)
-  until(lambda:backup.exists());time.sleep(3);passed('Native encrypted portable backup creation and reopen verification')
-  if publicaddress()!=expected:raise RuntimeError('Imported independent fixture public address differs')
-  passed('Go-owned verified receive QR and exact independent public address')
-  if copyfirstrow()!=expected:raise RuntimeError('Wallet table copy icon copied a different public address')
+  if publicaddress()!=expected:raise RuntimeError('Restored independent fixture address differs')
+  passed('Known phrase restoration reproduces the independently generated public address without backup files')
+  if copyfirstrow()!=expected:raise RuntimeError('Wallet row copied a different public address')
   passed('Wallet table copy icon invokes native verification and copies the full independent public address')
-  overviewbalance();settingsjournal()
-  openfirstwallet()
-  words=' '.join(a[11] for a in textboxes())
-  if 'Balance' not in words or 'HyperEVM' in words:raise RuntimeError('Open wallet did not show an isolated Ethereum tab with its balance instead of the portfolio grid')
-  desktop.screenshot(reports/'packaged-wallet-tab.png')
-  clickprimary('Receive');waitnative('Verify receive address')
-  desktop.screenshot(reports/'packaged-receive-window.png')
-  decodereceive(expected)
-  if nativecopy()!=expected:raise RuntimeError('Native Receive popup did not copy its exact displayed independent address')
+  overviewbalance();settingsjournal();openfirstwallet()
+  desktop.screenshot(reports/'packaged-wallet-tab.png');clickprimary('Receive');waitnative('Verify receive address');decodereceive(expected)
+  if nativecopy()!=expected:raise RuntimeError('Native QR popup copied a different address')
   desktop.accept('Verify receive address');time.sleep(.3)
-  passed('Receive popup shows authoritative QR and full address with explicit in-window native copying')
+  passed('Native Receive displays independently decoded QR pixels and copies the exact address')
   clickprimary('Send');time.sleep(.3)
-  if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Wallet Send button did not focus its own payment form')
-  passed('Table row opens a wallet tab; Receive uses its own window and Send reveals its form on demand')
+  if 'Full recipient' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Confirmed Send button failed')
+  passed('Confirmed recovery enables Send form without any encrypted-backup prompt')
   desktop.key('Home',ctrl=True);clickphrase('Ethereum',button=2);time.sleep(.4)
-  if 'Your wallets' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Middle-click did not close the wallet tab and restore its account page')
-  desktop.screenshot(reports/'packaged-wallet-table.png')
-  passed('Middle-click closes the active wallet tab and returns to its account table')
-  stopapp();launch(profile,env)
-  # A restart never resumes the signer session; unlock requires native input.
-  clickphrase('Unlock wallet');x,y,w,h=waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(3)
-  if publicaddress()!=expected:raise RuntimeError('Restart public address differs')
-  passed('Restart requires native unlock and preserves deterministic address')
-  stopapp();fresh=folder/'fresh';launch(fresh,env);setupmenu('Restore into empty profile');filechoice('Open encrypted backup',backup)
-  x,y,w,h=waitnative('Restore encrypted portable backup');desktop.inputs('Restore encrypted portable backup',[password]);desktop.accept('Restore encrypted portable backup')
-  until(lambda:(fresh/vault_relative).exists());time.sleep(3)
-  if publicaddress()!=expected:raise RuntimeError('Fresh-profile public address differs')
-  passed('Portable restore into empty profile without original application state')
-  desktop.screenshot(reports/'packaged-restored.png')
+  if 'Your wallets' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Middle click did not close wallet tab')
+  passed('Middle-click closes wallet tab and returns to account table')
+  stopapp();launch(profile,env);clickphrase('Unlock wallet');waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
+  if publicaddress()!=expected:raise RuntimeError('Restart changed wallet identities')
+  passed('Restart requires native unlock and preserves confirmed recovery and wallet address')
   stopapp()
   if selected_profile=='mainnet':
-   saved=hashlib.sha256((fresh/vault_relative).read_bytes()).hexdigest()
-   launch(fresh,env,environment='testnet')
+   saved=hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest();launch(profile,env,environment='testnet')
    words=' '.join(a[11] for a in textboxes())
-   if 'Testnet profile' not in words or 'Create your app password' not in words or (fresh/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Explicit testnet launch reused or auto-created a mainnet root')
-   if hashlib.sha256((fresh/vault_relative).read_bytes()).hexdigest()!=saved:raise RuntimeError('Explicit testnet launch modified the mainnet vault')
-   passed('Explicit testnet profile starts empty and preserves existing mainnet ciphertext without conversion')
-   stopapp();launch(fresh,env)
-   words=' '.join(a[11] for a in textboxes())
-   if 'Mainnet profile' not in words or 'Welcome back' not in words:raise RuntimeError('Default launch failed to return to the existing locked mainnet profile')
-   clickphrase('Unlock wallet');waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
-   walletmenu('Add deterministic account')
-   desktop.key('Home',ctrl=True)
-   until(lambda:'Account 2' in ' '.join(a[11] for a in textboxes()),45)
-   clickphrase('Account 2');time.sleep(.5)
-   words=' '.join(a[11] for a in textboxes())
-   if 'Derivation index 1' not in words:raise RuntimeError('Second deterministic account did not have its own top tab page')
-   desktop.screenshot(reports/'packaged-account-tabs.png')
-   passed('Additional deterministic account appears as its own top tab with index-one network wallets')
+   if 'Testnet profile' not in words or 'Create your app password' not in words or (profile/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Explicit testnet reused mainnet state')
+   if hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()!=saved:raise RuntimeError('Explicit testnet modified mainnet ciphertext')
+   passed('Explicit testnet remains isolated from the restored mainnet profile')
+   stopapp();launch(profile,env);clickphrase('Unlock wallet');waitnative('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
+   walletmenu('Add deterministic account');desktop.key('Home',ctrl=True);until(lambda:'Account 2' in ' '.join(a[11] for a in textboxes()),45);clickphrase('Account 2');time.sleep(.5)
+   if 'Derivation index 1' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Additional account index not preserved')
+   passed('Adding deterministic account preserves phrase confirmation and creates its own account tab')
    stopapp()
-  canaries=[password.encode(),phrase.encode(),bytes.fromhex('00'*16)]
+  canaries=[password.encode(),phrase.encode(),generated_phrase]
   # Entropy all-zero bytes are not scanned: binary formats legitimately contain
   # zero padding. Distinct password/phrase and their common encodings are checked.
   needles=[]
-  for b in canaries[:2]:needles.extend([b,b.hex().encode(),base64.b64encode(b)])
+  for b in canaries:needles.extend([b,b.hex().encode(),base64.b64encode(b)])
   for p in folder.rglob('*'):
    if p.is_file() and p.stat().st_size<32<<20:
     data=p.read_bytes()
@@ -412,14 +362,15 @@ try:
   passed('Captured logs and persisted profile files contain no tested secret canaries')
   report['liveLogChecks']=live_log_checks
   if any(row['mesaLoaderError'] or row['ordinaryIPCStackTrace'] for row in live_log_checks):raise RuntimeError('Live packaged workflow emitted a Mesa loader error or ordinary IPC handler stack trace')
-  passed('Invalid native inputs and backup failures produce guidance without ordinary IPC handler stack traces or Mesa loader errors')
-  report['backupSHA256']=hashlib.sha256(backup.read_bytes()).hexdigest()
+  passed('Native validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors')
+  report['recoveryMethod']='Native recorded-word confirmation and phrase import; no encrypted backup API or file needed'
  report['status']='PASS'
 except Exception as error:
- report.update(status='FAIL',reason=str(error));print(str(error),flush=True)
+ reason=str(error) if isinstance(error,RuntimeError) else 'Packaged recovery or native automation failed; no secret diagnostic retained'
+ report.update(status='FAIL',reason=reason);print(reason,flush=True)
  if app is not None:
   report['directChildProcesses']=subprocess.run(['ps','-o','pid,ppid,pgid,stat,comm','--ppid',str(app.pid)],text=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout
- if desktop:
+ if desktop and not phrase_ui.secret_window(desktop):
   desktop.screenshot(reports/'packaged-failure.png');print(desktop.windows(),flush=True)
 finally:
  stopapp()

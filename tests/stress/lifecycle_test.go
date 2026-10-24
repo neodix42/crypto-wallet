@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -21,8 +20,7 @@ const publicStressPassword = "public synthetic stress password 79326"
 // This UI supplies only public synthetic material and approvals for the bounded
 // harness. Native GTK input/confirmation has a separate process/display gate.
 type stressUI struct {
-	backupDir          string
-	backups, approvals int
+	approvals int
 }
 
 func (u *stressUI) Input(_ string, labels ...string) ([][]byte, error) {
@@ -40,13 +38,10 @@ func (u *stressUI) Confirm(title, _ string) bool {
 	}
 	return true
 }
-func (u *stressUI) File(_ string, saving bool) (string, error) {
-	if !saving {
-		return "", fmt.Errorf("unexpected synthetic read dialog")
-	}
-	u.backups++
-	return filepath.Join(u.backupDir, fmt.Sprintf("backup-%d.lwv", u.backups)), nil
+func (u *stressUI) File(string, bool) (string, error) {
+	return "", fmt.Errorf("unexpected synthetic file dialog")
 }
+func (u *stressUI) Recovery(string, []byte) bool        { return true }
 func (u *stressUI) Receive(string, string, []byte) bool { return true }
 
 type lifecycle struct {
@@ -64,15 +59,11 @@ type lifecycle struct {
 func newLifecycle(t *testing.T, r *report) *lifecycle {
 	t.Helper()
 	dir := t.TempDir()
-	backup := filepath.Join(dir, "backups")
-	if e := os.Mkdir(backup, 0700); e != nil {
-		t.Fatal(e)
-	}
 	f, e := vault.NewFiles(filepath.Join(dir, "wallet"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	l := &lifecycle{dir: dir, files: f, ui: &stressUI{backupDir: backup}, node: newStressNode(t), dcr: newStressDCR(t), confirmed: map[string]model.Signed{}}
+	l := &lifecycle{dir: dir, files: f, ui: &stressUI{}, node: newStressNode(t), dcr: newStressDCR(t), confirmed: map[string]model.Signed{}}
 	l.adapters = []model.Adapter{l.node.adapter, l.dcr.adapter}
 	l.engine = signer.New(f, l.ui, l.adapters)
 	l.engine.Environment = "testnet"
@@ -232,10 +223,31 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	}
 	r.Workloads["growingHistoryScans"]++
 	r.Workloads["observedHistoryItems"] += len(history)
-	if e = l.engine.Backup(); e != nil {
-		t.Fatal("production encrypted verified backup", e)
+	// Each cycle restores the known synthetic root into a new private profile
+	// using production KDF settings; no original vault files are copied.
+	recoveryFiles, e := vault.NewFiles(filepath.Join(l.dir, fmt.Sprintf("phrase-recovery-%d", cycle)))
+	if e != nil {
+		t.Fatal(e)
 	}
-	r.Workloads["productionSignerVerifiedBackups"]++
+	recovered := signer.New(recoveryFiles, &stressUI{}, l.adapters)
+	recovered.Environment = "testnet"
+	if e = recovered.Create("testnet", 12, true); e != nil {
+		t.Fatal("production phrase recovery", e)
+	}
+	matched := false
+	for _, candidate := range recovered.Snapshot().Accounts {
+		if candidate.ID == ac.ID && candidate.Address == ac.Address && candidate.Profile == ac.Profile {
+			matched = true
+		}
+	}
+	recovered.Lock()
+	if e = recoveryFiles.Close(); e != nil {
+		t.Fatal(e)
+	}
+	if !matched {
+		t.Fatal("fresh phrase recovery changed canonical wallet identity")
+	}
+	r.Workloads["productionSignerPhraseRecoveries"]++
 	runtime.GC()
 	currentRSS, _, e := rss()
 	if e != nil {

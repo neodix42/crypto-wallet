@@ -67,7 +67,7 @@ func TestTP032BackupOrdinaryDirectoryErrorsAreSpecificAndNonDestructive(t *testi
 		t.Fatal(err)
 	}
 	u.path = filepath.Join(dir, "wallet-backup.lwv")
-	if err := e.Backup(); err != nil || !e.Snapshot().BackupVerified {
+	if err := e.Backup(); err != nil || !e.Snapshot().RecoveryConfirmed {
 		t.Fatalf("ordinary Documents directory failed: %v", err)
 	}
 	saved, err := os.ReadFile(u.path)
@@ -132,7 +132,7 @@ func TestTP032RestoreFromReadOnlyOrdinaryDirectoryDoesNotWriteSource(t *testing.
 	destination, v, _ := newEngine(t, []model.Adapter{evm.New()})
 	v.path = u.path
 	v.inputs = append(v.inputs, input(syntheticPassword))
-	if err := destination.Restore(); err != nil || destination.Snapshot().Locked || !destination.Snapshot().BackupVerified {
+	if err := destination.Restore(); err != nil || destination.Snapshot().Locked || !destination.Snapshot().RecoveryConfirmed {
 		t.Fatalf("read-only backup restore failed: %v", err)
 	}
 	actual := destination.Snapshot().Accounts
@@ -164,13 +164,14 @@ func TestTP032RestoreFromReadOnlyOrdinaryDirectoryDoesNotWriteSource(t *testing.
 func TestTP032BackupDerivationFailureDoesNotClaimVerifiedRecovery(t *testing.T) {
 	e, u, _ := newEngine(t, []model.Adapter{evm.New()})
 	createImported(t, e, u, "testnet")
+	e.data.RecoveryConfirmed = false
 	e.data.Accounts[0].Address = "0x1111111111111111111111111111111111111111"
 	dir := filepath.Join(t.TempDir(), "Documents")
 	if err := os.Mkdir(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	u.path = filepath.Join(dir, "must-not-mark-verified.lwv")
-	if err := e.Backup(); !errors.Is(err, ErrBackupVerification) || e.Snapshot().BackupVerified {
+	if err := e.Backup(); !errors.Is(err, ErrBackupVerification) || e.Snapshot().RecoveryConfirmed {
 		t.Fatalf("unverified descriptors were marked as recovered: %v", err)
 	}
 }

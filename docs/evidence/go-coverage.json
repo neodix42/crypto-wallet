@@ -64,6 +64,10 @@
       "reason": "automation build tag: test-only GTK fixture injector, absent from production"
     },
     {
+      "source": "localwallet/internal/secureui/recovery_automation.go",
+      "reason": "automation build tag: test-only GTK fixture injector, absent from production"
+    },
+    {
       "source": "localwallet/tests/oracles/decred/main.go",
       "reason": "independent non-shipped public reference generator"
     }
@@ -71,11 +75,11 @@
   "profiles": [
     {
       "file": "reports/go-base.cover",
-      "sha256": "587dd04a7ea1c185ef2e251b866ee42ac82ce225e7a2d565059f0934b76f0f8d"
+      "sha256": "781d1ba71817c0a8cfd0449b88531a5b2b83f4cf0e55a6debba9c58edc1ee205"
     },
     {
       "file": "reports/go-native.cover",
-      "sha256": "faef638041c53c13633935678f4bca7eebf01472a362372ccfb5512ff7d6419b"
+      "sha256": "2594f68cc91c9346f8dab1732653551e66e6ea43f6a349361a2135497f56d9f7"
     }
   ],
   "goTests": {
@@ -86,28 +90,28 @@
       "localwallet/internal/model": "SKIP",
       "localwallet/internal/amount": "PASS",
       "localwallet/internal/journal": "PASS",
-      "localwallet/internal/secureui": "PASS",
       "localwallet/internal/ipc": "PASS",
-      "localwallet/internal/strictjson": "PASS",
+      "localwallet/internal/secureui": "PASS",
       "localwallet/internal/derivation": "PASS",
       "localwallet/internal/chains/chainutil": "PASS",
+      "localwallet/internal/strictjson": "PASS",
       "localwallet/internal/isolation": "PASS",
-      "localwallet/internal/chains": "PASS",
-      "localwallet/tests/oracles/decred": "PASS",
-      "localwallet/internal/qr": "PASS",
       "localwallet/internal/chains/aptos": "PASS",
+      "localwallet/internal/qr": "PASS",
+      "localwallet/tests/oracles/decred": "PASS",
+      "localwallet/internal/chains": "PASS",
       "localwallet/internal/chains/hypercore": "PASS",
       "localwallet/internal/chains/near": "PASS",
       "localwallet/internal/chains/evm": "PASS",
-      "localwallet/cmd/wallet-launcher": "PASS",
       "localwallet/cmd/wallet-core": "PASS",
       "localwallet/internal/supervisor": "PASS",
+      "localwallet/cmd/wallet-launcher": "PASS",
       "localwallet/internal/chains/ton": "PASS",
       "localwallet/internal/vault": "PASS",
       "localwallet/internal/chains/decred": "PASS",
       "localwallet/cmd/wallet-signer": "PASS",
-      "localwallet/internal/signer": "PASS",
-      "localwallet/tests/stress": "PASS"
+      "localwallet/tests/stress": "PASS",
+      "localwallet/internal/signer": "PASS"
     },
     "failures": []
   },
@@ -123,12 +127,12 @@
       {
         "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
         "status": "PASS",
-        "seconds": 0.17
+        "seconds": 0.25
       },
       {
         "name": "TestRealX11NativeKeyAndButtonActivity",
         "status": "PASS",
-        "seconds": 3.81
+        "seconds": 3.84
       },
       {
         "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
@@ -173,7 +177,7 @@
       {
         "name": "TestNativeFileChooserCancelAndVerifiedSelection",
         "status": "PASS",
-        "seconds": 0.95
+        "seconds": 1.01
       },
       {
         "name": "TestNativeInitUnavailableDisplayFailsClosed",
@@ -189,28 +193,33 @@
         "name": "TestRealX11NativeActivityBeyondFiveMinutes",
         "status": "SKIP",
         "seconds": 0
+      },
+      {
+        "name": "TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets",
+        "status": "PASS",
+        "seconds": 2.22
       }
     ],
     "exit": 0,
-    "coverage": "total:\t\t\t\t\t\t(statements)\t\t\t98.1%",
-    "seconds": 9.2
+    "coverage": "total:\t\t\t\t\t\t\t\t(statements)\t\t\t98.3%",
+    "seconds": 13.362
   },
   "sourceSHA256": {
-    "cmd/wallet-core/main.go": "778e2b2fb37e7dc92924868cc790cb5a1c6011d642e65155a1d69dce9a1eaeda",
-    "cmd/wallet-core/main_test.go": "52b1014d0768ebae24c069e6e4ae996e5d134fa91ff44170bbf6207cad4433be",
+    "cmd/wallet-core/main.go": "01b593095a4379d985faed4bcf1c4702cdca15318892c23350369b0242f91f29",
+    "cmd/wallet-core/main_test.go": "fe09b9bf57233da81cb5375d52824f465795e5c35095675455efe8d55f908fea",
     "cmd/wallet-core/mainnet_profile_test.go": "17f3aec316a04d4c5029af36af71af62dad78cd8ec8259a01d2cde73eca9fe80",
     "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
-    "cmd/wallet-core/session_test.go": "a85f871f36e4b06f5a867c0b94c79661835aa8e713664f99f2b0c865487db523",
+    "cmd/wallet-core/session_test.go": "a3c005a8b81645ac057f8f750274c89fee7dd2860cab3f724e54716d71279cee",
     "cmd/wallet-core/version_test.go": "73a3c98970dca9b8c62c8baaaf56c78c1b0c201ad115850efe5a9dce1b0cf34d",
     "cmd/wallet-launcher/bootstrap_test.go": "5bba56800388ad6c00680edbb0b30bcda44c6938deaddda714851c08c543d953",
     "cmd/wallet-launcher/main.go": "24d1344c31c60037c36382b809534b584e8becf018b45e0fc416f1b7211bfec6",
     "cmd/wallet-launcher/main_test.go": "75ddbf33e025d90b235b4f70c97eba38a2e3472aa54e897b1e17c9d63d02fbcb",
     "cmd/wallet-launcher/pdeath_test.go": "3e0325c5d8613e8c286cebee3e24b9494947eca71b0b2cf40f5b37ce4955deff",
     "cmd/wallet-launcher/version_test.go": "6d334314c87ba140b8b6c5580a449e1cb36f9005fa59c54a16ac9b1bda8ac3e1",
-    "cmd/wallet-signer/errors.go": "97ae7f868043dc0d27b9b7745565d323fb86c906c4ab9bb41681a91d4b453a81",
-    "cmd/wallet-signer/errors_test.go": "ea980f4d5cc31b20bac2d7822f5020247efe274585d58b232450b81196d5504b",
-    "cmd/wallet-signer/main.go": "cdcfcf0ac10156739b79054175f75a088396915575f86d5eee3ecf69fc6a0f70",
-    "cmd/wallet-signer/main_test.go": "a8fe318dca9ecaa5b97a71fb97c98bc74fda97c78ec8dee29b908b1c12c91459",
+    "cmd/wallet-signer/errors.go": "fd1cb8d51a81c18682aeb03da1fb5e84ea1e18ed8bcb1e303a672ae89de80580",
+    "cmd/wallet-signer/errors_test.go": "b4232075f60dd4522387caf450a427c8e249e58766ec81a194e6d9d57f217e2a",
+    "cmd/wallet-signer/main.go": "1bec5c1c684c6ada5524a623e5c08495a2d4d2f7d584aff53440338fa7423ccc",
+    "cmd/wallet-signer/main_test.go": "5bb63e321a025d6fe2e1c3ad0379554117416db7370c15412ba16983cc4b7098",
     "cmd/wallet-signer/version_test.go": "79754fe236875d176c6bc6b56de935dc23a2f40e6f1fe348a4b23aded49c38a0",
     "go.mod": "66139c41fc8f6ffa10da02609f6efcaaf480691669e0f62327a1c91342abdb7b",
     "go.sum": "0d1121b965162a4493b5ba7ed5dd430b43f177e051792ef7bf8e1a1dec75b204",
@@ -271,9 +280,10 @@
     "internal/chains/ton/receipts_test.go": "ff8def7d87752f77eddf17c8c531b88fe5dbd9ce8626b2dd0c3be1c7230f2367",
     "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed",
     "internal/chains/ton/ton_test.go": "3151f3645fab632ff19419068711540f74f8059fe25234093b5e6cf43d70bd09",
-    "internal/derivation/derivation.go": "c41a127f5f406503295ff9c9c85398d54c17cf9664e3cffc0499d67dd4208f4b",
+    "internal/derivation/derivation.go": "23ffa394be093455096a4a7a4d671574c206b11deda9ca07052ec73f44a59293",
     "internal/derivation/derivation_test.go": "ba2a749933fcea40577988f1f6107280899a700ce3928d76e7370fc5c03e7cd5",
     "internal/derivation/oracle_test.go": "6c40b65ae297c74eb80c43ef3bc08a12ab876cbd50647ec7420f071d7208512b",
+    "internal/derivation/phrase_test.go": "dbd93bb1d59bf7627c407a7dd34baf7f1f93c4e32e9fb564f3f8c905070366b3",
     "internal/ipc/errors.go": "a1ee54d0a2c5120413211b40a607770e75b2500d46d87c96794ac8bd85303d45",
     "internal/ipc/errors_test.go": "fdbe8392492ca15735912f68d31a30d10be65e892f36c43ec06a1e6be4928b9d",
     "internal/ipc/frame.go": "708eae48599c80425332aabb2a2cc2f641427fa50dbf167e254aefb3a39b2d63",
@@ -294,21 +304,25 @@
     "internal/secureui/automation_test.go": "0b89d5bab99dd703149ed9804b1491f24c06466c446a42fbf23bdf299d9732dd",
     "internal/secureui/boundaries_automation_test.go": "2731f0899eed1bdf4bafeb7c24ec946ce57d4ea43e983414055080392db25000",
     "internal/secureui/long_activity_automation_test.go": "8a3eac6c0a50f20fe455969525b12343336aaa621721c496efa5e81003f20b24",
-    "internal/secureui/native.go": "b8c5f34e384b990c7b05644e90806ed437f80552629f9355df8ad7261183b798",
-    "internal/secureui/ui.go": "1e38e8deb198008a2660589da3e559e6c55c7cd30ad57ce6a8b2b54c678f3f1d",
+    "internal/secureui/native.go": "53ab969bf1e3ca1831e393e5df261a4fda55196fa1cc31cd3d3870279339a377",
+    "internal/secureui/recovery_automation.go": "4c370247e5118bc2b23bb9db57381c290ab8285e5ff3b5ffb1bf128b8126a8fe",
+    "internal/secureui/recovery_automation_test.go": "12c50d8ac45e3df947f4bc329a1236b669ad02c0846e48e93792e0a6daafa88d",
+    "internal/secureui/ui.go": "b4c10c493704ea3327a689408ee511220f77825f745599176792ab5c8b09a4ad",
     "internal/signer/accounts_test.go": "a31684cd038c08af30e190948dbce1919115b1fa7ef2543a9aa60d76fb1ef4d0",
-    "internal/signer/adversarial_test.go": "c403f3a0f3b691437a583027a68f522a5bf42173e170e1d47d55d491e98485d7",
+    "internal/signer/adversarial_test.go": "65e8f60ad73de1f73e215b57ee37e6db01b6d1f7489bc7f2c1fa5b8666d5b338",
     "internal/signer/cancel_review_test.go": "b29af0fb678eeb194b88e2a1417523b9cc79039725a54819dc6827fc4c858fdc",
-    "internal/signer/engine.go": "2c398269791f1b0266751ac8ef445be9945c7ff78c375573322e96ddce770a57",
-    "internal/signer/engine_test.go": "4906d9b7675fdc28a0de25d744ca8e9632da55457884a9d4730e4b0bb9da1750",
+    "internal/signer/engine.go": "6091d58bbb8470daef44f0971f6781cc1f3854384e1f4da791ed2a395c610cca",
+    "internal/signer/engine_test.go": "d20adba59cfb11f4f57b2b1416fc46d8e38ccc012c74690b1ef19099dee8929e",
     "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
-    "internal/signer/errors.go": "deeb8fc8b307ae6a8eb50d2ffc07f927a487b37f1bbc99b89910c6b4d131ba19",
-    "internal/signer/feedback_test.go": "22c191cfe9aa48cce1631452ab6996010dbd9f72aab3b87aaae409f19b7f4874",
-    "internal/signer/mainnet_authorization_test.go": "7f29bd1f0a7bb751c206ccfa9fec2282431da3485998f847d377d44960d18750",
-    "internal/signer/mainnet_profile_test.go": "aa3ee7a67b202bc6d1b36689bc1473209ce33f438256256536764469cfca2167",
+    "internal/signer/errors.go": "d069a5602d44bd2b50cf52c4498145918bb798050a5346bd44277d737fa50c81",
+    "internal/signer/feedback_test.go": "4852944d94bdaa3235e22b121b59cc35f8b5c6d386c71bc2ddcc03f66733b557",
+    "internal/signer/legacy_file_recovery_test.go": "27109da09d7d253c329fc307a8ce488882bec913f28e4d948a2661192b5710cc",
+    "internal/signer/mainnet_authorization_test.go": "c9d10e22f2df28da36da487befa5dbde2d6e2de514d4cdc56604decaa1f8ee73",
+    "internal/signer/mainnet_profile_test.go": "a55af96d5525d2a6448941b275e2f138acd816cf764126c019e808934672c8ba",
     "internal/signer/maturity_notice_test.go": "05f0d0d67c13fd3547bcc9cdbe05bfcfabb6124618412869e1c96fe1e81f4ae2",
+    "internal/signer/phrase_recovery_test.go": "06fe7241689de1a9e4ce449f7131f0e6d0b42d3311de567053f4d33f0c03b42e",
     "internal/signer/presence_test.go": "3fcf3627bfda4bf5f96d8221810a5e340c2f74db0e89df74735d59ab3ac3aa0b",
-    "internal/signer/receive_copy_test.go": "8bb3cee77d8cff4a9abfa64d9c5c0f14e72abab02fa81faf9099a6fb841b8497",
+    "internal/signer/receive_copy_test.go": "28cfaa23eb50cdd5f13c169f62be9c5868c55e390eb5b92e31fc100a3dcdf4db",
     "internal/signer/receive_guidance_review_test.go": "1b1bd598832f04152c3f6c6cd17c30fbc49118ba1abd13730ad86fa3d43da129",
     "internal/signer/review_test.go": "c3c0bb6c0930080696efafe5ac29ca79928601abd9b2e1967b3d7cb46c0e2904",
     "internal/strictjson/json.go": "d9d83b5ab8ae5d76f5282f92060ce20a8b68c79683b741c2cd279237a1dfd86f",
@@ -320,21 +334,21 @@
     "internal/vault/adversarial_test.go": "b287662647df57f629c8499b7af8bd50dac7ce111d7170bd6fc5af6fdcff2b6a",
     "internal/vault/backup.go": "858ad8d50207a11370337e8cf30df878bf027cb5c916a86b4c05feaac0449ee5",
     "internal/vault/backup_test.go": "b20191ed5308635f064b11f092252a2f47bd6f7b3fb2f07bce208e2f840c753a",
-    "internal/vault/data.go": "f3b359c447976cfcf7e66be7ebaea881b47a407ae4c0f28645e415272086e536",
+    "internal/vault/data.go": "1cff0b1ec94a9007085f98af55aaf8df1af102212cda414d31028188c05999c5",
     "internal/vault/envelope.go": "eef6fa8db52bca76841f52c1f11359c83377ceba88925c9c505a88e5ccf991b5",
     "internal/vault/files.go": "911698b1cce8a0df649cd718000e3329d19ce7c835bc48321cf899fda974e340",
     "internal/vault/presence_test.go": "953d094c3883374468578c31241182378cf367cd630985acc74ee96276fcfe55",
     "internal/vault/vault_test.go": "f0132242b67ce48366faea4be73b0133e18fe6df1a012b842b369533e322c71b",
     "tests/oracles/decred/main.go": "f4c6779b99e714fc36ae801587e69621bfed3b9e3f346152f32c4eee3c39dafd",
-    "tests/stress/lifecycle_test.go": "621f6007518bbe496add6aa7ee743218928565e29e88f689d92b39b8ca63c063",
+    "tests/stress/lifecycle_test.go": "04f5d1feef9b1701183c072e94e7cc50c90523c2ea27c3a4bafbc2f45ca9ee5b",
     "tests/stress/nodes_test.go": "e700a22cecd3bb7d23056f22c6002628a21a02f4409d8bd39d7f476662dc6e35",
     "tests/stress/race_disabled_test.go": "468f30ebb556214e987f1b4cde5c0aad5730fa83e374b3aca6462e84b8a09d23",
     "tests/stress/race_enabled_test.go": "4a3d2aa21cc702d918084871b056ded41619ceb8bb1b55fbeaf3739113d73142",
     "tests/stress/resources_test.go": "b3c010c19c99d41e7d384070f7cf2b1e6a9d77d47ba26557935c5c23d76ebb22",
     "tests/stress/scheduling_test.go": "b79df83a936ae5793246c56a8b407eebcd6c83087e48e074d1b351fdf177bc4c",
-    "tests/stress/stress_test.go": "12dbfa6028210f339a5b5d74b69ac2e32852f5f503680d571ae9174d0cce6264"
+    "tests/stress/stress_test.go": "13e75224fc462d91eca99b3da00122d3761a38a132622a58847f33e666f281c4"
   },
-  "sourceCommit": "5c19c0d388f5a19e19fb5d275d5d1d7885c6fbac",
+  "sourceCommit": "eb4b34e70df9f774c43bf639c5f2a894a7a78a70",
   "floors": "PASS",
-  "seconds": 49.076
+  "seconds": 128.639
 }

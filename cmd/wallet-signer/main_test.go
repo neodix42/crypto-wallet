@@ -68,12 +68,12 @@ func TestMain(m *testing.M) {
 }
 
 type dispatchUI struct {
-	inputs                                            [][][]byte
-	path                                              string
-	approve                                           bool
-	inputCalls, fileCalls, confirmCalls, receiveCalls int
-	summaries                                         []string
-	copied                                            string
+	inputs                                                           [][][]byte
+	path                                                             string
+	approve                                                          bool
+	inputCalls, fileCalls, confirmCalls, receiveCalls, recoveryCalls int
+	summaries                                                        []string
+	copied                                                           string
 }
 
 func publicInput(s ...string) [][]byte {
@@ -113,6 +113,12 @@ func (u *dispatchUI) Receive(_ string, summary string, png []byte) bool {
 	u.summaries = append(u.summaries, summary)
 	return u.approve && bytes.HasPrefix(png, []byte("\x89PNG\r\n\x1a\n"))
 }
+func (u *dispatchUI) Recovery(_ string, phrase []byte) bool {
+	u.recoveryCalls++
+	entropy, err := derivation.Import(phrase)
+	clear(entropy)
+	return u.approve && err == nil
+}
 func (u *dispatchUI) CopyPublic(s string) { u.copied = s }
 
 func dispatchEngine(t *testing.T, environment string, withVault bool) (*signer.Engine, *dispatchUI) {
@@ -144,17 +150,18 @@ func dispatchEngine(t *testing.T, environment string, withVault bool) (*signer.E
 			t.Fatal(err)
 		}
 		defer clear(seed)
-		d := vault.Data{Version: 1, WalletID: strings.Repeat("a", 32), Generation: 1, Scheme: "bip39-english-v1", Entropy: entropy, Environment: environment, Birthday: time.Now().Unix(), Endpoints: map[string]vault.Endpoint{}}
-		ids := []string{"ethereum-sepolia", "near-testnet", "decred-testnet3"}
-		if environment == "mainnet" {
-			ids = []string{"ethereum-mainnet", "near-mainnet", "decred-mainnet"}
-		}
-		for i, a := range adapters {
-			ac, err := a.Derive(seed, 0, ids[i])
-			if err != nil {
-				t.Fatal(err)
+		d := vault.Data{Version: 1, WalletID: strings.Repeat("a", 32), Generation: 1, Scheme: "bip39-english-v1", Entropy: entropy, Environment: environment, RecoveryConfirmed: true, Birthday: time.Now().Unix(), Endpoints: map[string]vault.Endpoint{}}
+		for _, adapter := range adapters {
+			for _, network := range adapter.Networks() {
+				if network.Testnet != (environment == "testnet") {
+					continue
+				}
+				account, err := adapter.Derive(seed, 0, network.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				d.Accounts = append(d.Accounts, account)
 			}
-			d.Accounts = append(d.Accounts, ac)
 		}
 		plain, err := d.Encode()
 		if err != nil {
@@ -344,8 +351,9 @@ func TestDispatchPublicReceiveQRConfigurationAssociationAndDiscovery(t *testing.
 	denied(t, e, "discovery", map[string]any{"accountId": d.ID, "birthday": 1, "gap": 10, "limit": 100, "blockBudget": 2000001})
 	denied(t, e, "discovery", map[string]any{"accountId": a.ID, "birthday": 1, "gap": 10, "limit": 100})
 	denied(t, e, "discovery", map[string]any{"accountId": d.ID, "birthday": 1, "gap": 0, "limit": 100})
+	initialAccounts := len(e.Snapshot().Accounts)
 	dispatch(t, e, "addAccount", map[string]uint32{"index": 1})
-	if len(e.Snapshot().Accounts) <= 3 {
+	if len(e.Snapshot().Accounts) != initialAccounts*2 {
 		t.Fatal("addAccount did not persist deterministic public accounts")
 	}
 	denied(t, e, "addAccount", map[string]uint32{"index": 1})
@@ -379,48 +387,96 @@ func TestDispatchPublicReceiveQRConfigurationAssociationAndDiscovery(t *testing.
 	}
 }
 
-func TestDispatchEncryptedBackupRestoreAndPasswordRotation(t *testing.T) {
+func TestDispatchPhraseRestoreAndPasswordRotationPreserveWallets(t *testing.T) {
 	e, u := dispatchEngine(t, "testnet", true)
 	unlockFixture(t, e, u)
-	u.path = filepath.Join(t.TempDir(), "encrypted-backup", "portable.lwv")
-	if err := os.Mkdir(filepath.Dir(u.path), 0755); err != nil {
+	oldCiphertext, err := e.Files.Read("vault.lwv")
+	if err != nil {
 		t.Fatal(err)
 	}
-	dispatch(t, e, "backup", struct{}{})
-	if !e.Snapshot().BackupVerified {
-		t.Fatal("backup did not verify recovery")
-	}
 	r, v := dispatchEngine(t, "testnet", false)
-	v.path = u.path
-	v.inputs = append(v.inputs, publicInput(publicPassword))
-	dispatch(t, r, "restore", struct{}{})
+	v.inputs = append(v.inputs, publicInput(publicPassword, publicPassword, publicPhrase, ""))
+	dispatch(t, r, "import", map[string]int{"words": 12})
 	x, _ := json.Marshal(e.Snapshot().Accounts)
 	y, _ := json.Marshal(r.Snapshot().Accounts)
-	if !bytes.Equal(x, y) || !r.Snapshot().BackupVerified {
-		t.Fatal("portable restore changed public recovery descriptors")
+	if !bytes.Equal(x, y) || !r.Snapshot().RecoveryConfirmed {
+		t.Fatal("phrase restore changed canonical public wallets or left known-phrase confirmation incomplete")
 	}
-	denied(t, r, "restore", struct{}{})
+	for _, method := range []string{"backup", "restore", "confirmRecovery"} {
+		denied(t, r, method, struct{}{})
+	}
 	v.inputs = append(v.inputs, publicInput(publicPassword, publicNewPassword, publicNewPassword))
 	dispatch(t, r, "password", struct{}{})
-	if r.Snapshot().BackupVerified {
-		t.Fatal("password rotation retained old backup approval")
+	if !r.Snapshot().RecoveryConfirmed {
+		t.Fatal("password rotation revoked recorded phrase confirmation")
+	}
+	rotated, _ := json.Marshal(r.Snapshot().Accounts)
+	if !bytes.Equal(y, rotated) {
+		t.Fatal("storage password changed blockchain identities")
 	}
 	dispatch(t, r, "lock", struct{}{})
 	v.inputs = append(v.inputs, publicInput(publicPassword))
 	denied(t, r, "unlock", struct{}{})
 	v.inputs = append(v.inputs, publicInput(publicNewPassword))
 	dispatch(t, r, "unlock", struct{}{})
-	backup, err := os.ReadFile(u.path)
+	old, err := vault.Open(oldCiphertext, []byte(publicPassword))
 	if err != nil {
-		t.Fatal(err)
-	}
-	old, err := vault.Open(backup, []byte(publicPassword))
-	if err != nil {
-		t.Fatal("old portable backup lost old password")
+		t.Fatal("copied older local ciphertext lost its original password")
 	}
 	clear(old)
-	if _, err = vault.Open(backup, []byte(publicNewPassword)); err == nil {
-		t.Fatal("new password unexpectedly decrypted old backup")
+	if _, err = vault.Open(oldCiphertext, []byte(publicNewPassword)); err == nil {
+		t.Fatal("new password decrypted copied older ciphertext")
+	}
+	if v.fileCalls != 0 {
+		t.Fatal("phrase restoration opened a file chooser")
+	}
+}
+
+func TestDispatchPendingRecoveryRequiresReauthenticationAndReturnsOnlyPublicState(t *testing.T) {
+	for _, environment := range []string{"testnet", "mainnet"} {
+		e, u := dispatchEngine(t, environment, false)
+		u.approve = false
+		u.inputs = append(u.inputs, publicInput(publicPassword, publicPassword, publicPhrase, ""))
+		if _, err := handle(e, request("import", map[string]int{"words": 12}), environment); err != nil {
+			t.Fatal(err)
+		}
+		if e.Snapshot().Locked || e.Snapshot().RecoveryConfirmed {
+			t.Fatal("cancelled native recovery acknowledgement did not leave the encrypted root pending")
+		}
+		account := accountFor(t, e, "evm")
+		if _, err := handle(e, request("receive", map[string]string{"accountId": account.ID}), environment); err == nil {
+			t.Fatal("pending recovery authorized receive")
+		}
+		u.inputs = append(u.inputs, publicInput("PUBLIC-wrong-app-password"))
+		if _, err := handle(e, request("confirmRecovery", struct{}{}), environment); err == nil {
+			t.Fatal("wrong app password opened phrase recording")
+		}
+		if u.recoveryCalls != 0 {
+			t.Fatal("phrase recording occurred before reauthentication")
+		}
+		u.inputs = append(u.inputs, publicInput(publicPassword))
+		raw, err := handle(e, request("confirmRecovery", struct{}{}), environment)
+		if err != nil || !bytes.Contains(raw, []byte(`"recoveryConfirmed":false`)) {
+			t.Fatal("cancelled phrase confirmation did not return pending snapshot", err)
+		}
+		u.approve = true
+		u.inputs = append(u.inputs, publicInput(publicPassword))
+		raw, err = handle(e, request("confirmRecovery", struct{}{}), environment)
+		if err != nil || !bytes.Contains(raw, []byte(`"recoveryConfirmed":true`)) {
+			t.Fatal("recorded phrase did not return confirmed snapshot", err)
+		}
+		for _, secret := range []string{publicPassword, publicPhrase, `"entropy"`, `"passphrase"`, `"backupVerified"`, `"mnemonic"`} {
+			if bytes.Contains(raw, []byte(secret)) {
+				t.Fatal("confirmation leaked secret or obsolete authority field")
+			}
+		}
+		before := u.inputCalls + u.recoveryCalls
+		if _, err = handle(e, request("confirmRecovery", struct{}{}), environment); err == nil {
+			t.Fatal("confirmed root could be revealed again")
+		}
+		if before != u.inputCalls+u.recoveryCalls || u.fileCalls != 0 {
+			t.Fatal("confirmed root opened another native secret/file surface")
+		}
 	}
 }
 
@@ -460,7 +516,7 @@ func TestDispatchCreateImportAndFixedEnvironmentBoundaries(t *testing.T) {
 			}
 			u.inputs = append(u.inputs, in)
 			dispatch(t, e, method, map[string]int{"words": 12})
-			if e.Snapshot().Locked || len(e.Snapshot().Accounts) == 0 || e.Snapshot().Environment != "testnet" {
+			if e.Snapshot().Locked || len(e.Snapshot().Accounts) == 0 || e.Snapshot().Environment != "testnet" || !e.Snapshot().RecoveryConfirmed {
 				t.Fatal("creation/import did not produce encrypted usable wallet")
 			}
 			denied(t, e, method, map[string]int{"words": 12})
@@ -479,30 +535,27 @@ func TestDispatchCreateImportAndFixedEnvironmentBoundaries(t *testing.T) {
 	if _, err := handle(e, request("unlock", struct{}{}), "mainnet"); err != nil {
 		t.Fatal(err)
 	}
-	u.path = filepath.Join(t.TempDir(), "encrypted-backup", "mainnet-public-fixture.lwv")
-	if err := os.Mkdir(filepath.Dir(u.path), 0755); err != nil {
-		t.Fatal(err)
+	r, v := dispatchEngine(t, "mainnet", false)
+	v.inputs = append(v.inputs, publicInput(publicPassword, publicPassword, publicPhrase, ""))
+	denied(t, r, "import", map[string]int{"words": 12})
+	if !r.Snapshot().Locked || v.inputCalls != 0 || r.Snapshot().WalletExists {
+		t.Fatal("wrong-profile phrase restoration created or prompted for a different root")
 	}
-	if _, err := handle(e, request("backup", struct{}{}), "mainnet"); err != nil {
-		t.Fatal(err)
+	// Phrase import selects its destination profile explicitly and never treats
+	// an encrypted mainnet file as a testnet import source.
+	for _, method := range []string{"backup", "restore"} {
+		denied(t, e, method, struct{}{})
 	}
-	r, v := dispatchEngine(t, "testnet", false)
-	r.Environment = ""
-	v.path = u.path
-	v.inputs = append(v.inputs, publicInput(publicPassword))
-	denied(t, r, "restore", struct{}{})
-	if !r.Snapshot().Locked {
-		t.Fatal("wrong-profile restored wallet stayed unlocked")
-	}
+
 }
 
 func TestDispatchRejectsMalformedUnknownSecretBearingAndLockedRequests(t *testing.T) {
 	e, u := dispatchEngine(t, "testnet", false)
 	typed := []string{"create", "import", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "discovery", "associate", "configure", "prepare", "sign", "update"}
-	empty := []string{"unlock", "lock", "snapshot", "settings", "scanQR", "backup", "restore", "password", "pending"}
+	empty := []string{"unlock", "lock", "snapshot", "settings", "scanQR", "confirmRecovery", "password", "pending"}
 	for _, method := range append(append([]string{}, typed...), empty...) {
 		t.Run(method, func(t *testing.T) {
-			before := u.inputCalls + u.confirmCalls + u.fileCalls + u.receiveCalls
+			before := u.inputCalls + u.confirmCalls + u.fileCalls + u.receiveCalls + u.recoveryCalls
 			for _, body := range []string{`{"password":"PUBLIC-untrusted-credential"}`, `{"seed":"PUBLIC-untrusted-seed"}`, `{"mnemonic":"PUBLIC-untrusted-phrase"}`, `{"privateKey":"PUBLIC-untrusted-key"}`, `{"unknown":true}`, `{"index":1,"index":2}`, `{"index":1,"\u0069ndex":2}`, `{} {}`, `[]`, `null`, `{"words":`, strings.Repeat("[", 40) + strings.Repeat("]", 40)} {
 				m := request(method, struct{}{})
 				m.Body = []byte(body)
@@ -510,12 +563,12 @@ func TestDispatchRejectsMalformedUnknownSecretBearingAndLockedRequests(t *testin
 					t.Fatalf("accepted malformed/credential-bearing body for %s: %q", method, body)
 				}
 			}
-			if after := u.inputCalls + u.confirmCalls + u.fileCalls + u.receiveCalls; before != after {
+			if after := u.inputCalls + u.confirmCalls + u.fileCalls + u.receiveCalls + u.recoveryCalls; before != after {
 				t.Fatal("malformed request reached native UI")
 			}
 		})
 	}
-	for _, method := range []string{"unlock", "scanQR", "backup", "restore", "password"} {
+	for _, method := range []string{"unlock", "scanQR", "confirmRecovery", "password"} {
 		denied(t, e, method, struct{}{})
 	}
 	for _, method := range []string{"create", "import"} {

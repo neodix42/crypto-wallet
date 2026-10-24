@@ -6,7 +6,7 @@ These are engineering requirements for the future implementation. No cryptograph
 
 Protect the recovery entropy/phrase, binary seed, optional BIP39 passphrase, private/extended private keys, vault encryption keys, app password, and authenticated intent to send funds. Treat stored labels, addresses and history as privacy-sensitive metadata. An address is public on chain; the user's association with it need not be public.
 
-The design must withstand copied locked-vault files, malformed backups, hostile RPC responses, token/QR strings, hostile ordinary renderer content, IPC misuse, accidental logging, interrupted writes, stale state and concurrent sends within the stated boundaries. Remote providers must never be trusted to supply transaction bytes that are signed without independent local interpretation.
+The design must withstand copied locked-vault files, malformed vault ciphertext, hostile RPC responses, token/QR strings, hostile ordinary renderer content, IPC misuse, accidental logging, interrupted writes, stale state and concurrent sends within the stated boundaries. Remote providers must never be trusted to supply transaction bytes that are signed without independent local interpretation.
 
 Do not promise protection against a compromised kernel/root account, an attacker controlling the signer binary, hostile input/display components, same-user malware capable of capture/injection, or physical live-memory extraction. Native confirmation improves separation from the ordinary renderer; it is not a hardware trusted display. X11, accessibility, GTK/C libraries, Go runtime copies, compositor behavior and a compromised Electron main can still undermine local security. One master phrase also creates a shared compromise scope across all supported accounts.
 
@@ -18,7 +18,7 @@ Only the dedicated Go vault/signing process may hold recovery material, derivati
 
 Use a small native Go-owned input and confirmation surface, for example through a maintained GTK binding. Evaluate packaging/accessibility requirements early and pin the implementation. It collects the password and optional phrase/passphrase directly. A general Electron input box followed by IPC forwarding would violate the boundary. Do not fall back to it silently if the native integration is difficult.
 
-Native inputs are masked, input-only, do not autocomplete or offer a reveal button, and clear their buffers after use. No secrets in process arguments, environment variables, shell commands, command history, filenames, application URLs, generated images or terminal prompts. User-initiated paste of an already known import phrase may be supported only as an explicit action inside the native input surface; never read clipboard contents in the background. No copy operation for secrets.
+Native credential/import/challenge inputs are masked, do not autocomplete or offer a reveal toggle, and clear their buffers after use. The owner-authorized exception is a separate nonselectable native display of the generated recovery phrase during pending setup, followed by masked recorded-word challenges. It has no copy/save/QR operation; its label and temporary buffers are cleared on completion/cancellation. No secrets in process arguments, environment variables, shell commands, command history, filenames, application URLs, generated images or terminal prompts. User-initiated paste of an already known import phrase may be supported only as an explicit action inside the native input surface; never read clipboard contents in the background. No copy operation for secrets.
 
 Do not claim OS-wide clipboard erasure: another application or clipboard manager may already retain what the user pasted. The wallet itself must never place recovery secrets on the clipboard.
 
@@ -42,7 +42,7 @@ Validate sizes, arithmetic, versions and resource limits before running a KDF on
 
 Use established library verification APIs, not handwritten constant-time comparisons. Local unlock backoff can reduce repeated UI abuse, but does not stop offline guessing of a copied vault. Password length/strength feedback must be local and support long Unicode input and password-manager workflows. Specify password encoding/versioning exactly; do not silently trim, truncate, case-fold or normalize a storage password. BIP39 normalization is a separate rule.
 
-## S-04: Files, backup and migrations
+## S-04: Files, phrase recovery and migrations
 
 Keep the application data directory owner-only (`0700`) and sensitive files owner-readable/writable (`0600`) on a supporting filesystem. Use a restrictive umask. Validate ownership and reject unsafe symlink/hard-link targets for the live vault and transactional temporary files. Never overwrite a path supplied by an untrusted renderer without independent path validation and the appropriate native user action.
 
@@ -50,11 +50,11 @@ Use lockfiles or supported OS locking to prevent two active writers. Atomic repl
 
 Disk full, short writes, process termination, permissions changes and power-loss simulation must leave either a valid old generation or a valid new generation. A corrupt newer file must not cause silent rollback, account renumbering or replacement with a newly generated root. Offer explicit recovery from a verified encrypted prior generation.
 
-Version migrations authenticate the old format before conversion, preserve recovery identities, create a verified new generation, and remain reversible via the prior encrypted backup. Never “fix” derivation by silently changing keys. A supported format upgrade is different from selecting a different wallet profile.
+Version migrations authenticate the old format before conversion, preserve recovery identities, create a verified new generation, and preserve the prior authenticated encrypted local generation for crash recovery. Never “fix” derivation by silently changing keys. A supported format upgrade is different from selecting a different wallet profile.
 
 Password changes decrypt/authenticate the existing vault and re-encrypt with new salt, nonce and password-derived key, without changing the root. Verify the new file and identical public descriptors before replacing the live generation. Test interruptions and old/new-password behavior. Old copies are still recoverable with old passwords; file deletion on SSDs cannot guarantee secure erasure.
 
-Backup/export produces only the encrypted portable format. Restoration uses a new destination/profile by default, validates the complete contents and metadata, and verifies public recovery descriptors before replacing anything existing. Backups must not depend on desktop keyrings, OS user identities or unavailable cloud services.
+Recovery uses the owner-recorded BIP39 phrase and any original optional BIP39 passphrase in a fresh destination/profile. The app password is independently specified for that installation. No encrypted-file backup/export/restore product API remains. Persist the generated root encrypted before displaying its phrase; pending confirmation must survive interruption without replacing the root. Recorded-word confirmation gates receiving/preparation/signing in Go. Canonical addresses must restore without original files, machine identity or keyrings; non-root associations, discovery state and local journals require explicit reconciliation and are not reconstructed magically.
 
 ## S-05: Process isolation and permissions
 
@@ -64,7 +64,7 @@ Use inherited private pipes or an equivalent inherited socket pair for typed, le
 
 The signer must have no remote IP networking. Enforce and test OS restrictions preventing AF_INET/AF_INET6 connections, while retaining local display/D-Bus/Wayland/X11 facilities needed by the native UI. “Network-isolated” does not mean “no local sockets.” Do not grant broad filesystem or subprocess APIs through its RPC interface.
 
-Keep the signer interface limited to creation/import/unlock/lock, public derivation for named registered profiles, encrypted backup/restore/change-password operations, verified receive display, and approval/signing of allowlisted transfer plans. No generic eval, filesystem read, arbitrary derivation path, seed getter, raw signature or remote plugin loading.
+Keep the signer interface limited to creation/import/unlock/lock, public derivation for named registered profiles, pending native recovery confirmation, phrase import and change-password operations, verified receive display, and approval/signing of allowlisted transfer plans. No generic eval, filesystem read, arbitrary derivation path, seed getter, raw signature or remote plugin loading.
 
 ## S-06: Electron configuration
 

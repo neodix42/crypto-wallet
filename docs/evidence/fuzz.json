@@ -7,7 +7,7 @@
       "target": "FuzzTP012Envelope",
       "status": "PASS",
       "exit": 0,
-      "seconds": 4.895,
+      "seconds": 3.917,
       "output": "reports/fuzz-vault.log"
     },
     {
@@ -15,7 +15,7 @@
       "target": "FuzzTP012Mnemonic",
       "status": "PASS",
       "exit": 0,
-      "seconds": 4.573,
+      "seconds": 4.675,
       "output": "reports/fuzz-derivation.log"
     },
     {
@@ -23,7 +23,7 @@
       "target": "FuzzTP012IPC",
       "status": "PASS",
       "exit": 0,
-      "seconds": 4.755,
+      "seconds": 3.54,
       "output": "reports/fuzz-ipc.log"
     },
     {
@@ -31,7 +31,7 @@
       "target": "FuzzTP012JSON",
       "status": "PASS",
       "exit": 0,
-      "seconds": 4.28,
+      "seconds": 4.385,
       "output": "reports/fuzz-strictjson.log"
     },
     {
@@ -39,7 +39,7 @@
       "target": "FuzzTP012Amount",
       "status": "PASS",
       "exit": 0,
-      "seconds": 4.412,
+      "seconds": 3.329,
       "output": "reports/fuzz-amount.log"
     },
     {
@@ -47,7 +47,7 @@
       "target": "FuzzTP012QR",
       "status": "PASS",
       "exit": 0,
-      "seconds": 5.889,
+      "seconds": 4.519,
       "output": "reports/fuzz-qr.log"
     },
     {
@@ -55,7 +55,7 @@
       "target": "FuzzJSON",
       "status": "PASS",
       "exit": 0,
-      "seconds": 4.485,
+      "seconds": 4.634,
       "output": "reports/fuzz-chains-chainutil.log"
     },
     {
@@ -63,7 +63,7 @@
       "target": "FuzzTP012AddressAndPlan",
       "status": "PASS",
       "exit": 0,
-      "seconds": 5.442,
+      "seconds": 5.01,
       "output": "reports/fuzz-chains-evm.log"
     },
     {
@@ -71,7 +71,7 @@
       "target": "FuzzTP012CoreAction",
       "status": "PASS",
       "exit": 0,
-      "seconds": 5.526,
+      "seconds": 5.221,
       "output": "reports/fuzz-chains-hypercore.log"
     },
     {
@@ -79,7 +79,7 @@
       "target": "FuzzAddress",
       "status": "PASS",
       "exit": 0,
-      "seconds": 3.915,
+      "seconds": 4.576,
       "output": "reports/fuzz-chains-near.log"
     },
     {
@@ -87,7 +87,7 @@
       "target": "FuzzAddress",
       "status": "PASS",
       "exit": 0,
-      "seconds": 5.835,
+      "seconds": 4.795,
       "output": "reports/fuzz-chains-aptos.log"
     },
     {
@@ -95,7 +95,7 @@
       "target": "FuzzAddressesScriptsOutpoints",
       "status": "PASS",
       "exit": 0,
-      "seconds": 5.041,
+      "seconds": 6.541,
       "output": "reports/fuzz-chains-decred.log"
     },
     {
@@ -103,7 +103,7 @@
       "target": "FuzzAddressAndBOC",
       "status": "PASS",
       "exit": 0,
-      "seconds": 5.163,
+      "seconds": 7.733,
       "output": "reports/fuzz-chains-ton.log"
     }
   ]
