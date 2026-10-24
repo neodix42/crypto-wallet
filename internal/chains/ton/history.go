@@ -14,7 +14,7 @@ import (
 )
 
 func (*Adapter) HistoryScope() string {
-	return "Latest 100 account transaction BOCs from trusted RPC; native TON message/credit observations only, not recipient-payment confirmation or independent finality. At most 256 messages per transaction and 1000 per scan; older history, jettons and other currencies require separate archival interpretation. An empty window is not proof of no historical funds."
+	return "Trusted archival RPC, at most 100 account transaction BOCs per page; explicit older-history continuation; native TON message/credit observations only, not recipient-payment confirmation or independent finality. At most 256 messages per transaction and 1000 per scan; jettons and other currencies require separate interpretation. Complete means the locally linked account chain reached its beginning within the selected provider; it is not a consensus proof. An empty window is not proof of no historical funds."
 }
 
 // History deliberately returns OBSERVED. Reconcile separately binds a journaled
@@ -30,6 +30,9 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 	if e != nil {
 		return nil, e
 	}
+	return a.historyReceipts(ac, txs)
+}
+func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]model.Receipt, error) {
 	own, _ := parseAddress(ac.Network, ac.Address)
 	sort.Slice(txs, func(i, j int) bool { return txs[i].LT > txs[j].LT })
 	out := make([]model.Receipt, 0, len(txs))

@@ -2,7 +2,7 @@
 
 This is an internal implementation review, not an external audit. Go measures statements, not branches. A passing percentage does not establish network compatibility, a clean-desktop recovery drill or production readiness. Public funded testnets, the full installed OS/display matrix, the 24-hour campaign and independent review retain their separate recorded statuses.
 
-The final source-bound Go campaign passes with 149 stable source/test/module hashes. The final installed Electron X11 drill also passes 20 checks on the hardened artifact; its default 12-word GUI path and all-five-length component scope are separate from the Go percentages. Installed sending, physical-machine and full supported OS/Wayland/lifecycle gates remain NOT_RUN.
+The final source-bound Go campaign passes all 23 measured package floors with 163 stable source/test/module hashes in 64.214 seconds. The actual local TON V5R1 emulator and pinned Decred simnet pass inside that campaign. Installed Electron, physical-machine, funded-network and full supported OS/Wayland/lifecycle acceptance have separate evidence and limits in [STATUS.md](STATUS.md); Go percentages do not pass those gates.
 
 ## Reproduction and evidence integrity
 
@@ -30,9 +30,9 @@ First-run tests require primary and previous generations to be absent before cre
 
 The current `internal/uiprompt` package owns strict Go prompt/reply decoding, byte limits, fresh prompt IDs and recovery word checks. The portfolio bridge cannot submit a `promptReply`; main accepts it only from the current isolated Electron modal and correlates it with the active Go operation/session. Recovery acknowledgment is followed by a separate masked word challenge verified in Go. Malformed, replayed, stale, wrong-kind and cancelled replies fail closed. Prompt text and words use a narrowly approved transient transport exception: Electron now sees secrets in its dedicated trusted prompt renderer. They never belong in snapshots, diagnostics, persistent files, clipboard or network requests. JavaScript strings and runtime/OS copies prevent any promise of complete erasure. [FRONTEND_SIGNER_TESTS.md](FRONTEND_SIGNER_TESTS.md) describes the expanded trust boundary and current component tests.
 
-The final shipped headless restoration driver exercises the same hardened core/signer binary manifest as the passing 20-check installed Electron drill. It tests actual prompt frames across three independent application copies with separate HOME/config/processes and no copied vault/keyring. Its six checks compare all 27 descriptors across nine mainnet networks at indices 0, 1 and 127, under the same and a different local password; restart begins locked. The generated phrase stays in disposable test memory and scans cover ordinary public-data IPC, process logs and persisted files. The dedicated prompt transport is the explicit transient-secret exception and is not misreported as secret-free. This is same-host protocol integration, not actual Chromium interaction or a second physical machine. [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) records binary identities and the independent packaged status.
+The headless restoration driver tests actual prompt frames across three independent application copies with separate HOME/config/processes and no copied vault/keyring. Its six-check scope compares all 27 descriptors across nine mainnet networks at indices 0, 1 and 127, under the same and a different local password; restart begins locked. The generated phrase stays in disposable test memory and scans cover ordinary public-data IPC, process logs and persisted files. The dedicated prompt transport is the explicit transient-secret exception and is not misreported as secret-free. This is same-host protocol integration, not actual Chromium interaction or a second physical machine. Current binary identities and separate packaged statuses belong to their candidate-bound reports and [STATUS.md](STATUS.md).
 
-Electron component tests execute all eight shipped JS files, including the dedicated prompt preload/validator/UI. The current 95 tests pass with zero skips and 100% statement coverage for every file; main branches are 98.4%, the portfolio renderer 97.98%, and the other six files 100%. Critical main/preload/validation/codec/prompt code, including the prompt UI, enforces 95% statements and 90% branches. Portfolio UI floors remain 90%/85%. Tests cover trusted-frame binding, one-time prompt delivery, malicious/replayed/concurrent messages, DOM clearing, title replacement, exact QR/copy data, file choices and lock/navigation/crash/timeout/EOF cleanup. Electron doubles and jsdom do not establish the production sandbox or installed OS behavior.
+Electron component tests execute all eight shipped JS files, including the dedicated prompt preload/validator/UI. The current 107 tests pass with zero skips and 100% statement coverage for every file; main branches are 98.41%, the portfolio renderer 98.18%, and the other six files 100%. The source-stable report binds frontend inputs and all eight compiled/runtime JS hashes. Account and journal pagination, null/type/cursor validation, independent history request epochs and out-of-order reply/error rejection are included. Critical main/preload/validation/codec/prompt code, including the prompt UI, enforces 95% statements and 90% branches. Portfolio UI floors remain 90%/85%. Tests cover trusted-frame binding, one-time prompt delivery, malicious/replayed/concurrent messages, DOM clearing, title replacement, exact QR/copy data, file choices and lock/navigation/crash/timeout/EOF cleanup. Electron doubles and jsdom do not establish the production sandbox or installed OS behavior.
 
 The retained GTK suite passes 14 short tests with one optional five-minute test skipped. It checks its old masked input, receive/copy, recovery word challenge, widget clearing and bounded geometry. That package is absent from production signer dependency/linkage results; its native profile remains in the aggregate only as legacy regression evidence. Earlier focused geometry and native phrase reports are historical after the Electron-only policy change. Neither their percentages nor their real XTest events pass current Electron interface acceptance.
 
@@ -44,7 +44,14 @@ The successful isolation helper tests actual TCP/UDP sockets on all Go threads, 
 
 A test-only Linux/amd64 ptrace parent exercises the compiled startup defenses without changing production code: it changes the result of an actually denied IP socket into harmless fd0, and separately changes a successful `PR_SET_NO_NEW_PRIVS` result into `EPERM`. Both produce the expected fail-closed startup error. No IP socket is opened by this substitution. The helper writes real Go raw coverage counters into the test coverage directory; the tracer never fabricates counters. A platform that blocks ptrace reports the test **BLOCKED**, so it cannot silently meet the floor through a skipped scenario.
 
-The final hardened sources also pass the full Go race suite (`reports/electron-race.log`). All 14 critical mutants are killed (`reports/mutation.json`), including prompt identity binding and Go recorded-word verification; all 14 bounded fuzz targets pass (`reports/fuzz.json`, three seconds per target plus retained corpora). Mutation/fuzz runs precede only the added memory-protection helper: their parser, recovery and authorization targets are unchanged. The new helper is covered by owned subprocess/network-preservation tests and the final aggregate/race runs. No long scheduled fuzz campaign is implied. All 149 report source hashes were independently rechecked against the working tree with zero mismatches.
+The final coverage inputs have been independently rehashed: all 163 source/test/module entries and both frozen raw profiles match with zero mismatches. The report records base HEAD `91ae2e25c32e5ae1f394f903274ce87334f33d7f`; the working-tree fingerprints bind the measured implementation, including its uncommitted changes. The profile inputs are:
+
+| Frozen profile | SHA-256 |
+| --- | --- |
+| `reports/go-base.cover` | `1093113f59628bbb2b53c16076b496da0c97992c956866c0f9c066c0caf0c769` |
+| `reports/go-native.cover` | `ce97716f171f34d8e9556b751d696a2d593ec8f72a22b12dd4c49eceec5c5964` |
+
+Race, mutation, fuzz, stress, packaged and long-duration results retain their own source/artifact bindings in [STATUS.md](STATUS.md). Earlier `electron-*` campaign logs and three-second fuzz reports are historical scopes after the pagination/activation changes. This coverage report does not turn a still-running, skipped or missing campaign into a pass. The local page tests exercise more than 1 MiB of encrypted journal data without overflowing the private pipe, 10,000 account descriptors, exact late-operation lookup and preservation of every reservation; [HISTORY_PAGINATION.md](HISTORY_PAGINATION.md) records the bounds and remaining archival limitations.
 
 ## Remaining paths and dispositions
 
@@ -65,47 +72,72 @@ The retained defensive guards remain enabled. An unexecuted error return is stil
 | Strict JSON/transport | Closing-delimiter states excluded by the standard decoder's earlier complete token parse. Duplicate/trailing/deep/oversized/unknown data and malformed numeric inputs are covered; the redundant fail-closed guards remain. |
 | QR and retained legacy GTK | The image-to-bitmap constructor's nil/error guard cannot be produced by the current library after valid nonzero bounded image decoding. The legacy GTK initialization-failure return at `native.go:109`, input partial-result wiping at `native.go:161` and recovery `malloc` failure at `native.go:218` remain unexecuted in the merged profile; no production allocator-fault hook was added. These are retained unshipped GTK guards; their direct tests do not cover Electron. Current Go/JS receive validation, exact copy, cancellation, phrase-format checks and masked recovery success/cancel/wrong-word paths have separate tests. Native C pixbuf/scale/allocation failures and volatile wiping are not measured by Go or independently fault-injected; runtime tests inspect nonselectable labels and cleared widget text, not every GTK/Pango/allocator buffer. Mutable Go/C staging inputs are cleared, while GTK/runtime/OS copies cannot be promised complete erasure. |
 
+### Current critical-path additions
+
+- `cmd/wallet-core/history.go:162` and `public_pages.go:48` retain unexecuted CSPRNG-error returns when creating public capabilities. Success, replay, context/session/epoch/filter binding, expiry, memory/record limits and changed generations are exercised. No production RNG override was added to force these two call sites.
+- `history.go:184` is the final serialization/page-size fallback after the separately enforced candidate-page budget and reserved cursor/envelope space. It returns an error, not a truncated response; that exact fallback remains unexecuted. The tests serialize actual framed pages and require them to fit the 1 MiB IPC limit.
+- The Decred compatibility wrapper at `history.go:59,67,75,77` has unexecuted continuation-denial, successful-report serialization/return and oversized-report paths (six statements excluding the separate RNG/size fallbacks). The authenticated adapter's simnet evidence is separate; it does not execute these coordinator branches. Decred synchronization changes were excluded by the owner and no successful full coordinator Decred-history workflow is claimed.
+- `internal/signer/engine_public.go:68` is the two-statement fallback that marks a still-unlocked in-memory root present/unavailable after both vault files disappear. The equivalent `Engine.Snapshot` fallback also remains unexecuted. Neither fallback permits creation. Current paging tests cover account/journal limits, stale/cross-kind/filter positions, null/type rejection, artifact redaction and preservation of exact private signed operations and reservations.
+- HyperCore's `history.go:108` duplicate-receipt guard and `:143` source-address-validation error remain unexecuted at these exact call sites. The underlying bounded ledger parser, duplicate/saturated time windows, changed-page commitments, recipient-address errors and shared address validator have separate positive/negative tests. Those neighboring passes do not label these two returns executed. Activation fee/owner/domain and equal-timestamp continuation behavior retain their adapter-specific review in [EVM_CORE.md](EVM_CORE.md).
+- All statements in the new TON archival cursor/link/search implementation and the new `strictjson.Text` decoder are exercised. Existing TON builder/cell/BOC/library error returns remain listed below. The complete local TVM roundtrip initially failed against a fixture that concatenated forward/return histories oldest-first and combined two alternative emulator forks. The fixture now orders actual BOCs newest-first, honors the requested `lt`/`hash`/limit and keeps the failed branch separate. Production link verification was preserved. The earlier failure remains recorded in `reports/go-coverage-before-ton-fixture-fix.json`; the final source-stable run passes the actual emulator, not a skip.
+
+Each remaining block is indexed by its exact current line/column below and inherits the applicable source/area disposition above. “Unexecuted” is retained even when a guard is redundant after prior validation or a library failure is not expected for the fixed allowlisted inputs. No uncovered block is excluded merely to pass a floor.
+
 Native C and cryptographic library behavior require external review in addition to these source and runtime checks. The retained guards are intentionally conservative. Future dependency changes must rerun fixtures and review newly reachable outcomes, not discard them as permanently unreachable.
 
 ## Measured package table and block index
 
-The final run passes all 23 measured package floors: 22 shipped Go packages plus the retained, unshipped GTK regression package. It freezes 149 source/test/module hashes and completes in 66.439 seconds. Go measures statements, not branches. Machine reports bind the exact source/profile hashes and remain authoritative for reruns.
+The final run passes all 23 measured package floors: 22 shipped Go packages plus the retained, unshipped GTK regression package. `internal/buildinfo` and `internal/model` declare data/types/interfaces without executable statement counters, so no percentage is invented for them; their compiled uses are exercised by the application tests. It freezes 163 source/test/module hashes and completes in 64.214 seconds. Go measures statements, not branches. Machine reports bind the exact source/profile hashes and remain authoritative for reruns.
 
-The wrapper freezes the native profile before merging, so a standalone legacy GTK run cannot overwrite its measurement input. DCR simnet and the TON V5R1 emulator pass. Optional Aptos validator/rotation/failure, NEAR sandbox and explicit EVM-node tests remain **NOT_RUN**; the 24-hour soak and optional five-minute GTK campaign also remain **NOT_RUN**. The bootstrap-worker test skips its parent harness role outside its child invocation. Every skip is listed in `reports/go-coverage.json`. Earlier node or long-duration reports establish only their own source-bound scope.
+The wrapper freezes the native profile before merging, so a standalone legacy GTK run cannot overwrite its measurement input. The pinned `dcrd v1.10.9` simnet and `@ton/sandbox 0.45.0` V5R1 emulator pass. The native suite records 14 passes and one optional five-minute skip; it is retained GTK evidence, not current Electron acceptance.
+
+| Explicit skip in this Go campaign | Status and reason |
+| --- | --- |
+| `cmd/wallet-launcher.TestTP041BootstrapWorker` | **NOT_RUN** — Explicit test skip; inspect go-test.jsonl for prerequisites |
+| `internal/chains/aptos.TestLocalNode` | **NOT_RUN** — aptos_test.go:263: NOT_RUN: pinned local validator required |
+| `internal/chains/aptos.TestLocalNodeRotation` | **NOT_RUN** — aptos_test.go:392: NOT_RUN: independent TS SDK rotation setup required |
+| `internal/chains/aptos.TestLocalNodeCommittedFailure` | **NOT_RUN** — aptos_test.go:462: NOT_RUN: local validator required |
+| `internal/chains/near.TestLocalNode` | **NOT_RUN** — near_test.go:233: NOT_RUN: pinned sandbox harness required |
+| `internal/chains/evm.TestTP050LocalEVMProtocolAcceptance` | **NOT_RUN** — integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node |
+| `tests/stress.TestTP072Soak` | **NOT_RUN** — stress_test.go:250: NOT_RUN: invoke make test-soak for explicit 24-hour campaign |
+
+The launcher bootstrap-worker skip is its unused parent role outside the worker subprocess, not a claim that bootstrap acceptance is absent. Optional Aptos/NEAR/geth tests need their named local harnesses; earlier node reports retain their own source-bound scope. The complete 24-hour soak is a separate explicit campaign. The three additional native not-run scopes are real Wayland input, sustained five-minute wall-clock typing and the clean installed OS lock/suspend matrix.
 
 | Package | Statements covered/total | Go statement coverage | Floor | Scope |
 | --- | --- | --- | --- | --- |
-| `cmd/wallet-core` | 496/519 | 95.57% | 95% | Shipped Go |
+| `cmd/wallet-core` | 698/732 | 95.36% | 95% | Shipped Go |
 | `cmd/wallet-launcher` | 87/93 | 93.55% | 90% | Shipped Go |
-| `cmd/wallet-signer` | 152/158 | 96.2% | 95% | Shipped Go |
+| `cmd/wallet-signer` | 180/186 | 96.77% | 95% | Shipped Go |
 | `internal/amount` | 45/47 | 95.74% | 95% | Shipped Go |
-| `internal/chains` | 1/1 | 100.0% | 95% | Shipped Go |
+| `internal/chains` | 1/1 | 100.00% | 95% | Shipped Go |
 | `internal/chains/aptos` | 453/469 | 96.59% | 95% | Shipped Go |
 | `internal/chains/chainutil` | 93/94 | 98.94% | 95% | Shipped Go |
 | `internal/chains/decred` | 790/819 | 96.46% | 95% | Shipped Go |
 | `internal/chains/evm` | 782/810 | 96.54% | 95% | Shipped Go |
-| `internal/chains/hypercore` | 543/562 | 96.62% | 95% | Shipped Go |
+| `internal/chains/hypercore` | 636/656 | 96.95% | 95% | Shipped Go |
 | `internal/chains/near` | 399/403 | 99.01% | 95% | Shipped Go |
-| `internal/chains/ton` | 620/648 | 95.68% | 95% | Shipped Go |
+| `internal/chains/ton` | 694/721 | 96.26% | 95% | Shipped Go |
 | `internal/derivation` | 74/76 | 97.37% | 95% | Shipped Go |
-| `internal/ipc` | 49/49 | 100.0% | 95% | Shipped Go |
-| `internal/isolation` | 12/12 | 100.0% | 95% | Shipped Go |
-| `internal/journal` | 16/16 | 100.0% | 95% | Shipped Go |
-| `internal/qr` | 26/27 | 96.3% | 95% | Shipped Go |
+| `internal/ipc` | 49/49 | 100.00% | 95% | Shipped Go |
+| `internal/isolation` | 12/12 | 100.00% | 95% | Shipped Go |
+| `internal/journal` | 16/16 | 100.00% | 95% | Shipped Go |
+| `internal/qr` | 26/27 | 96.30% | 95% | Shipped Go |
 | `internal/secureui` | 213/216 | 98.61% | 95% | Retained, unshipped GTK regression |
-| `internal/signer` | 544/558 | 97.49% | 95% | Shipped Go |
-| `internal/strictjson` | 38/39 | 97.44% | 95% | Shipped Go |
+| `internal/signer` | 641/657 | 97.56% | 95% | Shipped Go |
+| `internal/strictjson` | 45/46 | 97.83% | 95% | Shipped Go |
 | `internal/supervisor` | 177/183 | 96.72% | 95% | Shipped Go |
-| `internal/uiprompt` | 152/160 | 95.0% | 95% | Shipped Go |
+| `internal/uiprompt` | 152/160 | 95.00% | 95% | Shipped Go |
 | `internal/vault` | 235/244 | 96.31% | 95% | Shipped Go |
 
-The exact remaining 193 blocks contain 206 unexecuted statements. They are unexecuted, not passed by adjacent tests. Every block belongs to a reviewed area above; full spans and excerpts are in `reports/go-uncovered.json`.
+The exact remaining 203 blocks contain 219 unexecuted statements across 35 source files. They are unexecuted, not passed by adjacent tests. Every block is mapped to the reviewed source/area disposition above; full spans and excerpts are in `reports/go-uncovered.json`.
 
 | Source | Unexecuted block start line.column | Statements |
 | --- | --- | --- |
-| [cmd/wallet-core/main.go](../cmd/wallet-core/main.go) | `214.4`, `215.5`, `217.4`, `246.3`, `253.3`, `257.3`, `275.5`, `294.5`, `318.5`, `324.4`, `344.5`, `453.4`, `455.4`, `459.3`, `460.4`, `462.3`, `512.4`, `567.4`, `573.4`, `809.5`, `880.3` | 23 |
+| [cmd/wallet-core/history.go](../cmd/wallet-core/history.go) | `59.4`, `67.3`, `75.4`, `77.3`, `162.4`, `184.3` | 8 |
+| [cmd/wallet-core/main.go](../cmd/wallet-core/main.go) | `222.4`, `223.5`, `225.4`, `267.3`, `274.3`, `278.3`, `296.5`, `315.5`, `339.5`, `345.4`, `365.5`, `490.4`, `492.4`, `496.3`, `497.4`, `499.3`, `502.4`, `504.3`, `523.4`, `585.4`, `591.4`, `823.5`, `894.3` | 25 |
+| [cmd/wallet-core/public_pages.go](../cmd/wallet-core/public_pages.go) | `48.3` | 1 |
 | [cmd/wallet-launcher/main.go](../cmd/wallet-launcher/main.go) | `31.15`, `45.3`, `79.5`, `95.4`, `106.3`, `168.3` | 6 |
-| [cmd/wallet-signer/main.go](../cmd/wallet-signer/main.go) | `33.3`, `37.3`, `60.6`, `66.6` | 6 |
+| [cmd/wallet-signer/main.go](../cmd/wallet-signer/main.go) | `34.3`, `38.3`, `61.6`, `67.6` | 6 |
 | [internal/amount/amount.go](../internal/amount/amount.go) | `47.4`, `55.3` | 2 |
 | [internal/chains/aptos/aptos.go](../internal/chains/aptos/aptos.go) | `338.3`, `415.3`, `420.3`, `424.3`, `439.3`, `452.3`, `456.3`, `514.3`, `518.3`, `523.3`, `527.3`, `549.3`, `560.3` | 13 |
 | [internal/chains/aptos/history.go](../internal/chains/aptos/history.go) | `67.3`, `70.3`, `74.3` | 3 |
@@ -117,18 +149,19 @@ The exact remaining 193 blocks contain 206 unexecuted statements. They are unexe
 | [internal/chains/evm/keys.go](../internal/chains/evm/keys.go) | `54.3`, `67.5`, `79.4`, `87.4` | 7 |
 | [internal/chains/evm/rpc.go](../internal/chains/evm/rpc.go) | `83.5`, `119.3`, `164.3` | 3 |
 | [internal/chains/hypercore/adapter.go](../internal/chains/hypercore/adapter.go) | `131.4`, `143.3`, `429.3`, `471.3`, `496.3`, `503.3`, `514.3`, `518.3`, `526.3`, `548.3` | 10 |
-| [internal/chains/hypercore/history.go](../internal/chains/hypercore/history.go) | `60.4` | 1 |
+| [internal/chains/hypercore/history.go](../internal/chains/hypercore/history.go) | `108.4`, `143.3` | 2 |
 | [internal/chains/hypercore/keys.go](../internal/chains/hypercore/keys.go) | `39.3`, `49.3`, `62.5`, `74.4`, `82.4` | 8 |
 | [internal/chains/near/history.go](../internal/chains/near/history.go) | `101.6` | 1 |
 | [internal/chains/near/near.go](../internal/chains/near/near.go) | `492.3`, `497.3`, `511.3` | 3 |
-| [internal/chains/ton/history.go](../internal/chains/ton/history.go) | `60.4`, `61.5` | 2 |
-| [internal/chains/ton/network.go](../internal/chains/ton/network.go) | `114.3`, `163.4`, `307.4`, `351.3`, `355.3`, `366.3`, `370.3`, `425.4`, `430.4`, `437.4`, `449.5` | 11 |
+| [internal/chains/ton/history.go](../internal/chains/ton/history.go) | `63.4`, `64.5` | 2 |
+| [internal/chains/ton/network.go](../internal/chains/ton/network.go) | `114.3`, `163.4`, `314.4`, `358.3`, `362.3`, `373.3`, `377.3`, `431.4`, `436.4`, `443.4` | 10 |
 | [internal/chains/ton/pacing.go](../internal/chains/ton/pacing.go) | `39.3` | 1 |
 | [internal/chains/ton/ton.go](../internal/chains/ton/ton.go) | `136.3`, `321.3`, `339.3`, `345.4`, `411.3`, `415.3`, `420.3`, `434.3`, `441.3`, `445.3`, `452.3`, `456.3`, `461.3`, `468.3` | 14 |
 | [internal/derivation/derivation.go](../internal/derivation/derivation.go) | `98.4`, `118.3` | 2 |
 | [internal/qr/qr.go](../internal/qr/qr.go) | `32.3` | 1 |
 | [internal/secureui/native.go](../internal/secureui/native.go) | `109.3`, `161.4`, `218.3` | 3 |
 | [internal/signer/engine.go](../internal/signer/engine.go) | `67.3`, `103.3`, `151.3`, `155.3`, `165.4`, `170.4`, `226.4`, `499.3`, `560.3`, `609.4`, `693.5`, `757.3`, `804.3`, `873.3` | 14 |
+| [internal/signer/engine_public.go](../internal/signer/engine_public.go) | `68.3` | 2 |
 | [internal/strictjson/json.go](../internal/strictjson/json.go) | `69.3` | 1 |
 | [internal/supervisor/child.go](../internal/supervisor/child.go) | `116.5`, `125.3`, `129.3`, `141.3` | 6 |
 | [internal/uiprompt/prompt.go](../internal/uiprompt/prompt.go) | `48.3`, `55.3`, `59.3`, `88.3`, `163.3`, `196.3`, `202.3`, `214.3` | 8 |
@@ -136,4 +169,4 @@ The exact remaining 193 blocks contain 206 unexecuted statements. They are unexe
 | [internal/vault/envelope.go](../internal/vault/envelope.go) | `60.3`, `79.3` | 2 |
 | [internal/vault/files.go](../internal/vault/files.go) | `103.3`, `122.3`, `143.3`, `149.3`, `159.3`, `165.3` | 6 |
 
-A historical five-minute GTK campaign passed with 63 actual XTest key events over 5m11.962s (`reports/native-input-long.json`). It predates the current Electron interface and is not a current-source long-duration result. Separate physical machines, clean supported OS/Wayland/lifecycle testing, public funded acceptance, the 24-hour soak and independent review remain outside this local coverage result. No automated mainnet payment is attempted.
+A historical five-minute GTK campaign passed with 63 actual XTest key events over 5m11.962s (`reports/native-input-long.json`). It predates the current Electron interface and is not a current-source long-duration result. Separate physical machines, clean supported OS/Wayland/lifecycle testing, public funded acceptance, the complete 24-hour soak and independent review remain outside this local coverage result; separate current campaign statuses are recorded in [STATUS.md](STATUS.md). No automated mainnet payment is attempted.

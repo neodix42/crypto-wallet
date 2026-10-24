@@ -218,8 +218,8 @@ func TestTP050CoreReconciliationDemandsExactActionAndTwoLedgers(t *testing.T) {
 	f.fail = ""
 	f.override["userNonFundingLedgerUpdates"] = make([]any, 500)
 	r, e = f.a.Reconcile(context.Background(), p, s)
-	if e != nil || r.State != "UNKNOWN" {
-		t.Fatal("saturated history accepted", r, e)
+	if e == nil || r.State != "UNKNOWN" {
+		t.Fatal("malformed saturated history did not preserve unknown", r, e)
 	}
 	delete(f.override, "userNonFundingLedgerUpdates")
 	for _, key := range []string{"amount", "fee", "nativeTokenFee"} {

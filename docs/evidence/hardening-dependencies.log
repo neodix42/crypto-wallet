@@ -1,0 +1,17 @@
+./scripts/with-toolchain.sh go mod verify
+all modules verified
+./scripts/with-toolchain.sh go vet ./...
+./scripts/with-toolchain.sh go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/soak.yml
+./scripts/with-toolchain.sh go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/fuzz.yml
+./scripts/with-toolchain.sh go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+=== Symbol Results ===
+
+No vulnerabilities found.
+
+Your code is affected by 0 vulnerabilities.
+This scan also found 0 vulnerabilities in packages you import and 1
+vulnerability in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.
+./scripts/with-toolchain.sh npm --prefix desktop audit --audit-level=high
+found 0 vulnerabilities

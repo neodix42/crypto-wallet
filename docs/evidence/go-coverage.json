@@ -55,7 +55,7 @@
       "package": "localwallet/tests/stress",
       "test": "TestTP072Soak",
       "status": "NOT_RUN",
-      "reason": "stress_test.go:222: NOT_RUN: invoke make test-soak for explicit 24-hour campaign"
+      "reason": "stress_test.go:250: NOT_RUN: invoke make test-soak for explicit 24-hour campaign"
     }
   ],
   "exclusions": [
@@ -75,11 +75,11 @@
   "profiles": [
     {
       "file": "reports/go-base.cover",
-      "sha256": "37feca12ca814307718c812556ad2e86442c005f5d638612f0274a49b6dc0909"
+      "sha256": "1093113f59628bbb2b53c16076b496da0c97992c956866c0f9c066c0caf0c769"
     },
     {
       "file": "reports/go-native.cover",
-      "sha256": "1fe107035cd2b8ea0662ccd3ca61670ce97342a93948ba9cc27c82f772a2d80a"
+      "sha256": "ce97716f171f34d8e9556b751d696a2d593ec8f72a22b12dd4c49eceec5c5964"
     }
   ],
   "goTests": {
@@ -87,27 +87,27 @@
     "exit": 0,
     "packages": {
       "localwallet/internal/buildinfo": "SKIP",
+      "localwallet/internal/amount": "PASS",
+      "localwallet/internal/chains/chainutil": "PASS",
+      "localwallet/internal/chains": "PASS",
       "localwallet/internal/model": "SKIP",
       "localwallet/internal/journal": "PASS",
-      "localwallet/internal/amount": "PASS",
-      "localwallet/internal/secureui": "PASS",
       "localwallet/internal/ipc": "PASS",
+      "localwallet/internal/secureui": "PASS",
+      "localwallet/internal/chains/aptos": "PASS",
       "localwallet/internal/uiprompt": "PASS",
       "localwallet/internal/strictjson": "PASS",
-      "localwallet/internal/chains/chainutil": "PASS",
       "localwallet/internal/derivation": "PASS",
-      "localwallet/internal/chains": "PASS",
+      "localwallet/internal/chains/near": "PASS",
       "localwallet/tests/oracles/decred": "PASS",
-      "localwallet/internal/chains/aptos": "PASS",
       "localwallet/internal/isolation": "PASS",
       "localwallet/internal/qr": "PASS",
-      "localwallet/internal/chains/hypercore": "PASS",
-      "localwallet/internal/chains/near": "PASS",
       "localwallet/internal/chains/evm": "PASS",
-      "localwallet/cmd/wallet-core": "PASS",
       "localwallet/cmd/wallet-launcher": "PASS",
+      "localwallet/internal/chains/hypercore": "PASS",
       "localwallet/internal/chains/ton": "PASS",
       "localwallet/internal/supervisor": "PASS",
+      "localwallet/cmd/wallet-core": "PASS",
       "localwallet/internal/vault": "PASS",
       "localwallet/internal/chains/decred": "PASS",
       "localwallet/cmd/wallet-signer": "PASS",
@@ -128,7 +128,7 @@
       {
         "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
         "status": "PASS",
-        "seconds": 0.17
+        "seconds": 0.18
       },
       {
         "name": "TestRealX11NativeKeyAndButtonActivity",
@@ -173,22 +173,22 @@
       {
         "name": "TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible",
         "status": "PASS",
-        "seconds": 0.2
+        "seconds": 0.21
       },
       {
         "name": "TestNativeFileChooserCancelAndVerifiedSelection",
         "status": "PASS",
-        "seconds": 0.96
+        "seconds": 1.03
       },
       {
         "name": "TestNativeInitUnavailableDisplayFailsClosed",
         "status": "PASS",
-        "seconds": 1.02
+        "seconds": 1.04
       },
       {
         "name": "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
         "status": "PASS",
-        "seconds": 0.07
+        "seconds": 0.13
       },
       {
         "name": "TestRealX11NativeActivityBeyondFiveMinutes",
@@ -198,20 +198,24 @@
       {
         "name": "TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets",
         "status": "PASS",
-        "seconds": 2.22
+        "seconds": 2.24
       }
     ],
     "exit": 0,
     "coverage": "total:\t\t\t\t\t\t\t\t(statements)\t\t\t98.3%",
-    "seconds": 11.438
+    "seconds": 11.715
   },
   "sourceSHA256": {
-    "cmd/wallet-core/main.go": "049158f0bb0f5d73f453f48ee39a0ab2e404ff06e9df050bce4245c8a551be8b",
-    "cmd/wallet-core/main_test.go": "b39a5ac89f2736ccdd41302b5d26a53fe65b16ec99a291f5c2369ef8a4ef31cc",
+    "cmd/wallet-core/history.go": "27e9521a50e894e82c74ac522f63043cef384dbdb66dded9c5fa8560ff3629a1",
+    "cmd/wallet-core/history_test.go": "9cf7cd58adb8ad7bd00e389bd6ffdf7919d55aadb9d8f1f8bf319ee06f5732af",
+    "cmd/wallet-core/main.go": "b6142d3d5250914d03405bf1310a000e4bb5291a98db4a98d4c49ddef6570727",
+    "cmd/wallet-core/main_test.go": "a823862b0fd1934485087e95d0a7cc3226b333ed801658b64fe0ef1be16d668e",
     "cmd/wallet-core/mainnet_profile_test.go": "17f3aec316a04d4c5029af36af71af62dad78cd8ec8259a01d2cde73eca9fe80",
     "cmd/wallet-core/memory_test.go": "2f5a7619fa1a5a97d5fa1b89cc437dcc786710a6a52f06d46a1d5748fd611afd",
     "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
     "cmd/wallet-core/prompt_test.go": "cc273baf04c1f900c4dd05eff811da8dfd28c839e417ea7e8d69ab766c7a4ff1",
+    "cmd/wallet-core/public_pages.go": "8bc61418c4053d69e2cedba71cd32ed1b273697432c15393c27f40b6b72bcedf",
+    "cmd/wallet-core/public_pages_test.go": "65c9897fb4e7d46495308d671be0f2a080d018f35ab2fe6a7bc0cb3aac4abe6d",
     "cmd/wallet-core/session_test.go": "a3c005a8b81645ac057f8f750274c89fee7dd2860cab3f724e54716d71279cee",
     "cmd/wallet-core/version_test.go": "73a3c98970dca9b8c62c8baaaf56c78c1b0c201ad115850efe5a9dce1b0cf34d",
     "cmd/wallet-launcher/bootstrap_test.go": "5bba56800388ad6c00680edbb0b30bcda44c6938deaddda714851c08c543d953",
@@ -221,9 +225,10 @@
     "cmd/wallet-launcher/version_test.go": "6d334314c87ba140b8b6c5580a449e1cb36f9005fa59c54a16ac9b1bda8ac3e1",
     "cmd/wallet-signer/errors.go": "8650aa371cfddf1e66fa2c26ded771bfee3b12c901257904b1effbd13da78185",
     "cmd/wallet-signer/errors_test.go": "748f54b51fc532a50800bd691a583ce38395b9bcd07d4d3aed592824513945e1",
-    "cmd/wallet-signer/main.go": "4c393763c51e91f75b6663f39873d0a0ea83b65a914c55ec11f6f5172ce8809b",
+    "cmd/wallet-signer/main.go": "1f5fe98d4be765793aa766c31389bfbdfd4c4b07ff0d4396b3e1518d52470e68",
     "cmd/wallet-signer/main_test.go": "3fb3d3138078e1df9a173dcb7f741e99ed99ab68a85cc0bf0309d58be1a3d564",
     "cmd/wallet-signer/prompt_test.go": "a2d3c7a0feb0bd5f64efbf47b25d2349201f7a5d24e85206208e48c9df70a249",
+    "cmd/wallet-signer/public_pages_test.go": "128e83e6adad15eb4b6618413d65e7f774512303e7c6691c0f12998a3ef2f0ce",
     "cmd/wallet-signer/version_test.go": "79754fe236875d176c6bc6b56de935dc23a2f40e6f1fe348a4b23aded49c38a0",
     "go.mod": "66139c41fc8f6ffa10da02609f6efcaaf480691669e0f62327a1c91342abdb7b",
     "go.sum": "0d1121b965162a4493b5ba7ed5dd430b43f177e051792ef7bf8e1a1dec75b204",
@@ -260,13 +265,16 @@
     "internal/chains/evm/keys_test.go": "e867953114999db3f99300763c47e5a990d7e87114a1d9fa1514dc09513d9299",
     "internal/chains/evm/registry.go": "4f887f593489c67ac483663e759044c2b24bcbe20330c5ed7c8401a4651addaf",
     "internal/chains/evm/rpc.go": "4f6bacd119a3cd6371f8a2f5b46baf4746e2a97ff700e4f4396c6f2cd6e9882d",
-    "internal/chains/hypercore/adapter.go": "6457c992fc4e4017f73597f417b0fb70d1998963327de39be911b274531c5045",
+    "internal/chains/hypercore/activation_test.go": "e01addafde1b633243b1ad01ed6536b751ea5f7ee0a8ab31982ed693657ec605",
+    "internal/chains/hypercore/adapter.go": "07953904ef1e6854afb304acb0e8a589fab8053c36475fc637878ee5a7b7eeaf",
     "internal/chains/hypercore/adapter_test.go": "d3f82a71d944ee7d1e152ce969d12efe4234dba0cd10ee86ae836f64217cdfb3",
-    "internal/chains/hypercore/adversarial_test.go": "fc66d5ff4f990cc1db51b5903916eb9ca08e27071e66e306bd87957783448feb",
-    "internal/chains/hypercore/history.go": "c342443b41a1f4432c3dfe26ce4fe563739b09555393c652af04c9b0727b7e84",
-    "internal/chains/hypercore/history_test.go": "b273419fa671edca4643835a99808c2186a5e529246719fe9fc43c11c2e734b3",
+    "internal/chains/hypercore/adversarial_test.go": "ae90747ae383562fad5999fbf92a2e39444fe6ffb03d401945a8d1964134541a",
+    "internal/chains/hypercore/history.go": "3740d848498dfd337e7f5dfcbed038883cc40086826beed9b430b32a25c0aa2c",
+    "internal/chains/hypercore/history_test.go": "69e473f6d1042755453062afa21f2c48369f65abf0482cc69c730e55e57e7ea5",
     "internal/chains/hypercore/keys.go": "fe30d0b9766c669de05d878fac3626ad85e7ea06ee81e5288a2f4d2907bc3c71",
     "internal/chains/hypercore/keys_test.go": "1b9ba974ec7dfe1a13da44e193c25bd8f916d402514c608a03aac5617d8bfd8b",
+    "internal/chains/hypercore/pagination.go": "682950892a05a01849bddd3b1a0e6c5f8e30958bd76ecfd621938ee2bcba8e78",
+    "internal/chains/hypercore/pagination_test.go": "82a15d595d1966dbb69f6a98516f045181c6a8c88b9d040729678973c2f365fa",
     "internal/chains/near/adversarial_test.go": "4506b500bca8e57785edd8416a8493fd7ddae098571ef4a093f1b3e00e9d897e",
     "internal/chains/near/history.go": "f3048c0fa60915d1519d0582893a112d6914bbf2da38aea151e0b78bd8f9f00e",
     "internal/chains/near/history_test.go": "92fa6db09ae186245d30e0917538584a24c8c762ca992f737e7ebdaeed10b858",
@@ -274,16 +282,18 @@
     "internal/chains/near/near_test.go": "902c4c573cf29036a6fa241c46ec97abd05c5c03ff22a8c8138c35750fef2d79",
     "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
     "internal/chains/ton/adverse_test.go": "f2940bd56f98be4c730a997c8f657585e468dec2012e5c9065efb48b1fea4a5f",
+    "internal/chains/ton/archival.go": "07e433acaf341e5a06462ea405b56d9584d9f76bec1ce3de58fd593a9e9c3feb",
+    "internal/chains/ton/archival_test.go": "697f88ec0398ee0fe1e1a1cb4c716a73959cf382b6a0bab33e4aab807097f0bf",
     "internal/chains/ton/archive_hazards_test.go": "eeb961f7bba8e440b6c4054b44d3bb0a6d66c068b176a738af3d50125bb8922e",
-    "internal/chains/ton/history.go": "478477bfd8298e6457b18da92a7258f30695dbd36edc286d9841cb7a5128a0f5",
+    "internal/chains/ton/history.go": "54fe27fc1aa0301773c6b47770c43ea62d2b1079727c1a7528f64f2a325626e8",
     "internal/chains/ton/history_test.go": "b5f35d08f02c624f1b8564d4bb6e663836029c078778e79e1edddd466febd284",
-    "internal/chains/ton/network.go": "6cb5088e3ed31d688ef9ac10d1c8ca008316b3076d4b0abf36715e7f8f643dfb",
+    "internal/chains/ton/network.go": "6de94db4f6c10a1da7398d494e4e01dee634cf72abc42e60077373419e799ecb",
     "internal/chains/ton/network_hazards_test.go": "4fdf4da4c2c6d4cbb75d3c49b211c4a93370dcd3edbc1b2e41d5fe69a7b34695",
     "internal/chains/ton/pacing.go": "f3cf4a9eef8222bb708897a74ef367386e55082889ab2992d66d2fd3a842be1d",
     "internal/chains/ton/pacing_test.go": "deb6fe77368f40df84bb18f3bf292de4099b99cc158a66deb66c019cfca6f6ff",
-    "internal/chains/ton/receipts_test.go": "ff8def7d87752f77eddf17c8c531b88fe5dbd9ce8626b2dd0c3be1c7230f2367",
+    "internal/chains/ton/receipts_test.go": "11c9ef2edb6e72ea11ff50df3d3ff1e29fb8e221083297583a0220cdfec9f441",
     "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed",
-    "internal/chains/ton/ton_test.go": "3151f3645fab632ff19419068711540f74f8059fe25234093b5e6cf43d70bd09",
+    "internal/chains/ton/ton_test.go": "363360142b762397a53aa3c8fd2e8ab6f052840739dd0aad8c7fe2ef1f1add1d",
     "internal/derivation/derivation.go": "23ffa394be093455096a4a7a4d671574c206b11deda9ca07052ec73f44a59293",
     "internal/derivation/derivation_test.go": "ba2a749933fcea40577988f1f6107280899a700ce3928d76e7370fc5c03e7cd5",
     "internal/derivation/oracle_test.go": "6c40b65ae297c74eb80c43ef3bc08a12ab876cbd50647ec7420f071d7208512b",
@@ -298,7 +308,7 @@
     "internal/isolation/selfcheck_linux_amd64_test.go": "7c442dfd072756d54783f3129cec2c5ac8a18fbdbd3668609468290d4916ad21",
     "internal/journal/journal.go": "b054624918cf87f3da8e671b0c0b9d41f122698ad983edc384ed2fb99fa01224",
     "internal/journal/journal_test.go": "3561ae6a5044c7852b67112f275ae698aefdf2a353d4cd2dc0f7135e0fef9dc6",
-    "internal/model/model.go": "4acc72e642b18028a7ed3ad2c320550a746aca1139e8d7e6927f392605a3bd6b",
+    "internal/model/model.go": "1a2ab6cd483b0c4be71b070ca35a023ce1f4fa64b9d7d051c77b45a8e928d606",
     "internal/qr/boundaries_test.go": "923362b654d950c2b476ddcb08206c55c1dd27df2f5b5d1ab49222512fa83fd8",
     "internal/qr/qr.go": "1f78ea230e131cb7ad96d4f30d5cd3f8b72b97394e66e8bff9d528978ffa30b8",
     "internal/qr/qr_test.go": "11426badc75c3bd7e234558bbad7e5bd99f0a70889c2e3af2c68b5fa6a3e6339",
@@ -317,6 +327,8 @@
     "internal/signer/adversarial_test.go": "65e8f60ad73de1f73e215b57ee37e6db01b6d1f7489bc7f2c1fa5b8666d5b338",
     "internal/signer/cancel_review_test.go": "b29af0fb678eeb194b88e2a1417523b9cc79039725a54819dc6827fc4c858fdc",
     "internal/signer/engine.go": "6091d58bbb8470daef44f0971f6781cc1f3854384e1f4da791ed2a395c610cca",
+    "internal/signer/engine_public.go": "3ffa58b61f822c52de2f3e4604f471a10726851bad30c58686f0dc399471822b",
+    "internal/signer/engine_public_test.go": "634bb75a375d2ea4c7a0788255293a3352b8e39a47bce4b6f74a450eaab61bdb",
     "internal/signer/engine_test.go": "d20adba59cfb11f4f57b2b1416fc46d8e38ccc012c74690b1ef19099dee8929e",
     "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
     "internal/signer/errors.go": "d069a5602d44bd2b50cf52c4498145918bb798050a5346bd44277d737fa50c81",
@@ -332,6 +344,8 @@
     "internal/signer/review_test.go": "c3c0bb6c0930080696efafe5ac29ca79928601abd9b2e1967b3d7cb46c0e2904",
     "internal/strictjson/json.go": "d9d83b5ab8ae5d76f5282f92060ce20a8b68c79683b741c2cd279237a1dfd86f",
     "internal/strictjson/json_test.go": "12126ea404e59efebf765dab4cdaafe90d8f06417d38d6779d49d6a1d8790c7c",
+    "internal/strictjson/text.go": "6d48cbb333ccc9d3070fc3a2123f9c986be877ffea02270283412338710bfaf3",
+    "internal/strictjson/text_test.go": "bcbe2cee55c9385ee0b51b40dd1d6da684ed016ee7d8f80184c2c3213d486545",
     "internal/supervisor/child.go": "ad3ec120aadc1ef0d83a9e6a32cbe1a94c626a67c1f339cf2be2a0b2b05e84a7",
     "internal/supervisor/child_test.go": "87b3b89e62a0f9688b53b7a48ef926a9abc68d3cb7eb29e11ef484023438c89e",
     "internal/supervisor/parentdeath_test.go": "a06c141276530216b5169d1b6a17d5608a8ee3a30f13d88a5760e069f7dad02d",
@@ -348,15 +362,15 @@
     "internal/vault/presence_test.go": "953d094c3883374468578c31241182378cf367cd630985acc74ee96276fcfe55",
     "internal/vault/vault_test.go": "f0132242b67ce48366faea4be73b0133e18fe6df1a012b842b369533e322c71b",
     "tests/oracles/decred/main.go": "f4c6779b99e714fc36ae801587e69621bfed3b9e3f346152f32c4eee3c39dafd",
-    "tests/stress/lifecycle_test.go": "04f5d1feef9b1701183c072e94e7cc50c90523c2ea27c3a4bafbc2f45ca9ee5b",
+    "tests/stress/lifecycle_test.go": "266ec0ea0ed1ca7a3c80f58d7cc022f9b9ef5ae9e2cb73278895cd4a328a37b6",
     "tests/stress/nodes_test.go": "e700a22cecd3bb7d23056f22c6002628a21a02f4409d8bd39d7f476662dc6e35",
     "tests/stress/race_disabled_test.go": "468f30ebb556214e987f1b4cde5c0aad5730fa83e374b3aca6462e84b8a09d23",
     "tests/stress/race_enabled_test.go": "4a3d2aa21cc702d918084871b056ded41619ceb8bb1b55fbeaf3739113d73142",
     "tests/stress/resources_test.go": "b3c010c19c99d41e7d384070f7cf2b1e6a9d77d47ba26557935c5c23d76ebb22",
     "tests/stress/scheduling_test.go": "b79df83a936ae5793246c56a8b407eebcd6c83087e48e074d1b351fdf177bc4c",
-    "tests/stress/stress_test.go": "13e75224fc462d91eca99b3da00122d3761a38a132622a58847f33e666f281c4"
+    "tests/stress/stress_test.go": "a7f9b112affb4fe4d8eaf7113b0eac8b7afac2a882c1de86b40c48fa9e867356"
   },
-  "sourceCommit": "cb0b687c36d9756b5b3d49cd489b106058f6413f",
+  "sourceCommit": "91ae2e25c32e5ae1f394f903274ce87334f33d7f",
   "floors": "PASS",
-  "seconds": 66.439
+  "seconds": 64.214
 }

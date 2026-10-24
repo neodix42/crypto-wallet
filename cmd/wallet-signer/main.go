@@ -11,6 +11,7 @@ import (
 	"localwallet/internal/isolation"
 	"localwallet/internal/model"
 	"localwallet/internal/signer"
+	"localwallet/internal/strictjson"
 	"localwallet/internal/uiprompt"
 	"localwallet/internal/vault"
 	"os"
@@ -131,19 +132,55 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.Create(environment, b.Words, m.Method == "import")
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "unlock":
 		err = e.Unlock()
 		if err == nil && e.Snapshot().Environment != environment {
 			e.Lock()
 			err = signer.ErrDenied
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "lock":
 		e.Lock()
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "snapshot":
-		out = e.Snapshot()
+		out, err = e.SnapshotPage("")
+	case "accountPage":
+		var b struct {
+			Cursor strictjson.Text `json:"cursor"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			out, err = e.SnapshotPage(string(b.Cursor))
+		}
+	case "account":
+		var b struct {
+			AccountID strictjson.Text `json:"accountId"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			out, err = e.PublicAccount(string(b.AccountID))
+		}
+	case "journalPage":
+		var b struct {
+			AccountID strictjson.Text `json:"accountId"`
+			Asset     strictjson.Text `json:"asset"`
+			Cursor    strictjson.Text `json:"cursor"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			out, err = e.JournalPage(string(b.AccountID), string(b.Asset), string(b.Cursor))
+		}
+	case "operation":
+		var b struct {
+			ID strictjson.Text `json:"id"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			out, err = e.Operation(string(b.ID))
+		}
 	case "addAccount":
 		var b struct {
 			Index uint32 `json:"index"`
@@ -151,7 +188,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.AddAccount(b.Index)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "cancelPrepared":
 		var b struct {
 			ID string `json:"id"`
@@ -159,7 +198,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.CancelPrepared(b.ID)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "discoverAccounts":
 		var b struct {
 			Start uint32 `json:"start"`
@@ -168,7 +209,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.DiscoverAccounts(b.Start, b.End)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "hideAccount":
 		var b struct {
 			AccountID string `json:"accountId"`
@@ -177,7 +220,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.HideAccount(b.AccountID, b.Hidden)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "receive":
 		var b struct {
 			AccountID string `json:"accountId"`
@@ -218,7 +263,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.Discovery(b.AccountID, b.Birthday, b.Gap, b.Limit, b.BlockBudget)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "settings":
 		out = e.Settings()
 	case "associate":
@@ -226,7 +273,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &a); err == nil {
 			err = e.Associate(a)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "configure":
 		var b struct {
 			Network string `json:"network"`
@@ -234,21 +283,29 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.Configure(b.Network)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "scanQR":
 		out, err = e.ScanQR()
 	case "confirmRecovery":
 		err = e.ConfirmRecovery()
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "password":
 		err = e.ChangePassword()
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "prepare":
 		var p model.Plan
 		if err = signer.DecodeBody(m.Body, &p); err == nil {
 			err = e.Prepare(p)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "sign":
 		var b struct {
 			ID string `json:"id"`
@@ -265,7 +322,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
 			err = e.Update(b.ID, b.State, b.Receipt)
 		}
-		out = e.Snapshot()
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "pending":
 		out = e.Pending()
 	default:
@@ -275,5 +334,8 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		return nil, err
 	}
 	b, err := json.Marshal(out)
-	return b, err
+	if err != nil || len(b) > 768<<10 {
+		return nil, signer.ErrDenied
+	}
+	return b, nil
 }

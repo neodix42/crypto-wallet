@@ -388,7 +388,7 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 		return fail(e)
 	}
 	if recipientRole == "missing" {
-		return fail(errors.New("fresh Core recipient requires a one-quote-token activation fee; fee funding/selection is not yet verified, so this payment is blocked"))
+		return fail(errors.New("fresh Core recipient requires a one-quote-token activation fee; the documented HYPE action does not identify fee-token selection or its debit, so activate the recipient through a verified quote-token funding flow before retrying"))
 	}
 	if recipientRole != "user" {
 		return fail(errors.New("Core recipient must be an ordinary owner account"))
@@ -682,7 +682,8 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 	}
 	r := model.Receipt{Identity: s.Identity, State: "UNKNOWN"}
 	n, _ := network(p.Account.Network)
-	if _, _, e = a.identity(ctx, n); e != nil {
+	_, at, e := a.identity(ctx, n)
+	if e != nil {
 		return r, e
 	}
 	var history struct {
@@ -725,23 +726,26 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 		r.Detail = "exact action has an execution error; ledger effects require inspection"
 		return r, nil
 	}
+	start := env.Nonce
+	if start > 300_000 {
+		start -= 300_000
+	}
+	if tx.Time < start || tx.Time > at || tx.Time == 0 {
+		return r, errors.New("Core inclusion time outside verified reconciliation window")
+	}
 	for _, address := range []string{p.Account.Address, p.Recipient} {
-		var updates []ledger
-		start := env.Nonce
-		if start > 300_000 {
-			start -= 300_000
-		}
-		if e = a.request(ctx, n, "/info", map[string]any{"type": "userNonFundingLedgerUpdates", "user": address, "startTime": start}, &updates); e != nil {
-			return r, e
-		}
-		if len(updates) >= 500 {
-			r.Detail = "ledger window saturated; bounded pagination is required"
-			return r, nil
+		updates, scanErr := a.ledgerWindow(ctx, n, address, start, at)
+		if scanErr != nil {
+			r.Detail = "ledger pagination incomplete; original action reservation remains held"
+			return r, scanErr
 		}
 		found := 0
 		for _, u := range updates {
 			d := u.Delta
-			if u.Hash == tx.Hash && d.Type == "spotTransfer" && (d.Token == env.Action.Token || d.Token == "HYPE") && strings.EqualFold(d.User, p.Account.Address) && strings.EqualFold(d.Destination, p.Recipient) {
+			if u.Hash != tx.Hash {
+				continue
+			}
+			if d.Type == "spotTransfer" && (d.Token == env.Action.Token || d.Token == "HYPE") && strings.EqualFold(d.User, p.Account.Address) && strings.EqualFold(d.Destination, p.Recipient) {
 				v, e := decimalJSON(d.Amount)
 				if e != nil {
 					return r, e
@@ -757,9 +761,14 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 						return r, e
 					}
 				}
-				if v.String() == p.Amount && fee.Sign() == 0 && native.Sign() == 0 {
-					found++
+				if v.String() != p.Amount || fee.Sign() != 0 || native.Sign() != 0 {
+					r.Detail = "same-hash ledger effects differ from the approved zero-fee HYPE transfer"
+					return r, nil
 				}
+				found++
+			} else {
+				r.Detail = "unrecognized same-hash ledger effect; reservation remains held"
+				return r, nil
 			}
 		}
 		if found != 1 {

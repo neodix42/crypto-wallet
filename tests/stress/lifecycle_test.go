@@ -57,14 +57,24 @@ type lifecycle struct {
 }
 
 func newLifecycle(t *testing.T, r *report) *lifecycle {
+	return newScopedLifecycle(t, r, true)
+}
+
+// The owner's deferred Decred work can be excluded explicitly without turning
+// a narrower campaign into a passing all-chain release gate.
+func newScopedLifecycle(t *testing.T, r *report, includeDecred bool) *lifecycle {
 	t.Helper()
 	dir := t.TempDir()
 	f, e := vault.NewFiles(filepath.Join(dir, "wallet"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	l := &lifecycle{dir: dir, files: f, ui: &stressUI{}, node: newStressNode(t), dcr: newStressDCR(t), confirmed: map[string]model.Signed{}}
-	l.adapters = []model.Adapter{l.node.adapter, l.dcr.adapter}
+	l := &lifecycle{dir: dir, files: f, ui: &stressUI{}, node: newStressNode(t), confirmed: map[string]model.Signed{}}
+	l.adapters = []model.Adapter{l.node.adapter}
+	if includeDecred {
+		l.dcr = newStressDCR(t)
+		l.adapters = append(l.adapters, l.dcr.adapter)
+	}
 	l.engine = signer.New(f, l.ui, l.adapters)
 	l.engine.Environment = "testnet"
 	if e = l.engine.Create("testnet", 12, true); e != nil {
@@ -183,25 +193,27 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	}
 	l.confirmed[p.ID] = signed
 	r.Workloads["productionSignedJournalReconciled"]++
-	// Discovery settings and next receive address are persisted by the real
-	// signer; the real adapter then walks bounded fake full-block RPC responses.
-	dcr := l.account(t, "decred-simnet")
-	if e = l.engine.Discovery(dcr.ID, 1, 5, uint32(20+cycle), 64); e != nil {
-		t.Fatal(e)
+	if l.dcr != nil {
+		// Discovery settings and next receive address are persisted by the real
+		// signer; the real adapter then walks bounded fake full-block RPC responses.
+		dcr := l.account(t, "decred-simnet")
+		if e = l.engine.Discovery(dcr.ID, 1, 5, uint32(20+cycle), 64); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = l.engine.Receive(dcr.ID); e != nil {
+			t.Fatal(e)
+		}
+		dcr = l.account(t, "decred-simnet")
+		l.dcr.mu.Lock()
+		l.dcr.height = uint32(5 + cycle%55)
+		l.dcr.mu.Unlock()
+		discovery, e := l.dcr.adapter.Sync(context.Background(), dcr)
+		if e != nil || discovery.ScannedFrom != 1 || discovery.AddressLimit != uint32(20+cycle) {
+			t.Fatal("bounded discovery failed", e)
+		}
+		r.Workloads["DCRAccountDiscoveryScans"]++
+		r.Workloads["DCRDiscoveryBlocks"] += int(discovery.Height)
 	}
-	if _, e = l.engine.Receive(dcr.ID); e != nil {
-		t.Fatal(e)
-	}
-	dcr = l.account(t, "decred-simnet")
-	l.dcr.mu.Lock()
-	l.dcr.height = uint32(5 + cycle%55)
-	l.dcr.mu.Unlock()
-	discovery, e := l.dcr.adapter.Sync(context.Background(), dcr)
-	if e != nil || discovery.ScannedFrom != 1 || discovery.AddressLimit != uint32(20+cycle) {
-		t.Fatal("bounded discovery failed", e)
-	}
-	r.Workloads["DCRAccountDiscoveryScans"]++
-	r.Workloads["DCRDiscoveryBlocks"] += int(discovery.Height)
 	if cycle < 16 {
 		if e = l.engine.AddAccount(uint32(cycle + 1)); e != nil {
 			t.Fatal("account index growth", e)

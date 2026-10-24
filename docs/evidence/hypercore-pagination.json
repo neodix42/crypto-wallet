@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "scope": "Synthetic loopback HTTP and public SDK fixtures only; not HyperCore validator acceptance or archival completeness.",
+  "sourceSHA256": {
+    "internal/chains/hypercore/activation_test.go": "e01addafde1b633243b1ad01ed6536b751ea5f7ee0a8ab31982ed693657ec605",
+    "internal/chains/hypercore/adapter.go": "07953904ef1e6854afb304acb0e8a589fab8053c36475fc637878ee5a7b7eeaf",
+    "internal/chains/hypercore/adapter_test.go": "d3f82a71d944ee7d1e152ce969d12efe4234dba0cd10ee86ae836f64217cdfb3",
+    "internal/chains/hypercore/adversarial_test.go": "ae90747ae383562fad5999fbf92a2e39444fe6ffb03d401945a8d1964134541a",
+    "internal/chains/hypercore/history.go": "3740d848498dfd337e7f5dfcbed038883cc40086826beed9b430b32a25c0aa2c",
+    "internal/chains/hypercore/history_test.go": "69e473f6d1042755453062afa21f2c48369f65abf0482cc69c730e55e57e7ea5",
+    "internal/chains/hypercore/keys.go": "fe30d0b9766c669de05d878fac3626ad85e7ea06ee81e5288a2f4d2907bc3c71",
+    "internal/chains/hypercore/keys_test.go": "1b9ba974ec7dfe1a13da44e193c25bd8f916d402514c608a03aac5617d8bfd8b",
+    "internal/chains/hypercore/pagination.go": "682950892a05a01849bddd3b1a0e6c5f8e30958bd76ecfd621938ee2bcba8e78",
+    "internal/chains/hypercore/pagination_test.go": "82a15d595d1966dbb69f6a98516f045181c6a8c88b9d040729678973c2f365fa",
+    "internal/model/model.go": "1a2ab6cd483b0c4be71b070ca35a023ce1f4fa64b9d7d051c77b45a8e928d606"
+  },
+  "checks": [
+    {
+      "name": "1205 equal-time public history events across bounded128-entry pages; no omissions/duplicates; original window fixed",
+      "status": "PASS"
+    },
+    {
+      "name": "1101-event sender and recipient ledgers; exact approved action confirmed after three API pages each",
+      "status": "PASS"
+    },
+    {
+      "name": "Provider page commitment/cursor binding, malformed/order/range/duplicate/saturation/budget rejection",
+      "status": "PASS"
+    },
+    {
+      "name": "Extra same-hash activation/foreign/amount/native or quote fee effects retain UNKNOWN",
+      "status": "PASS"
+    },
+    {
+      "name": "Funded quote balance cannot authorize unbound fresh-recipient activation; unknown fee selector rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Go race detector and vet",
+      "status": "PASS"
+    },
+    {
+      "name": "Five-second cursor fuzz campaign, 13,569 executions, 23 new interesting inputs",
+      "status": "PASS"
+    },
+    {
+      "name": "Three semantic mutants: equal timestamp skip, changed provider page, ignored extra fee effect",
+      "status": "PASS",
+      "result": "3 KILLED; no compiler failure counted"
+    }
+  ],
+  "coverage": {
+    "statementsPercent": 97.0,
+    "reconciliationPercent": 100,
+    "ledgerPaginationPercent": 100,
+    "scope": "All first-party HyperCore package statements; no exclusions; Go statement coverage is not branch coverage."
+  },
+  "logs": [
+    "reports/hypercore-pagination-unit.log",
+    "reports/hypercore-pagination-race.log",
+    "reports/hypercore-pagination-fuzz.log",
+    "reports/hypercore-pagination-vet.log",
+    "reports/hypercore-pagination-mutation.log"
+  ],
+  "remaining": [
+    {
+      "name": "Fresh recipient activation fee-token/debit authority and real acceptance",
+      "status": "BLOCKED"
+    },
+    {
+      "name": "Public testnet execution (excluded by owner)",
+      "status": "NOT_RUN"
+    },
+    {
+      "name": "Archival completeness beyond 30 days or saturated single timestamp",
+      "status": "BLOCKED"
+    },
+    {
+      "name": "Independent signing/security review",
+      "status": "NOT_RUN"
+    }
+  ],
+  "oracleSHA256": {
+    "tests/oracles/hypercore/mutation-pagination.py": "bdfa7b4203eee812b045f990cd7d7634c42efdd3668b5be7946c16c797ab1b73",
+    "tests/oracles/hypercore/mutation-pagination-results.json": "ed178fdcc168127e15547c1f90dc2bfb5ddaede140d8bcd5dffded81486e536e",
+    "tests/oracles/hypercore/activation-policy.json": "4fcf438760fe57336dba17282c2aa75a62dbe1d3141507b669b57ebea3719c14"
+  }
+}

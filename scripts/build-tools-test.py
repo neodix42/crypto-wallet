@@ -142,8 +142,16 @@ class BuildTools(unittest.TestCase):
         if packaged:
             dist = self.root / 'dist'
             dist.mkdir()
+            for name in verifier._GO_INVENTORIES:
+                data = b'Public upstream redistribution license text.\n' if name.endswith('.txt') else b'[]' if name == 'go-dependency-licenses.json' else b'{"publicFixture":true}'
+                (dist / name).write_bytes(data)
+            (dist / 'go-THIRD-PARTY-NOTICES.json').write_text(json.dumps({'noticeSHA256': digest(dist / 'go-THIRD-PARTY-NOTICES.txt'), 'review': 'NOT_RUN: legal review'}))
+            manifest['inventorySHA256'] = {name: digest(dist / name) for name in verifier._GO_INVENTORIES}
+            (source / 'go-build-manifest.json').write_text(json.dumps(manifest))
             folder = self.root / f'localwallet-go-{value}-linux-amd64'
             shutil.copytree(source, folder)
+            for name in verifier._GO_INVENTORIES:
+                shutil.copy2(dist / name, folder / name)
             (folder / 'README.md').write_text('Public component fixture; not a standalone desktop wallet.')
             artifact = dist / (folder.name + '.tar.gz')
             with tarfile.open(artifact, 'w:gz') as archive:
@@ -489,6 +497,86 @@ class BuildTools(unittest.TestCase):
         self.go_project(packaged=True)
         self.verify_go()
 
+    def test_go_only_requires_each_exact_distributed_inventory(self):
+        self.go_project(packaged=True)
+        for name in verifier._GO_INVENTORIES:
+            path = self.root / 'dist' / name
+            original = path.read_bytes()
+            with self.subTest(file=name, case='missing'):
+                path.unlink()
+                with self.assertRaisesRegex(RuntimeError, 'Distributed Go inventory hash differs'):
+                    self.verify_go()
+            with self.subTest(file=name, case='tampered'):
+                path.write_bytes(original + b'PUBLIC tamper')
+                with self.assertRaisesRegex(RuntimeError, 'Distributed Go inventory hash differs'):
+                    self.verify_go()
+            path.write_bytes(original)
+
+    def test_go_only_archive_requires_and_binds_all_five_inventory_payloads(self):
+        _, manifest = self.go_project(packaged=True)
+        path = self.root / 'dist' / manifest['archive']['file']
+        original = path.read_bytes()
+        for name in verifier._GO_INVENTORIES:
+            for missing in (True, False):
+                with self.subTest(file=name, case='missing' if missing else 'substitution'):
+                    path.write_bytes(original)
+                    def transform(entries):
+                        for member, content in entries:
+                            if member.name.endswith('/' + name):
+                                if missing:
+                                    continue
+                                content = b'X' + content[1:]
+                            yield member, content
+                    self.rewrite_go_archive(manifest, transform)
+                    with self.assertRaisesRegex(RuntimeError, 'Incomplete Go component archive' if missing else 'Archived Go payload differs'):
+                        self.verify_go()
+
+    def test_go_only_inventory_manifest_is_an_exact_hash_allowlist(self):
+        source, manifest = self.go_project(packaged=True)
+        good = manifest['inventorySHA256']
+        for bad in (None, {}, {key: value for key, value in good.items() if key != 'go-THIRD-PARTY-NOTICES.txt'},
+                    {**good, 'unlisted.json': 'a' * 64}, {**good, 'go-THIRD-PARTY-NOTICES.json': 'h1:not-SHA256'}):
+            changed = {**manifest, 'inventorySHA256': bad}
+            (source / 'go-build-manifest.json').write_text(json.dumps(changed))
+            (self.root / 'dist/go-build-manifest.json').write_text(json.dumps(changed))
+            with self.subTest(value=bad), self.assertRaisesRegex(RuntimeError, 'Go release inventory manifest|Go inventory hash differs'):
+                self.verify_go()
+
+    def test_go_only_notice_pair_and_inventory_json_are_unambiguous(self):
+        source, manifest = self.go_project(packaged=True)
+        dist = self.root / 'dist'
+        for name, content, reason in (
+            ('go-THIRD-PARTY-NOTICES.json', json.dumps({'noticeSHA256': '0' * 64}).encode(), 'Go redistribution notice pair differs'),
+            ('go-dependency-licenses.json', b'[{"module":"public-a","module":"public-b"}]', 'Duplicate manifest member'),
+        ):
+            path = dist / name
+            original = path.read_bytes()
+            expected = manifest['inventorySHA256'][name]
+            path.write_bytes(content)
+            manifest['inventorySHA256'][name] = digest(path)
+            for folder in (source, dist):
+                (folder / 'go-build-manifest.json').write_text(json.dumps(manifest))
+            with self.subTest(file=name), self.assertRaisesRegex(RuntimeError, reason):
+                self.verify_go()
+            path.write_bytes(original)
+            manifest['inventorySHA256'][name] = expected
+
+    def test_go_only_distributed_inventory_links_are_refused(self):
+        self.go_project(packaged=True)
+        path = self.root / 'dist/go-THIRD-PARTY-NOTICES.txt'
+        original = path.read_bytes()
+        outside = self.root / 'PUBLIC-license-target.txt'
+        outside.write_bytes(original)
+        path.unlink()
+        path.symlink_to(outside)
+        with self.assertRaisesRegex(RuntimeError, 'Distributed Go inventory hash differs'):
+            self.verify_go()
+        path.unlink()
+        os.link(outside, path)
+        with self.assertRaisesRegex(RuntimeError, 'Distributed Go inventory hash differs'):
+            self.verify_go()
+        self.assertEqual(outside.read_bytes(), original)
+
     def test_go_only_rejects_runtime_version_prefix_despite_consistent_hashes(self):
         self.go_project(binaries='0.1.10')
         with self.assertRaisesRegex(RuntimeError, 'Go runtime version differs'):
@@ -571,8 +659,16 @@ class BuildTools(unittest.TestCase):
         gate = next(line.split('run: ', 1)[1] for line in text[:publish].splitlines() if 'run: make test ' in line)
         self.assertTrue(set(('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'coverage', 'check-deps')).issubset(shlex.split(gate)))
         self.assertLess(text.index('scripts/verify-version.py'), publish)
+        self.assertIn('scripts/verify-version.py\n', text[:publish])
         self.assertIn('scripts/verify-version.py --go-only', text[:publish])
-        self.assertTrue('make package-go' in text[:publish] or 'scripts/go-build-test.py' in text[:publish])
+        self.assertIn('make package-desktop package-go', text[:publish])
+        self.assertLess(text.index('scripts/release_assets.py verify'), publish)
+        self.assertLess(text.index('actions/attest-build-provenance@'), publish)
+        self.assertIn('subject-path: dist/RELEASE-SHA256SUMS', text[:publish])
+        self.assertIn('id-token: write', text[:publish])
+        self.assertIn('attestations: write', text[:publish])
+        self.assertIn('dist/localwallet-$RELEASE_VERSION-linux-amd64.tar.gz', text[publish:])
+        self.assertIn('dist/RELEASE-SHA256SUMS dist/release-provenance.sigstore.json', text[publish:])
         self.assertIn('dist/wallet-core dist/wallet-signer dist/wallet-launcher', text[publish:])
         for inventory in ('go-sbom.cdx.json', 'go-dependency-licenses.json', 'go-source-manifest.json'):
             self.assertIn('dist/' + inventory, text[publish:])

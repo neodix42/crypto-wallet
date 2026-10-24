@@ -55,7 +55,37 @@ Artifacts:
 | `dist/localwallet-<version>-linux-amd64.tar.gz` | Optional complete desktop archive |
 | `wallet-runtime/`, `./wallet` | Locally installed complete desktop |
 
-All generated outputs/cache directories stay out of Git. The source manifest hashes the actual working tree; a base commit alone does not identify modified source. Go paths/build IDs are stripped; bit-for-bit archive reproducibility is not yet established. SHA256 manifests do not authenticate a publisher against an attacker who can replace every local file.
+All generated outputs/cache directories stay out of Git. The source manifest hashes the actual working tree; a base commit alone does not identify modified source. Go paths/build IDs are stripped; bit-for-bit archive reproducibility is not yet established. Bare SHA256 manifests do not authenticate a publisher against an attacker who can replace every local file. Locally built artifacts remain unsigned. The release workflow additionally authenticates the complete checksum manifest as described below.
+
+## Authenticate a downloaded release before running it
+
+The release workflow now builds the complete portable Electron/Go wallet **and** separate Go components with the same auto-incremented `vX.Y.Z` tag, runtime versions and manifests. It publishes a development prerelease, retaining the production acceptance gates. `RELEASE-SHA256SUMS` names every required desktop/component archive, raw Go executable, build/dependency/source inventory, third-party notice text/provenance, release metadata, notes and evidence archive. An omitted complete desktop or any missing, duplicate, unsafe or changed payload fails verification.
+
+GitHub OIDC/Sigstore provenance cryptographically authenticates this manifest to the exact publishing repository, `.github/workflows/release.yml`, protected default branch, immutable numeric repository ID and source commit. The workflow has job-scoped `id-token: write`, `attestations: write` and `contents: write` permissions; no long-lived publisher private key, personal token or wallet key is used. Attestation or self-verification failure stops publication. Local `make install` neither signs nor needs these permissions. Repository policy/visibility/plan must support artifact attestations; a failed service or unavailable identity is a blocker, never an unsigned publishing fallback. See GitHub's [artifact attestation documentation](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations) and [verification policy options](https://cli.github.com/manual/gh_attestation_verify).
+
+Use GitHub CLI **2.103.2 or later** from a separately trusted installation. The repository's optional developer helper `python3 scripts/bootstrap-gh.py` downloads the pinned official Linux amd64 CLI into ignored `.tools/`; neither downloaded wallets nor running wallets need it. Choose the expected publisher repository, version, protected source branch, immutable numeric repository ID and full source commit from an independently trusted project/release reference. Do not infer the trusted publisher from the downloaded `release.json`, bundle or a link supplied by an unknown mirror.
+
+Download every release payload plus `RELEASE-SHA256SUMS` and `release-provenance.sigstore.json` into one directory. From a separately trusted source checkout, verify them before extracting or executing anything:
+
+```sh
+# Replace these example values with independently checked project identity.
+release_repo='OWNER/REPOSITORY'
+release_repo_id='INDEPENDENTLY_CHECKED_NUMERIC_REPOSITORY_ID'
+release_version='0.1.1'
+release_ref='refs/heads/main' # refs/heads/master when that is the default branch
+release_commit='FULL_40_CHARACTER_LOWERCASE_COMMIT_SHA'
+python3 scripts/release_assets.py verify --directory /path/to/downloads \
+  --repo "$release_repo" --repo-id "$release_repo_id" --version "$release_version" \
+  --ref "$release_ref" --commit "$release_commit"
+```
+
+Check the permanent repository ID on a trusted connected machine with `gh api repos/OWNER/REPOSITORY --jq .id`; pin that ID separately from the downloaded files to reject ownership/name reuse. The command authenticates the manifest with `gh attestation verify`, exact certificate identity `https://github.com/OWNER/REPOSITORY/.github/workflows/release.yml@refs/heads/main`, GitHub's OIDC issuer, exact source ref/commit and certificate repository ID, SLSA v1 predicate and GitHub-hosted runner policy. It then validates the complete fixed inventory, all hashes and exact release identity/version. A missing CLI, old CLI, missing/invalid bundle, wrong publisher, branch, commit or version fails. It never executes or extracts a downloaded artifact. `prepare` and `check` subcommands only generate/check integrity; their success explicitly does **not** authenticate a publisher.
+
+For an offline machine, obtain a Sigstore trusted-root file using `gh attestation trusted-root` on a separately trusted connected machine, transfer it along with the bundle, and add `--trusted-root /trusted/path/trusted_root.jsonl`. The root file must come from that independent trust step; never accept a replacement trust root from an untrusted release mirror. GitHub documents [offline verification](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/verify-attestations-offline). Once verification passes, extract `localwallet-<version>-linux-amd64.tar.gz`, keep its files together and start `LocalWallet-linux-x64/wallet-launcher` as an ordinary user. `localwallet-go-...` contains only backend components.
+
+This proves workflow provenance and downloaded-byte integrity, not source correctness, independent review, production readiness, OS code signing or rollback protection. The trusted repository/workflow, GitHub-hosted build environment, GitHub OIDC and Sigstore trust roots remain part of the supply-chain trust model. An older authentic release can still verify if the consumer explicitly requests its version/commit; there is no automatic updater.
+
+`make test-release-auth` runs the strict inventory/policy tests and real offline cryptographic verification using frozen public upstream fixtures. Provision its pinned CLI first if it is absent. Tests reject missing/changed assets, identity mismatch, signature tampering and an independently generated ephemeral wrong verification key. Fixture keys never sign a LocalWallet release. These local tests passed; actual GitHub OIDC issuance, complete remote workflow execution and publication remain **NOT_RUN** until an authorized release run. The workflow pins all actions to exact commits and verifies its freshly issued bundle before `gh release create`.
 
 ## Tests
 
@@ -71,6 +101,10 @@ It creates disposable independent application profiles, records a generated phra
 
 `make test-packaged` rebuilds/installs and operates the real portable desktop on a private display, including Electron phrase recording with Go word verification, phrase restoration, receive QR/copy and public navigation. It does not create or verify encrypted backup files. Dependencies for those GUI tests are Xvfb/XTest, Pillow and Tesseract. Passing local drills does not establish real supported-OS/Wayland acceptance, OS lock/suspend or independent review.
 
+`make test-packaged-send` additionally operates the actual Electron Send form, Go-authored approval and masked password reauthentication against a real private geth 1.17.9 chain. It verifies an independently queried successful receipt, exact 18-decimal recipient delta, source debit including the actual execution fee and delayed nonce state proving one payment. The only funds are public fixture allocations in fresh genesis. Geth and the app run as an ordinary UID inside a fresh network namespace containing only loopback, so no public testnet/mainnet endpoint is reachable. It preserves the production sandbox and uses no debug endpoint, fixture hook or mocked transaction/RPC implementation. Its test-only Engine API drives real EVM blocks; this does not certify beacon/public-chain consensus or the installed OS matrix.
+
+The Send drill needs `python3-tk`, `iproute2`, `util-linux` (unprivileged user/network namespaces), Xvfb/XTest, Pillow and Tesseract. The tiny public Tk text field checks the test driver's punctuation entry before app credentials; it is separate test tooling, never wallet UI. It extracts the static geth binary only from the already cached, pinned official image provisioned by `scripts/provision-tests.py`; it never pulls an image or falls back to a public network. Its exact binary hash is frozen in `tests/e2e/local_geth.py`. Missing namespace/image/display prerequisites remain BLOCKED. Reports are `reports/packaged-send.json` and its caller's log; no credential/phrase screenshots or OCR files are written. The actual local Send drill passed against the final recorded ASAR/Go identities; supported-OS sends and public-network acceptance remain separate gates.
+
 Protocol tests need explicit developer provisioning, not runtime user installation:
 
 ```sh
@@ -83,3 +117,5 @@ The setup pins actual NEAR/Aptos node binaries, dcrd's Go module identity, TON T
 The exact version comes from VERSION or the validated WALLET_VERSION override. All Go executables support `--version` without opening a profile/window. `scripts/verify-version.py --go-only` checks Go manifests/runtime versions and any generated component archive; its default mode checks the complete optional desktop archive as well. Controlled tiny ELF/tar fixtures test numeric version bounds, hash failures and atomic installation without creating a Debian package or a remote release.
 
 Production release remains blocked by the actual evidence in [STATUS.md](STATUS.md), including external testnet, installed OS/display, long-running and independent review obligations. A cleaner first-run screen or a development prerelease does not satisfy those gates.
+
+`make test-release-evidence` tests rejection of stale or incomplete reports. `make verify-release` now binds packaged recovery to the current version, all three Go binary hashes and ASAR; artifact inspection additionally binds the Electron runtime and compares all 12 production files against current compiled/UI bytes. Frontend measurement hashes the full source/UI/test/package-pin set before and after execution, retains compiled-JS and raw-summary hashes, and rejects added/deleted files or concurrent edits. Go coverage requires its complete current source/module snapshot and both frozen raw profiles, reconstructs their exact coverage union and recalculates per-package floors. Authentication/verifier regression reports are also bound to the scripts/workflow they tested. An old PASS is never relabeled for a rebuilt candidate: rerun the affected suite. All original Decred, public-testnet, installed-OS, full-soak and independent-review requirements remain mandatory.

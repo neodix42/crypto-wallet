@@ -94,16 +94,16 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
-      "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
-      "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
+      "wallet-core": "d0a9cab95799361ed288a457e5bc5243e224ffc814546ae496bb2dee9ddd3e71",
+      "wallet-launcher": "39bf5716b5527b0af4df2a86083b24ae6641f74b65dad6754e41b93d016588d5",
+      "wallet-signer": "5f9d835ff32180c58dd332e1e9e9fd708f46a0e577c2204b7375ab5d19497f59"
     },
-    "asarSHA256": "5cc7a106d01b16ed6ff4898a54570c7404b9f553557c8f0bd3ed4d5a80a5833f"
+    "asarSHA256": "3b3c86affdc042288f7b878c8dccb65b1a779bf67e060d9163b0491a9f2bfa10"
   },
   "nativeBalanceObservation": {
     "status": "PASS",
     "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - 0x44d1a78994c9e2bad6d9694706b65a9578e689a a8ac07deaf5fe6\u00e99e7a030e949"
+    "publicText": "0 ETH - provider-observed - 0x774cd0e82 1 6fe4c2776c303fb0bS7fde2eba07a51 3aec4c8b6397584c767196c"
   },
   "liveLogChecks": [
     {

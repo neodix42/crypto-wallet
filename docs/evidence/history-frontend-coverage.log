@@ -1,0 +1,258 @@
+
+> localwallet-desktop@0.1.0 build
+> tsc --project tsconfig.json
+
+✔ TP033 prompt schemas accept only the expected bounded fields and never interpret hostile text as authority (3.210517ms)
+✔ TP042 prompt replies bind acceptance to one ID and exactly the current prompt kind (1.440178ms)
+✔ TP033 prompt preload exposes only three scoped operations and sanitizes all transport errors (1.988311ms)
+✔ TP033 dedicated prompt is local-only, has no wallet API, storage, reveal or secret export actions (199.659447ms)
+✔ TP033 masked inputs preserve exact text and are cleared before the scoped response crosses the bridge (36.188465ms)
+✔ TP033 empty input remains a Go policy decision and all eight permitted fields stay masked (26.333962ms)
+✔ TP033 cancelling or abandoning any input clears retained nodes and never returns their values (151.309794ms)
+✔ TP033 phrase acknowledgement has no phrase values and clears all displayed words before replying (109.772251ms)
+✔ TP033 recording phase blocks copy, cut, drag, context menu, print and save shortcuts without affecting other prompts (45.563496ms)
+✔ TP042 transaction confirmation displays only inert backend details and never signs automatically (39.605833ms)
+✔ TP041 notice has one Close action and a fixed sanitized unavailable state on failed dispatch (17.996916ms)
+✔ TP061 receive uses only the backend address and QR with a scoped argument-free copy action (19.890927ms)
+✔ TP061 receive copy errors are sanitized, duplicate work is disabled, and late completion cannot repopulate a closed prompt (74.571882ms)
+✔ TP043 prompt focus stays in the current modal and visible-state events do not cancel (26.512203ms)
+✔ TP043 a hidden or closed window cannot render a delayed phrase response (20.079429ms)
+✔ TP041 malformed prompt data fails closed without reflecting supplied data or sending a response (722.725583ms)
+✔ TP041 submitting twice while a response is outstanding never sends duplicate approval or secrets (23.244505ms)
+✔ TP041 an empty backend summary remains a usable title-only notice, confirmation or receive prompt (61.139188ms)
+✔ TP041 main startup binds inherited handles, sandbox, packaged identity and local assets (37.356122ms)
+✔ TP041 startup errors quit without providing a signing or secret fallback (10.873959ms)
+✔ TP041 main denies remote resources, navigation, webviews, popups, permissions and downloads (3.044246ms)
+✔ TP041 real Node stream framing handles partial headers, fragments, multiplexing and sanitized errors (5.101908ms)
+✔ TP041 response identity, method, strict schema, replay, truncation and bounds fail closed (29.525819ms)
+✔ TP041 hostile IPC senders and origins cannot reach the core; valid calls retain strict public schemas (3.301028ms)
+✔ TP043 input activity throttles and OS/renderer lifecycle events request lock; stop cancels pending work (3.205388ms)
+✔ TP060 timeout keeps original request ambiguous and locks after send; stream errors terminate the session (15.476353ms)
+✔ TP041 every public request schema exercises exact fields, own members and numeric bounds (2.836465ms)
+✔ TP012 response codec rejects malformed, duplicate, ambiguous and excessive frames before use (1.078255ms)
+✔ TP033 preload exposes a frozen public allowlist and accepts activity only from trusted pointer events (2.426983ms)
+✔ TP033 renderer public flows remain inert text, use exact decimal strings and never acquire secrets (306.574441ms)
+✔ TP042 renderer editing, account selection, QR scan and lock invalidate prepared payments (69.386273ms)
+✔ TP060 renderer offers reconciliation only for unresolved original identities and renders hostile metadata as text (70.45184ms)
+✔ TP060 renderer cancellation, RPC failure and empty-state actions never create an automatic payment (37.831753ms)
+✔ TP043 main polls only idle status, never sends polling activity, and clears the renderer immediately on every lock (3.139136ms)
+✔ TP043 status-poll failure ends the session and clears cached public data (1.352217ms)
+✔ TP041 account hiding and manual recovery ranges have exact bounded public schemas (0.612714ms)
+✔ TP043 automatic lock removes cached accounts, QR data, diagnostics, history and the pending plan (43.054032ms)
+✔ TP043 delayed public replies after a lock cannot repopulate the renderer or authorize a stale send (450.579895ms)
+✔ TP042 editing or switching account while preparation is pending discards its eventual preview (149.873304ms)
+✔ TP032 hiding preserves account indices; hidden accounts can be restored and a written phrase can recover a manual range (74.442259ms)
+✔ TP043 locked snapshots clear the screen and empty selections contain no inferred account identifiers (43.044661ms)
+✔ TP042 only durable unsigned PREPARED operations offer explicit cancellation of their original ID (45.391554ms)
+✔ TP043 disposed renderer notification failures cannot interrupt OS locking or core teardown (3.008406ms)
+✔ TP041 visible app version is read-only local metadata with exact sender, frame and origin checks (180.252737ms)
+✔ TP043 native prompt activity renews only its correlated six-minute deadline and never resolves or creates a request (22.790162ms)
+✔ TP043 malformed, non-native, stale and excessive native activity fail closed without exposing input values (18.035387ms)
+✔ TP031 first launch explicitly creates one shared-root wallet through a dedicated dialog and lists every returned network under Main account (100.703801ms)
+✔ TP031 profile is explicit before onboarding and follows trusted snapshot metadata without rendering arbitrary environment text (45.470794ms)
+✔ TP031 existing locked vault offers unlock rather than new-wallet creation and reveals no cached account cards (41.339012ms)
+✔ TP031 unavailable or inconsistent storage never authorizes onboarding creation or restoration; retry requires confirmed absence (234.685239ms)
+✔ TP031 initial status failure is unavailable and password-dialog cancellation preserves setup (38.310985ms)
+✔ TP041 operation failures resolve the IPC handler with only allowlisted value-free codes (4.837136ms)
+✔ TP041 preload strictly unwraps operation results and drops raw handler, protocol and error details (2.028421ms)
+✔ TP031 setup and recovery confirmation failures show focused persistent safe guidance with no secrets or automatic retries (53.338505ms)
+✔ TP031 mainnet account tabs list all nine production networks and card copy confirms only the captured public account ID (467.909141ms)
+✔ TP052 opening wallet tabs isolates real balance responses, selected assets, gas currency, forms and the journal (114.020869ms)
+✔ TP043 late wallet queries, native receive, prepared plans and errors cannot overwrite another tab (280.993361ms)
+✔ TP052 absent, malformed and failed balance data stay unknown or unavailable and never become zero (104.732168ms)
+✔ TP032 recovery confirmation gating survives tab navigation during native phrase setup and cannot be revived after locking (52.246468ms)
+✔ TP061 Decred copy and QR saving refresh the committed receive descriptor without changing wallet or losing form data (85.330714ms)
+✔ TP060 journal entries without a current wallet or exact account descriptor provide no controls (32.768644ms)
+✔ TP051 Decred discovery controls load each selected wallet descriptor and clear on lock (127.202807ms)
+✔ TP033 overview uses one semantic table and row activation opens only its wallet while copy stays on overview (72.403166ms)
+✔ TP033 Settings contains every wallet menu action, traps focus, closes by Escape or backdrop and clears on lock (83.636375ms)
+✔ TP042 Send is shown by explicit action and closing clears intent without cancelling its journal reservation (49.494123ms)
+✔ TP043 middle click closes only wallet tabs, keeps inactive intent and falls back to its account overview on active close (71.027138ms)
+✔ TP043 closing an active wallet invalidates late balances, history, preparations and scan without sending or cancelling (250.171812ms)
+✔ TP061 dedicated Receive is the sole QR window and its committed descriptor survives tab closing but never a lock (70.569786ms)
+✔ TP043 closing an inactive tab preserves pending work for the active wallet without activation or cancellation (178.347426ms)
+✔ TP032 unlocked Send and Receive open their workflows before phrase confirmation without bypassing preparation or native receive gates (51.414083ms)
+✔ TP032 Receive resumes only the captured wallet after phrase confirmation and cancellation, incomplete confirmation, lock or navigation never opens QR (479.306002ms)
+✔ TP032 Send phrase confirmation preserves exact token, recipient, amount and memo without preparing or sending automatically (62.23394ms)
+✔ TP060 Settings owns a scoped journal independent of the open Send draft and rejects stale journal replies (68.087671ms)
+✔ TP052 overview queries native balances once, serially and exactly for every supported mainnet domain (142.358435ms)
+✔ TP052 explicit balance refresh supersedes late replies, bounds pending work and never treats invalid observations as zero (205.062095ms)
+✔ TP043 overview balance replies are bound to descriptor, network settings and lock session even when wallet tabs close (60.51534ms)
+✔ TP043 closed-wallet balance failures and same-origin RPC reconfiguration refresh the correct overview observation (46.500526ms)
+✔ TP060 changing journal asset clears prior reconciliation and rejects delayed results without changing Send intent (48.493966ms)
+✔ TP043 overview balance scheduling pauses for native address actions until success, cancellation, failure or lock settles (239.759386ms)
+✔ TP043 native prompts continue pausing overview queries after closing their wallet tab (449.280044ms)
+✔ TP043 committed association and discovery metadata update closed-wallet rows before balance scheduling resumes (154.507763ms)
+✔ TP033 TP041 recovery phrase setup has no encrypted-file workflow or public secret fields (56.505798ms)
+✔ TP032 confirmed recovery enables wallet actions in every profile and metadata updates never revoke confirmation (99.404524ms)
+✔ TP032 pending phrase confirmation remains required on testnet and old backup metadata cannot enable it (318.803858ms)
+✔ TP033 isolated Electron prompt receives secrets once, returns bound input and clears its entire session (5.65295ms)
+✔ TP041 prompt assets and permissions are scoped to a distinct ephemeral origin (4.689835ms)
+✔ TP033 renderer reply cannot change prompt IDs, inject extra inputs, bypass delivery or authorize another kind (14.932909ms)
+✔ TP043 prompt navigation, crash, OS lock, close, timeout and core EOF release secrets and cancel approvals (14.228945ms)
+✔ TP043 prompt activity comes from its current trusted frame, renews operation deadline and throttles without bypassing lock (2.769684ms)
+✔ TP061 receive clipboard uses only signer-bound address and file prompts use Electron chooser results (9.345759ms)
+✔ TP041 malformed, replayed, unsolicited and concurrent prompts stop instead of opening fallback surfaces (15.30878ms)
+✔ TP061 copy and save first show the same validated receive screen before the subsequent clipboard or file prompt (4.301513ms)
+✔ TP033 ordinary portfolio delegates private entry to isolated dialogs without exposing their API or fields (40.592124ms)
+✔ TP043 a locked status response from another request clears a live prompt immediately (2.441813ms)
+✔ TP060 history schema accepts only optional opaque continuation capabilities (0.373772ms)
+✔ TP060 history appends bounded inert pages and stops at the disclosed scope (30.662642ms)
+✔ TP043 history continuations clear on account, asset, refresh and lock; stale pages cannot append (48.467585ms)
+✔ TP060 failed and oversized history pages invalidate continuation without fabricating balances (154.186531ms)
+✔ TP032 account pages install one complete generation before exposing a portfolio (28.085187ms)
+✔ TP043 account paging rejects changed, duplicated, truncated and excessive generations without a partial portfolio (489.573996ms)
+✔ TP043 lock during account paging revokes late complete metadata (30.804361ms)
+✔ TP060 journal pages append only exact local identities and clear on context or generation errors (34.32538ms)
+✔ TP041 account and local journal page request schemas preserve optional-field bounds (0.896815ms)
+✔ TP043 repeated same-context refreshes discard older replies and errors independently per history view (49.60472ms)
+✔ TP060 querying chain history leaves an in-flight local journal continuation usable (27.404224ms)
+✔ TP041 privileged methods have strict public schemas (2.253612ms)
+✔ TP033 TP041 production surface no secret inputs or remote assets (0.433332ms)
+ℹ tests 107
+ℹ suites 0
+ℹ pass 107
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8564.663887
+--------------------|---------|----------|---------|---------|--------------------------------------
+File                | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                    
+--------------------|---------|----------|---------|---------|--------------------------------------
+All files           |     100 |    98.68 |     100 |     100 |                                      
+ app                |     100 |    99.16 |     100 |     100 |                                      
+  codec.js          |     100 |      100 |     100 |     100 |                                      
+  main.js           |     100 |    98.41 |     100 |     100 | 161,199,229,247                      
+  preload.js        |     100 |      100 |     100 |     100 |                                      
+  prompt-preload.js |     100 |      100 |     100 |     100 |                                      
+  prompts.js        |     100 |      100 |     100 |     100 |                                      
+  validation.js     |     100 |      100 |     100 |     100 |                                      
+ ui                 |     100 |    98.41 |     100 |     100 |                                      
+  prompt.js         |     100 |      100 |     100 |     100 |                                      
+  renderer.js       |     100 |    98.18 |     100 |     100 | ...9,536,554-555,580,603-604,606,617 
+--------------------|---------|----------|---------|---------|--------------------------------------
+{
+  "status": "PASS",
+  "sourceStable": true,
+  "measurement": "Istanbul statement/branch coverage from c8/V8; every shipped JS file included, absent files fail",
+  "files": [
+    {
+      "file": "app/codec.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/main.js",
+      "statements": 100,
+      "branches": 98.41,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/preload.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/prompt-preload.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/prompts.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/validation.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "ui/prompt.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "ui/renderer.js",
+      "statements": 100,
+      "branches": 98.18,
+      "floors": {
+        "statements": 90,
+        "branches": 85
+      },
+      "status": "PASS"
+    }
+  ],
+  "sourceSHA256": {
+    "desktop/package-lock.json": "d39ad314765ac8af099d034d426733d66b3895ca1783f17128de3ff7d4db3040",
+    "desktop/package.json": "12e65389a8bc4dbfdc901106de0c5c4011376cd47d090b0a6a0a95aad0dee1d8",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "007484f6a4780cd3d2592d2e84985fcaf28f10b39206b5ed9520783f8422f79e",
+    "desktop/src/preload.ts": "205f4f31a52f7cf5d59380d0995c023cb225ba0c66a1db66d5eb3be45d431886",
+    "desktop/src/prompt-preload.ts": "2acc5b222e6c0382c4dd4bdf0a2180968582a08af4daa63a59e38a348b4f145c",
+    "desktop/src/prompts.ts": "5178a6a216943169b43d93f4836db8f02d3fc7b6a0d89c0f8fbb9189b59e3f25",
+    "desktop/src/validation.ts": "fc0612b97622596207767b508e573862e44b4c5b9698e7e0462d0f0c072b1388",
+    "desktop/tests/fixtures/networks-mainnet.json": "a2fd15b940786b5f46b89018483d0f39db58f74cad8d1780128b035b7be5ee62",
+    "desktop/tests/fixtures/networks-testnet.json": "c4e5c4f82e4973d5f9910beb3bf044b4595c4474f55510b0d12cd106bb82b4dc",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/prompt-security.test.cjs": "bdac998278ad105c341aa676654da72e1ad41cec36f32d0b4292cc2e6345c60c",
+    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726",
+    "desktop/tests/runtime.test.cjs": "678cffac6cacdba67447b8ac57cc4644a6f7122fc510956ad5e29c0330493250",
+    "desktop/tests/security.test.cjs": "fd15e38224393cbafdf003f605e9fffe954475b765869f69163292bc7c3ed5ca",
+    "desktop/tsconfig.json": "85a9e919aef78351388430a8946cce0a654d1f6888914b25c1c6949d26b7f53b",
+    "desktop/ui/index.html": "c53de97084a05c9332eecfb83a920ab27abc772e59713d9d8f80b057ce07d6b8",
+    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/renderer.js": "f6123dfc7f2e31044739c16bfb556e892d29cdafda2c01f265a74c61c5cc116d",
+    "desktop/ui/style.css": "96455ae4ee91c7ab8d7eb69e7356bc16d75d08078713f1c922cae35cd88e8c09",
+    "scripts/evidence_binding.py": "0cbd9e9f60c3eb7ee9dd6b3ebbe619dccee40b713d7ff9b1aa5538497c646428",
+    "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a"
+  },
+  "runtimeSHA256": {
+    "desktop/app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
+    "desktop/app/main.js": "a3ab8f03a639d020debb5dd4271495f134a1f80dd9d8d22f5c988ac809bc116d",
+    "desktop/app/preload.js": "3089cd146c29d77ef24ca6bc4389a143a1904e43a54dedc9eafc51c7807b6d61",
+    "desktop/app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
+    "desktop/app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
+    "desktop/app/validation.js": "a087c99208833611d6320bde5d83bd78a16e61845c5c2da5b48142e2947e8508",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/renderer.js": "f6123dfc7f2e31044739c16bfb556e892d29cdafda2c01f265a74c61c5cc116d"
+  },
+  "coverageSummarySHA256": "9eae8cb7992d9e0f0391fed1d11dc144c483aa813cd9b4bf5fbc73a4111b8f1a"
+}

@@ -2,6 +2,10 @@ package hypercore
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"localwallet/internal/chains/evm"
@@ -10,89 +14,178 @@ import (
 	"time"
 )
 
+const historyWindow = uint64(30 * 24 * time.Hour / time.Millisecond)
+const historyPageSize = 128
+const historyPageBudget = 128
+
 func (*Adapter) HistoryScope() string {
-	return "Provider-observed spot HYPE transfers in the latest 30 days, at most 500 ledger events. This bounded window does not establish complete historical recovery or prove the outcome of an unresolved signed action."
+	return "Provider-observed spot HYPE transfers in a fixed window covering the latest 30 days, with bounded inclusive timestamp pagination. Completion describes that provider window only; it does not establish complete historical recovery or the outcome of an unresolved signed action. A saturated single timestamp cannot be skipped safely."
 }
 
-// History is public ledger observation. Reconcile separately binds the exact
-// signed action/nonce, explorer inclusion, and both ledger effects for payments.
-func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receipt, error) {
+type historyCursor struct {
+	Version int    `json:"v"`
+	Account string `json:"account"`
+	End     uint64 `json:"end"`
+	Next    uint64 `json:"next"`
+	Offset  int    `json:"offset"`
+	Page    uint32 `json:"page"`
+	Hash    string `json:"hash"`
+}
+
+func historyStart(end uint64) uint64 {
+	if end > historyWindow {
+		return end - historyWindow
+	}
+	return 0
+}
+func accountCommitment(ac model.Account) string {
+	raw, _ := json.Marshal(ac)
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+func encodeHistoryCursor(c historyCursor) string {
+	raw, _ := json.Marshal(c)
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+func decodeHistoryCursor(raw string, ac model.Account, at uint64) (historyCursor, error) {
+	var c historyCursor
+	if len(raw) == 0 || len(raw) > 1024 {
+		return c, errors.New("invalid Core history cursor")
+	}
+	b, e := base64.RawURLEncoding.DecodeString(raw)
+	if e != nil || evm.StrictJSON(b, &c) != nil || encodeHistoryCursor(c) != raw || c.Version != 1 || c.Account != accountCommitment(ac) || c.End == 0 || c.End > at+30_000 || c.Next < historyStart(c.End) || c.Next > c.End || c.Offset < 0 || c.Offset >= ledgerResponseLimit || c.Page >= historyPageBudget {
+		return historyCursor{}, errors.New("invalid or exhausted Core history cursor")
+	}
+	if c.Offset == 0 && c.Hash != "" || c.Offset > 0 && !validHash("0x"+c.Hash) {
+		return historyCursor{}, errors.New("invalid Core history page commitment")
+	}
+	return c, nil
+}
+
+// HistoryPage returns no more than 128 public receipts. Continuations pin both
+// the account descriptor and original time window. Splitting a fetched API page
+// additionally commits its contents, refusing inconsistent provider rereads.
+func (a *Adapter) HistoryPage(ctx context.Context, ac model.Account, cursor string) (model.HistoryPage, error) {
 	n, e := a.validateAccount(ac)
 	if e != nil {
-		return nil, e
+		return model.HistoryPage{}, e
 	}
 	_, at, e := a.identity(ctx, n)
 	if e != nil {
-		return nil, e
+		return model.HistoryPage{}, e
 	}
-	const window = uint64(30 * 24 * time.Hour / time.Millisecond)
-	start := uint64(0)
-	if at > window {
-		start = at - window
+	c := historyCursor{Version: 1, Account: accountCommitment(ac), End: at, Next: historyStart(at)}
+	if cursor != "" {
+		c, e = decodeHistoryCursor(cursor, ac, at)
+		if e != nil {
+			return model.HistoryPage{}, e
+		}
 	}
-	var updates []ledger
-	if e = a.request(ctx, n, "/info", map[string]any{"type": "userNonFundingLedgerUpdates", "user": ac.Address, "startTime": start, "endTime": at}, &updates); e != nil {
-		return nil, e
+	page, e := a.ledgerPage(ctx, n, ac.Address, c.Next, c.End)
+	if e != nil {
+		return model.HistoryPage{}, e
 	}
-	if updates == nil {
-		return nil, errors.New("Core history response missing")
+	if c.Offset > len(page.Events) || c.Offset > 0 && c.Hash != page.Hash {
+		return model.HistoryPage{}, errors.New("Core history provider changed a committed page; restart this scan")
 	}
-	if len(updates) > 500 {
-		return nil, errors.New("Core history response limit")
+	end := c.Offset + historyPageSize
+	if end > len(page.Events) {
+		end = len(page.Events)
 	}
-	out := []model.Receipt{}
+	out := model.HistoryPage{Entries: []model.Receipt{}, Scope: a.HistoryScope()}
 	seen := map[string]bool{}
-	for _, u := range updates {
-		d := u.Delta
-		if d.Type != "spotTransfer" {
+	// Check every candidate in this fetched page before emitting any slice. The
+	// provider cannot hide an ambiguous duplicate behind a later UI continuation.
+	for i, u := range page.Events {
+		r, include, e := historyReceipt(n, ac, u, historyStart(c.End), c.End)
+		if e != nil {
+			return model.HistoryPage{}, e
+		}
+		if !include {
 			continue
 		}
-		if d.Token != "HYPE" && d.Token != n.Assets[0].Contract {
-			continue
+		if seen[r.Identity] {
+			return model.HistoryPage{}, errors.New("duplicate Core history identity")
 		}
-		if !validHash(u.Hash) || u.Time < start || u.Time > at {
-			return nil, errors.New("invalid Core history identity or time")
+		seen[r.Identity] = true
+		if i >= c.Offset && i < end {
+			out.Entries = append(out.Entries, r)
 		}
-		if !strings.EqualFold(d.User, ac.Address) && !strings.EqualFold(d.Destination, ac.Address) {
-			return nil, errors.New("Core history does not involve account")
-		}
-		if e = evm.New().ValidateAddress("ethereum-mainnet", d.User); e != nil {
-			return nil, e
-		}
-		if e = evm.New().ValidateAddress("ethereum-mainnet", d.Destination); e != nil {
-			return nil, e
-		}
-		value, e := decimalJSON(d.Amount)
-		if e != nil {
-			return nil, e
-		}
-		fee, e := decimalJSON(d.Fee)
-		if e != nil {
-			return nil, e
-		}
-		nativeFee := "not provided"
-		if len(d.NativeTokenFee) > 0 {
-			v, e := decimalJSON(d.NativeTokenFee)
-			if e != nil {
-				return nil, e
-			}
-			nativeFee = v.String()
-		}
-		direction := "received"
-		peer := d.User
-		if strings.EqualFold(d.User, ac.Address) {
-			direction = "sent"
-			peer = d.Destination
-		}
-		if seen[u.Hash] {
-			return nil, errors.New("duplicate Core history identity")
-		}
-		seen[u.Hash] = true
-		detail := fmt.Sprintf("provider-observed %s %s atomic %s; peer %s; provider fee %s (fee asset not established), native HYPE fee %s atomic; bounded times %d..%d", direction, value.String(), n.Assets[0].ID, peer, formatUnits(fee), nativeFee, start, at)
-		if len(updates) == 500 {
-			detail += "; event limit reached, older events may be omitted"
-		}
-		out = append(out, model.Receipt{Identity: u.Hash, State: "OBSERVED", Detail: detail})
 	}
+	if end < len(page.Events) {
+		c.Offset = end
+		c.Hash = page.Hash
+	} else if !page.Complete {
+		c.Next = page.Next
+		c.Offset = 0
+		c.Hash = ""
+	} else {
+		out.Complete = true
+		return out, nil
+	}
+	c.Page++
+	if c.Page >= historyPageBudget {
+		return model.HistoryPage{}, errors.New("Core history page budget exhausted; scan is incomplete")
+	}
+	out.NextCursor = encodeHistoryCursor(c)
 	return out, nil
 }
+
+func historyReceipt(n model.Network, ac model.Account, u ledger, start, end uint64) (model.Receipt, bool, error) {
+	d := u.Delta
+	if d.Type != "spotTransfer" || d.Token != "HYPE" && d.Token != n.Assets[0].Contract {
+		return model.Receipt{}, false, nil
+	}
+	if !strings.EqualFold(d.User, ac.Address) && !strings.EqualFold(d.Destination, ac.Address) {
+		return model.Receipt{}, false, errors.New("Core history does not involve account")
+	}
+	if e := evm.New().ValidateAddress("ethereum-mainnet", d.User); e != nil {
+		return model.Receipt{}, false, e
+	}
+	if e := evm.New().ValidateAddress("ethereum-mainnet", d.Destination); e != nil {
+		return model.Receipt{}, false, e
+	}
+	value, e := decimalJSON(d.Amount)
+	if e != nil {
+		return model.Receipt{}, false, e
+	}
+	fee, e := decimalJSON(d.Fee)
+	if e != nil {
+		return model.Receipt{}, false, e
+	}
+	nativeFee := "not provided"
+	if len(d.NativeTokenFee) > 0 {
+		v, e := decimalJSON(d.NativeTokenFee)
+		if e != nil {
+			return model.Receipt{}, false, e
+		}
+		nativeFee = v.String()
+	}
+	direction, peer := "received", d.User
+	if strings.EqualFold(d.User, ac.Address) {
+		direction, peer = "sent", d.Destination
+	}
+	detail := fmt.Sprintf("provider-observed %s %s atomic %s; peer %s; provider fee %s (fee asset not established), native HYPE fee %s atomic; bounded times %d..%d", direction, value.String(), n.Assets[0].ID, peer, formatUnits(fee), nativeFee, start, end)
+	return model.Receipt{Identity: u.Hash, State: "OBSERVED", Detail: detail}, true, nil
+}
+
+// History preserves the legacy bounded snapshot API for nonpaged callers. The
+// desktop uses HistoryPage; hitting this compatibility budget returns an error.
+func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receipt, error) {
+	out := []model.Receipt{}
+	cursor := ""
+	for i := 0; i < ledgerRequestBudget; i++ {
+		page, e := a.HistoryPage(ctx, ac, cursor)
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, page.Entries...)
+		if page.Complete {
+			return out, nil
+		}
+		cursor = page.NextCursor
+	}
+	return nil, errors.New("Core history snapshot budget exhausted; use paginated history")
+}
+
+var _ model.HistoryPager = (*Adapter)(nil)

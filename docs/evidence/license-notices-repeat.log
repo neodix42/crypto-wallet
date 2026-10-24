@@ -1,0 +1,3 @@
+PASS final Go-only candidate notice bytes unchanged across two runs; 39 components; 56 upstream texts; legal review NOT_RUN
+PASS final desktop candidate notice bytes unchanged across two runs; 40 components; 58 upstream texts; legal review NOT_RUN
+PASS final ASAR 3b3c86affdc042288f7b878c8dccb65b1a779bf67e060d9163b0491a9f2bfa10 and actual runtime notice copies unchanged

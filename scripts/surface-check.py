@@ -18,11 +18,19 @@ for name in ['cmd/wallet-signer/main.go', 'cmd/wallet-core/main.go']:
 # public state can describe recovery completion, never a recovery secret. A new
 # DTO field needs explicit review here as well as its actual dispatch tests.
 expected_snapshot = {'locked', 'walletExists', 'vaultState', 'environment', 'recoveryConfirmed', 'accounts', 'operations'}
-for name, typename in [('internal/signer/engine.go', 'Snapshot'), ('cmd/wallet-core/main.go', 'snapshot')]:
+page_metadata = {'accountsCursor','totalAccounts','totalOperations','revision'}
+for name, typename, expected in [
+    ('internal/signer/engine.go', 'Snapshot', expected_snapshot),
+    ('cmd/wallet-core/main.go', 'snapshot', expected_snapshot | page_metadata),
+    ('internal/signer/engine_public.go', 'SnapshotPage', page_metadata),
+    ('internal/signer/engine_public.go', 'JournalPage', {'operations','nextCursor','complete','revision','total'}),
+    ('cmd/wallet-core/public_pages.go', 'journalPage', {'operations','nextCursor','complete','revision','total'}),
+    ('internal/model/model.go', 'HistoryPage', {'entries','nextCursor','complete','scope'}),
+]:
     source = (root / name).read_text()
     dto = re.search(r'type ' + typename + r' struct\s*\{([^}]+)\}', source)
-    assert dto, (name, 'missing public snapshot')
-    assert set(re.findall(r'json:"([^",]+)', dto.group(1))) == expected_snapshot, (name, 'unreviewed public state fields')
+    assert dto, (name, 'missing public DTO')
+    assert set(re.findall(r'json:"([^",]+)', dto.group(1))) == expected, (name, 'unreviewed public state fields')
 
 desktop = (root / 'desktop/src/main.ts').read_text()
 assert '--no-sandbox' not in desktop
@@ -37,7 +45,12 @@ subprocess.run(['node', '-e', r'''
 const assert = require('node:assert/strict');
 const {validate, methods} = require('./desktop/app/validation.js');
 validate('confirmRecovery', {});
-for (const method of ['backup','restore','getMnemonic','revealPhrase','exportPhrase','exportPrivateKey','signBytes','promptReply','prompt']) {
+for (const method of ['accounts','history','chainHistory']) {
+  const base=method==='chainHistory'?{accountId:'public'}:{};
+  validate(method,{...base,cursor:'ab'.repeat(16)});
+  for(const cursor of ['https://untrusted.invalid','',null,'A'.repeat(32),'a'.repeat(33)])assert.throws(()=>validate(method,{...base,cursor}));
+}
+for (const method of ['account','accountPage','operation','journalPage','pending','backup','restore','getMnemonic','revealPhrase','exportPhrase','exportPrivateKey','signBytes','promptReply','prompt']) {
   assert.ok(!methods.includes(method), method);
   assert.throws(() => validate(method, {}), method);
 }

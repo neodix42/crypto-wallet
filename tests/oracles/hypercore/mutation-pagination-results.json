@@ -1,0 +1,23 @@
+[
+  {
+    "mutant": "CORE_SKIP_EQUAL_TIMESTAMP",
+    "test": "TestTP050CorePagedHistoryKeepsTimestampTiesAndWindow",
+    "status": "PASS",
+    "result": "KILLED",
+    "sourceSHA256": "682950892a05a01849bddd3b1a0e6c5f8e30958bd76ecfd621938ee2bcba8e78"
+  },
+  {
+    "mutant": "CORE_CHANGED_PROVIDER_PAGE",
+    "test": "TestTP041CoreHistoryCursorBindingAndProviderChanges",
+    "status": "PASS",
+    "result": "KILLED",
+    "sourceSHA256": "3740d848498dfd337e7f5dfcbed038883cc40086826beed9b430b32a25c0aa2c"
+  },
+  {
+    "mutant": "CORE_IGNORE_EXTRA_FEE_EFFECT",
+    "test": "TestTP060CoreReconcileTraversesBothLedgersAndRejectsExtraEffects",
+    "status": "PASS",
+    "result": "KILLED",
+    "sourceSHA256": "07953904ef1e6854afb304acb0e8a589fab8053c36475fc637878ee5a7b7eeaf"
+  }
+]

@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "07ca7217e64fb4fb18399e616c41908e27f4e876",
+  "sourceCommit": "91ae2e25c32e5ae1f394f903274ce87334f33d7f",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "d554665ef16091b1e65ed060606ccefb37ab65223a59a8e3113842244723c144",
+  "sha256": "2fedb613f03ed55a9065591842b307877d5851bb8716d5bd7f6f56e64a16e0d5",
   "binaryManifest": {
-    "wallet-core": "fa9803e3870f29ea86220ca584e901c7a7f54bdcd227180f248ade955c40e85b",
-    "wallet-launcher": "464c524303e538079fc364c5c7889b01ce8bba8feba5f18f330e8c7189fb3066",
-    "wallet-signer": "c3d70a068f2203667550a526a6d120687ff2290e00feede554767a8e8a9ebb90"
+    "wallet-core": "d0a9cab95799361ed288a457e5bc5243e224ffc814546ae496bb2dee9ddd3e71",
+    "wallet-launcher": "39bf5716b5527b0af4df2a86083b24ae6641f74b65dad6754e41b93d016588d5",
+    "wallet-signer": "5f9d835ff32180c58dd332e1e9e9fd708f46a0e577c2204b7375ab5d19497f59"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -16,25 +16,25 @@
       "report": "coverage",
       "status": "PASS",
       "file": "coverage.json",
-      "sha256": "e2cfe6be0a61e1acd334ee5577ab8a846528b57785c6b75b5abd369b95ef5402"
+      "sha256": "ee68d479d86d671a9f11ec4546d36ad922df767eb5a686e3b2eebe4432ceac66"
     },
     {
       "report": "go-coverage",
       "status": "PASS",
       "file": "go-coverage.json",
-      "sha256": "eeeba8efdcb539c410f19838641891dbe962d89f8eb90444ce8fb3bd7e43a46c"
+      "sha256": "d70137262700e9a1d3d8e6ce3beb4d0b54002642e6d5a81e32062840e0b328be"
     },
     {
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "aba434cd75408461c968fafaeb14db69c0523bcbea84cddad6fa7f7606b3aa41"
+      "sha256": "f25a226c918e07eedcf0cdef9ff99fb5ad9ee56d262f010240ed8428c72d4276"
     },
     {
       "report": "mutation",
       "status": "PASS",
       "file": "mutation.json",
-      "sha256": "672270b8eeef349d466a0670804d3a82564a9866d9cc47831fbb2b72ff66b22d"
+      "sha256": "e21cd4716753ddf6c4a3a1b350526da69a5a85a0eac167da00d4bc234200df6e"
     },
     {
       "report": "fuzz",
@@ -52,13 +52,13 @@
       "report": "stress",
       "status": "PASS",
       "file": "stress.json",
-      "sha256": "a275c661e1d09dc45b3148761bc6b2b8995165c34c85d764e6192e12d674d44a"
+      "sha256": "a9a99cccbbf8de5b7322ad6004003131c57a480800b91dd27018f45d52e3bbfa"
     },
     {
       "report": "stress-race",
       "status": "PASS",
       "file": "stress-race.json",
-      "sha256": "795678d2132655bbb4a1f8fda78c00acae99b6b6e3788658ff87f027b105acad"
+      "sha256": "8b0c3cefc27bf19a8e97a3344671d5d5c377c8aa6c07e07f53688496db349714"
     },
     {
       "report": "stress-race-reference-budget",
@@ -68,15 +68,15 @@
     },
     {
       "report": "soak",
-      "status": "NOT_RUN",
+      "status": "RUNNING",
       "file": "soak.json",
-      "sha256": "9dd4ff76c4ff7b3bb856f671b24211113fc501836c130902379c96eaf8960155"
+      "sha256": "e2214ee496ce2409df3153132a3a338de81bf91d70f7929672df34dd363efbcd"
     },
     {
       "report": "native-input",
       "status": "PASS",
       "file": "native-input.json",
-      "sha256": "bbeec848fa2f7a16312dae53143dc6c346d3f775d8b5c95a707a291e0d69a510"
+      "sha256": "e3423ccb72162e9bb2653bff80d9ecaeea8f29006915600ac6329ba2a2a62524"
     },
     {
       "report": "native-input-long",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "bceb9667ce4cbdf0ab606dcf4186dd6dcf919dbed4fc282fab4cfd52f88c2f37"
+      "sha256": "9a5956ebcdb98eda705e5d2d6fae81d0552066ebef27fcf56570835a7f60a7f7"
     },
     {
       "report": "display-startup",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "f264d86ed40dededa6cbf7d6119b311c1388f2c02ff14ce3448447fc79dd8d3f"
+      "sha256": "e8290ee7e7df70595a4ef6a78a19d4623db2c6c038a7f0c222caed137d8d117e"
     },
     {
       "report": "phrase-onboarding",
@@ -214,7 +214,7 @@
       "report": "build-tools",
       "status": "PASS",
       "file": "build-tools.json",
-      "sha256": "79a748607c44b118c5ea9c58d6937e62e0a58a7728215c8df0cc4fc6c53b3a84"
+      "sha256": "20063d837295439ac6f7fa8817d9c2df07423b6f290c22dff02e718786ca8ea3"
     },
     {
       "report": "go-only-build",
@@ -232,7 +232,61 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "82b4f8d8e9732d770257480493f76471c3ecd5a54dfbb9e47197ec529cd3d544"
+      "sha256": "346fd2f94c6c1c348d51222b97558552f7fd97520d11c0d0b75f6b3b9d519ead"
+    },
+    {
+      "report": "hypercore-pagination",
+      "status": "PASS",
+      "file": "hypercore-pagination.json",
+      "sha256": "7ebdecaa54062e04ee04072e825de9a1df3a2fb6b568dd64f6d3f2874c113881"
+    },
+    {
+      "report": "license-notices",
+      "status": "PASS",
+      "file": "license-notices.json",
+      "sha256": "772295de93437a3ec0460f0b2b7c56105bd9598c92f0daa7ce4ec906bd1d9f12"
+    },
+    {
+      "report": "release-auth",
+      "status": "PASS",
+      "file": "release-auth.json",
+      "sha256": "85ad29c01b9af26cf626b4e49231668f7bdc35bfc446101c48246a239b9ef8d7"
+    },
+    {
+      "report": "release-evidence",
+      "status": "PASS",
+      "file": "release-evidence.json",
+      "sha256": "e01300a001168d42800b59b5b238941a764eca30b711c4a5fba834d82649699c"
+    },
+    {
+      "report": "crash-security",
+      "status": "PASS",
+      "file": "crash-security.json",
+      "sha256": "23307e8b15549ec76b7b31f954c32c6270f95c6724a9cdb960da49a73ad655a5"
+    },
+    {
+      "report": "packaged-send",
+      "status": "PASS",
+      "file": "packaged-send.json",
+      "sha256": "2735cbf76b2a2eaeff1491be5a131cdf0ac09780da4c442c6c32c53f42168174"
+    },
+    {
+      "report": "fuzz-long",
+      "status": "NOT_RUN",
+      "file": "fuzz-long.json",
+      "sha256": "efc311c83f0f3287e9cc097c31f8058f1d060e09acda867501e83dfc3c4e9115"
+    },
+    {
+      "report": "nondecred-soak-run",
+      "status": "RUNNING",
+      "file": "nondecred-soak-run.json",
+      "sha256": "7189eda7fae40ef4b5917e89dbeb5e7d356446400259843c55dbf8f763673f1f"
+    },
+    {
+      "report": "production-hardening",
+      "status": "PASS",
+      "file": "production-hardening.json",
+      "sha256": "a2c499ffd78e4507c90bb3eb35f19d3f23987d97ad856c228fdbde17eb90977e"
     }
   ],
   "node": "v24.19.0",

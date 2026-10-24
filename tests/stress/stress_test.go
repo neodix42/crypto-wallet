@@ -23,6 +23,7 @@ import (
 )
 
 var soak = flag.Duration("soak", 0, "explicit deterministic soak duration; production gate requires 24 hours")
+var soakNonDecred = flag.Bool("soak-non-decred", false, "explicit narrower soak; never passes the all-chain release gate")
 
 type report struct {
 	ExecutionStatus                string         `json:"executionStatus"`
@@ -53,6 +54,8 @@ type report struct {
 	Latencies                      map[string]latency `json:"latencies"`
 	FinalState                     map[string]int     `json:"finalState"`
 	Scope                          string             `json:"scope"`
+	Excluded                       []string           `json:"excluded,omitempty"`
+	ScopedCampaign24hStatus        string             `json:"scopedCampaign24hStatus,omitempty"`
 }
 
 func save(t *testing.T, name string, r report) {
@@ -69,6 +72,31 @@ func save(t *testing.T, name string, r report) {
 		t.Fatal(e)
 	}
 	t.Log(string(b))
+}
+
+// Durable progress prevents an interrupted long run from leaving an older PASS
+// report looking current. Keep logs bounded: only the final report is t.Logged.
+func saveProgress(t *testing.T, r report) {
+	t.Helper()
+	dir := filepath.Join("..", "..", "reports")
+	if e := os.MkdirAll(dir, 0700); e != nil {
+		t.Fatal(e)
+	}
+	b, e := json.MarshalIndent(r, "", "  ")
+	if e != nil {
+		t.Fatal(e)
+	}
+	name := "soak"
+	if raceInstrumentation {
+		name += "-race"
+	}
+	temporary := filepath.Join(dir, name+".progress.tmp")
+	if e = os.WriteFile(temporary, append(b, '\n'), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Rename(temporary, filepath.Join(dir, name+".json")); e != nil {
+		t.Fatal(e)
+	}
 }
 func beginReport(t *testing.T, name string) *report {
 	t.Helper()
@@ -229,13 +257,19 @@ func TestTP072Soak(t *testing.T) {
 	r.Scope = "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/phrase recovery; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
 	r.RequestedSeconds = soak.Seconds()
 	r.Campaign24hStatus = "NOT_RUN"
-	if *soak < 24*time.Hour {
-		r.Status = "NOT_RUN"
+	r.ScopedCampaign24hStatus = "NOT_RUN"
+	r.Status, r.ExecutionStatus = "RUNNING", "RUNNING"
+	if *soakNonDecred {
+		r.Excluded = []string{"Decred work deferred by owner; no public testnet activity"}
+		r.Scope += " Explicit non-Decred scope: only the EVM fake-ledger lifecycle is exercised; other-chain consensus/desktop acceptance is not claimed."
 	}
-	l := newLifecycle(t, r)
+	saveProgress(t, *r)
+	l := newScopedLifecycle(t, r, !*soakNonDecred)
 	start := time.Now()
 	for cycle := 0; time.Since(start) < *soak; cycle++ {
 		l.cycle(t, r, cycle)
+		r.Elapsed = time.Since(start).Seconds()
+		saveProgress(t, *r)
 		if cycle >= 4998 {
 			t.Fatal("bounded journal campaign reached 10000-operation limit")
 		}
@@ -250,7 +284,11 @@ func TestTP072Soak(t *testing.T) {
 		}
 	}
 	l.reconcile(t, r)
+	r.Status = "NOT_RUN"
 	if *soak >= 24*time.Hour && time.Since(start) >= 24*time.Hour {
-		r.Campaign24hStatus = "PASS"
+		r.ScopedCampaign24hStatus = "PASS"
+		if !*soakNonDecred {
+			r.Campaign24hStatus, r.Status = "PASS", "PASS"
+		}
 	}
 }

@@ -74,6 +74,20 @@ type Receipt struct {
 	Block    string `json:"block"`
 }
 
+// HistoryPage is a bounded observation, not a proof of balance or finality.
+// Adapter cursors contain positions only; the coordinator replaces them with
+// single-use, session/account-bound capabilities before exposing a page.
+type HistoryPage struct {
+	Entries    []Receipt `json:"entries"`
+	NextCursor string    `json:"nextCursor"`
+	Complete   bool      `json:"complete"`
+	Scope      string    `json:"scope"`
+}
+
+type HistoryPager interface {
+	HistoryPage(context.Context, Account, string) (HistoryPage, error)
+}
+
 // Adapter's seed methods are called exclusively inside wallet-signer.
 type Adapter interface {
 	Networks() []Network

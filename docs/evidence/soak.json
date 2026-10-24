@@ -1,90 +1,343 @@
 {
-  "executionStatus": "PASS",
+  "executionStatus": "RUNNING",
   "instrumentation": "ordinary Go test",
   "cpuModel": "AMD Ryzen 9 5950X 16-Core Processor",
   "settledCheckpoints": [
     {
       "cycle": 1,
-      "rssBytes": 613277696,
-      "heapBytes": 3119928,
-      "goroutines": 11,
+      "rssBytes": 611778560,
+      "heapBytes": 2099168,
+      "goroutines": 7,
       "journalRecords": 2
     },
     {
       "cycle": 2,
-      "rssBytes": 564940800,
-      "heapBytes": 3197120,
-      "goroutines": 11,
+      "rssBytes": 561369088,
+      "heapBytes": 2162520,
+      "goroutines": 7,
       "journalRecords": 4
     },
     {
       "cycle": 3,
-      "rssBytes": 565407744,
-      "heapBytes": 3230832,
-      "goroutines": 11,
+      "rssBytes": 561872896,
+      "heapBytes": 2211976,
+      "goroutines": 7,
       "journalRecords": 6
     },
     {
       "cycle": 4,
-      "rssBytes": 565846016,
-      "heapBytes": 3271224,
-      "goroutines": 11,
+      "rssBytes": 561913856,
+      "heapBytes": 2229952,
+      "goroutines": 7,
       "journalRecords": 8
+    },
+    {
+      "cycle": 5,
+      "rssBytes": 561991680,
+      "heapBytes": 2251928,
+      "goroutines": 7,
+      "journalRecords": 10
+    },
+    {
+      "cycle": 6,
+      "rssBytes": 561954816,
+      "heapBytes": 2269856,
+      "goroutines": 7,
+      "journalRecords": 12
+    },
+    {
+      "cycle": 7,
+      "rssBytes": 562294784,
+      "heapBytes": 2280488,
+      "goroutines": 7,
+      "journalRecords": 14
+    },
+    {
+      "cycle": 8,
+      "rssBytes": 562642944,
+      "heapBytes": 2292960,
+      "goroutines": 7,
+      "journalRecords": 16
+    },
+    {
+      "cycle": 9,
+      "rssBytes": 562860032,
+      "heapBytes": 2316744,
+      "goroutines": 7,
+      "journalRecords": 18
+    },
+    {
+      "cycle": 10,
+      "rssBytes": 563060736,
+      "heapBytes": 2308472,
+      "goroutines": 7,
+      "journalRecords": 20
+    },
+    {
+      "cycle": 11,
+      "rssBytes": 562581504,
+      "heapBytes": 2322992,
+      "goroutines": 7,
+      "journalRecords": 22
+    },
+    {
+      "cycle": 12,
+      "rssBytes": 563195904,
+      "heapBytes": 2333488,
+      "goroutines": 7,
+      "journalRecords": 24
+    },
+    {
+      "cycle": 13,
+      "rssBytes": 562851840,
+      "heapBytes": 2335648,
+      "goroutines": 7,
+      "journalRecords": 26
+    },
+    {
+      "cycle": 14,
+      "rssBytes": 563105792,
+      "heapBytes": 2338752,
+      "goroutines": 7,
+      "journalRecords": 28
+    },
+    {
+      "cycle": 15,
+      "rssBytes": 563056640,
+      "heapBytes": 2361280,
+      "goroutines": 7,
+      "journalRecords": 30
+    },
+    {
+      "cycle": 16,
+      "rssBytes": 563306496,
+      "heapBytes": 2353072,
+      "goroutines": 7,
+      "journalRecords": 32
+    },
+    {
+      "cycle": 17,
+      "rssBytes": 563539968,
+      "heapBytes": 2366384,
+      "goroutines": 7,
+      "journalRecords": 34
+    },
+    {
+      "cycle": 18,
+      "rssBytes": 563617792,
+      "heapBytes": 2370160,
+      "goroutines": 7,
+      "journalRecords": 36
+    },
+    {
+      "cycle": 19,
+      "rssBytes": 563490816,
+      "heapBytes": 2378632,
+      "goroutines": 7,
+      "journalRecords": 38
+    },
+    {
+      "cycle": 20,
+      "rssBytes": 563826688,
+      "heapBytes": 2385592,
+      "goroutines": 7,
+      "journalRecords": 40
+    },
+    {
+      "cycle": 21,
+      "rssBytes": 563933184,
+      "heapBytes": 2396208,
+      "goroutines": 7,
+      "journalRecords": 42
+    },
+    {
+      "cycle": 22,
+      "rssBytes": 564023296,
+      "heapBytes": 2403312,
+      "goroutines": 7,
+      "journalRecords": 44
+    },
+    {
+      "cycle": 23,
+      "rssBytes": 564551680,
+      "heapBytes": 2419936,
+      "goroutines": 7,
+      "journalRecords": 46
+    },
+    {
+      "cycle": 24,
+      "rssBytes": 564273152,
+      "heapBytes": 2423264,
+      "goroutines": 7,
+      "journalRecords": 48
+    },
+    {
+      "cycle": 25,
+      "rssBytes": 564371456,
+      "heapBytes": 2435952,
+      "goroutines": 7,
+      "journalRecords": 50
+    },
+    {
+      "cycle": 26,
+      "rssBytes": 564563968,
+      "heapBytes": 2445664,
+      "goroutines": 7,
+      "journalRecords": 52
+    },
+    {
+      "cycle": 27,
+      "rssBytes": 564305920,
+      "heapBytes": 2447632,
+      "goroutines": 7,
+      "journalRecords": 54
+    },
+    {
+      "cycle": 28,
+      "rssBytes": 564699136,
+      "heapBytes": 2445120,
+      "goroutines": 7,
+      "journalRecords": 56
+    },
+    {
+      "cycle": 29,
+      "rssBytes": 564695040,
+      "heapBytes": 2457984,
+      "goroutines": 7,
+      "journalRecords": 58
+    },
+    {
+      "cycle": 30,
+      "rssBytes": 564715520,
+      "heapBytes": 2460040,
+      "goroutines": 7,
+      "journalRecords": 60
+    },
+    {
+      "cycle": 31,
+      "rssBytes": 565338112,
+      "heapBytes": 2462632,
+      "goroutines": 7,
+      "journalRecords": 62
+    },
+    {
+      "cycle": 32,
+      "rssBytes": 564867072,
+      "heapBytes": 2465688,
+      "goroutines": 7,
+      "journalRecords": 64
+    },
+    {
+      "cycle": 33,
+      "rssBytes": 564977664,
+      "heapBytes": 2473016,
+      "goroutines": 7,
+      "journalRecords": 66
+    },
+    {
+      "cycle": 34,
+      "rssBytes": 565157888,
+      "heapBytes": 2484264,
+      "goroutines": 7,
+      "journalRecords": 68
+    },
+    {
+      "cycle": 35,
+      "rssBytes": 565309440,
+      "heapBytes": 2488872,
+      "goroutines": 7,
+      "journalRecords": 70
+    },
+    {
+      "cycle": 36,
+      "rssBytes": 565522432,
+      "heapBytes": 2517288,
+      "goroutines": 7,
+      "journalRecords": 72
+    },
+    {
+      "cycle": 37,
+      "rssBytes": 565760000,
+      "heapBytes": 2519768,
+      "goroutines": 7,
+      "journalRecords": 74
+    },
+    {
+      "cycle": 38,
+      "rssBytes": 565108736,
+      "heapBytes": 2524504,
+      "goroutines": 7,
+      "journalRecords": 76
+    },
+    {
+      "cycle": 39,
+      "rssBytes": 565276672,
+      "heapBytes": 2526584,
+      "goroutines": 7,
+      "journalRecords": 78
+    },
+    {
+      "cycle": 40,
+      "rssBytes": 565395456,
+      "heapBytes": 2528856,
+      "goroutines": 7,
+      "journalRecords": 80
+    },
+    {
+      "cycle": 41,
+      "rssBytes": 565493760,
+      "heapBytes": 2531064,
+      "goroutines": 7,
+      "journalRecords": 82
+    },
+    {
+      "cycle": 42,
+      "rssBytes": 565846016,
+      "heapBytes": 2533000,
+      "goroutines": 7,
+      "journalRecords": 84
     }
   ],
-  "status": "NOT_RUN",
+  "status": "RUNNING",
   "seed": "public BIP39 abandon/about fixture; scenario ordinal modulo 55; fixed 30-second cadence; cryptographic RNG is not replaced",
   "go": "go1.27.3",
   "os": "linux/amd64",
   "cpus": 32,
   "workloads": {
-    "DCRAccountDiscoveryScans": 4,
-    "DCRDiscoveryBlocks": 26,
-    "additionalAccountGroups": 4,
-    "boundedFakeRPCCalls": 200,
-    "cycles": 4,
-    "encryptedSignerRestartUnlock": 8,
-    "growingHistoryScans": 4,
-    "lifecycleRPC-outage": 4,
-    "lifecycleRPC-rate-limit": 4,
-    "lockedSignatureDenied": 4,
-    "observedHistoryItems": 10,
-    "productionSignedJournalReconciled": 4,
+    "additionalAccountGroups": 16,
+    "cycles": 42,
+    "encryptedSignerRestartUnlock": 84,
+    "growingHistoryScans": 42,
+    "lifecycleRPC-outage": 42,
+    "lifecycleRPC-rate-limit": 42,
+    "lockedSignatureDenied": 42,
+    "observedHistoryItems": 903,
+    "productionSignedJournalReconciled": 42,
     "productionSignerCreate": 1,
-    "productionSignerVerifiedBackups": 4
+    "productionSignerPhraseRecoveries": 42
   },
-  "elapsedSeconds": 96.573227019,
-  "requestedSeconds": 95,
+  "elapsedSeconds": 1234.988546892,
+  "requestedSeconds": 86400,
   "campaign24hStatus": "NOT_RUN",
   "p50Micros": 0,
   "p99Micros": 0,
   "rssBudgetMiB": 1024,
   "goMemoryLimitMiB": 768,
-  "StartHeap": 1876248,
-  "EndHeap": 3450440,
+  "StartHeap": 1840856,
+  "EndHeap": 0,
   "StartGoroutines": 2,
-  "EndGoroutines": 2,
-  "startRSSBytes": 16031744,
-  "endRSSBytes": 547504128,
-  "peakObservedRSSBytes": 800788480,
-  "kernelHighWaterRSSBytes": 800788480,
-  "resourceSamples": 4830,
-  "peakGoroutines": 15,
-  "latencies": {
-    "productionSignerLifecycle": {
-      "count": 4,
-      "p50Micros": 5839981,
-      "p99Micros": 7742268,
-      "maxMicros": 7742268,
-      "budgetP99Micros": 60000000
-    }
-  },
-  "finalState": {
-    "lifecycleCancelledBeforeSignature": 4,
-    "lifecycleConfirmed": 4,
-    "lifecycleFakeLedgerPayments": 4,
-    "lifecycleNativeUIReplacedByPublicTestUI": 1,
-    "lifecycleUnresolved": 0
-  },
-  "scope": "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/backup; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak."
+  "EndGoroutines": 0,
+  "startRSSBytes": 0,
+  "endRSSBytes": 0,
+  "peakObservedRSSBytes": 0,
+  "kernelHighWaterRSSBytes": 0,
+  "resourceSamples": 0,
+  "peakGoroutines": 0,
+  "latencies": {},
+  "finalState": {},
+  "scope": "Actual signer production 256 MiB Argon2id encrypted persistence, lock/restart/phrase recovery; actual adapter RPC rejection, real signed transaction verification, bounded account discovery and growing history against fake clients. Scenario choice deterministic; no public endpoint, live funds or GTK automation. Not a packaged desktop or public-testnet soak. Explicit non-Decred scope: only the EVM fake-ledger lifecycle is exercised; other-chain consensus/desktop acceptance is not claimed.",
+  "excluded": [
+    "Decred work deferred by owner; no public testnet activity"
+  ],
+  "scopedCampaign24hStatus": "NOT_RUN"
 }

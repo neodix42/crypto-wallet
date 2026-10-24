@@ -1,0 +1,122 @@
+{
+  "status": "PASS",
+  "testsRun": 27,
+  "tests": [
+    {
+      "test": "test_all_twelve_production_source_payload_bindings_are_required (__main__.ReleaseEvidence.test_all_twelve_production_source_payload_bindings_are_required)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_consistent_complete_bound_fixture_passes (__main__.ReleaseEvidence.test_consistent_complete_bound_fixture_passes)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_consistent_new_go_binaries_cannot_reuse_old_packaged_recovery (__main__.ReleaseEvidence.test_consistent_new_go_binaries_cannot_reuse_old_packaged_recovery)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_decred_and_ton_local_coverage_gates_cannot_disappear (__main__.ReleaseEvidence.test_decred_and_ton_local_coverage_gates_cannot_disappear)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_electron_binary_or_manifest_tampering_blocks (__main__.ReleaseEvidence.test_electron_binary_or_manifest_tampering_blocks)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_every_missing_required_report_blocks (__main__.ReleaseEvidence.test_every_missing_required_report_blocks)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_failed_measurement_overwrites_old_pass_and_does_not_reseal_it (__main__.ReleaseEvidence.test_failed_measurement_overwrites_old_pass_and_does_not_reseal_it)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_frontend_compiled_js_changes_and_additions_invalidate_measurement (__main__.ReleaseEvidence.test_frontend_compiled_js_changes_and_additions_invalidate_measurement)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_frontend_raw_summary_and_measured_floors_are_checked (__main__.ReleaseEvidence.test_frontend_raw_summary_and_measured_floors_are_checked)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_frontend_snapshot_rejects_added_deleted_and_subset_sources (__main__.ReleaseEvidence.test_frontend_snapshot_rejects_added_deleted_and_subset_sources)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_frontend_snapshot_rejects_source_ui_test_and_package_pin_changes (__main__.ReleaseEvidence.test_frontend_snapshot_rejects_source_ui_test_and_package_pin_changes)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_frontend_unstable_measurement_cannot_pass (__main__.ReleaseEvidence.test_frontend_unstable_measurement_cannot_pass)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_merged_profile_cannot_forge_frozen_input_counters (__main__.ReleaseEvidence.test_go_merged_profile_cannot_forge_frozen_input_counters)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_package_floor_report_is_recomputed (__main__.ReleaseEvidence.test_go_package_floor_report_is_recomputed)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_raw_profile_hashes_and_exact_profile_set_are_required (__main__.ReleaseEvidence.test_go_raw_profile_hashes_and_exact_profile_set_are_required)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_snapshot_rejects_added_deleted_and_changed_source_or_pins (__main__.ReleaseEvidence.test_go_snapshot_rejects_added_deleted_and_changed_source_or_pins)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_go_snapshot_subset_is_not_accepted (__main__.ReleaseEvidence.test_go_snapshot_subset_is_not_accepted)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_missing_fuse_inventory_or_recovery_steps_cannot_pass (__main__.ReleaseEvidence.test_missing_fuse_inventory_or_recovery_steps_cannot_pass)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_original_decred_testnet_review_and_soak_gates_remain_mandatory (__main__.ReleaseEvidence.test_original_decred_testnet_review_and_soak_gates_remain_mandatory)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_packaged_send_cannot_claim_public_acceptance_or_skip_real_execution (__main__.ReleaseEvidence.test_packaged_send_cannot_claim_public_acceptance_or_skip_real_execution)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_packaged_send_receipt_balance_fee_and_no_duplicate_nonce_are_verified (__main__.ReleaseEvidence.test_packaged_send_receipt_balance_fee_and_no_duplicate_nonce_are_verified)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_packaged_send_requires_all_seven_steps_and_unchanged_driver_sources (__main__.ReleaseEvidence.test_packaged_send_requires_all_seven_steps_and_unchanged_driver_sources)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_recovery_from_another_asar_or_binary_candidate_is_rejected (__main__.ReleaseEvidence.test_recovery_from_another_asar_or_binary_candidate_is_rejected)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_release_workflow_and_verifier_changes_invalidate_their_tests (__main__.ReleaseEvidence.test_release_workflow_and_verifier_changes_invalidate_their_tests)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_report_symlinks_duplicates_and_secret_like_errors_fail_safely (__main__.ReleaseEvidence.test_report_symlinks_duplicates_and_secret_like_errors_fail_safely)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_source_changed_during_measurement_fails_without_current_hash_stamping (__main__.ReleaseEvidence.test_source_changed_during_measurement_fails_without_current_hash_stamping)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_version_check_failure_does_not_echo_subprocess_output (__main__.ReleaseEvidence.test_version_check_failure_does_not_echo_subprocess_output)",
+      "status": "PASS"
+    }
+  ],
+  "sourceSHA256": {
+    "scripts/evidence_binding.py": "0cbd9e9f60c3eb7ee9dd6b3ebbe619dccee40b713d7ff9b1aa5538497c646428",
+    "scripts/verify-release.py": "26cf5b8908f082d2c6aa19019f17c2b106ae6947cef5d43da83b392934cdc174",
+    "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a",
+    "scripts/verify-artifact.cjs": "479bd0c7dcaec8257b8a6fe3f9aa2c3346a7e90cbfab9bef9b815125780cf22c",
+    "scripts/release-evidence-test.py": "9baa91f1c45129d6408f63eae4c7a56499091f519223e3a7db7feca539650541"
+  },
+  "scope": "Hermetic candidate binding, complete source sets, raw coverage integrity and stale/tampered/missing evidence rejection using public toy files. No OS/network/recovery acceptance is fabricated."
+}

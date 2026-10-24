@@ -6,9 +6,9 @@
   "packages": [
     {
       "package": "localwallet/cmd/wallet-core",
-      "statements": 519,
-      "covered": 496,
-      "percent": 95.57,
+      "statements": 732,
+      "covered": 698,
+      "percent": 95.36,
       "floor": 95,
       "status": "PASS"
     },
@@ -22,9 +22,9 @@
     },
     {
       "package": "localwallet/cmd/wallet-signer",
-      "statements": 158,
-      "covered": 152,
-      "percent": 96.2,
+      "statements": 186,
+      "covered": 180,
+      "percent": 96.77,
       "floor": 95,
       "status": "PASS"
     },
@@ -78,9 +78,9 @@
     },
     {
       "package": "localwallet/internal/chains/hypercore",
-      "statements": 562,
-      "covered": 543,
-      "percent": 96.62,
+      "statements": 656,
+      "covered": 636,
+      "percent": 96.95,
       "floor": 95,
       "status": "PASS"
     },
@@ -94,9 +94,9 @@
     },
     {
       "package": "localwallet/internal/chains/ton",
-      "statements": 648,
-      "covered": 620,
-      "percent": 95.68,
+      "statements": 721,
+      "covered": 694,
+      "percent": 96.26,
       "floor": 95,
       "status": "PASS"
     },
@@ -150,17 +150,17 @@
     },
     {
       "package": "localwallet/internal/signer",
-      "statements": 558,
-      "covered": 544,
-      "percent": 97.49,
+      "statements": 657,
+      "covered": 641,
+      "percent": 97.56,
       "floor": 95,
       "status": "PASS"
     },
     {
       "package": "localwallet/internal/strictjson",
-      "statements": 39,
-      "covered": 38,
-      "percent": 97.44,
+      "statements": 46,
+      "covered": 45,
+      "percent": 97.83,
       "floor": 95,
       "status": "PASS"
     },

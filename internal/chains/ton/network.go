@@ -283,10 +283,17 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 }
 
 func (a *Adapter) transactions(ctx context.Context, id, addr string) ([]*tlb.Transaction, error) {
+	return a.transactionsAt(ctx, id, addr, nil)
+}
+func (a *Adapter) transactionsAt(ctx context.Context, id, addr string, position *transactionPosition) ([]*tlb.Transaction, error) {
 	var entries []struct {
 		Data string `json:"data"`
 	}
-	if e := a.rpc(ctx, id, "getTransactions", map[string]any{"address": addr, "limit": 100, "archival": true}, &entries); e != nil {
+	params := map[string]any{"address": addr, "limit": 100, "archival": true}
+	if position != nil {
+		params["lt"], params["hash"] = position.LT, position.Hash
+	}
+	if e := a.rpc(ctx, id, "getTransactions", params, &entries); e != nil {
 		return nil, e
 	}
 	if len(entries) > 100 {
@@ -381,18 +388,17 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 	if _, e = a.verifyNetwork(ctx, p.Account.Network); e != nil {
 		return model.Receipt{}, e
 	}
-	source, e := a.transactions(ctx, p.Account.Network, p.Account.Address)
+	tx, _, e := a.findArchivedTransaction(ctx, p.Account.Network, p.Account.Address, func(tx *tlb.Transaction) bool {
+		if tx.IO.In == nil || tx.IO.In.MsgType != tlb.MsgTypeExternalIn {
+			return false
+		}
+		incoming := tx.IO.In.AsExternalIn()
+		return incoming.Body != nil && bytes.Equal(incoming.Body.Hash(), ext.Body.Hash()) && incoming.DstAddr != nil && incoming.DstAddr.Equals(ext.DstAddr)
+	})
 	if e != nil {
 		return model.Receipt{}, e
 	}
-	for _, tx := range source {
-		if tx.IO.In == nil || tx.IO.In.MsgType != tlb.MsgTypeExternalIn {
-			continue
-		}
-		incoming := tx.IO.In.AsExternalIn()
-		if incoming.Body == nil || !bytes.Equal(incoming.Body.Hash(), ext.Body.Hash()) || incoming.DstAddr == nil || !incoming.DstAddr.Equals(ext.DstAddr) {
-			continue
-		}
+	if tx != nil {
 		ok, known := success(tx)
 		if !known {
 			return model.Receipt{Identity: s.Identity, State: "UNKNOWN", Detail: "unsupported source transaction description"}, nil
@@ -436,21 +442,17 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 		if e != nil {
 			return model.Receipt{}, e
 		}
-		recipients, e := a.transactions(ctx, p.Account.Network, p.Recipient)
-		if e != nil {
-			return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient trace unavailable"}, e
-		}
-		for _, rt := range recipients {
+		rt, _, e := a.findArchivedTransaction(ctx, p.Account.Network, p.Recipient, func(rt *tlb.Transaction) bool {
 			if rt.IO.In == nil || rt.IO.In.MsgType != tlb.MsgTypeInternal {
-				continue
+				return false
 			}
-			inc, e := rt.IO.In.ToCell()
-			if e != nil {
-				return model.Receipt{}, e
-			}
-			if !bytes.Equal(inc.Hash(), msgCell.Hash()) {
-				continue
-			}
+			inc, err := rt.IO.In.ToCell()
+			return err == nil && bytes.Equal(inc.Hash(), msgCell.Hash())
+		})
+		if e != nil {
+			return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient archival trace unavailable or inconsistent"}, e
+		}
+		if rt != nil {
 			d, ok := rt.Description.(tlb.TransactionDescriptionOrdinary)
 			if !ok || d.CreditPhase == nil || d.CreditPhase.Credit.Coins.Nano().Cmp(amount) < 0 {
 				return model.Receipt{Identity: s.Identity, State: "FAILED", Detail: "recipient trace has no matching credit"}, nil
@@ -462,7 +464,7 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 			}
 			return model.Receipt{Identity: s.Identity, State: "CONFIRMED", Detail: "matching source external message, successful action, and recipient credit BOCs (trusted RPC; no independent proof of finality)", Block: hex.EncodeToString(rt.Hash)}, nil
 		}
-		return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient credit not yet observed"}, nil
+		return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient credit not observed within bounded archival search (at most 3200 linked transactions); absence does not prove failure"}, nil
 	}
-	return model.Receipt{Identity: s.Identity, State: "UNKNOWN", Detail: "message absent from bounded 100-transaction history; absence or seqno advancement does not prove payment failure or success"}, nil
+	return model.Receipt{Identity: s.Identity, State: "UNKNOWN", Detail: "message absent from bounded archival search (at most 32 pages / 3200 linked transactions); explicit history continuation can inspect older records; absence or seqno advancement does not prove payment failure or success"}, nil
 }

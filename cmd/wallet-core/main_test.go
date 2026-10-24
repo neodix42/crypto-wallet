@@ -62,8 +62,18 @@ while True:
  state.setdefault('calls',[]).append(method)
  output=None
  if method in state.get('reject',[]):error='SYNTHETIC_DENIED'
- elif method in ['snapshot','accounts','status','confirmRecovery']:output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':state.get('accounts',[]),'operations':state.get('ops',[]),'recoveryConfirmed':True}
+ elif method in ['snapshot','accounts','status','confirmRecovery','accountPage']:
+  allaccounts=state.get('accounts',[]);offset=int(body.get('cursor','') or '0');accounts=allaccounts[offset:offset+128]
+  output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':accounts,'operations':None,'recoveryConfirmed':True,'revision':str(state.get('revision',1)),'totalAccounts':len(allaccounts),'totalOperations':len(state.get('ops',[])),'accountsCursor':str(offset+len(accounts)) if offset+len(accounts)<len(allaccounts) else ''}
  elif method=='pending':output=state.get('ops',[])
+ elif method=='operation':output=next((op for op in state.get('ops',[]) if op['plan']['id']==body['id']),None)
+ elif method=='account':output=next((ac for ac in state.get('accounts',[]) if ac['id']==body['accountId']),None)
+ elif method=='journalPage':
+  ops=[dict(op) for op in reversed(state.get('ops',[])) if not body['accountId'] or op['plan']['account']['id']==body['accountId'] and op['plan']['asset']==body['asset']]
+  for op in ops:op.pop('signed',None)
+  offset=int(body['cursor'] or '0');page=ops[offset:offset+128]
+  output={'operations':page,'nextCursor':str(offset+len(page)) if offset+len(page)<len(ops) else '', 'complete':offset+len(page)==len(ops),'revision':str(state.get('revision',1)),'total':len(ops)}
+  output.update(state.get('journalOverride',{}))
  elif method=='settings':output=state.get('settings',{})
  elif method=='prepare':
   state.setdefault('ops',[]).append({'plan':body,'state':'PREPARED','digest':'public-test'})
@@ -353,7 +363,7 @@ func TestTP060PaymentsRejectConflictsAndLostSigner(t *testing.T) {
 		t.Fatal("signer denied signature")
 	}
 	state = readPublicState(t, path)
-	state["reject"] = []string{"pending"}
+	state["reject"] = []string{"operation"}
 	writePublicState(t, path, state)
 	if _, e := c.payment("send", p.ID); e == nil {
 		t.Fatal("missing pending state")

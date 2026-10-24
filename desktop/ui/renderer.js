@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 let accounts = [], networks = [], operations = [], balances = [], walletTabs = [], activeWalletID = '', activeIndex = 0;
 let prepared, viewEpoch = 0, sessionEpoch = 0, vaultMode = 'checking', recoveryRequired = false;
+let chainHistoryCursor = '', chainHistoryEntries = [], chainHistoryBytes = 0;
+let journalCursor = '', journalBytes = 0, journalRequestEpoch = 0, chainRequestEpoch = 0;
 let journalEpoch = 0, receiveIntent, balanceRunning = false, nativeActionsPending = 0;
 const rowBalances = new Map(), balanceQueue = [];
 const nativeResultMethods = new Set(['send', 'scanQR']);
@@ -41,7 +43,7 @@ function renderGate() {
 }
 function clearLocked() {
   const retainError = vaultMode !== 'ready' && !$('operationerror').hidden;
-  viewEpoch++; sessionEpoch++; journalEpoch++;
+  viewEpoch++; sessionEpoch++; journalEpoch++; resetChainHistory(); resetJournalPages();
   rowBalances.clear(); balanceQueue.length = 0; closeReceiveRecovery();
   if (!retainError) clearOperationError();
   if (vaultMode === 'ready') vaultMode = 'present';
@@ -270,9 +272,30 @@ function openWallet(id) {
   select(); renderTabs(); renderView(); $('wallettitle').focus();
   return run(async () => { await Promise.all([loadBalance(), history()]); }, true);
 }
+async function readAccountPages() {
+  const epoch = sessionEpoch;
+  let state = await window.wallet.accounts();
+  if (epoch !== sessionEpoch || state.locked !== false) return state;
+  if (!Array.isArray(state.accounts) || !Number.isInteger(state.totalAccounts) || state.totalAccounts < 0 || state.totalAccounts > 10000 || typeof state.revision !== 'string' || !state.revision || !state.accountsCursor && state.accounts.length !== state.totalAccounts) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+  if (!state.accountsCursor) return state;
+  const first = state, collected = [...(state.accounts || [])], seen = new Set();
+  let bytes = JSON.stringify(collected).length;
+  while (state.accountsCursor) {
+    if (typeof state.accountsCursor !== 'string' || !/^[0-9a-f]{32}$/.test(state.accountsCursor) || seen.has(state.accountsCursor) || seen.size >= 256) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+    seen.add(state.accountsCursor);
+    state = await window.wallet.accounts({ cursor: state.accountsCursor });
+    if (epoch !== sessionEpoch) return { locked: true };
+    if (state.locked !== false || state.revision !== first.revision || state.totalAccounts !== first.totalAccounts || !Array.isArray(state.accounts)) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+    bytes += JSON.stringify(state.accounts).length;
+    if (collected.length + state.accounts.length > 10000 || bytes > 16777216) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+    collected.push(...state.accounts);
+  }
+  if (collected.length !== first.totalAccounts || new Set(collected.map(account => account.id)).size !== collected.length) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+  return { ...first, accounts: collected, accountsCursor: '' };
+}
 async function refresh(queryActive = true) {
   const epoch = sessionEpoch;
-  const state = await window.wallet.accounts();
+  const state = await readAccountPages();
   if (epoch !== sessionEpoch) return;
   if (state.environment === 'testnet' || state.environment === 'mainnet') {
     $('profile').textContent = state.environment === 'testnet' ? 'Testnet profile' : 'Mainnet profile';
@@ -375,13 +398,13 @@ function populateJournal(selected = $('journalaccount').value, assetID = $('jour
   populateJournalAssets(assetID);
 }
 function populateJournalAssets(selected) {
-  journalEpoch++; $('journalasset').replaceChildren();
+  journalEpoch++; resetJournalPages(); $('journalasset').replaceChildren();
   const account = journalAccount(), network = networks.find(network => network.id === account?.network);
   for (const asset of network?.assets || []) { const option = document.createElement('option'); option.value = asset.id; option.textContent = `${asset.symbol} · ${asset.id}`; $('journalasset').append(option); }
   if (network?.assets.some(asset => asset.id === selected)) $('journalasset').value = selected;
   show('journalcontext', account ? `${accountName(account.index)} · ${account.network} · ${$('journalasset').value}` : 'Choose a wallet to inspect its payments.');
   $('history').disabled = !account; $('chainhistory').disabled = !account;
-  show('chainhistoryresult', 'History has not been queried for this selection.'); renderHistory();
+  resetChainHistory(); show('chainhistoryresult', 'History has not been queried for this selection.'); renderHistory();
   show('journalresult', 'No journal action requested.');
 }
 async function journalResult(method, body, apply) {
@@ -391,8 +414,32 @@ async function journalResult(method, body, apply) {
   catch (error) { if (epoch !== journalEpoch || session !== sessionEpoch) return; throw error; }
   if (epoch === journalEpoch && session === sessionEpoch) await apply(value);
 }
-async function history() {
-  await journalResult('history', {}, value => { operations = value || []; renderHistory(); });
+function resetJournalPages() {
+  journalRequestEpoch++; journalCursor = ''; journalBytes = 0; operations = []; $('operations').replaceChildren();
+  $('historymore').hidden = true; $('historymore').disabled = false; show('historystatus', '');
+}
+async function history(older = false) {
+  if (!journalAccount()) { resetJournalPages(); renderHistory(); return; }
+  const cursor = journalCursor;
+  if (older && (!cursor || $('historymore').disabled)) return;
+  if (!older) resetJournalPages();
+  const requestEpoch = journalRequestEpoch;
+  $('historymore').disabled = true;
+  try {
+    await journalResult('history', { accountId: journalAccount()?.id || '', asset: $('journalasset').value, ...(older ? { cursor } : {}) }, value => {
+      if (requestEpoch !== journalRequestEpoch) return;
+      if (!Array.isArray(value) && (!Array.isArray(value?.operations) || typeof value.complete !== 'boolean' || value.complete && value.nextCursor || !value.complete && !/^[0-9a-f]{32}$/.test(value.nextCursor))) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+      const rows = Array.isArray(value) ? value : value.operations;
+      const bytes = JSON.stringify(rows).length;
+      const seen = new Set(operations.map(operation => operation.plan.id));
+      if (bytes > 262144 || journalBytes + bytes > 16777216 || operations.length + rows.length > 10000 || rows.some(operation => { const id = operation?.plan?.id; if (!id || seen.has(id)) return true; seen.add(id); return false; })) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+      operations.push(...rows); journalBytes += bytes;
+      journalCursor = typeof value?.nextCursor === 'string' && /^[0-9a-f]{32}$/.test(value.nextCursor) ? value.nextCursor : '';
+      $('historymore').hidden = !journalCursor; $('historymore').disabled = false;
+      show('historystatus', journalCursor ? `${operations.length} local payments loaded. Older payments are available.` : `${operations.length} local payments loaded. Local journal scope complete; it does not reconstruct missing on-chain history.`);
+      renderHistory();
+    });
+  } catch (error) { if (requestEpoch !== journalRequestEpoch) return; journalCursor = ''; $('historymore').hidden = true; show('historystatus', 'Journal query failed or generation changed. Refresh the journal; reservations remain in Go.'); throw error; }
 }
 function renderHistory() {
   $('operations').replaceChildren();
@@ -540,10 +587,11 @@ function startPrepare(method) { if ($('sendpanel').hidden || recoveryRequired) r
 $('prepare').onclick = () => startPrepare('prepare');
 $('max').onclick = () => startPrepare('max');
 $('send').onclick = () => run(async () => { if ($('sendpanel').hidden || !prepared) return; const id = prepared.id; prepared = undefined; $('send').disabled = true; await result('send', { id }, async value => { show('preview', value); await history(); }); }, true);
-$('history').onclick = () => run(history, true);
+$('history').onclick = () => run(() => history(), true);
+$('historymore').onclick = () => run(() => history(true), true);
 $('journalaccount').onchange = () => { populateJournalAssets(); return run(history, true); };
-$('journalasset').onchange = () => { journalEpoch++; show('journalcontext', `${accountName(journalAccount().index)} · ${journalAccount().network} · ${$('journalasset').value}`); show('journalresult', 'No journal action requested.'); show('chainhistoryresult', 'History has not been queried for this selection.'); renderHistory(); };
-for (const id of ['recipient', 'amount', 'memo', 'asset']) $(id).addEventListener('input', () => { $('send').disabled = true; prepared = undefined; viewEpoch++; show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.'); if (id === 'asset') { renderBalance(); populateJournal(current()?.id, $('asset').value); } });
+$('journalasset').onchange = () => { journalEpoch++; resetJournalPages(); show('journalcontext', `${accountName(journalAccount().index)} · ${journalAccount().network} · ${$('journalasset').value}`); show('journalresult', 'No journal action requested.'); resetChainHistory(); show('chainhistoryresult', 'History has not been queried for this selection.'); renderHistory(); };
+for (const id of ['recipient', 'amount', 'memo', 'asset']) $(id).addEventListener('input', () => { $('send').disabled = true; prepared = undefined; viewEpoch++; show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.'); if (id === 'asset') { renderBalance(); populateJournal(current()?.id, $('asset').value); void run(() => history(), true); } });
 async function addressAction(method, id) {
   return nativeAction(async () => {
   const epoch = sessionEpoch, account = accounts.find(account => account.id === id);
@@ -551,7 +599,7 @@ async function addressAction(method, id) {
   // Decred commits a new receive index before copying/saving. Refresh only that
   // descriptor without clearing a payment form or selecting another wallet.
   if (epoch !== sessionEpoch || networks.find(network => network.id === account?.network)?.family !== 'decred') return;
-  const state = await window.wallet.accounts();
+  const state = await readAccountPages();
   if (epoch !== sessionEpoch) return;
   if (state.locked !== false) { clearLocked(); return; }
   const fresh = state.accounts?.find(item => item.id === id);
@@ -573,7 +621,42 @@ $('configure').onclick = () => run(() => nativeAction(async () => {
   await refresh();
 }), true);
 $('associate').onclick = () => run(() => committedMetadata('associate', { accountId: current()?.id || '', address: $('associateaddress').value }));
-$('chainhistory').onclick = () => run(() => journalResult('chainHistory', { accountId: journalAccount()?.id || '' }, value => show('chainhistoryresult', value)), true);
+function resetChainHistory() {
+  chainRequestEpoch++; chainHistoryCursor = ''; chainHistoryEntries = []; chainHistoryBytes = 0;
+  $('chainhistorymore').hidden = true; $('chainhistorymore').disabled = false;
+  show('chainhistorystatus', '');
+}
+async function chainHistory(older) {
+  const cursor = chainHistoryCursor;
+  if (older && (!cursor || $('chainhistorymore').disabled)) return;
+  if (!older) resetChainHistory();
+  const requestEpoch = chainRequestEpoch;
+  $('chainhistorymore').disabled = true;
+  try {
+    await journalResult('chainHistory', { accountId: journalAccount()?.id || '', ...(older ? { cursor } : {}) }, value => {
+      if (requestEpoch !== chainRequestEpoch) return;
+      // Public responses are inert text. Never turn a provider token into a URL
+      // or execute content; only a bounded coordinator capability can continue.
+      const entries = Array.isArray(value?.entries) ? value.entries : [];
+      const encoded = JSON.stringify(value);
+      if (encoded.length > 262144 || chainHistoryBytes + encoded.length > 4194304 || chainHistoryEntries.length + entries.length > 10000) {
+        resetChainHistory(); show('chainhistoryresult', 'History display reached its bound. Refresh to start again; older history remains unresolved.'); return;
+      }
+      chainHistoryEntries.push(...entries); chainHistoryBytes += encoded.length;
+      chainHistoryCursor = typeof value?.nextCursor === 'string' && /^[0-9a-f]{32}$/.test(value.nextCursor) ? value.nextCursor : '';
+      show('chainhistoryresult', { ...(value?.report ? { report: value.report } : { entries: chainHistoryEntries }), scope: value?.scope || 'Provider history scope unavailable; completeness is unknown.' });
+      show('chainhistorystatus', chainHistoryCursor ? `${chainHistoryEntries.length} observations loaded. Older history is available.` : value?.complete === true ? `${chainHistoryEntries.length} observations loaded. End of the disclosed provider scope; this does not prove payment finality or zero funds.` : `${chainHistoryEntries.length} observations loaded. Bounded snapshot; older history remains unresolved.`);
+      $('chainhistorymore').hidden = !chainHistoryCursor; $('chainhistorymore').disabled = false;
+    });
+  } catch (error) {
+    if (requestEpoch !== chainRequestEpoch) return;
+    chainHistoryCursor = ''; $('chainhistorymore').hidden = true;
+    show('chainhistorystatus', 'History query failed or continuation expired. Refresh history; no missing observation has been treated as zero or failed payment.');
+    throw error;
+  }
+}
+$('chainhistory').onclick = () => run(() => chainHistory(false), true);
+$('chainhistorymore').onclick = () => run(() => chainHistory(true), true);
 $('discovery').onclick = () => run(() => committedMetadata('discovery', { accountId: current()?.id || '', birthday: Number($('birthday').value), gap: Number($('gap').value), limit: Number($('limit').value), blockBudget: Number($('blockbudget').value) }));
 renderGate();
 run(refresh);

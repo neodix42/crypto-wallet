@@ -80,7 +80,7 @@
       </details>
       <div id="journalpanel" class="panel"><h2>Local payment journal</h2>
         <label>Wallet <select id="journalaccount"></select></label><label>Asset <select id="journalasset"></select></label><p id="journalcontext">Choose a wallet to inspect its payments.</p>
-        <button id="history">Refresh journal</button><button id="chainhistory">Query bounded chain history</button><pre id="journalresult">No journal action requested.</pre><pre id="chainhistoryresult">History has not been queried.</pre>
+        <button id="history">Refresh journal</button><button id="historymore" hidden>Load older payments</button><p id="historystatus" role="status"></p><button id="chainhistory">Refresh chain history</button><button id="chainhistorymore" hidden>Load older history</button><p id="chainhistorystatus" role="status"></p><pre id="journalresult">No journal action requested.</pre><pre id="chainhistoryresult">History has not been queried.</pre>
         <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
     </div>

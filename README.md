@@ -53,6 +53,10 @@ make test-security        # vault/prompt/IPC/lifecycle, mutations, API surface c
 make test-race            # Go race detector
 make test-interop         # independent derivation/serialization/signing fixtures
 make test-recovery        # independent fresh app copies; phrase-only restore of all wallets
+make test-crash           # owned-process termination, restart and synthetic secret canaries
+make test-release-auth    # real offline publisher-provenance and tamper rejection
+make test-release-evidence # exact candidate/source/coverage evidence checks
+make test-license-notices # redistribution-text provenance and path/byte checks
 make coverage             # enforced per-package Go and Electron/UI floors
 make check-deps           # checksums, vet, reachable Go vulnerabilities, npm audit
 make test-stress          # bounded malformed input, concurrent scheduling, production KDF lifecycle
@@ -66,6 +70,7 @@ make test-dialogs        # isolated Electron prompt, bridge and portfolio tests
 make test-native         # retained non-shipped GTK regression tests only
 make test-recovery       # headless real Go protocol recovery across fresh app copies
 make test-packaged       # actual packaged app: Electron phrase setup, validation, restart/restore
+make test-packaged-send  # actual Electron Send on an isolated real local geth chain
 ```
 
 Real local node/emulator integration also requires Docker and explicitly provisioned test dependencies:
@@ -77,6 +82,17 @@ make test-e2e             # package recovery on private X11, then disposable Ubu
 ```
 
 `make test-e2e` does not certify real Wayland/OS-lock acceptance; its container probes can remain blocked by container sandbox policy. No sandbox bypass is applied. `make test-soak` runs the actual 24-hour workload; a short smoke is reported separately. `make test-testnet` records the missing independently verified funded public testnet evidence and fails until that external gate is supplied. `make verify-release` deliberately fails on incomplete mandatory evidence. Reports go to `reports/`, with retained chain fixtures/results in `tests/oracles/` and readable interpretation in `docs/`. Passing unit tests do not imply that skipped integration scenarios ran.
+
+The current owner excludes Decred implementation work and public testnet campaigns. Longer local fuzz and soak runs have explicit narrower commands:
+
+```sh
+make test-fuzz-long FUZZ_SECONDS=60  # thirteen targets; Decred explicitly deferred
+make test-soak-non-decred           # fixed test binary, 24 hours, local fake ledger only
+# Short runner check, which never passes the 24-hour gate:
+make test-soak-non-decred SOAK_SECONDS=1
+```
+
+The longer fuzz workflow uses 300 seconds per target on its schedule. Excluded targets remain NOT_RUN in the aggregate report. The non-Decred soak writes live progress to `reports/soak.json` and its pinned source/binary identity to `reports/nondecred-soak-run.json`; RUNNING is not PASS. Its EVM fake-ledger workload does not certify other-chain consensus, desktop or all-chain soak acceptance. `make test-packaged-send` needs Xvfb/XTest, Tesseract, user/network namespaces and the exact cached geth image documented by its test helper; it never reaches public networks or uses an existing wallet profile.
 
 ## First run
 
@@ -92,11 +108,15 @@ The top-right **Settings** button contains phrase restoration for an empty profi
 
 [Electron interface evidence and limits](docs/ELECTRON_INTERFACE.md) records the current window/protocol tests and the changed trust boundary.
 
-The outstanding implementation, public-network, installed-OS, soak and independent-review work is tracked in the [production-readiness checklist](docs/PRODUCTION_READINESS.md) and [release evidence](docs/STATUS.md).
+The implemented hardening and its exact test scopes are tracked in the [hardening evidence checklist](docs/PRODUCTION_HARDENING.md). Outstanding implementation, public-network, installed-OS, soak and independent-review work remains in the [production-readiness checklist](docs/PRODUCTION_READINESS.md) and [release evidence](docs/STATUS.md).
+
+Accounts and the local payment journal now use bounded pages, including large encrypted archives. Settings exposes **Load older payments** and **Load older chain history**; continuations expire on lock or context/generation change. TON traverses exact hash-linked archival transactions and Core traverses inclusive timestamp pages within their documented budgets. Incomplete or saturated queries remain explicit. See [history limits and tests](docs/HISTORY_PAGINATION.md).
 
 ## Automatic versioned releases
 
-[The release workflow](.github/workflows/release.yml) runs on pushes to `main`/`master` when that branch is the repository default, and can be run manually from GitHub Actions. It serializes releases, reads all canonical `vX.Y.Z` tags and [VERSION](VERSION), increments the greatest patch version, runs local/security/coverage gates, builds and checks consistent versions, then publishes a **development prerelease** named/tagged `vX.Y.Z`. The published Go executable versions and manifests carry that same version. It uploads raw Go component executables, their portable archive, checksums and test evidence. No Debian package is built or uploaded. The Go component assets do not include the Electron interface or any standalone Go windows. The workflow uses the repository's `GITHUB_TOKEN` with job-scoped `contents: write`; repository policy must allow that permission. No personal token is needed.
+[The release workflow](.github/workflows/release.yml) runs on pushes to `main`/`master` when that branch is the repository default, and can be run manually from GitHub Actions. It serializes releases, reads all canonical `vX.Y.Z` tags and [VERSION](VERSION), increments the greatest patch version, runs local/security/coverage gates, builds and checks consistent versions, then publishes a **development prerelease** named/tagged `vX.Y.Z`. Electron and all Go executables display that same version. Releases include the complete ready-to-run Electron/Go portable wallet, separate Go components, checksums, dependency/source inventories, actual third-party license texts and test evidence. No Debian package is built or uploaded.
+
+The workflow authenticates the exact complete checksum manifest using GitHub OIDC/Sigstore provenance and verifies its publisher repository, immutable repository ID, workflow, branch and full source commit before publication. Missing authentication or payloads fail the job. Follow [publisher verification instructions](docs/BUILD.md) before extracting or running a downloaded wallet. Local builds remain unsigned and need no publishing credentials. Actions and the verification CLI are pinned; remote workflow/signing/publication has not been run by this implementation. The workflow uses job-scoped GitHub contents, attestation and OIDC permissions; no personal token or long-lived signing key is required. [License notice collection](docs/LICENSE_NOTICES.md) is technical evidence, while independent legal review remains separate.
 
 For example, after `v0.1.4`, the next successful workflow publishes `v0.1.5`. A failed build creates no release or tag. Raising `VERSION` sets a new minimum before the next increment. No workflow was remotely triggered by implementing this file. The production release gate remains separate and cannot be satisfied by publishing a development prerelease. GitHub documents [manual workflow dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) and [workflow token permissions](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token).
 

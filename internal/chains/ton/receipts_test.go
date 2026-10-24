@@ -17,7 +17,8 @@ import (
 )
 
 // These tests mutate real emulator-generated transaction BOCs as hostile RPC
-// responses. A mutated trace is never presented as consensus acceptance evidence.
+// responses. The mock repeats a source BOC when asked for its older link;
+// reconciliation must reject that nonprogressing archival response. A mutated trace is never presented as consensus acceptance evidence.
 func receiptFixture(t *testing.T) (*Adapter, model.Plan, model.Signed, *tlb.Transaction, *tlb.Transaction) {
 	t.Helper()
 	a, _, p := testPlan(t)
@@ -164,9 +165,9 @@ func TestHostileExecutionAndCreditTraces(t *testing.T) {
 			setOutgoing(t, s, im)
 		}},
 		{"baseline", "CONFIRMED", false, func(*testing.T, *tlb.Transaction, *tlb.Transaction) {}},
-		{"no-source-incoming", "UNKNOWN", false, func(t *testing.T, s, r *tlb.Transaction) { s.IO.In = nil }},
-		{"other-incoming-type", "UNKNOWN", false, func(t *testing.T, s, r *tlb.Transaction) { s.IO.In = r.IO.In }},
-		{"other-external-body", "UNKNOWN", false, func(t *testing.T, s, r *tlb.Transaction) { s.IO.In.AsExternalIn().Body = cell.BeginCell().EndCell() }},
+		{"no-source-incoming", "", true, func(t *testing.T, s, r *tlb.Transaction) { s.IO.In = nil }},
+		{"other-incoming-type", "", true, func(t *testing.T, s, r *tlb.Transaction) { s.IO.In = r.IO.In }},
+		{"other-external-body", "", true, func(t *testing.T, s, r *tlb.Transaction) { s.IO.In.AsExternalIn().Body = cell.BeginCell().EndCell() }},
 		{"unknown-source-description", "UNKNOWN", false, func(t *testing.T, s, r *tlb.Transaction) {
 			s.Description = tlb.TransactionDescriptionStorage{StoragePhase: tlb.StoragePhase{StatusChange: tlb.AccStatusChange{Type: tlb.AccStatusChangeUnchanged}}}
 		}},

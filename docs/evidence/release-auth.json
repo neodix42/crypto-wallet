@@ -1,0 +1,87 @@
+{
+  "status": "PASS",
+  "tests": [
+    {
+      "test": "test_complete_desktop_and_go_inventory_is_required (__main__.InventoryTests.test_complete_desktop_and_go_inventory_is_required)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_cryptographic_tool_failure_and_old_cli_fail_closed (__main__.InventoryTests.test_cryptographic_tool_failure_and_old_cli_fail_closed)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_duplicate_traversal_extra_and_incomplete_manifests_fail (__main__.InventoryTests.test_duplicate_traversal_extra_and_incomplete_manifests_fail)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_every_missing_or_tampered_payload_fails (__main__.InventoryTests.test_every_missing_or_tampered_payload_fails)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_identity_input_cannot_inject_flags_environment_or_shell (__main__.InventoryTests.test_identity_input_cannot_inject_flags_environment_or_shell)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_manifest_changed_during_authentication_fails (__main__.InventoryTests.test_manifest_changed_during_authentication_fails)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_missing_bundle_cannot_be_reported_authenticated (__main__.InventoryTests.test_missing_bundle_cannot_be_reported_authenticated)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_prepare_refuses_incomplete_desktop_without_overwriting_manifest (__main__.InventoryTests.test_prepare_refuses_incomplete_desktop_without_overwriting_manifest)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_signed_identity_and_version_must_match_consumer_policy (__main__.InventoryTests.test_signed_identity_and_version_must_match_consumer_policy)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_symlink_and_hardlink_assets_are_not_accepted (__main__.InventoryTests.test_symlink_and_hardlink_assets_are_not_accepted)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_verification_requires_independent_immutable_repository_id (__main__.InventoryTests.test_verification_requires_independent_immutable_repository_id)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_verifier_uses_exact_certificate_source_and_hosted_runner_policy (__main__.InventoryTests.test_verifier_uses_exact_certificate_source_and_hosted_runner_policy)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_workflow_pins_actions_and_never_publishes_without_authentication (__main__.InventoryTests.test_workflow_pins_actions_and_never_publishes_without_authentication)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_independent_certificate_signature_digest_and_transparency_pass (__main__.RealSigstoreTests.test_real_independent_certificate_signature_digest_and_transparency_pass)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_tampered_artifact_and_bundle_signatures_fail (__main__.RealSigstoreTests.test_real_tampered_artifact_and_bundle_signatures_fail)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_valid_signature_with_wrong_immutable_repository_id_fails (__main__.RealSigstoreTests.test_real_valid_signature_with_wrong_immutable_repository_id_fails)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_wrong_publisher_branch_and_commit_fail (__main__.RealSigstoreTests.test_real_wrong_publisher_branch_and_commit_fail)",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_wrong_transparency_verification_key_fails (__main__.RealSigstoreTests.test_real_wrong_transparency_verification_key_fails)",
+      "status": "PASS"
+    }
+  ],
+  "testsRun": 18,
+  "sourceSHA256": {
+    "scripts/release_assets.py": "be90ee2dacf249961a286d8fda1e81f661ad6d61c962ec64641156c4fe247b36",
+    "scripts/release-auth-test.py": "7683aaa2d25b78879941ba5734239b1425fc2f97e5b1a596f788a15bced0183f",
+    "scripts/bootstrap-gh.py": "f9c9ab610035c9de82bb3fe0587ab7aad984d277991218976953c41d5333c74a",
+    ".github/workflows/release.yml": "32e450d08911acaf8c25b2b8e414cb7a80eed7edc4370df6886bee78709c9824"
+  },
+  "scope": "Hermetic complete-release inventories, exact publisher policy and real frozen upstream Sigstore/certificate/transparency verification; ephemeral wrong-key test only. No signing of LocalWallet or remote workflow/publication.",
+  "publisherSigning": "NOT_RUN: no workflow was triggered and no LocalWallet publisher attestation was fabricated",
+  "remotePublication": "NOT_RUN"
+}

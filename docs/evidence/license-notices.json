@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "scope": "Final candidate technical redistribution text collection, unchanged packaged bytes and provenance identity; independent legal/obligation review NOT_RUN.",
+  "observedUTC": "2026-10-24T11:03:23.935370+00:00",
+  "sourceSHA256": {
+    "scripts/license-notices.py": "0bc3be3c2d6a8c1c497573ec9854c31d6421191c1e45259523d72cdc893fa530",
+    "scripts/license-notices-test.py": "b8316cad84331ed2497cbe98235117a494000a6cb7a5321eb0785c35ff2546d1",
+    "docs/LICENSE_NOTICES.md": "d02367a3597ae34cbf233f43a34eef5a066d80f4a903cfafd6f2b62043fa1f95"
+  },
+  "candidate": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "d0a9cab95799361ed288a457e5bc5243e224ffc814546ae496bb2dee9ddd3e71",
+      "wallet-launcher": "39bf5716b5527b0af4df2a86083b24ae6641f74b65dad6754e41b93d016588d5",
+      "wallet-signer": "5f9d835ff32180c58dd332e1e9e9fd708f46a0e577c2204b7375ab5d19497f59"
+    },
+    "asarSHA256": "3b3c86affdc042288f7b878c8dccb65b1a779bf67e060d9163b0491a9f2bfa10",
+    "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c",
+    "buildManifestSHA256": "246ee9df9b37d8bd1b80bdb3f7d9b5c6ea0be3b814efae1db3196431b8eabbfe",
+    "portable": {
+      "file": "localwallet-0.1.0-linux-amd64.tar.gz",
+      "sha256": "2fedb613f03ed55a9065591842b307877d5851bb8716d5bd7f6f56e64a16e0d5"
+    }
+  },
+  "checks": [
+    {
+      "name": "13 filesystem/provenance/exact-byte/determinism/npm/go-only regressions",
+      "status": "PASS"
+    },
+    {
+      "name": "Final production Go command dependency closure and go mod verify; 38 pinned modules plus Go standard library",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual final Electron/Chromium texts and ASAR without unlisted production npm files",
+      "status": "PASS"
+    },
+    {
+      "name": "Two actual Go-only collector runs preserve the previously packaged text and JSON bytes",
+      "status": "PASS"
+    },
+    {
+      "name": "Two actual desktop collector runs preserve the previously packaged text/JSON and runtime copies",
+      "status": "PASS"
+    },
+    {
+      "name": "Final Go binary manifest, ASAR, Electron runtime and portable archive identity bindings",
+      "status": "PASS"
+    }
+  ],
+  "artifacts": {
+    "go": {
+      "components": 39,
+      "texts": 56,
+      "noticeBytes": 159521,
+      "noticeSHA256": "ee8185b3190ab03d15060f1c4e281db08dccb7eb90d1f15b72dffad2e6d46ddd",
+      "inventorySHA256": "c886122cae98d4e60ffab382eece7d3e2150bbd06604e017e649288a49189619",
+      "files": {
+        "go-THIRD-PARTY-NOTICES.txt": "ee8185b3190ab03d15060f1c4e281db08dccb7eb90d1f15b72dffad2e6d46ddd",
+        "go-THIRD-PARTY-NOTICES.json": "c886122cae98d4e60ffab382eece7d3e2150bbd06604e017e649288a49189619"
+      },
+      "legalReview": "NOT_RUN: independent license and redistribution obligation review"
+    },
+    "desktop": {
+      "components": 40,
+      "texts": 58,
+      "noticeBytes": 5759066,
+      "noticeSHA256": "457da8d89062b05a49fc997a2085f0436ff5b0918317e3b46ba6d2eee3abdfb9",
+      "inventorySHA256": "f4885cdda1c5863ab1663eeb9754ce473db3eced042e318035fb47bc4a746e4e",
+      "files": {
+        "THIRD-PARTY-NOTICES.txt": "457da8d89062b05a49fc997a2085f0436ff5b0918317e3b46ba6d2eee3abdfb9",
+        "THIRD-PARTY-NOTICES.json": "f4885cdda1c5863ab1663eeb9754ce473db3eced042e318035fb47bc4a746e4e"
+      },
+      "legalReview": "NOT_RUN: independent license and redistribution obligation review",
+      "runtimeCopies": {
+        "THIRD-PARTY-NOTICES.txt": "457da8d89062b05a49fc997a2085f0436ff5b0918317e3b46ba6d2eee3abdfb9",
+        "THIRD-PARTY-NOTICES.json": "f4885cdda1c5863ab1663eeb9754ce473db3eced042e318035fb47bc4a746e4e"
+      }
+    }
+  },
+  "logs": [
+    "reports/license-notices-tests.log",
+    "reports/license-notices-go.log",
+    "reports/license-notices-desktop.log",
+    "reports/license-notices-repeat.log"
+  ],
+  "remaining": [
+    {
+      "name": "Independent license classification, compatibility and redistribution obligations including corresponding source, relinking and patent obligations",
+      "status": "NOT_RUN"
+    },
+    {
+      "name": "System runtime library use/distribution obligations and LocalWallet project license",
+      "status": "NOT_RUN"
+    }
+  ]
+}

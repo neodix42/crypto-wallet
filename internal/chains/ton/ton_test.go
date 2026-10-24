@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -371,19 +372,68 @@ func TestWalletV5R1Emulator(t *testing.T) {
 		_ = json.Unmarshal(raw["method"], &q.Method)
 		if q.Method == "getTransactions" {
 			var par struct {
-				Address string `json:"address"`
+				Address  string `json:"address"`
+				LT       string `json:"lt"`
+				Hash     string `json:"hash"`
+				Limit    int    `json:"limit"`
+				Archival bool   `json:"archival"`
 			}
 			_ = json.Unmarshal(raw["params"], &par)
+			if par.Limit != 100 || !par.Archival {
+				t.Error("unexpected archival fixture request")
+			}
 			addr, _ := parseAddress("ton-testnet", par.Address)
-			var rows []map[string]string
-			for _, tx := range append(v.Transactions, v.ReturnTransactions...) {
-				if tx.Address == addr.StringRaw() {
-					rows = append(rows, map[string]string{"data": tx.Data})
+			type fixtureRow struct {
+				Data string
+				LT   uint64
+				Hash string
+			}
+			ordered := []fixtureRow{}
+			for _, tx := range append(append([]struct {
+				Address string `json:"address"`
+				Data    string `json:"data"`
+			}{}, v.Transactions...), v.ReturnTransactions...) {
+				if tx.Address != addr.StringRaw() {
+					continue
 				}
+				boc, err := decodeBOC(tx.Data)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				slice, err := boc.BeginParse()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				var decoded tlb.Transaction
+				if err = tlb.LoadFromCell(&decoded, slice); err != nil {
+					t.Error(err)
+					return
+				}
+				ordered = append(ordered, fixtureRow{tx.Data, decoded.LT, hex.EncodeToString(boc.Hash())})
+			}
+			// The real API is newest-first. The forward and return emulator
+			// results were formerly concatenated oldest-first, hiding gaps.
+			sort.Slice(ordered, func(i, j int) bool { return ordered[i].LT > ordered[j].LT })
+			offset := 0
+			if par.LT != "" {
+				offset = len(ordered)
+				for i, tx := range ordered {
+					if strconv.FormatUint(tx.LT, 10) == par.LT && tx.Hash == par.Hash {
+						offset = i
+						break
+					}
+				}
+			}
+			rows := []map[string]string{}
+			for i := offset; i < len(ordered) && len(rows) < par.Limit; i++ {
+				rows = append(rows, map[string]string{"data": ordered[i].Data})
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "ok": true, "result": rows})
 			return
 		}
+
 		_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "ok": true, "result": map[string]any{"init": map[string]any{"root_hash": n.root, "file_hash": n.file, "workchain": -1}, "last": map[string]any{"seqno": 123}}})
 	}))
 	defer server.Close()
@@ -423,6 +473,8 @@ func TestWalletV5R1Emulator(t *testing.T) {
 		}
 	}
 	v.Transactions = v.FailedTransactions
+	// Failure ran from the funded snapshot, not the successful-return fork.
+	v.ReturnTransactions = nil
 	receipt, e = a.Reconcile(context.Background(), insufficient, failedSigned)
 	if e != nil || receipt.State != "FAILED" {
 		t.Fatalf("seqno advanced without payment was not rejected: %v %+v", e, receipt)

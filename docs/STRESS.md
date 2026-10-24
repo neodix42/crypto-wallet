@@ -1,5 +1,19 @@
 # Stress and soak evidence
 
+## Current scoped campaign
+
+The hardening batch reran bounded stress and full Go race checks. It also started a source/binary-pinned **86,400-second non-Decred soak**, currently **RUNNING**. This workload uses the actual production signer/KDF, encrypted lock/restart/phrase recovery, growing accounts/history and exact signed-journal EVM fake-ledger reconciliation. It omits Decred operations and never accesses public networks. It is narrower than all-chain, desktop or consensus acceptance; the complete production soak gate stays **NOT_RUN**. The [hardening checklist](PRODUCTION_HARDENING.md) records final-candidate evidence separately from historical measurements below.
+
+```sh
+make test-soak-non-decred                  # 24 hours; synthetic fixtures only
+make test-soak-non-decred SOAK_SECONDS=30  # smoke; never claims 24-hour acceptance
+make test-fuzz-long FUZZ_SECONDS=60        # 13 targets; excluded Decred stays NOT_RUN
+```
+
+Run only one soak writer at a time: `reports/soak.json` contains live atomic checkpoints, and `reports/nondecred-soak-run.json` identifies the pinned source, test executable and child PID. RUNNING has no final latency/resource or reconciliation verdict. The wrapper validates duration, scope, final journal/ledger counts, unchanged source and binary before awarding scoped completion. The completed local longer fuzz run passed all 13 selected targets for 60 seconds each with unchanged source; the 300-second scheduled workflow has not run remotely.
+
+## Historical reference measurements
+
 > Historical measured workload: the timings/counts below include the former encrypted-file backup operation. Current product recovery records/confirms the phrase in Go and restores from that phrase; no portable backup API remains. These old measurements do not recertify changed recovery code. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) and the current evidence checklist for rerun status.
 
 
@@ -11,7 +25,7 @@ Two additional cycles use the actual signer Engine: import the public BIP39 fixt
 
 Budgets are declared in source before the measured runs: ordinary RSS/HWM 1 GiB, post-GC heap 512 MiB, at most 8 residual goroutines, Go runtime memory limit 768 MiB, parser p99<=10 ms, scheduling p99<=1 s, KDF seal/reopen p99<=15 s and complete signer lifecycle p99<=60 s. Linux `/proc/self/status` supplies actual VmRSS/VmHWM measurements every 20 ms. The report retains per-cycle settled RSS/heap/goroutine/journal counts, latency counts/distributions, exact workload counts and scenario seeds.
 
-| Current executed gate | Actual result |
+| Historical executed gate | Actual result |
 | --- | --- |
 | Bounded stress ordinary run | PASS, 21.73 s; RSS/HWM 568,549,376 bytes (542.2 MiB), final heap 4.1 MB, goroutines 2->2 |
 | IPC/scheduling/KDF/lifecycle p99 | 501 us / 3975 us / 602951 us / 5912723 us; each below its declared budget |

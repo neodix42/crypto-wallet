@@ -85,14 +85,9 @@ func TestTP052CoreHistoryRejectsUnreliableEvents(t *testing.T) {
 	x := original()
 	x["delta"].(map[string]any)["token"] = "HYPE"
 	delete(x["delta"].(map[string]any), "nativeTokenFee")
-	events := make([]any, 500)
-	events[0] = x
-	for i := 1; i < 500; i++ {
-		events[i] = map[string]any{"delta": map[string]string{"type": "other"}}
-	}
-	f.override["userNonFundingLedgerUpdates"] = events
+	f.override["userNonFundingLedgerUpdates"] = []any{x}
 	rows, e := f.a.History(context.Background(), ac)
-	if e != nil || len(rows) != 1 || !strings.Contains(rows[0].Detail, "limit reached") {
+	if e != nil || len(rows) != 1 || !strings.Contains(rows[0].Detail, "native HYPE fee not provided") {
 		t.Fatal(rows, e)
 	}
 }

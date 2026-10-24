@@ -5,15 +5,15 @@
   "settledCheckpoints": [
     {
       "cycle": 1,
-      "rssBytes": 618033152,
-      "heapBytes": 4077584,
+      "rssBytes": 617648128,
+      "heapBytes": 4032968,
       "goroutines": 18,
       "journalRecords": 2
     },
     {
       "cycle": 2,
-      "rssBytes": 619249664,
-      "heapBytes": 4096880,
+      "rssBytes": 619159552,
+      "heapBytes": 4039160,
       "goroutines": 18,
       "journalRecords": 4
     }
@@ -49,48 +49,48 @@
     "realSignedFakeNodeTransfers": 1000,
     "testnetAddressProfiles": 12
   },
-  "elapsedSeconds": 42.238113856,
+  "elapsedSeconds": 37.24755023,
   "p50Micros": 1,
-  "p99Micros": 1110,
+  "p99Micros": 1090,
   "rssBudgetMiB": 1024,
   "goMemoryLimitMiB": 768,
-  "StartHeap": 1832592,
-  "EndHeap": 4246752,
+  "StartHeap": 1832816,
+  "EndHeap": 4157240,
   "StartGoroutines": 2,
   "EndGoroutines": 2,
-  "startRSSBytes": 16232448,
-  "endRSSBytes": 615059456,
-  "peakObservedRSSBytes": 622223360,
-  "kernelHighWaterRSSBytes": 622223360,
-  "resourceSamples": 2113,
-  "peakGoroutines": 22,
+  "startRSSBytes": 16908288,
+  "endRSSBytes": 600285184,
+  "peakObservedRSSBytes": 622850048,
+  "kernelHighWaterRSSBytes": 622850048,
+  "resourceSamples": 1864,
+  "peakGoroutines": 23,
   "latencies": {
     "boundedIPCParser": {
       "count": 100000,
       "p50Micros": 1,
-      "p99Micros": 1110,
-      "maxMicros": 10131,
+      "p99Micros": 1090,
+      "maxMicros": 6712,
       "budgetP99Micros": 10000
     },
     "concurrentSchedulingTransfer": {
       "count": 1000,
-      "p50Micros": 3594,
-      "p99Micros": 7402,
-      "maxMicros": 8965,
+      "p50Micros": 3549,
+      "p99Micros": 6816,
+      "maxMicros": 11195,
       "budgetP99Micros": 1000000
     },
     "productionKDFSealReopen": {
       "count": 8,
-      "p50Micros": 666359,
-      "p99Micros": 979797,
-      "maxMicros": 979797,
+      "p50Micros": 787540,
+      "p99Micros": 1121648,
+      "maxMicros": 1121648,
       "budgetP99Micros": 15000000
     },
     "productionSignerLifecycle": {
       "count": 2,
-      "p50Micros": 12511485,
-      "p99Micros": 12511485,
-      "maxMicros": 12511485,
+      "p50Micros": 9592473,
+      "p99Micros": 9592473,
+      "maxMicros": 9592473,
       "budgetP99Micros": 60000000
     }
   },

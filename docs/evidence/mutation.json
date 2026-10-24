@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "elapsedSeconds": 283.942,
+  "elapsedSeconds": 296.492,
   "mutants": [
     {
       "id": "prompt-identity-binding",

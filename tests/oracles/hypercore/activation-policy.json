@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "observedUTC": "2026-10-24T10:11:38.130894+00:00",
+  "status": "BLOCKED",
+  "scope": "Primary-source activation policy review; no account/private data, transfer, or public testnet request.",
+  "sources": [
+    {
+      "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/activation-gas-fee",
+      "retrieval": "Browser read; dynamic document not vendored or source-hashed"
+    },
+    {
+      "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint",
+      "retrieval": "Browser read; dynamic document not vendored or source-hashed"
+    },
+    {
+      "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint",
+      "retrieval": "Browser read; dynamic document not vendored or source-hashed"
+    },
+    {
+      "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket/subscriptions",
+      "retrieval": "Browser read; dynamic document not vendored or source-hashed"
+    },
+    {
+      "url": "https://github.com/hyperliquid-dex/hyperliquid-python-sdk/blob/2fdb18f9517675ea03695a0962bd19eece9c83f0/hyperliquid/utils/signing.py",
+      "retrieval": "Browser read; dynamic document not vendored or source-hashed"
+    }
+  ],
+  "findings": [
+    "The activation documentation specifies one quote token for the first transaction to a new destination regardless of transferred asset.",
+    "Published spotSend/sendAsset action schemas and the pinned official signing schema expose no separate activation fee token/ceiling field.",
+    "The reviewed ledger schema has a fee quantity but does not establish an activation fee asset or debit source for this HYPE route."
+  ],
+  "policy": "A funded USDC balance is not evidence that this action selects it. Reject role=missing rather than sign an unspecified fee; require a separately verified quote-token activation flow before an ordinary HYPE transfer.",
+  "implementation": "BLOCKED pending authoritative fee selection, debit and receipt semantics; no invented activation action.",
+  "networkAcceptance": "NOT_RUN; public testnet tests excluded by owner and no mainnet spending authorized."
+}

@@ -6,23 +6,31 @@ jobs:
   checks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: 1.27.3
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.19.0
-      - run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil tesseract-ocr
+      - run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux
       - run: npm --prefix desktop ci --ignore-scripts
+      - name: Provision pinned offline provenance verifier
+        run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
       - run: ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
       - run: make test test-security test-race test-interop test-integration test-fuzz coverage
       - run: make check-deps
       - name: Restore all wallets in independent fresh application copies
         run: make test-recovery
+      - name: Check owned-process crash recovery and secret canaries
+        run: make test-crash
       - name: Check Electron phrase setup and recovery through the production desktop
         run: make test-packaged
-      - uses: actions/upload-artifact@v4
+      - name: Execute one Electron-approved payment on an isolated actual geth chain
+        run: ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: evidence

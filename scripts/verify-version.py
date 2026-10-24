@@ -4,6 +4,7 @@ import hashlib
 import argparse
 import json
 import pathlib
+import re
 import subprocess
 import tarfile
 from install import verify_binaries
@@ -11,6 +12,8 @@ from version import selected_version, validate_version
 
 root = pathlib.Path(__file__).resolve().parents[1]
 _COMPONENTS = ('wallet-core', 'wallet-signer', 'wallet-launcher')
+_GO_INVENTORIES = ('go-sbom.cdx.json', 'go-dependency-licenses.json', 'go-source-manifest.json',
+                   'go-THIRD-PARTY-NOTICES.txt', 'go-THIRD-PARTY-NOTICES.json')
 
 
 def _sha256(filename):
@@ -37,7 +40,7 @@ def verify_go_versions(base, version, packaged=True):
             raise RuntimeError('Go runtime version differs: ' + str(binary.relative_to(base)))
 
 
-def _decode_json(content):
+def _decode_json(content, expected_type=dict):
     def unique(pairs):
         value = {}
         for key, item in pairs:
@@ -46,8 +49,8 @@ def _decode_json(content):
             value[key] = item
         return value
     value = json.loads(content, object_pairs_hook=unique)
-    if not isinstance(value, dict):
-        raise RuntimeError('Manifest must be an object')
+    if not isinstance(value, expected_type):
+        raise RuntimeError('Manifest must be an object' if expected_type is dict else 'Invalid Go dependency license inventory')
     return value
 
 
@@ -90,9 +93,29 @@ def verify_go_only(base=root):
     print('PASS version ' + version + ' matches Go component runtime versions, manifests and any packaged archive')
 
 
+def _verify_go_inventories(dist, manifest):
+    hashes = manifest.get('inventorySHA256')
+    if not isinstance(hashes, dict) or set(hashes) != set(_GO_INVENTORIES):
+        raise RuntimeError('Incomplete Go release inventory manifest')
+    for name, expected in hashes.items():
+        path = dist / name
+        if not isinstance(expected, str) or not re.fullmatch('[0-9a-f]{64}', expected) or path.is_symlink() or not path.is_file() or path.stat().st_nlink != 1 or not 0 < path.stat().st_size <= 64 << 20 or _sha256(path) != expected:
+            raise RuntimeError('Distributed Go inventory hash differs: ' + name)
+        if name.endswith('.json'):
+            # Dependency license inventories are lists, while the remaining
+            # machine manifests are objects. Reject duplicate keys in both.
+            _decode_json(path.read_bytes(), list if name == 'go-dependency-licenses.json' else dict)
+    notices = _decode_json((dist / 'go-THIRD-PARTY-NOTICES.json').read_bytes())
+    if notices.get('noticeSHA256') != hashes['go-THIRD-PARTY-NOTICES.txt']:
+        raise RuntimeError('Go redistribution notice pair differs')
+
+
 def verify_go_archive(filename, source, manifest):
+    source = pathlib.Path(source)
+    dist = source.parent / 'dist'
+    _verify_go_inventories(dist, manifest)
     prefix = f"localwallet-go-{manifest['version']}-linux-amd64"
-    required = set(_COMPONENTS) | {'manifest.json', 'go-build-manifest.json', 'README.md'}
+    required = set(_COMPONENTS) | set(_GO_INVENTORIES) | {'manifest.json', 'go-build-manifest.json', 'README.md'}
     seen = set()
     with tarfile.open(filename, 'r:gz') as archive:
         for member in archive:
@@ -107,10 +130,11 @@ def verify_go_archive(filename, source, manifest):
             seen.add(relative)
             if relative in _COMPONENTS and not member.mode & 0o111:
                 raise RuntimeError('Go archive executable permission differs')
+            comparison = (dist if relative in _GO_INVENTORIES else source) / relative
             if relative in ('README.md', 'go-build-manifest.json'):
                 if member.size > 1048576:
                     raise RuntimeError('Oversized Go archive metadata')
-            elif member.size != (source / relative).stat().st_size:
+            elif member.size != comparison.stat().st_size:
                 raise RuntimeError('Archived Go payload size differs: ' + relative)
             with archive.extractfile(member) as stream:
                 if relative == 'go-build-manifest.json':
@@ -119,7 +143,7 @@ def verify_go_archive(filename, source, manifest):
                     if archived != expected:
                         raise RuntimeError('Archived Go build identity differs')
                 elif relative != 'README.md':
-                    if hashlib.file_digest(stream, 'sha256').hexdigest() != _sha256(source / relative):
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != _sha256(comparison):
                         raise RuntimeError('Archived Go payload differs: ' + relative)
     if seen != required:
         raise RuntimeError('Incomplete Go component archive')

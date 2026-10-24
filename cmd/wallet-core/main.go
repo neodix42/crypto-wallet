@@ -43,6 +43,10 @@ type snapshot struct {
 	RecoveryConfirmed bool                `json:"recoveryConfirmed"`
 	Accounts          []model.Account     `json:"accounts"`
 	Operations        []journal.Operation `json:"operations"`
+	AccountsCursor    string              `json:"accountsCursor"`
+	TotalAccounts     int                 `json:"totalAccounts"`
+	TotalOperations   int                 `json:"totalOperations"`
+	Revision          string              `json:"revision"`
 }
 type core struct {
 	child          *supervisor.Child
@@ -58,6 +62,8 @@ type core struct {
 	publicChannel  *ipc.Channel
 	sessionCtx     context.Context
 	sessionCancel  context.CancelFunc
+	historyScans   map[string]*historyScan
+	publicScans    map[string]publicContinuation
 }
 
 func (c *core) lock() {
@@ -79,6 +85,8 @@ func (c *core) endSession() {
 	c.sessionCtx = nil
 	c.sessionCancel = nil
 	c.adapters = chains.All()
+	c.historyScans = nil
+	c.publicScans = nil
 	c.child.Kill()
 }
 
@@ -233,6 +241,19 @@ func (c *core) account(id string) (model.Account, error) {
 			return a, nil
 		}
 	}
+	if s.AccountsCursor != "" {
+		c.mu.Lock()
+		epoch := c.epoch
+		c.mu.Unlock()
+		var account model.Account
+		err := c.childCallAt(epoch, "account", struct {
+			AccountID string `json:"accountId"`
+		}{id}, &account)
+		if err != nil || account.ID != id {
+			return model.Account{}, errors.New("unknown account")
+		}
+		return account, nil
+	}
 	return model.Account{}, errors.New("unknown account")
 }
 func main() {
@@ -384,7 +405,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}()
 	switch m.Method {
-	case "networks", "accounts", "status", "history", "confirmRecovery":
+	case "networks", "status", "confirmRecovery":
 		if strictjson.Decode(m.Body, &struct{}{}) != nil {
 			return nil, errors.New("invalid fields")
 		}
@@ -401,9 +422,18 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 		return networks, nil
 	case "accounts":
-		return c.current()
+		var b struct {
+			Cursor strictjson.Text `json:"cursor,omitempty"`
+		}
+		if e := strictjson.Decode(m.Body, &b); e != nil {
+			return nil, e
+		}
+		return c.publicAccountsAt(epoch, m.Session, string(b.Cursor))
 	case "status":
 		s, err := c.current()
+		s.Accounts = nil
+		s.Operations = nil
+		s.AccountsCursor = ""
 		return struct {
 			Version string `json:"version"`
 			snapshot
@@ -414,6 +444,10 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			return nil, e
 		}
 		if m.Method == "unlock" || m.Method == "configure" {
+			c.mu.Lock()
+			c.historyScans = nil
+			c.publicScans = nil
+			c.mu.Unlock()
 			if err := c.applySettingsAt(epoch); err != nil {
 				return nil, err
 			}
@@ -428,6 +462,9 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			c.sessionCtx, c.sessionCancel = context.WithCancel(context.Background())
 		}
 		c.mu.Unlock()
+		if m.Method != "receive" && m.Method != "scanQR" && m.Method != "copyReceive" && m.Method != "saveQR" {
+			return c.publicSnapshotResultAt(epoch, m.Session, out)
+		}
 		return out, nil
 	case "associate":
 		var b struct {
@@ -461,45 +498,19 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 		var out json.RawMessage
 		e = c.childCallAt(epoch, "associate", updated, &out)
-		return out, e
+		if e != nil {
+			return nil, e
+		}
+		return c.publicSnapshotResultAt(epoch, m.Session, out)
 	case "chainHistory":
 		var b struct {
-			AccountID string `json:"accountId"`
+			AccountID strictjson.Text `json:"accountId"`
+			Cursor    strictjson.Text `json:"cursor,omitempty"`
 		}
 		if e := strictjson.Decode(m.Body, &b); e != nil {
 			return nil, e
 		}
-		ac, e := c.account(b.AccountID)
-		if e != nil {
-			return nil, e
-		}
-		a, e := c.adapter(ac.Network)
-		if e != nil {
-			return nil, e
-		}
-		ctx, cancel := c.networkContextAt(2*time.Minute, epoch)
-		defer cancel()
-		if h, ok := a.(interface {
-			History(context.Context, model.Account) ([]model.Receipt, error)
-			HistoryScope() string
-		}); ok {
-			entries, e := h.History(ctx, ac)
-			return struct {
-				Entries []model.Receipt `json:"entries"`
-				Scope   string          `json:"scope"`
-			}{entries, h.HistoryScope()}, e
-		}
-		if d, ok := a.(*decred.Adapter); ok {
-			r, e := d.SyncWithProgress(ctx, ac, nil)
-			return struct {
-				Report decred.SyncReport `json:"report"`
-				Scope  string            `json:"scope"`
-			}{r, "Authenticated dcrd bounded scan; see scanned range/address limit. Older blocks and addresses beyond configured limits remain unresolved."}, e
-		}
-		return struct {
-			Entries []model.Receipt `json:"entries"`
-			Scope   string          `json:"scope"`
-		}{nil, "Network incoming history is not implemented for this family; local outgoing journal only. An empty journal is not proof of no funds."}, nil
+		return c.chainHistoryAt(epoch, m.Session, string(b.AccountID), string(b.Cursor))
 	case "balances":
 		var b struct {
 			AccountID string `json:"accountId"`
@@ -519,8 +530,15 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		defer cancel()
 		return adapter.Balance(ctx, a)
 	case "history":
-		s, e := c.current()
-		return s.Operations, e
+		var b struct {
+			AccountID strictjson.Text `json:"accountId,omitempty"`
+			Asset     strictjson.Text `json:"asset,omitempty"`
+			Cursor    strictjson.Text `json:"cursor,omitempty"`
+		}
+		if e := strictjson.Decode(m.Body, &b); e != nil {
+			return nil, e
+		}
+		return c.publicJournalAt(epoch, m.Session, string(b.AccountID), string(b.Asset), string(b.Cursor))
 	case "prepare", "max":
 		var t model.Transfer
 		if e := strictjson.Decode(m.Body, &t); e != nil {
@@ -596,20 +614,16 @@ func (c *core) payment(method, id string) (any, error) {
 }
 
 func (c *core) paymentAt(method, id string, epoch uint64) (any, error) {
-	var ops []journal.Operation
-	if e := c.childCallAt(epoch, "pending", struct{}{}, &ops); e != nil {
-		return nil, e
+	var operation journal.Operation
+	if err := c.childCallAt(epoch, "operation", struct {
+		ID string `json:"id"`
+	}{id}, &operation); err != nil {
+		return nil, err
 	}
-	var op *journal.Operation
-	for i := range ops {
-		if ops[i].Plan.ID == id {
-			op = &ops[i]
-			break
-		}
-	}
-	if op == nil {
+	if operation.Plan.ID != id || id == "" {
 		return nil, errors.New("unknown payment")
 	}
+	op := &operation
 	a, e := c.adapter(op.Plan.Account.Network)
 	if e != nil {
 		return nil, e
