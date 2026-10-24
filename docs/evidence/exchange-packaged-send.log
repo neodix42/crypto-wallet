@@ -1,0 +1,109 @@
+PASS Pinned actual geth executes fresh blocks with public genesis-only funds
+PASS Fresh explicit testnet profile restores the public BIP39 fixture through masked Electron input
+PASS Electron configures and approves the actual loopback RPC; funded native balance is visible
+PASS Ordinary Electron form prepares the exact decimal payment through the real Go/node pipeline
+PASS Electron Send prepares, presents the exact Go-authored plan and reauthenticates in its masked dialog
+PASS Independent actual geth receipt, recipient delta, source fee debit and delayed nonce prove exactly one executed payment
+PASS Disposable app files and captured logs contain no tested password/phrase canaries
+{
+  "status": "PASS",
+  "sourceSHA256": {
+    "scripts/packaged-send.py": "e588c55890b2d742e73e3818e5db592c79efe6f4625be0a4e1e1a244194ac33d",
+    "tests/e2e/local_geth.py": "bcde61488f9aeb418f5b9d9b160559e758a59f3dd0d16ea300cb8646ffe7076e",
+    "tests/e2e/x11.py": "6095988878081eeb5fab7edb871b9b0618ba9c671e4d72d838a3f613a2f33ed1",
+    "tests/oracles/evm/geth-genesis.json": "c17c6991f980e2261ea44f4ed8dda4cdc5b82df5e0fa51c8e385a43d784aaf20"
+  },
+  "steps": [
+    {
+      "name": "Pinned actual geth executes fresh blocks with public genesis-only funds",
+      "status": "PASS"
+    },
+    {
+      "name": "Fresh explicit testnet profile restores the public BIP39 fixture through masked Electron input",
+      "status": "PASS"
+    },
+    {
+      "name": "Electron configures and approves the actual loopback RPC; funded native balance is visible",
+      "status": "PASS"
+    },
+    {
+      "name": "Ordinary Electron form prepares the exact decimal payment through the real Go/node pipeline",
+      "status": "PASS"
+    },
+    {
+      "name": "Electron Send prepares, presents the exact Go-authored plan and reauthenticates in its masked dialog",
+      "status": "PASS"
+    },
+    {
+      "name": "Independent actual geth receipt, recipient delta, source fee debit and delayed nonce prove exactly one executed payment",
+      "status": "PASS"
+    },
+    {
+      "name": "Disposable app files and captured logs contain no tested password/phrase canaries",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Uninstrumented portable Electron/Go Send on private X11 into actual pinned geth Engine-API chain; public genesis-funded fixture only",
+  "publicNetworkTests": "NOT_RUN",
+  "mainnetSpending": "NOT_APPLICABLE: no outside network route",
+  "osMatrix": "NOT_RUN: same-host private Xvfb and user/network namespaces",
+  "networkIsolation": {
+    "uid": 1000,
+    "interfaces": [
+      "lo"
+    ],
+    "networkNamespace": "net:[4026535623]",
+    "externalRoutes": false
+  },
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "79f9efee548a857e64f6c1a38097ef236c2030eb169d5b075ed294736afc8af7",
+      "wallet-launcher": "164b9c11ee193392dab11ea0cf484bcd94fb1d91e02281609a5b6bbd13c34065",
+      "wallet-signer": "6340d8f4a7773e873ffc6a98d8e5cafa20dddaa3d5b553158240fe5df09db077"
+    },
+    "asarSHA256": "013c01b218cf05e1a5a295e9333e7d67a66a29488281c78ba8b82b2064c2d9d6"
+  },
+  "node": {
+    "implementation": "geth1.17.9-stable",
+    "image": "ethereum/client-go:v1.17.9@sha256:1ae3571b074ccda207808fd228ade023f62ebdeb1dab6b393093dcc8b5293109",
+    "binarySHA256": "75da01386ed074c086f18e52e034b79cfc6974232f196ca1c72bb16ca169e3e2",
+    "chainId": 11155111,
+    "consensusScope": "Actual EVM execution with test-only Engine-API block production; no public-network/beacon consensus acceptance claim"
+  },
+  "approval": {
+    "networkVisible": true,
+    "atomicAmountVisible": true,
+    "atomicAmount": "12345678912345678"
+  },
+  "transfer": {
+    "identity": "0x8b776110b0852d3050625ff44d023fdebdc40c6374816485251be363619f19b3",
+    "source": "0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
+    "recipient": "0x1111111111111111111111111111111111111111",
+    "chainId": 11155111,
+    "atomicAmount": "12345678912345678",
+    "nativeRecipientBefore": "0",
+    "nativeRecipientAfter": "12345678912345678",
+    "sourceBefore": "1000000000000000000000",
+    "sourceAfter": "999987654075961143322",
+    "actualFee": "245126511000",
+    "receipt": {
+      "blockHash": "0x63065581ce707a136cec06fd5a7817f97decc92bc5c43e8c98ef9fad462362a3",
+      "blockNumber": "0x22",
+      "contractAddress": null,
+      "cumulativeGasUsed": "0x5208",
+      "effectiveGasPrice": "0xb21c73",
+      "from": "0x9858effd232b4033e47d90003d41ec34ecaeda94",
+      "gasUsed": "0x5208",
+      "logs": [],
+      "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "status": "0x1",
+      "to": "0x1111111111111111111111111111111111111111",
+      "transactionHash": "0x8b776110b0852d3050625ff44d023fdebdc40c6374816485251be363619f19b3",
+      "transactionIndex": "0x0",
+      "type": "0x2"
+    },
+    "sourcePendingNonceAfter": 1
+  },
+  "seconds": 38.024
+}

@@ -45,6 +45,8 @@ jobs:
           ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
       - name: Run mandatory local gates
         run: make test test-security test-race test-interop test-integration test-fuzz coverage check-deps
+      - name: Execute Go-signed USDT transfers on isolated pinned EVM
+        run: WALLET_USDT_EVM=1 ./scripts/with-toolchain.sh go test ./internal/chains/evm -run USDT -count=1
       - name: Test release authentication and tamper rejection offline
         run: python3 scripts/release-auth-test.py
       - name: Restore all wallets in independent fresh application copies

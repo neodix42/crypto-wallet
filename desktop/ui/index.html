@@ -56,6 +56,19 @@
       </details>
 
       </div>
+      <div id="exchangepage" role="tabpanel" hidden>
+        <div class="wallet-heading"><div><h1 id="exchangetitle" tabindex="-1">Exchange</h1><p>Deposit to Bybit, trade a spot USDT pair, then withdraw to your wallet.</p></div><div class="actions"><button id="exchangeconnect">Connect Bybit API key</button><button id="exchangedisconnect" hidden>Disconnect</button></div></div>
+        <label>Bybit API region <select id="exchangeendpoint"><option value="api.bybit.com">Global — api.bybit.com</option><option value="api.bybit.ae">UAE — api.bybit.ae</option><option value="api.bybit.eu">EU — api.bybit.eu</option><option value="api.bybit.tr">Türkiye — api.bybit.tr</option><option value="api.bybit.kz">Kazakhstan — api.bybit.kz</option></select></label>
+        <p id="exchangeconnection" role="status">Bybit is disconnected.</p>
+        <p>Assets deposited to Bybit are held by Bybit. Each deposit, spot trade and withdrawal requires its own confirmation. Exchange fees, trading limits and network availability apply.</p>
+        <div class="panel exchange-selection"><label>Wallet and network <select id="exchangeaccount"></select></label><label>Wallet asset <select id="exchangeasset"></select></label><p id="exchangeroute">Select a wallet asset and refresh its market.</p><button id="exchangequote">Refresh market &amp; price</button><pre id="exchangeprice">Price unknown — no market query completed.</pre></div>
+        <div class="exchange-actions">
+          <div class="panel"><h2>1. Deposit</h2><p>Send the selected asset from this wallet to its verified Bybit deposit network. Review the destination and network fee in the wallet dialog.</p><label>Deposit amount <input id="exchangedepositamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><button id="exchangedeposit" class="primary" disabled>Deposit</button></div>
+          <div class="panel"><h2>2. Swap</h2><label>Spot direction <select id="exchangeside"><option value="Sell">Sell wallet asset for USDT</option><option value="Buy">Buy wallet asset with USDT</option></select></label><label><span id="exchangeswapunit">Amount of wallet asset to sell</span><input id="exchangeswapamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><label>Maximum price slippage (%, 0.01–1, up to 2 decimals) <input id="exchangeslippage" inputmode="decimal" autocomplete="off" value="0.5"></label><button id="exchangeswap" class="primary" disabled>Swap</button></div>
+          <div class="panel"><h2>3. Withdraw</h2><p>Withdraw from Bybit to your selected wallet’s verified receive address on the exact network.</p><label>Destination wallet <select id="exchangewithdrawaccount"></select></label><label>Withdrawal asset <select id="exchangewithdrawasset"></select></label><button id="exchangewithdrawquote">Check withdrawal network &amp; fee</button><p id="exchangewithdrawroute">Select a destination and check its withdrawal network.</p><label>Withdrawal amount <input id="exchangewithdrawamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><button id="exchangewithdraw" class="primary" disabled>Withdraw</button></div>
+        </div>
+        <div class="panel"><div class="settings-heading"><h2>Bybit balances and recent operations</h2><button id="exchangerefresh">Refresh exchange state</button></div><pre id="exchangebalances">Balances unknown — connect and refresh Bybit.</pre><p id="exchangeresult" role="status">No exchange action requested.</p><pre id="exchangedetails" aria-label="Public exchange result details" hidden></pre><div id="exchangeoperations"></div><p>Accepted requests can remain pending or unknown. Reconcile the original operation before making another request. Select an explicitly supported wallet network for withdrawals; matching coin names do not identify the network.</p></div>
+      </div>
     </div>
   </section>
 </main>

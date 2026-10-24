@@ -16,8 +16,11 @@ vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
 phrase_spec=importlib.util.spec_from_file_location('test_phrase',root/'tests/e2e/phrase.py');phrase_ui=importlib.util.module_from_spec(phrase_spec);phrase_spec.loader.exec_module(phrase_ui)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing and validation feedback; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing, disconnected Exchange controls, isolated Connect cancellation and validation feedback; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals']}
 report['environment']=selected_profile
+report['producerSHA256']=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()
+report.update(status='RUNNING',sourceStable=False)
+(reports/'packaged-recovery.json').write_text(json.dumps(report,indent=2)+'\n')
 # Keep the pinned test decoder's existing build cache when the wallet itself
 # receives a fresh HOME below. These paths are never passed to the wallet.
 decoder_environment=json.loads(subprocess.check_output([str(root/'scripts/with-go.sh'),'go','env','-json','GOROOT','GOPATH','GOMODCACHE','GOCACHE'],cwd=root,text=True))
@@ -229,6 +232,72 @@ def settingsjournal():
  desktop.screenshot(reports/'packaged-settings-journal.png')
  desktop.key('Escape');time.sleep(.3)
  passed('Local payment journal exists only in Settings with explicit wallet and asset context')
+def exchangetab(button=1):
+ # Select the topmost public Exchange label, which is the permanent tab rather
+ # than the page heading. No DOM, accessibility internals or debugger is used.
+ desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
+ rows=[a for a in textboxes() if a[11].lower().strip('.,:')=='exchange']
+ if not rows:raise RuntimeError('Installed Exchange tab is unavailable')
+ a=min(rows,key=lambda value:(int(value[7]),int(value[6])))
+ desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2,button=button);time.sleep(.3)
+def exchangedisabledcontrols():
+ # Disabled primary controls have the production CSS opacity of .4. Inspect
+ # their public label pixels and blue fill independently, then click each.
+ # This assertion would fail for the normal enabled primary-button fill.
+ for attempt in range(12):
+  if phrase_ui.secret_window(desktop):raise RuntimeError('Unexpected credential window while checking disconnected Exchange')
+  original=Image.open(capture()).convert('RGB')
+  picture=ImageOps.invert(original.convert('L'))
+  picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<180 else 255)
+  path=reports/'packaged-exchange-disabled-ocr.png';picture.save(path)
+  raw=subprocess.check_output(['tesseract',str(path),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
+  controls={}
+  for line in raw.splitlines()[1:]:
+   a=line.split('\t')
+   if len(a)!=12 or a[11].lower() not in ('deposit','swap','withdraw'):continue
+   x=int(a[6])//2;y=(int(a[7])+int(a[9])//2)//2
+   color=original.getpixel((max(0,x-8),y))
+   if 30<=color[0]<=46 and 43<=color[1]<=65 and 70<=color[2]<=105:
+    controls[a[11].lower()]=(x+int(a[8])//4,y)
+  if len(controls)==3:
+   desktop.screenshot(reports/'packaged-exchange-disconnected.png')
+   for name,(x,y) in controls.items():
+    desktop.click(x,y);time.sleep(.2)
+    if phrase_ui.secret_window(desktop):raise RuntimeError('Disconnected Exchange '+name+' opened an authorization dialog')
+   desktop.key('End',ctrl=True);time.sleep(.3)
+   if 'No exchange action requested' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Disconnected Exchange controls changed operation state')
+   return
+  desktop.key('Page_Down');time.sleep(.2)
+ raise RuntimeError('Disabled Deposit, Swap and Withdraw controls could not be verified from public pixels')
+def exchangedisconnected(profile):
+ exchangetab()
+ until(lambda:'bybit is disconnected' in ' '.join(a[11] for a in textboxes()).lower(),45)
+ overview();exchangetab();exchangetab(button=2)
+ if 'bybit is disconnected' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Middle click removed the permanent Exchange tab')
+ passed('Installed Exchange tab remains available after account navigation and middle-click')
+ exchangedisabledcontrols()
+ passed('Disconnected installed Exchange has visibly disabled Deposit, Swap and Withdraw buttons that perform no action')
+ if selected_profile!='mainnet':return
+ before=hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()
+ # Cancel the password step first; then authenticate using only the existing
+ # synthetic app password and cancel empty API input. Never enter an API key,
+ # capture private dialog pixels, approve custody or call a private Bybit API.
+ for enter_password in (False,True):
+  desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
+  desktop.screenshot(reports/'packaged-exchange-top.png')
+  clickword('Connect');waitprompt('Reauthenticate Bybit connection')
+  if not phrase_ui.secret_window(desktop):raise RuntimeError('Bybit password dialog is outside the protected credential-window classification')
+  if enter_password:
+   desktop.inputs('Reauthenticate Bybit connection',[password]);desktop.accept('Reauthenticate Bybit connection');waitprompt('Connect Bybit')
+   if not phrase_ui.secret_window(desktop):raise RuntimeError('Bybit API dialog is outside the protected credential-window classification')
+  desktop.key('Escape')
+  until(lambda:not phrase_ui.secret_window(desktop),20)
+  if any(title.startswith(('Wallet request failed','LocalWallet — Wallet request failed')) for _,title in desktop.windows()):desktop.accept('Wallet request failed')
+  until(lambda:'bybit is disconnected' in ' '.join(a[11] for a in textboxes()).lower(),20)
+ if hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()!=before:raise RuntimeError('Cancelled Bybit connection changed encrypted wallet state')
+ report['exchangeConnectionDrill']={'status':'PASS','scope':'Real isolated app-password and empty masked API-input dialogs cancelled through XTest; no API credentials entered, custody approved or live exchange acceptance claimed'}
+ passed('Installed Bybit Connect uses isolated credential dialogs and both cancellation boundaries preserve the disconnected vault')
+ overview()
 def filechoice(prefix,path):
  waitprompt(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.key('a',ctrl=True);desktop.type(str(path))
  # Electron resolves a typed absolute path asynchronously. Wait between accepting
@@ -321,7 +390,7 @@ try:
   passed('Known phrase restoration reproduces the independently generated public address without backup files')
   if copyfirstrow()!=expected:raise RuntimeError('Wallet row copied a different public address')
   passed('Wallet table copy icon invokes dialog verification and copies the full independent public address')
-  overviewbalance();settingsjournal();openfirstwallet()
+  overviewbalance();settingsjournal();exchangedisconnected(profile);openfirstwallet()
   desktop.screenshot(reports/'packaged-wallet-tab.png');clickprimary('Receive');waitprompt('Verify receive address');decodereceive(expected)
   if promptcopy()!=expected:raise RuntimeError('Electron QR popup copied a different address')
   desktop.accept('Verify receive address');time.sleep(.3)
@@ -364,7 +433,8 @@ try:
   if any(row['mesaLoaderError'] or row['ordinaryIPCStackTrace'] for row in live_log_checks):raise RuntimeError('Live packaged workflow emitted a Mesa loader error or ordinary IPC handler stack trace')
   passed('Electron validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors')
   report['recoveryMethod']='Electron recorded-word confirmation and phrase import; no encrypted backup API or file needed'
- report['status']='PASS'
+ if hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()!=report['producerSHA256']:raise RuntimeError('Packaged workflow producer changed during execution')
+ report['status']='PASS';report['sourceStable']=True
 except Exception as error:
  reason=str(error) if isinstance(error,RuntimeError) else 'Packaged recovery or dialog automation failed; no secret diagnostic retained'
  report.update(status='FAIL',reason=reason);print(reason,flush=True)

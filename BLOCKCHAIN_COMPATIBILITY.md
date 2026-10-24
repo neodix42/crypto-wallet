@@ -4,13 +4,14 @@ Research baseline: **2026-10-23**. This is an implementation requirement, not ev
 
 ## 1. Required coverage and identity
 
-Implement native ETH on Ethereum, NEAR, APT, DCR, TON, native HYPE on HyperEVM, spot HYPE on HyperCore, and ERC-20 ZEN on both Base and current Horizen Chain. Include native ETH on Base and Horizen for receiving and paying gas. These are required, independently selectable balances. Arbitrary token discovery, other tokens, staking, trading, NFTs, bridges, legacy migration claims and dApp signing are outside v1.
+Implement native ETH on Ethereum, NEAR, APT, DCR, TON, native HYPE on HyperEVM, spot HYPE on HyperCore, and ERC-20 ZEN on both Base and current Horizen Chain. Include native ETH on Base and Horizen for receiving and paying gas. The owner-authorized Bybit extension dated 2026-10-24 adds only pinned Ethereum USDT and custodial spot asset/USDT trading. These are twelve independently selectable asset identities across nine mainnet networks. Arbitrary token discovery, other tokens, other trading, staking, NFTs, bridges, legacy migration claims and dApp signing remain outside v1; TON USDT jettons are not added.
 
 Every asset is identified by network/environment plus native-asset ID, verified contract address or Core token ID. A ticker or `0x` address alone never identifies the network. Confirmation screens and receive QR views must show the exact network and asset. Importing a seed does not move funds between networks.
 
 | Required entry | Mainnet identity | Testing counterpart | Transfer/gas model |
 |---|---|---|---|
 | Ethereum ETH | EVM chain ID 1 | Sepolia; verify current chain ID | Native ETH; EVM transaction |
+| Ethereum USDT extension | EVM 1, contract `0xdAC17F958D2ee523a2206206994597C13D831ec7`, six decimals | Disposable local token/receipt fixtures; no fabricated public-testnet USDT identity | ERC-20 transfer; Ethereum ETH pays gas |
 | HyperEVM HYPE | EVM 999 | EVM 998 | Native HYPE; EVM transaction |
 | HyperCore HYPE | HyperCore Mainnet, spot ledger | HyperCore Testnet | User-signed Core transfer; separate balance |
 | ZEN on Base / Base ETH | EVM 8453 | Base Sepolia 84532 | ZEN ERC-20; ETH pays gas |
@@ -66,6 +67,14 @@ Legacy Horizen mainchain/EON balances migrated to Base ERC-20 ZEN on 2025-07-23;
 Reverify deployment bytecode, decimals and network before pinning the registry. The Horizen mainnet token address is also an **OFT adapter address on Base**; it is not Base's ZEN token. Never select contracts by symbol. A ZEN transfer uses `transfer` and needs ETH on that same network; it never implicitly triggers a bridge or approval. Include applicable rollup data fees in estimates. Sources: [migration](https://docs.horizen.io/migration/overview/), [Horizen fees](https://docs.horizen.io/horizen-chain/tokens-and-gas/gas-on-horizen/).
 
 Test wrong-chain RPCs, mixed-case checksum errors, token/recipient confusion, zero/maximum values, insufficient ETH despite sufficient ZEN, contract reverts, fee spikes, nonce races, replacements, reorgs and a timeout after acceptance. Persist signed bytes/hash before broadcast and reconcile the original payment before any retry.
+
+### Owner-authorized Ethereum USDT extension — 2026-10-24
+
+Pin USDT to Ethereum mainnet chain ID 1 and the exact contract above, independently of the ticker and Bybit metadata. The existing Ethereum account/profile remains unchanged. [Tether's official integration guidelines](https://tether.to/en/supported-protocols/) identify that Ethereum contract and document its older `transfer` behavior without a Boolean return. Permit that documented empty simulation return only for this pinned USDT identity, while still rejecting reverts, malformed return data and mismatched transfer receipts. This exception must not weaken Boolean-return checks for ZEN or arbitrary contracts. Verify six-decimal amounts, exact transfer calldata/event/source/destination/amount, ETH gas coverage and original-transaction reconciliation. Independent local token acceptance is evidence for that fixture, not a claim of a funded Ethereum USDT roundtrip.
+
+Bybit routes must match a wallet's actual ledger and full token contract before obtaining or spending to a deposit address. Ethereum uses Bybit's verified `ETH` chain identifier; other supported routes use authenticated coin metadata with explicit accepted network labels, not guessed chain strings. The deposit-address response exposes only a contract suffix, which may corroborate an already verified full coin-info contract but cannot establish token identity itself. TON account credit can depend on its returned memo; include it in the actual signed TON payment. HyperCore is a separate ledger and cannot be inferred from an EVM-format address. Unsupported, suspended or ambiguous Bybit routes remain unavailable without removing the original wallet network.
+
+Spot prices and fills are custodial service observations and do not establish chain interoperability. An exchange-completed withdrawal still requires destination-chain observation for credit/finality. [Exchange requirements and acceptance status](docs/EXCHANGE.md) supplement the unchanged per-chain compatibility gates below.
 
 ## 4. Hyperliquid: two explicitly separate domains
 

@@ -4,7 +4,7 @@
 
 Create a noncustodial desktop wallet using Go and Electron, with first-class support for Ubuntu 24.04 and later supported LTS releases. The owner requests amd64 Go executable artifacts and the complete portable desktop runtime without a Debian package. Portable packaging must preserve sandboxing. Arm64 is a separate tested build target, not an inferred claim.
 
-The application must create one cryptographically random BIP39 master recovery root and derive multiple deterministic accounts on the requested blockchains. It must be able to receive and send real protocol transactions after validation, not just display addresses. All secret material stays locally encrypted when not in active use. There are no custodial backend accounts or remote signing services.
+The application must create one cryptographically random BIP39 master recovery root and derive multiple deterministic accounts on the requested blockchains. It must be able to receive and send real protocol transactions after validation, not just display addresses. All secret material stays locally encrypted when not in active use. Local wallet creation, recovery and signing require no custodial backend account or remote signing service. The owner's 2026-10-24 Bybit extension adds an optional custodial exchange account; deposited assets are controlled by Bybit, while wallet private keys and signing remain local.
 
 The security and test documents are normative parts of this task. Words such as MUST describe implementation requirements; they do not assert that the code has already passed them.
 
@@ -13,6 +13,7 @@ The security and test documents are normative parts of this task. Words such as 
 | Requested ecosystem | Required v1 support | User-visible distinction |
 | --- | --- | --- |
 | Ethereum | Native ETH on Ethereum; mainnet and an appropriate supported application testnet | Network and gas currency |
+| Owner-authorized USDT extension | Pinned six-decimal USDT ERC-20 on Ethereum mainnet | Exact token contract and Ethereum ETH gas; no TON USDT jetton |
 | NEAR | Native NEAR; implicit accounts and verified associations with existing named accounts | Account ID, access-key authority, mainnet/testnet |
 | Hyperliquid | Native HYPE on HyperEVM and spot HYPE on HyperCore | Separate balances, destinations, transaction formats, and receipts |
 | Aptos | Native APT using an explicitly fixed Legacy Ed25519 profile | Authentication scheme and account address |
@@ -22,7 +23,7 @@ The security and test documents are normative parts of this task. Words such as 
 
 Mainnet identifiers and migration facts are documented with primary sources in [BLOCKCHAIN_COMPATIBILITY.md](BLOCKCHAIN_COMPATIBILITY.md). Revalidate them during implementation. Do not show retired Horizen mainchain/EON as ordinary current receiving networks.
 
-General ERC-20/NEP-141/Aptos fungible-token/TON jetton support, NFTs, DeFi, trading, staking, swaps, bridging, multisig, dApp browsers, WalletConnect, hardware wallets, legacy Horizen claims, and arbitrary message signing are outside this first version. ZEN ERC-20 support is required, not optional. Design adapters so later token support is possible without weakening signing policy. Do not add unrelated features before the required wallet is complete.
+The owner-authorized Bybit spot/USDT extension below narrowly supersedes the original exclusion of trading/swaps and adds one pinned Ethereum USDT asset. General ERC-20/NEP-141/Aptos fungible-token/TON jetton support, NFTs, DeFi, other trading/swaps, staking, bridging, multisig, dApp browsers, WalletConnect, hardware wallets, legacy Horizen claims, and arbitrary message signing remain outside this first version. ZEN ERC-20 support remains required. There are nine mainnet network wallets and twelve supported asset identities; existing blockchain coverage and secret-handling requirements are preserved.
 
 ## 3. Wallet creation, accounts and recovery
 
@@ -92,6 +93,16 @@ Use clear mainnet/testnet labels throughout. Test wallets and production wallets
 Automatic lock defaults to five minutes of real user inactivity and also occurs on OS session lock, suspend, logout, parent-process failure and application exit. Background polling must not reset inactivity. Lock cancels unapproved/in-progress signing and destroys secret-bearing process state; it cannot recall a transaction already signed or broadcast. Reopening always starts locked.
 
 No analytics, remote fonts, remote script execution, background advertisements, remote/web-browser seed import, mandatory cloud account, or unsolicited update execution. The authorized local isolated Electron prompt is the only phrase-input/display interface. Essential public-chain queries reveal public addresses to the chosen providers; that privacy limitation must be accurately described.
+
+### 6.1 Owner-authorized Bybit Exchange extension — 2026-10-24
+
+Provide an Exchange tab with Deposit, Swap and Withdraw. Connecting a system-generated HMAC API key uses the dedicated masked Electron input path and encrypted local storage. The ordinary renderer receives no key, secret, beneficiary data or authenticated request payload. No connection, quote, startup, build or test automatically sends funds.
+
+Deposit through the existing real on-chain wallet plan, approval, signing and journal pipeline, after matching the exact Bybit chain/native or full token identity and required memo. Swap only an active spot asset/USDT pair in either direction, using exact decimal spending amounts, fresh last/bid/ask observations, explicit relative slippage, no leverage or borrowing, immutable signer approval and password reauthentication. An internal Funding/Unified transfer requires a separate durable identity and approval. Withdraw only on-chain to the selected owned wallet on its verified network, with master-key permissions and Bybit address whitelisting. Account eligibility, IP restrictions, custody, fees and limits remain under Bybit's control.
+
+UAE withdrawals may collect the eight documented beneficiary fields privately for the UAE endpoint. Required but unimplemented Türkiye/Kazakhstan/EU/Indonesia withdrawal questionnaires must gate withdrawal before an internal transfer. Unknown/suspended/ambiguous routes stay explicit; do not guess chain IDs or imply every wallet asset has a Bybit listing. Preserve all existing wallet networks.
+
+Persist operation identities before transmission. Lost acknowledgments and incomplete receipts remain UNKNOWN, block conflicting writes and must never cause automatic replacement. Bybit does not expose withdrawal request-ID lookup; do not infer a match from amount/address/time. Last prices are not execution guarantees, market orders can fill partially, and exchange-reported withdrawal completion is not independently verified chain finality. API credentials, beneficiary details and local remote-operation journals are not recoverable from the BIP39 phrase. [Exchange requirements and evidence](docs/EXCHANGE.md) supplement all existing security and release gates.
 
 ## 7. Completion definition
 

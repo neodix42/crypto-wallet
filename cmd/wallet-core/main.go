@@ -64,6 +64,7 @@ type core struct {
 	sessionCancel  context.CancelFunc
 	historyScans   map[string]*historyScan
 	publicScans    map[string]publicContinuation
+	newExchange    exchangeFactory
 }
 
 func (c *core) lock() {
@@ -174,7 +175,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign":
+	case "create", "import", "unlock", "confirmRecovery", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
 		interactive = true
 	}
 	if interactive {
@@ -411,6 +412,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}
 	switch m.Method {
+	case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
+		return c.exchangeAt(m, epoch)
 	case "networks":
 		var networks []model.Network
 		for _, a := range c.adaptersSnapshot() {

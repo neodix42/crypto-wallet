@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import signal
 import subprocess
 import time
@@ -16,7 +17,15 @@ TARGETS = [('uiprompt', 'FuzzPromptProtocol'), ('vault', 'FuzzTP012Envelope'),
     ('qr', 'FuzzTP012QR'), ('chains/chainutil', 'FuzzJSON'),
     ('chains/evm', 'FuzzTP012AddressAndPlan'), ('chains/hypercore', 'FuzzTP012CoreAction'),
     ('chains/near', 'FuzzAddress'), ('chains/aptos', 'FuzzAddress'),
-    ('chains/decred', 'FuzzAddressesScriptsOutpoints'), ('chains/ton', 'FuzzAddressAndBOC')]
+    ('chains/decred', 'FuzzAddressesScriptsOutpoints'), ('chains/ton', 'FuzzAddressAndBOC'),
+    ('exchange/bybit', 'FuzzBybitAuthRequest'), ('exchange/bybit', 'FuzzBybitExecutionExtraFees')]
+
+
+def executed_fuzz(log):
+    # `go test -fuzz` exits zero when the pattern matches nothing. A campaign
+    # must actually leave corpus gathering and execute mutations to count.
+    return ('now fuzzing with ' in log and
+            any(int(count) > 0 for count in re.findall(r'execs: ([0-9]+)', log)))
 
 
 def sources(root):
@@ -59,7 +68,7 @@ def main():
         start = time.monotonic()
         command = ['go', 'test', './internal/' + package, '-run', '^$', '-fuzz',
                    '^' + target + '$', '-fuzztime=' + str(args.seconds) + 's', '-parallel=2']
-        log = reports / (name + '-' + package.replace('/', '-') + '.log')
+        log = reports / (name + '-' + package.replace('/', '-') + '-' + target + '.log')
         row = dict(package=package, target=target, status='FAIL', output=str(log.relative_to(ROOT)))
         try:
             with log.open('w') as output:
@@ -71,7 +80,11 @@ def main():
                     if process.poll() is None:
                         os.killpg(process.pid, signal.SIGKILL)
                         process.wait(timeout=10)
-            row.update(status='PASS' if code == 0 else 'FAIL', exit=code)
+            ran = executed_fuzz(log.read_text())
+            row.update(status='PASS' if code == 0 and ran else 'FAIL', exit=code,
+                       fuzzExecuted=ran)
+            if code == 0 and not ran:
+                row['reason'] = 'No measured mutation execution; missing target or baseline-only run'
         except (OSError, subprocess.TimeoutExpired):
             row['reason'] = 'Fuzz process unavailable or exceeded its bounded deadline'
         row['seconds'] = round(time.monotonic() - start, 3)

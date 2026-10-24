@@ -10,6 +10,8 @@ Record exact versions and source commits when a source in the compatibility docu
 
 Owner interface update (2026-10-24): Electron provides every application window. The dedicated prompt and its secret-bearing transport replace the former Go/GTK display boundary; retain every vault, derivation, chain, lock and signing requirement. Go remains the source of entropy, authoritative prompt details and authorization.
 
+Owner Exchange update (2026-10-24): implement the optional Bybit Deposit/Swap/Withdraw extension and pinned Ethereum USDT described in TASK.md §6.1. This supersedes only the original exclusion of that custodial spot-trading flow; all existing networks, recovery requirements and production gates remain. Nine mainnet network wallets expose twelve assets. The new extension has separate secret/PII, exact-route, authorization, fee and durable remote-operation evidence; no real credentials or automatic mainnet spending may be introduced to obtain it.
+
 ## Milestone 0 — Repository, dependency and feasibility baseline
 
 Inventory the repository and choose supported, mutually compatible Go/Electron/Node versions. Pin toolchains, SDKs, cryptography, Electron and packaging dependencies. Check official provenance, licenses and outstanding relevant vulnerabilities. Produce a dependency table with purpose and review status.
@@ -62,7 +64,7 @@ Implement DCR through reviewed official primitives and the selected genuine sync
 
 ## Milestone 6 — HyperCore HYPE
 
-Implement separate Core spot HYPE balance/history and ordinary peer transfer. Freeze the allowed action and exact signing schema against the official Python SDK. Validate the token ID, precision, environment/signature-domain separation and replay/nonce behavior. The wallet never exposes trading or agent-key management.
+Implement separate Core spot HYPE balance/history and ordinary peer transfer. Freeze the allowed action and exact signing schema against the official Python SDK. Validate the token ID, precision, environment/signature-domain separation and replay/nonce behavior. The HyperCore adapter never exposes trading or agent-key management; the separately authorized Bybit spot extension is not HyperCore trading.
 
 Establish fresh and existing recipient behavior, prerequisites and any fees through authoritative documentation and actual testnet cases. If a prerequisite is unresolved, the receive/send flow must state the limitation instead of claiming universal address acceptance.
 
@@ -86,6 +88,18 @@ Submit the vault, IPC/GUI boundary, each signing adapter, build/update chain and
 
 **Exit evidence:** the release checklist, package/install evidence, compatibility report, review disposition and explicit remaining limitations. Development builds may be complete while a production-release gate remains blocked; label that state accurately.
 
+## Owner extension — Bybit Exchange and Ethereum USDT
+
+Implement the actual V5 client and signer-owned encrypted credentials first, preserving the isolated Electron prompt and network-disabled signer/renderer. Add the fixed Ethereum USDT identity through the existing EVM transfer, approval, gas and receipt pipeline. Establish exact Bybit network/full-contract matching and required TON memo handling before enabling Deposit. Build the Exchange tab with public metadata only and three user-triggered actions; connecting and refreshing cannot spend funds.
+
+Authorize each internal Funding/Unified transfer, unleveraged Market order and owned-address withdrawal independently. Bind canonical payload, credential/endpoint, immutable intent, session/expiry and durable ID before network submission. Reconcile exact original order links, UUIDs, acknowledged withdrawal IDs, complete fill pages and fees/taxes. Keep ambiguous requests UNKNOWN, with no automatic replacement. Document Bybit custody and its HMAC path-binding limitation rather than implying wallet-style consensus guarantees.
+
+Collect the eight documented UAE withdrawal fields only through masked prompts and encrypted storage for the UAE endpoint. Gate unsupported regional questionnaires before transferring funds. A phrase-only restore cannot recreate exchange credentials, beneficiary information or the local exchange journal; test and explain those recovery limits.
+
+**Local exit evidence:** meaningful client/signature/TLS/JSON/amount tests, signer persistence/approval/lock/canary tests, hostile-provider coordinator fixtures, actual local USDT node execution, UI/IPC validation, critical-package coverage floors, semantic mutants, race checks and bounded authorization/tax-parser fuzzing. Retain source/candidate identities and distinguish fake-provider scheduling tests from actual local-node and packaged-desktop tests.
+
+**Separate external gates:** private Bybit account/permission/whitelist acceptance, funded deposit → credited balance → spot fill → owned-wallet withdrawal, all affected regions and independent review remain NOT_RUN until explicitly performed. Do not obtain those results using real user secrets, implicit mainnet activity or an automated publishing/funding step. These gates do not replace or waive the original wallet network, OS, soak and audit gates. The current checklist is [docs/EXCHANGE.md](docs/EXCHANGE.md).
+
 ## Required developer commands
 
 Implement documented commands equivalent to the following targets; exact build tooling may follow the existing repository. Each command must run real checks and propagate failures.
@@ -94,6 +108,7 @@ Implement documented commands equivalent to the following targets; exact build t
 | --- | --- |
 | `make dev` | Build/install and start the app with the current mainnet default; testnet/local profiles and synthetic fixtures require explicit selection |
 | `make test` | Hermetic unit tests, public vectors and deterministic regression corpora |
+| `make test-exchange` | Actual Bybit/signing/IPC code with synthetic API fixtures, Exchange UI, security mutants and explicit local USDT node integration; never a funded Bybit campaign |
 | `make test-security` | Vault, IPC, approval, isolated Electron phrase containment, leak, parser and mutation-critical checks |
 | `make test-race` | Go race checks across relevant stateful components |
 | `make test-interop` | Independent fixture parity for every profile/adapter |

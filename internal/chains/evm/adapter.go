@@ -157,6 +157,21 @@ func (a *Adapter) tokenIdentity(ctx context.Context, n model.Network, s model.As
 	if e != nil || v.Uint64() != uint64(s.Decimals) || v.BitLen() > 8 {
 		return errors.New("token decimals mismatch")
 	}
+	if s.ID == USDTAsset {
+		// This original contract can forward to an issuer-selected replacement
+		// without changing its code. Do not sign through an unreviewed upgrade,
+		// paused contract or newly enabled transfer-fee policy.
+		for _, signature := range []string{"deprecated()", "paused()", "basisPointsRate()"} {
+			raw = "" // JSON null must not reuse the preceding successful read.
+			if e = a.rpc(ctx, n, "eth_call", []any{map[string]string{"to": s.Contract, "data": callData(signature)}, at}, &raw); e != nil {
+				return e
+			}
+			state, err := abiInteger(raw)
+			if err != nil || state.Sign() != 0 {
+				return errors.New("USDT issuer state requires a reviewed policy update")
+			}
+		}
+	}
 	return nil
 }
 func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balance, error) {
@@ -262,7 +277,10 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 	if e = a.rpc(ctx, n, "eth_call", []any{msg, b.Number}, &simulated); e != nil {
 		return fail(e)
 	}
-	if s.Contract != "" {
+	// The pinned original Ethereum USDT contract has no return value. Only
+	// this exact registered identity permits empty successful simulation data;
+	// all other ERC-20 transfers still require the canonical true word.
+	if s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {
 		ok, e := abiInteger(simulated)
 		if e != nil || ok.Cmp(big.NewInt(1)) != 0 {
 			return fail(errors.New("ERC-20 transfer simulation returned false or invalid data"))

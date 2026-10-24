@@ -186,7 +186,7 @@
     "scripts/bootstrap-node.py": "b67714e06d3bd61b63fa5f9ab853df0e4f93f308dfc26ee49763ada60eb9c0d8",
     "scripts/sbom.py": "97882ee176650cd6888feee6fb5bfd135d5e8aac2ff27f740a03e489ae83a1c3",
     "scripts/build-tools-test.py": "c220c616e1c213d78922a8e0ed7bda1549a05a8a38f48f044103f67fd226b55f",
-    "Makefile": "a6ee7e95f2697681a78bfb99d736c55fe7e3c4e05f121188ce597182113733eb",
-    ".github/workflows/release.yml": "32e450d08911acaf8c25b2b8e414cb7a80eed7edc4370df6886bee78709c9824"
+    "Makefile": "8d65ac77063cd6bb345182c58e3ebc6d9d97835a0d70d82d17c562a7d2569153",
+    ".github/workflows/release.yml": "61b9d00a4c7d26b927d874db6eeeb5f8fe3d09a08c3d8f097a8150d25c2d0aac"
   }
 }

@@ -16,7 +16,8 @@ protocol.registerSchemesAsPrivileged([{scheme:'wallet',privileges:{standard:true
 const origin='wallet://app';const promptOrigin='wallet://prompt'; const sessionID=randomBytes(16).toString('hex');
 let core:{stdin:WriteStream,stdout:ReadStream}|undefined;let win:BrowserWindow|undefined;let serial=0;let buffered=Buffer.alloc(0);
 let statusTimer:NodeJS.Timeout|undefined;let statusInFlight=false;
-const nativeMethods=new Set(['create','import','unlock','confirmRecovery','password','receive','copyReceive','saveQR','scanQR','configure','associate','discovery','discoverAccounts','send']);
+const nativeMethods=new Set(['create','import','unlock','confirmRecovery','password','receive','copyReceive','saveQR','scanQR','configure','associate','discovery','discoverAccounts','send','exchangeConnect','exchangeDisconnect','exchangeDeposit','exchangeSwap','exchangeWithdraw']);
+const monetaryMethods=new Set(['send','exchangeDeposit','exchangeSwap','exchangeWithdraw']);
 // Only reviewed, value-free operation codes may cross the desktop boundary.
 // Ordinary failures resolve the IPC handler, avoiding Electron's rejected-handler
 // stack logging. Core/session protocol failures still terminate the session.
@@ -27,7 +28,7 @@ type Pending={method:string,resolve:(x:unknown)=>void,reject:(e:Error)=>void,tim
 const pending=new Map<string,Pending>();
 function renewDeadline(id:string,p:Pending):void{
  clearTimeout(p.timer);const generation=++p.deadline;
- p.timer=setTimeout(()=>{if(pending.get(id)!==p||p.deadline!==generation)return;const prompted=activePrompt?.requestID===id;if(prompted)finishPrompt(true);pending.delete(id);p.reject(new Error('Request timed out; reconcile before retrying'));if(prompted||p.method==='send')void request('lock',{}).catch(stop)},nativeMethods.has(p.method)?360000:180000);
+ p.timer=setTimeout(()=>{if(pending.get(id)!==p||p.deadline!==generation)return;const prompted=activePrompt?.requestID===id;if(prompted)finishPrompt(true);pending.delete(id);p.reject(new Error('Request timed out; reconcile before retrying'));if(prompted||monetaryMethods.has(p.method))void request('lock',{}).catch(stop)},nativeMethods.has(p.method)?360000:180000);
 }
 function nativeActivity(id:string,p:Pending,r:ReturnType<typeof parseResponse>):void{
  if(!nativeMethods.has(p.method)||Object.hasOwn(r,'error')||r.body===null||typeof r.body!=='object'||Array.isArray(r.body)||Object.keys(r.body).length!==0)throw new Error('Invalid native activity');

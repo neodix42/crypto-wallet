@@ -1,5 +1,7 @@
 # Production hardening evidence
 
+This checklist records the pre-Exchange hardening batch. Its candidate hashes and measured counts are historical. The associated unfinished soak was interrupted when the Bybit extension changed its source baseline; it cannot be reused as a completed current-source campaign. Current extension scopes and open acceptance gates are in [EXCHANGE.md](EXCHANGE.md) and [STATUS.md](STATUS.md).
+
 This batch implements the remaining local hardening while deferring Decred-specific features and public testnet campaigns as requested. It does not assert production readiness. PASS applies only to the named executed scope; RUNNING, NOT_RUN and BLOCKED are separate states. No real user secrets, existing wallet profiles or mainnet funds were used.
 
 The installed `./wallet` is version **0.1.0**. Its ASAR SHA256 is `3b3c86affdc042288f7b878c8dccb65b1a779bf67e060d9163b0491a9f2bfa10`; the exact Go binary identities and source/test bindings are retained in [production-hardening.json](evidence/production-hardening.json). Git HEAD alone does not identify this modified working tree. Notice/source inventories can be refreshed without changing the measured ASAR or executables.

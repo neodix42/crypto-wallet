@@ -65,6 +65,17 @@ def local_gates(env):
     else:
         report["gates"].append({"gate": "ton-v5r1-emulator", "status": "BLOCKED",
                                 "reason": "Run npm ci --ignore-scripts in tests/oracles/ton to install pinned emulator"})
+    env.pop("WALLET_USDT_EVM", None)
+    oracle = root / "tests/oracles/evm/node_modules"
+    if shutil.which("node") and all((oracle / name / "package.json").is_file() and
+            json.loads((oracle / name / "package.json").read_text()).get("version") == version
+            for name, version in (("ethers", "6.17.0"), ("ganache", "7.9.2"))):
+        env["WALLET_USDT_EVM"] = "1"
+        report["gates"].append({"gate": "usdt-evm-execution", "status": "READY",
+                                "source": "Pinned public USDT runtime; ethers 6.17.0 / Ganache 7.9.2"})
+    else:
+        report["gates"].append({"gate": "usdt-evm-execution", "status": "BLOCKED",
+                                "reason": "Run npm ci --ignore-scripts in tests/oracles/evm"})
     env["WALLET_EVIDENCE_DIR"] = str(reports)
 
 
@@ -113,7 +124,8 @@ def all_packages(env):
                     process.kill()
                     process.wait()
     report["goTests"] = {"status": "PASS" if code == 0 else "FAIL", "exit": code, "packages": packages, "failures": failures}
-    for gate, test in (("decred-simnet", "TestDcrdSimnet"), ("ton-v5r1-emulator", "TestWalletV5R1Emulator")):
+    for gate, test in (("decred-simnet", "TestDcrdSimnet"), ("ton-v5r1-emulator", "TestWalletV5R1Emulator"),
+                       ("usdt-evm-execution", "TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache")):
         for row in report["gates"]:
             if row["gate"] == gate and row["status"] == "READY":
                 executed = any(name == test for _, name in passed_tests)

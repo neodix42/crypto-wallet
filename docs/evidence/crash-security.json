@@ -43,9 +43,9 @@
   ],
   "artifact": {
     "binaryManifest": {
-      "wallet-core": "d0a9cab95799361ed288a457e5bc5243e224ffc814546ae496bb2dee9ddd3e71",
-      "wallet-launcher": "39bf5716b5527b0af4df2a86083b24ae6641f74b65dad6754e41b93d016588d5",
-      "wallet-signer": "5f9d835ff32180c58dd332e1e9e9fd708f46a0e577c2204b7375ab5d19497f59"
+      "wallet-core": "79f9efee548a857e64f6c1a38097ef236c2030eb169d5b075ed294736afc8af7",
+      "wallet-launcher": "164b9c11ee193392dab11ea0cf484bcd94fb1d91e02281609a5b6bbd13c34065",
+      "wallet-signer": "6340d8f4a7773e873ffc6a98d8e5cafa20dddaa3d5b553158240fe5df09db077"
     }
   },
   "lastCase": "challenge: reopen",

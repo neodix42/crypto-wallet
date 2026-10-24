@@ -5,297 +5,150 @@
   "settledCheckpoints": [
     {
       "cycle": 1,
-      "rssBytes": 611778560,
-      "heapBytes": 2099168,
+      "rssBytes": 610447360,
+      "heapBytes": 2094744,
       "goroutines": 7,
       "journalRecords": 2
     },
     {
       "cycle": 2,
-      "rssBytes": 561369088,
-      "heapBytes": 2162520,
+      "rssBytes": 561106944,
+      "heapBytes": 2141208,
       "goroutines": 7,
       "journalRecords": 4
     },
     {
       "cycle": 3,
-      "rssBytes": 561872896,
-      "heapBytes": 2211976,
+      "rssBytes": 561209344,
+      "heapBytes": 2177144,
       "goroutines": 7,
       "journalRecords": 6
     },
     {
       "cycle": 4,
-      "rssBytes": 561913856,
-      "heapBytes": 2229952,
+      "rssBytes": 561774592,
+      "heapBytes": 2193792,
       "goroutines": 7,
       "journalRecords": 8
     },
     {
       "cycle": 5,
-      "rssBytes": 561991680,
-      "heapBytes": 2251928,
+      "rssBytes": 561676288,
+      "heapBytes": 2211456,
       "goroutines": 7,
       "journalRecords": 10
     },
     {
       "cycle": 6,
-      "rssBytes": 561954816,
-      "heapBytes": 2269856,
+      "rssBytes": 562028544,
+      "heapBytes": 2243448,
       "goroutines": 7,
       "journalRecords": 12
     },
     {
       "cycle": 7,
-      "rssBytes": 562294784,
-      "heapBytes": 2280488,
+      "rssBytes": 562495488,
+      "heapBytes": 2264240,
       "goroutines": 7,
       "journalRecords": 14
     },
     {
       "cycle": 8,
-      "rssBytes": 562642944,
-      "heapBytes": 2292960,
+      "rssBytes": 562118656,
+      "heapBytes": 2296016,
       "goroutines": 7,
       "journalRecords": 16
     },
     {
       "cycle": 9,
-      "rssBytes": 562860032,
-      "heapBytes": 2316744,
+      "rssBytes": 562507776,
+      "heapBytes": 2330288,
       "goroutines": 7,
       "journalRecords": 18
     },
     {
       "cycle": 10,
-      "rssBytes": 563060736,
-      "heapBytes": 2308472,
+      "rssBytes": 562536448,
+      "heapBytes": 2338112,
       "goroutines": 7,
       "journalRecords": 20
     },
     {
       "cycle": 11,
-      "rssBytes": 562581504,
-      "heapBytes": 2322992,
+      "rssBytes": 562774016,
+      "heapBytes": 2342312,
       "goroutines": 7,
       "journalRecords": 22
     },
     {
       "cycle": 12,
-      "rssBytes": 563195904,
-      "heapBytes": 2333488,
+      "rssBytes": 563208192,
+      "heapBytes": 2346872,
       "goroutines": 7,
       "journalRecords": 24
     },
     {
       "cycle": 13,
-      "rssBytes": 562851840,
-      "heapBytes": 2335648,
+      "rssBytes": 562991104,
+      "heapBytes": 2363528,
       "goroutines": 7,
       "journalRecords": 26
     },
     {
       "cycle": 14,
-      "rssBytes": 563105792,
-      "heapBytes": 2338752,
+      "rssBytes": 562802688,
+      "heapBytes": 2359928,
       "goroutines": 7,
       "journalRecords": 28
     },
     {
       "cycle": 15,
-      "rssBytes": 563056640,
-      "heapBytes": 2361280,
+      "rssBytes": 563732480,
+      "heapBytes": 2366704,
       "goroutines": 7,
       "journalRecords": 30
     },
     {
       "cycle": 16,
-      "rssBytes": 563306496,
-      "heapBytes": 2353072,
+      "rssBytes": 563404800,
+      "heapBytes": 2368880,
       "goroutines": 7,
       "journalRecords": 32
     },
     {
       "cycle": 17,
-      "rssBytes": 563539968,
-      "heapBytes": 2366384,
+      "rssBytes": 564400128,
+      "heapBytes": 2372128,
       "goroutines": 7,
       "journalRecords": 34
     },
     {
       "cycle": 18,
-      "rssBytes": 563617792,
-      "heapBytes": 2370160,
+      "rssBytes": 563556352,
+      "heapBytes": 2388208,
       "goroutines": 7,
       "journalRecords": 36
     },
     {
       "cycle": 19,
-      "rssBytes": 563490816,
-      "heapBytes": 2378632,
+      "rssBytes": 564281344,
+      "heapBytes": 2393408,
       "goroutines": 7,
       "journalRecords": 38
     },
     {
       "cycle": 20,
-      "rssBytes": 563826688,
-      "heapBytes": 2385592,
+      "rssBytes": 563634176,
+      "heapBytes": 2403544,
       "goroutines": 7,
       "journalRecords": 40
     },
     {
       "cycle": 21,
-      "rssBytes": 563933184,
-      "heapBytes": 2396208,
+      "rssBytes": 564158464,
+      "heapBytes": 2406048,
       "goroutines": 7,
       "journalRecords": 42
-    },
-    {
-      "cycle": 22,
-      "rssBytes": 564023296,
-      "heapBytes": 2403312,
-      "goroutines": 7,
-      "journalRecords": 44
-    },
-    {
-      "cycle": 23,
-      "rssBytes": 564551680,
-      "heapBytes": 2419936,
-      "goroutines": 7,
-      "journalRecords": 46
-    },
-    {
-      "cycle": 24,
-      "rssBytes": 564273152,
-      "heapBytes": 2423264,
-      "goroutines": 7,
-      "journalRecords": 48
-    },
-    {
-      "cycle": 25,
-      "rssBytes": 564371456,
-      "heapBytes": 2435952,
-      "goroutines": 7,
-      "journalRecords": 50
-    },
-    {
-      "cycle": 26,
-      "rssBytes": 564563968,
-      "heapBytes": 2445664,
-      "goroutines": 7,
-      "journalRecords": 52
-    },
-    {
-      "cycle": 27,
-      "rssBytes": 564305920,
-      "heapBytes": 2447632,
-      "goroutines": 7,
-      "journalRecords": 54
-    },
-    {
-      "cycle": 28,
-      "rssBytes": 564699136,
-      "heapBytes": 2445120,
-      "goroutines": 7,
-      "journalRecords": 56
-    },
-    {
-      "cycle": 29,
-      "rssBytes": 564695040,
-      "heapBytes": 2457984,
-      "goroutines": 7,
-      "journalRecords": 58
-    },
-    {
-      "cycle": 30,
-      "rssBytes": 564715520,
-      "heapBytes": 2460040,
-      "goroutines": 7,
-      "journalRecords": 60
-    },
-    {
-      "cycle": 31,
-      "rssBytes": 565338112,
-      "heapBytes": 2462632,
-      "goroutines": 7,
-      "journalRecords": 62
-    },
-    {
-      "cycle": 32,
-      "rssBytes": 564867072,
-      "heapBytes": 2465688,
-      "goroutines": 7,
-      "journalRecords": 64
-    },
-    {
-      "cycle": 33,
-      "rssBytes": 564977664,
-      "heapBytes": 2473016,
-      "goroutines": 7,
-      "journalRecords": 66
-    },
-    {
-      "cycle": 34,
-      "rssBytes": 565157888,
-      "heapBytes": 2484264,
-      "goroutines": 7,
-      "journalRecords": 68
-    },
-    {
-      "cycle": 35,
-      "rssBytes": 565309440,
-      "heapBytes": 2488872,
-      "goroutines": 7,
-      "journalRecords": 70
-    },
-    {
-      "cycle": 36,
-      "rssBytes": 565522432,
-      "heapBytes": 2517288,
-      "goroutines": 7,
-      "journalRecords": 72
-    },
-    {
-      "cycle": 37,
-      "rssBytes": 565760000,
-      "heapBytes": 2519768,
-      "goroutines": 7,
-      "journalRecords": 74
-    },
-    {
-      "cycle": 38,
-      "rssBytes": 565108736,
-      "heapBytes": 2524504,
-      "goroutines": 7,
-      "journalRecords": 76
-    },
-    {
-      "cycle": 39,
-      "rssBytes": 565276672,
-      "heapBytes": 2526584,
-      "goroutines": 7,
-      "journalRecords": 78
-    },
-    {
-      "cycle": 40,
-      "rssBytes": 565395456,
-      "heapBytes": 2528856,
-      "goroutines": 7,
-      "journalRecords": 80
-    },
-    {
-      "cycle": 41,
-      "rssBytes": 565493760,
-      "heapBytes": 2531064,
-      "goroutines": 7,
-      "journalRecords": 82
-    },
-    {
-      "cycle": 42,
-      "rssBytes": 565846016,
-      "heapBytes": 2533000,
-      "goroutines": 7,
-      "journalRecords": 84
     }
   ],
   "status": "RUNNING",
@@ -305,25 +158,25 @@
   "cpus": 32,
   "workloads": {
     "additionalAccountGroups": 16,
-    "cycles": 42,
-    "encryptedSignerRestartUnlock": 84,
-    "growingHistoryScans": 42,
-    "lifecycleRPC-outage": 42,
-    "lifecycleRPC-rate-limit": 42,
-    "lockedSignatureDenied": 42,
-    "observedHistoryItems": 903,
-    "productionSignedJournalReconciled": 42,
+    "cycles": 21,
+    "encryptedSignerRestartUnlock": 42,
+    "growingHistoryScans": 21,
+    "lifecycleRPC-outage": 21,
+    "lifecycleRPC-rate-limit": 21,
+    "lockedSignatureDenied": 21,
+    "observedHistoryItems": 231,
+    "productionSignedJournalReconciled": 21,
     "productionSignerCreate": 1,
-    "productionSignerPhraseRecoveries": 42
+    "productionSignerPhraseRecoveries": 21
   },
-  "elapsedSeconds": 1234.988546892,
+  "elapsedSeconds": 604.765166928,
   "requestedSeconds": 86400,
   "campaign24hStatus": "NOT_RUN",
   "p50Micros": 0,
   "p99Micros": 0,
   "rssBudgetMiB": 1024,
   "goMemoryLimitMiB": 768,
-  "StartHeap": 1840856,
+  "StartHeap": 1843896,
   "EndHeap": 0,
   "StartGoroutines": 2,
   "EndGoroutines": 0,

@@ -38,15 +38,16 @@ type UI interface {
 	Receive(string, string, []byte) bool
 }
 type Engine struct {
-	Environment   string
-	Files         *vault.Files
-	UI            UI
-	Adapters      []model.Adapter
-	data          *vault.Data
-	password      []byte
-	parameters    vault.Parameters
-	persistFailed bool
-	initializing  bool
+	Environment            string
+	Files                  *vault.Files
+	UI                     UI
+	Adapters               []model.Adapter
+	data                   *vault.Data
+	password               []byte
+	parameters             vault.Parameters
+	persistFailed          bool
+	initializing           bool
+	exchangeAuthorizations map[string]string
 }
 type Snapshot struct {
 	Locked            bool                `json:"locked"`
@@ -114,6 +115,7 @@ func (e *Engine) Snapshot() Snapshot {
 	return s
 }
 func (e *Engine) Lock() {
+	e.exchangeAuthorizations = nil
 	if e.data != nil {
 		e.data.Destroy()
 		e.data = nil
@@ -378,6 +380,13 @@ func (e *Engine) Unlock() error {
 	e.data = d
 	e.password = append([]byte(nil), in[0]...)
 	journal.Recover(d.Operations)
+	if d.Exchange != nil {
+		for i := range d.Exchange.Operations {
+			if d.Exchange.Operations[i].State == "PREPARED" || d.Exchange.Operations[i].State == "AUTHORIZED" {
+				d.Exchange.Operations[i].State = "CANCELLED"
+			}
+		}
+	}
 	return e.persist()
 }
 func (e *Engine) AddAccount(index uint32) error {

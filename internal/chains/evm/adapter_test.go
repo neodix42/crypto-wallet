@@ -338,6 +338,19 @@ type nodeFixture struct {
 
 func deployedCode(t *testing.T, network string) string {
 	t.Helper()
+	if network == "ethereum-mainnet" {
+		raw, e := os.ReadFile("../../../tests/oracles/evm/usdt-runtime.json")
+		if e != nil {
+			t.Fatal(e)
+		}
+		var f struct {
+			Code string `json:"code"`
+		}
+		if e = json.Unmarshal(raw, &f); e != nil {
+			t.Fatal(e)
+		}
+		return f.Code
+	}
 	raw, e := os.ReadFile("../../../tests/oracles/evm/deployed-tokens.json")
 	if e != nil {
 		t.Fatal(e)
@@ -417,8 +430,16 @@ func fakeNode(t *testing.T, net string) *nodeFixture {
 				var msg map[string]string
 				_ = json.Unmarshal(req.Params[0], &msg)
 				switch {
+				case msg["data"] == callData("deprecated()") || msg["data"] == callData("paused()") || msg["data"] == callData("basisPointsRate()"):
+					result = "0x" + strings.Repeat("0", 64)
 				case strings.HasPrefix(msg["data"], callData("decimals()")):
-					result = "0x" + hex.EncodeToString(word(big.NewInt(18)))
+					decimals := int64(18)
+					for _, token := range n.Assets {
+						if strings.EqualFold(msg["to"], token.Contract) {
+							decimals = int64(token.Decimals)
+						}
+					}
+					result = "0x" + hex.EncodeToString(word(big.NewInt(decimals)))
 				case strings.HasPrefix(msg["data"], callData("balanceOf(address)")[:10]):
 					result = "0x" + hex.EncodeToString(word(new(big.Int).Exp(big.NewInt(10), big.NewInt(24), nil)))
 				case strings.HasPrefix(msg["data"], "0xa9059cbb"):

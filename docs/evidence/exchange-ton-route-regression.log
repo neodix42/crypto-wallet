@@ -1,0 +1,3 @@
+ok  	localwallet/internal/exchange	0.007s
+ok  	localwallet/internal/exchange/bybit	0.025s
+ok  	localwallet/cmd/wallet-core	5.754s

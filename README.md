@@ -1,6 +1,6 @@
 # LocalWallet
 
-Go + Electron multichain desktop wallet for Ubuntu amd64. Implemented domains are Ethereum, NEAR, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN on Base and Horizen L3 (plus ETH gas), Decred and TON Wallet V5R1.
+Go + Electron multichain desktop wallet for Ubuntu amd64. Implemented domains are Ethereum ETH and USDT, NEAR, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN on Base and Horizen L3 (plus ETH gas), Decred and TON Wallet V5R1. The optional **Exchange** tab connects to your custodial Bybit account for Deposit, Swap and Withdraw. [Repository implementation instructions](START_HERE.txt).
 
 **Mainnet is the default network profile.** This remains an unsigned development candidate: public funded testnet roundtrips, the complete clean Ubuntu X11/Wayland matrix, the 24-hour soak and independent security review remain production release gates. Selecting mainnet does not establish production readiness. See the [evidence checklist](docs/STATUS.md). Never fund public test fixtures.
 
@@ -48,6 +48,7 @@ Use public synthetic fixtures only. No test automatically spends mainnet funds. 
 
 ```sh
 make test-go              # Go unit/corpus tests without Node/Electron build
+make test-exchange        # Bybit/signing/IPC/UI guards, mutations and explicit local USDT integration
 make test                 # Go plus existing desktop TypeScript/component tests
 make test-security        # vault/prompt/IPC/lifecycle, mutations, API surface checks
 make test-race            # Go race detector
@@ -86,7 +87,7 @@ make test-e2e             # package recovery on private X11, then disposable Ubu
 The current owner excludes Decred implementation work and public testnet campaigns. Longer local fuzz and soak runs have explicit narrower commands:
 
 ```sh
-make test-fuzz-long FUZZ_SECONDS=60  # thirteen targets; Decred explicitly deferred
+make test-fuzz-long FUZZ_SECONDS=60  # discover current targets; Decred explicitly deferred
 make test-soak-non-decred           # fixed test binary, 24 hours, local fake ledger only
 # Short runner check, which never passes the 24-hour gate:
 make test-soak-non-decred SOAK_SECONDS=1
@@ -100,7 +101,7 @@ A verified empty profile offers **Create app password & wallet** and **Restore f
 
 On a fresh installation, choose **Restore from recovery phrase**, specify the app password and enter the recorded phrase only in the separate Electron wallet dialog. Include the original optional BIP39 passphrase if one was used. The app password protects local storage and does not change your wallet addresses: either the same or a new app password restores the same canonical wallets. Phrase restoration reconstructs account index0; the Settings recovery-range control reconstructs additional indices. Named/rotated associations, Decred discovery history, RPC settings and the local payment journal are separate metadata and need explicit recovery/reconciliation.
 
-Deterministic account groups appear as tabs across the top, starting with **Main account**. Each group's table contains nine mainnet network wallets and eleven asset identities, with a native-currency balance in every row (ETH on Base/Horizen and separate HYPE balances on HyperEVM/Core). The overview queries configured providers once per visible wallet; **Refresh balances** requests a new observation. Failed or incomplete queries stay unknown/unavailable. Click a row to open its wallet tab. Keys follow each chain's pinned derivation profile; EVM networks can share an address while their balances remain separate. Table addresses stay on one line; the copy-icon button requests the full verified address from the Go signer through an Electron wallet dialog without opening the wallet.
+Deterministic account groups appear as tabs across the top, starting with **Main account**. Each group's table contains nine mainnet network wallets and twelve asset identities, with a native-currency balance in every row (ETH on Base/Horizen and separate HYPE balances on HyperEVM/Core). Ethereum also supports six-decimal USDT at its pinned Ethereum contract; USDT payments require Ethereum ETH for gas. This adds no TON USDT jetton or other stablecoin network. The overview queries configured providers once per visible wallet; **Refresh balances** requests a new observation. Failed or incomplete queries stay unknown/unavailable. Click a row to open its wallet tab. Keys follow each chain's pinned derivation profile; EVM networks can share an address while their balances remain separate. Table addresses stay on one line; the copy-icon button requests the full verified address from the Go signer through an Electron wallet dialog without opening the wallet.
 
 Each wallet tab contains its own balances, asset selector, Send/Receive buttons and network settings. **Send** reveals the otherwise hidden payment form. **Receive** opens the Go-authored Electron wallet dialog with QR code, full address and an explicit **Copy address** button. These actions are enabled after recording and confirming the phrase; pending setup offers a wallet-dialog completion action. Middle-click a wallet tab, or focus it and press Delete, to close it. Closing a tab or form preserves durable reservations. Amounts, network state and Go-validated approval and password checks in the Electron wallet dialog use the existing real transaction pipeline.
 
@@ -111,6 +112,20 @@ The top-right **Settings** button contains phrase restoration for an empty profi
 The implemented hardening and its exact test scopes are tracked in the [hardening evidence checklist](docs/PRODUCTION_HARDENING.md). Outstanding implementation, public-network, installed-OS, soak and independent-review work remains in the [production-readiness checklist](docs/PRODUCTION_READINESS.md) and [release evidence](docs/STATUS.md).
 
 Accounts and the local payment journal now use bounded pages, including large encrypted archives. Settings exposes **Load older payments** and **Load older chain history**; continuations expire on lock or context/generation change. TON traverses exact hash-linked archival transactions and Core traverses inclusive timestamp pages within their documented budgets. Incomplete or saturated queries remain explicit. See [history limits and tests](docs/HISTORY_PAGINATION.md).
+
+## Exchange with Bybit
+
+Open **Exchange**, select your Bybit API region and use **Connect Bybit API key**. Enter the system-generated HMAC key and secret only in the separate masked wallet dialog. They are stored in the encrypted local vault; the ordinary portfolio receives connection status and a key suffix. Configure only the required spot, account-transfer and withdrawal permissions, restrict the key to an appropriate IP, and whitelist the exact owned withdrawal addresses in Bybit. Withdrawals require a master-account key. Connecting or refreshing performs no trade or transfer.
+
+Use a **Bybit Unified Trading Account**. This flow uses Funding and Unified balances; legacy Classic-only spot accounts are not supported.
+
+1. **Deposit:** select a wallet/network and asset, refresh the market, enter the amount, then approve the existing wallet payment. Go checks the exact Bybit chain and full token identity and includes the required TON memo. Track this on-chain payment in **Settings → Local payment journal**; chain submission does not prove Bybit credit.
+2. **Swap:** choose Sell for asset → USDT or Buy for USDT → asset, refresh the latest spot price, enter the exact spending amount and a 0.01–1% slippage limit, then approve. An internal Funding ↔ Unified transfer, when needed, has its own confirmation. Orders disable leverage and borrowing; the last price is an observation and execution can be partial.
+3. **Withdraw:** independently select the destination wallet and asset, check its exact network and fee, then approve a withdrawal to that wallet's owned address. The amount includes Bybit's fee. Bybit controls custody, availability and fees; a completed exchange report does not prove on-chain receipt or finality.
+
+UAE withdrawals collect eight documented beneficiary fields through masked wallet dialogs and transmit them only to the selected UAE API endpoint. Türkiye, Kazakhstan, EU and Indonesia withdrawals remain gated before any funding transfer because their required questionnaires are not implemented. Unsupported or ambiguous asset/network routes stay unavailable; the existing wallets remain available. A lost withdrawal acknowledgment stays UNKNOWN because Bybit's record API cannot look up its request ID; never submit a replacement to resolve a timeout.
+
+The recovery phrase reconstructs wallet keys, including the Ethereum address used for USDT. It cannot restore Bybit API credentials, beneficiary data, exchange account access or the local exchange journal. See the [Exchange guide and evidence checklist](docs/EXCHANGE.md) and [API contract](docs/BYBIT_API.md). Local unit, race, fuzz and mutation evidence passes in the documented scopes; private Bybit acceptance and funded deposit/trade/withdrawal roundtrips are **NOT_RUN**. No real credentials or mainnet funds were used during development.
 
 ## Automatic versioned releases
 

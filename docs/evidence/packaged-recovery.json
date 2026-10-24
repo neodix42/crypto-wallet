@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing and validation feedback; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing, disconnected Exchange controls, isolated Connect cancellation and validation feedback; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -51,6 +51,18 @@
       "status": "PASS"
     },
     {
+      "name": "Installed Exchange tab remains available after account navigation and middle-click",
+      "status": "PASS"
+    },
+    {
+      "name": "Disconnected installed Exchange has visibly disabled Deposit, Swap and Withdraw buttons that perform no action",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed Bybit Connect uses isolated credential dialogs and both cancellation boundaries preserve the disconnected vault",
+      "status": "PASS"
+    },
+    {
       "name": "Electron Receive displays independently decoded QR pixels and copies the exact address",
       "status": "PASS"
     },
@@ -88,22 +100,29 @@
     "Wayland full wallet workflows",
     "OS suspend/session lock",
     "send from installed package",
-    "upgrade/uninstall recovery matrix"
+    "upgrade/uninstall recovery matrix",
+    "live Bybit authentication, deposits, spot fills and withdrawals"
   ],
   "environment": "mainnet",
+  "producerSHA256": "e22e366ef5eb82ba4d8ca9989415a70f0ba2e4c077b90bfc3474ae0a64c94a34",
+  "sourceStable": true,
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "d0a9cab95799361ed288a457e5bc5243e224ffc814546ae496bb2dee9ddd3e71",
-      "wallet-launcher": "39bf5716b5527b0af4df2a86083b24ae6641f74b65dad6754e41b93d016588d5",
-      "wallet-signer": "5f9d835ff32180c58dd332e1e9e9fd708f46a0e577c2204b7375ab5d19497f59"
+      "wallet-core": "79f9efee548a857e64f6c1a38097ef236c2030eb169d5b075ed294736afc8af7",
+      "wallet-launcher": "164b9c11ee193392dab11ea0cf484bcd94fb1d91e02281609a5b6bbd13c34065",
+      "wallet-signer": "6340d8f4a7773e873ffc6a98d8e5cafa20dddaa3d5b553158240fe5df09db077"
     },
-    "asarSHA256": "3b3c86affdc042288f7b878c8dccb65b1a779bf67e060d9163b0491a9f2bfa10"
+    "asarSHA256": "013c01b218cf05e1a5a295e9333e7d67a66a29488281c78ba8b82b2064c2d9d6"
   },
   "nativeBalanceObservation": {
     "status": "PASS",
     "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - 0x774cd0e82 1 6fe4c2776c303fb0bS7fde2eba07a51 3aec4c8b6397584c767196c"
+    "publicText": "0 ETH - provider-observed - Oxdde47b48b8c79a741a59875eb880a1 8fc8c0a88a f27e0bfb7e7caef107b55d0e"
+  },
+  "exchangeConnectionDrill": {
+    "status": "PASS",
+    "scope": "Real isolated app-password and empty masked API-input dialogs cancelled through XTest; no API credentials entered, custody approved or live exchange acceptance claimed"
   },
   "liveLogChecks": [
     {

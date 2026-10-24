@@ -1,0 +1,92 @@
+{
+  "status": "PASS",
+  "scope": "Bybit V5 HTTP client, HMAC/canonical schema policy, exact decimal fixtures, regional beneficiary and tax parsers; local tests only",
+  "generatedAt": "2026-10-24T14:42:04.414569+00:00",
+  "sourceSHA256": {
+    "internal/exchange/bybit/beneficiary.go": "1e7f42e2cb3d9333fdbf70880474fe80bb7630207ed847ab4adbec0dcbfc05eb",
+    "internal/exchange/bybit/beneficiary_test.go": "dc3515e4a3bee57cf1a2b9bcf008661bb0570335a354c3c1b77085bdc9207b80",
+    "internal/exchange/bybit/client.go": "d77a2c11fbf037fdd962aff81e9f92fdabdfcc83e6f44316b9a38cb6a6ffe68c",
+    "internal/exchange/bybit/client_test.go": "63589ba3cfa407b8d345f9a77e3973a3a9116694db16030ee5b139130036dc3d",
+    "internal/exchange/bybit/fees.go": "05e3331bd6b8f2f11afaab96aaa816b5d32d7a7f145e8bdd60405e577b423a99",
+    "internal/exchange/bybit/fees_test.go": "a889f0bc4e2a0b303183b1e01f01c644bd775e819b8b127ac0f093fca2582e22",
+    "internal/exchange/bybit/test-mutations.py": "af9911312000f1d205dcdf24ddf7441b1be9794c1ba6c37a1ae851bc1f78f03b",
+    "internal/exchange/bybit/types.go": "e4763e601e11b650ba420560f1537cfdb7f95e7b5f4f4de44cf97ae47e844072",
+    "internal/exchange/bybit/validation.go": "85cec1f41704b9e82f58a732af78f644e2062b677ef1cfa96bdcb49c1c4da17d",
+    "internal/exchange/bybit/validation_test.go": "0a75d0203b0f7902228be5f62c586532dfdfb8c18a3a083318b9748a98690c75"
+  },
+  "unit": {
+    "status": "PASS",
+    "namedTestsAndSubtests": 131,
+    "raw": "reports/bybit-client-test.jsonl",
+    "rawSHA256": "1fe76b8150ee79d7bc07603a3f505b1df1543d442d5f16b06365d1d56f51e14b",
+    "packageResults": [
+      {
+        "Time": "2026-10-24T18:39:48.812429879+04:00",
+        "Action": "pass",
+        "Package": "localwallet/internal/exchange/bybit",
+        "Elapsed": 0.02
+      }
+    ]
+  },
+  "coverage": {
+    "status": "PASS",
+    "coveredStatements": 429,
+    "totalStatements": 431,
+    "percent": 99.536,
+    "raw": "reports/bybit-client.cover",
+    "rawSHA256": "9b45d5daf25e8c59e1d74670e50406f6b3fa1c75c31d26180990c7068e0d44b9"
+  },
+  "uncoveredReview": [
+    "http.NewRequest construction error is defensive: public constructors and the fixed request schema admit no malformed URL.",
+    "fees==nil normalization is defensive: null input is rejected earlier and valid empty arrays decode to a nonnil slice."
+  ],
+  "race": {
+    "status": "PASS",
+    "raw": "reports/exchange-core-race.log",
+    "rawSHA256": "470ecc997b320d294dd39573fde437d855d271825c082f67cc67d2e372cdf431",
+    "scope": "fresh core, actual-registry routing and Bybit package run after checked decimal-formatting/amount-overflow fix"
+  },
+  "vet": {
+    "status": "PASS",
+    "command": "./scripts/with-go.sh go vet ./cmd/wallet-core ./internal/exchange/..."
+  },
+  "fuzz": [
+    {
+      "status": "PASS",
+      "target": "FuzzBybitAuthRequest",
+      "requestedSeconds": 15,
+      "parallel": 2,
+      "executions": 66103,
+      "raw": "reports/bybit-auth-fuzz.log",
+      "rawSHA256": "0674723e73121be047287af5615198d9d407d93eab7501b3ed9c2c316cc85614"
+    },
+    {
+      "status": "PASS",
+      "target": "FuzzBybitExecutionExtraFees",
+      "requestedSeconds": 15,
+      "parallel": 2,
+      "executions": 53120,
+      "raw": "reports/bybit-fees-fuzz.log",
+      "rawSHA256": "26fe5e8781d630e054284b029e03e18e294cc8dd4a7223b9d2140424d13dc820"
+    }
+  ],
+  "mutations": {
+    "status": "PASS",
+    "killed": 5,
+    "total": 5,
+    "raw": "reports/bybit-client-mutations.json",
+    "rawSHA256": "016538ace01ddc74549babd8c9bb4c3b586d5b91ed4e83c9b049addc3846d268"
+  },
+  "loopbackTLS": {
+    "status": "PASS",
+    "scope": "actual local TLS request with synthetic headers; no redirected or environment-proxy credential request"
+  },
+  "livePrivateExchange": {
+    "status": "NOT_RUN",
+    "reason": "No real credential, funded account or live deposit/order/transfer/withdrawal used"
+  },
+  "packagedDesktopExchange": {
+    "status": "NOT_RUN",
+    "reason": "Package-level evidence does not certify actual desktop exchange execution"
+  }
+}

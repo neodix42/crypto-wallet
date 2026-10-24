@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "91ae2e25c32e5ae1f394f903274ce87334f33d7f",
+  "sourceCommit": "197067ea3edb01f26e10a50b6b8bf40754161ea8",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "2fedb613f03ed55a9065591842b307877d5851bb8716d5bd7f6f56e64a16e0d5",
+  "sha256": "fd91754f2c3379bdc87054f3ce755bbe831813ed12720ef67f8e3f3f1abb321f",
   "binaryManifest": {
-    "wallet-core": "d0a9cab95799361ed288a457e5bc5243e224ffc814546ae496bb2dee9ddd3e71",
-    "wallet-launcher": "39bf5716b5527b0af4df2a86083b24ae6641f74b65dad6754e41b93d016588d5",
-    "wallet-signer": "5f9d835ff32180c58dd332e1e9e9fd708f46a0e577c2204b7375ab5d19497f59"
+    "wallet-core": "79f9efee548a857e64f6c1a38097ef236c2030eb169d5b075ed294736afc8af7",
+    "wallet-launcher": "164b9c11ee193392dab11ea0cf484bcd94fb1d91e02281609a5b6bbd13c34065",
+    "wallet-signer": "6340d8f4a7773e873ffc6a98d8e5cafa20dddaa3d5b553158240fe5df09db077"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -16,31 +16,31 @@
       "report": "coverage",
       "status": "PASS",
       "file": "coverage.json",
-      "sha256": "ee68d479d86d671a9f11ec4546d36ad922df767eb5a686e3b2eebe4432ceac66"
+      "sha256": "cbef046395606fa4f9d6d745564484ab30c3aa3c26a92b3d5c72d4858c9b34c1"
     },
     {
       "report": "go-coverage",
       "status": "PASS",
       "file": "go-coverage.json",
-      "sha256": "d70137262700e9a1d3d8e6ce3beb4d0b54002642e6d5a81e32062840e0b328be"
+      "sha256": "7cab895c586e38d11943bd0a9cae6747f948e16722ab8b3e25833733c7988201"
     },
     {
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "f25a226c918e07eedcf0cdef9ff99fb5ad9ee56d262f010240ed8428c72d4276"
+      "sha256": "331375bbc74e7a2958b68fc6df5c64d7cefd044daa35e8fcc57396db6af1257d"
     },
     {
       "report": "mutation",
       "status": "PASS",
       "file": "mutation.json",
-      "sha256": "e21cd4716753ddf6c4a3a1b350526da69a5a85a0eac167da00d4bc234200df6e"
+      "sha256": "fa7c66e2508d3260ca3c6f4139b089deb499f71f0c8b9e252d4b994254f4ed55"
     },
     {
       "report": "fuzz",
       "status": "PASS",
       "file": "fuzz.json",
-      "sha256": "a27753bf2c9cc7a444e7aceaefcc54c2d9074a9eb82af23022d62a16b10d0136"
+      "sha256": "0fe6f0ed23e19e5d2d60c0e5e687d48308f39dcb3a890028a79d4921b708e77a"
     },
     {
       "report": "integration",
@@ -52,13 +52,13 @@
       "report": "stress",
       "status": "PASS",
       "file": "stress.json",
-      "sha256": "a9a99cccbbf8de5b7322ad6004003131c57a480800b91dd27018f45d52e3bbfa"
+      "sha256": "a60e351d542e0879fba654650942cd7128fee704f54c3c7dc2b915fb82842825"
     },
     {
       "report": "stress-race",
       "status": "PASS",
       "file": "stress-race.json",
-      "sha256": "8b0c3cefc27bf19a8e97a3344671d5d5c377c8aa6c07e07f53688496db349714"
+      "sha256": "0da30184cd32640ba69446ebbe4d7f01e47fe51e02f527a8c6ff29ed5c035dbd"
     },
     {
       "report": "stress-race-reference-budget",
@@ -70,13 +70,13 @@
       "report": "soak",
       "status": "RUNNING",
       "file": "soak.json",
-      "sha256": "e2214ee496ce2409df3153132a3a338de81bf91d70f7929672df34dd363efbcd"
+      "sha256": "eed95035d6d667e2ef779cc620e241ebbc347ab39f056923731ff05b1fc31cde"
     },
     {
       "report": "native-input",
       "status": "PASS",
       "file": "native-input.json",
-      "sha256": "e3423ccb72162e9bb2653bff80d9ecaeea8f29006915600ac6329ba2a2a62524"
+      "sha256": "97a22bab4fa448fcffc92a422b6a86d93700b34a4759158d8f6f6f9fb137044b"
     },
     {
       "report": "native-input-long",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "9a5956ebcdb98eda705e5d2d6fae81d0552066ebef27fcf56570835a7f60a7f7"
+      "sha256": "9761e2223130f5ed93588f4556639008462101e61ff02f5ad1b92eaeb0e06ed7"
     },
     {
       "report": "display-startup",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "e8290ee7e7df70595a4ef6a78a19d4623db2c6c038a7f0c222caed137d8d117e"
+      "sha256": "d52b3720ebd51d5259dae05371c60f7d4803704bdd84f9559bfe0022978ff6f7"
     },
     {
       "report": "phrase-onboarding",
@@ -214,7 +214,7 @@
       "report": "build-tools",
       "status": "PASS",
       "file": "build-tools.json",
-      "sha256": "20063d837295439ac6f7fa8817d9c2df07423b6f290c22dff02e718786ca8ea3"
+      "sha256": "82d3d4c24b6771389ecf3c4ac487199224a9ee3d7de71c1aa642431141d70b92"
     },
     {
       "report": "go-only-build",
@@ -232,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "346fd2f94c6c1c348d51222b97558552f7fd97520d11c0d0b75f6b3b9d519ead"
+      "sha256": "6e3101e720707838d74ab2e8ee1558121e0fa3521d2f7b68ffff10fd49e85d63"
     },
     {
       "report": "hypercore-pagination",
@@ -250,25 +250,25 @@
       "report": "release-auth",
       "status": "PASS",
       "file": "release-auth.json",
-      "sha256": "85ad29c01b9af26cf626b4e49231668f7bdc35bfc446101c48246a239b9ef8d7"
+      "sha256": "df608ef0eed9e61d5630b384c6c643692759eec8947bf90d6bac2d7d67c0affb"
     },
     {
       "report": "release-evidence",
       "status": "PASS",
       "file": "release-evidence.json",
-      "sha256": "e01300a001168d42800b59b5b238941a764eca30b711c4a5fba834d82649699c"
+      "sha256": "ed0a188aa69cadb26fa013271af7544d2e05533702ee9df456a262630e90ab75"
     },
     {
       "report": "crash-security",
       "status": "PASS",
       "file": "crash-security.json",
-      "sha256": "23307e8b15549ec76b7b31f954c32c6270f95c6724a9cdb960da49a73ad655a5"
+      "sha256": "c6b90d96b99ec22d1153bef3726ad72d213be67cc9edb99193b0d4faa8c06e60"
     },
     {
       "report": "packaged-send",
       "status": "PASS",
       "file": "packaged-send.json",
-      "sha256": "2735cbf76b2a2eaeff1491be5a131cdf0ac09780da4c442c6c32c53f42168174"
+      "sha256": "f5ed5885eb3730a3da3db082864bf9f1a1ea04b5173b9c2d177196f56593a1ae"
     },
     {
       "report": "fuzz-long",
@@ -280,13 +280,67 @@
       "report": "nondecred-soak-run",
       "status": "RUNNING",
       "file": "nondecred-soak-run.json",
-      "sha256": "7189eda7fae40ef4b5917e89dbeb5e7d356446400259843c55dbf8f763673f1f"
+      "sha256": "eb3526beab244edc6778f41a2111fb4f8360955ff9a4d0bb04b7a64415ede343"
     },
     {
       "report": "production-hardening",
       "status": "PASS",
       "file": "production-hardening.json",
       "sha256": "a2c499ffd78e4507c90bb3eb35f19d3f23987d97ad856c228fdbde17eb90977e"
+    },
+    {
+      "report": "bybit-client",
+      "status": "PASS",
+      "file": "bybit-client.json",
+      "sha256": "78590c86e05b778860e97d7a1d195224cc45737b2b8ac7e226a1547bbbd2fa35"
+    },
+    {
+      "report": "bybit-client-mutations",
+      "status": "PASS",
+      "file": "bybit-client-mutations.json",
+      "sha256": "f9f005258cc3fa69e66b055a829bc76a3d0648708cbf19061bb1707318e1f71f"
+    },
+    {
+      "report": "exchange-core",
+      "status": "PASS",
+      "file": "exchange-core.json",
+      "sha256": "a63dd0e9744b588ca2ff9c6b03575368b9d9849302e3068a03267df795726e34"
+    },
+    {
+      "report": "exchange-signermutation",
+      "status": "PASS",
+      "file": "exchange-signermutation.json",
+      "sha256": "00c6f5734a3759cfed954740d4c0d281aaa4dab9c4f52c596f18835afb2e627d"
+    },
+    {
+      "report": "usdt-execution",
+      "status": "PASS",
+      "file": "usdt-execution.json",
+      "sha256": "66a59c16aeb51e8f6ba26c413096e5b7b73945a98ed1c2276d335e8825241915"
+    },
+    {
+      "report": "exchange",
+      "status": "PASS",
+      "file": "exchange.json",
+      "sha256": "4176dd074052c53d8a9413ee4e27aac0c0ff22c9502732602ba16dc0d15d0f16"
+    },
+    {
+      "report": "exchange-live",
+      "status": "NOT_RUN",
+      "file": "exchange-live.json",
+      "sha256": "bf5d5a424f588637b8419a210506c00b168466d56b9cabc11c6a4f316b7f137d"
+    },
+    {
+      "report": "pre-exchange-soak",
+      "status": "NOT_RUN",
+      "file": "pre-exchange-soak.json",
+      "sha256": "5c7a346b6757b22354d77df128a66efbb985c2d9c5df86b9008d912d3ab3719c"
+    },
+    {
+      "report": "pre-exchange-nondecred-soak-run",
+      "status": "NOT_RUN",
+      "file": "pre-exchange-nondecred-soak-run.json",
+      "sha256": "63de1539608d6286cbc48958506ec10c0a4c55bb429815be0a7009e57d5fa75b"
     }
   ],
   "node": "v24.19.0",

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "testsRun": 27,
+  "testsRun": 28,
   "tests": [
     {
       "test": "test_all_twelve_production_source_payload_bindings_are_required (__main__.ReleaseEvidence.test_all_twelve_production_source_payload_bindings_are_required)",
@@ -107,16 +107,20 @@
       "status": "PASS"
     },
     {
+      "test": "test_usdt_execution_gate_cannot_disappear_or_be_replaced_by_duplicate (__main__.ReleaseEvidence.test_usdt_execution_gate_cannot_disappear_or_be_replaced_by_duplicate)",
+      "status": "PASS"
+    },
+    {
       "test": "test_version_check_failure_does_not_echo_subprocess_output (__main__.ReleaseEvidence.test_version_check_failure_does_not_echo_subprocess_output)",
       "status": "PASS"
     }
   ],
   "sourceSHA256": {
-    "scripts/evidence_binding.py": "0cbd9e9f60c3eb7ee9dd6b3ebbe619dccee40b713d7ff9b1aa5538497c646428",
+    "scripts/evidence_binding.py": "9baa7cb6088b519d221e2126c6ffe576a9db27cfd542d9463f75870110e73310",
     "scripts/verify-release.py": "26cf5b8908f082d2c6aa19019f17c2b106ae6947cef5d43da83b392934cdc174",
     "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a",
     "scripts/verify-artifact.cjs": "479bd0c7dcaec8257b8a6fe3f9aa2c3346a7e90cbfab9bef9b815125780cf22c",
-    "scripts/release-evidence-test.py": "9baa91f1c45129d6408f63eae4c7a56499091f519223e3a7db7feca539650541"
+    "scripts/release-evidence-test.py": "954919916c8458b7d0556195eb308bd7003aea8d0473d04e5a74413bf0fc89d1"
   },
   "scope": "Hermetic candidate binding, complete source sets, raw coverage integrity and stale/tampered/missing evidence rejection using public toy files. No OS/network/recovery acceptance is fabricated."
 }

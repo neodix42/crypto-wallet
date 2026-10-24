@@ -110,7 +110,7 @@ class ReleaseEvidence(unittest.TestCase):
             self.write('reports/' + name, profile)
         self.write_json('reports/go-coverage.json', {'status': 'PASS', 'floors': 'PASS',
             'sourceSHA256': binding.go_sources(self.root),
-            'gates': [{'gate': name, 'status': 'PASS'} for name in ('decred-simnet', 'ton-v5r1-emulator')],
+            'gates': [{'gate': name, 'status': 'PASS'} for name in ('decred-simnet', 'ton-v5r1-emulator', 'usdt-evm-execution')],
             'profiles': [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in ('go-base.cover', 'go-native.cover')]})
         self.write_json('reports/coverage.json', {'packages': binding.go_rows(self.root / 'reports/go.cover')})
 
@@ -199,6 +199,15 @@ class ReleaseEvidence(unittest.TestCase):
     def test_decred_and_ton_local_coverage_gates_cannot_disappear(self):
         report = self.report('go-coverage')
         report['gates'] = [row for row in report['gates'] if row['gate'] != 'decred-simnet']
+        self.write_json('reports/go-coverage.json', report)
+        self.assert_blocked('go-coverage-original-local-gates-incomplete')
+
+    def test_usdt_execution_gate_cannot_disappear_or_be_replaced_by_duplicate(self):
+        report = self.report('go-coverage')
+        report['gates'] = [row for row in report['gates'] if row['gate'] != 'usdt-evm-execution']
+        self.write_json('reports/go-coverage.json', report)
+        self.assert_blocked('go-coverage-original-local-gates-incomplete')
+        report['gates'].append({'gate': 'ton-v5r1-emulator', 'status': 'PASS'})
         self.write_json('reports/go-coverage.json', report)
         self.assert_blocked('go-coverage-original-local-gates-incomplete')
 

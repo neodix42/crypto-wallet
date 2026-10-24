@@ -1,4 +1,4 @@
-// Package evm implements only allowlisted native and canonical ZEN transfers.
+// Package evm implements only allowlisted native, canonical ZEN and Ethereum USDT transfers.
 package evm
 
 import (
@@ -9,14 +9,17 @@ import (
 )
 
 const Profile = "evm-bip39-bip32-v1"
+const USDTContract = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+const USDTAsset = "ethereum-mainnet:erc20:" + USDTContract
 
 // Frozen against official deployments on 2026-10-23. An unexpected upgrade fails
 // closed and requires a reviewed registry update. These are runtime code hashes.
 var tokenCodeHashes = map[string]string{
-	"base-mainnet":    "0x92a6294a008ae778c19a6f894f1c0f66818ce2a00c32d25eb6fa6a7923b23c3c",
-	"base-sepolia":    "0xd0ed2947f1aaa2a3eecc272403016fe1a8e49e21beadf7d189946f679d1a4a39",
-	"horizen-mainnet": "0x244bb43a2f687bfcd9cbe2f0a64b2e54436a597367ab7052fd1ab925c4cabe14",
-	"horizen-testnet": "0x676dedf00282df1f07ddbff58e1c7bf7817fefcf52fa2506f1e7ee3f3723fc01",
+	"ethereum-mainnet": "0xb44fb4e949d0f78f87f79ee46428f23a2a5713ce6fc6e0beb3dda78c2ac1ea55",
+	"base-mainnet":     "0x92a6294a008ae778c19a6f894f1c0f66818ce2a00c32d25eb6fa6a7923b23c3c",
+	"base-sepolia":     "0xd0ed2947f1aaa2a3eecc272403016fe1a8e49e21beadf7d189946f679d1a4a39",
+	"horizen-mainnet":  "0x244bb43a2f687bfcd9cbe2f0a64b2e54436a597367ab7052fd1ab925c4cabe14",
+	"horizen-testnet":  "0x676dedf00282df1f07ddbff58e1c7bf7817fefcf52fa2506f1e7ee3f3723fc01",
 }
 
 // Adapter has no secret state. HTTPClient is public for bounded custom transports.
@@ -29,6 +32,9 @@ type Adapter struct {
 func registry() []model.Network {
 	n := func(id, name, chain, rpc, symbol, contract string, test bool) model.Network {
 		assets := []model.Asset{{ID: id + ":native", Symbol: symbol, Decimals: 18}}
+		if id == "ethereum-mainnet" {
+			assets = append(assets, model.Asset{ID: USDTAsset, Symbol: "USDT", Decimals: 6, Contract: USDTContract})
+		}
 		if contract != "" {
 			assets = append(assets, model.Asset{ID: id + ":erc20:" + contract, Symbol: "ZEN", Decimals: 18, Contract: contract})
 		}

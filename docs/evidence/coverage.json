@@ -6,9 +6,9 @@
   "packages": [
     {
       "package": "localwallet/cmd/wallet-core",
-      "statements": 732,
-      "covered": 698,
-      "percent": 95.36,
+      "statements": 1391,
+      "covered": 1347,
+      "percent": 96.84,
       "floor": 95,
       "status": "PASS"
     },
@@ -22,9 +22,9 @@
     },
     {
       "package": "localwallet/cmd/wallet-signer",
-      "statements": 186,
-      "covered": 180,
-      "percent": 96.77,
+      "statements": 228,
+      "covered": 222,
+      "percent": 97.37,
       "floor": 95,
       "status": "PASS"
     },
@@ -70,9 +70,9 @@
     },
     {
       "package": "localwallet/internal/chains/evm",
-      "statements": 810,
-      "covered": 782,
-      "percent": 96.54,
+      "statements": 820,
+      "covered": 793,
+      "percent": 96.71,
       "floor": 95,
       "status": "PASS"
     },
@@ -105,6 +105,22 @@
       "statements": 76,
       "covered": 74,
       "percent": 97.37,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/exchange",
+      "statements": 30,
+      "covered": 30,
+      "percent": 100.0,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/exchange/bybit",
+      "statements": 431,
+      "covered": 429,
+      "percent": 99.54,
       "floor": 95,
       "status": "PASS"
     },
@@ -150,9 +166,9 @@
     },
     {
       "package": "localwallet/internal/signer",
-      "statements": 657,
-      "covered": 641,
-      "percent": 97.56,
+      "statements": 985,
+      "covered": 953,
+      "percent": 96.75,
       "floor": 95,
       "status": "PASS"
     },
@@ -182,9 +198,9 @@
     },
     {
       "package": "localwallet/internal/vault",
-      "statements": 244,
-      "covered": 235,
-      "percent": 96.31,
+      "statements": 293,
+      "covered": 284,
+      "percent": 96.93,
       "floor": 95,
       "status": "PASS"
     }

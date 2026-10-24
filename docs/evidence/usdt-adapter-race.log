@@ -1,0 +1,519 @@
+=== RUN   TestTP002IndependentEthersFixtures
+--- PASS: TestTP002IndependentEthersFixtures (0.01s)
+=== RUN   TestTP022RegistryAndDescriptors
+--- PASS: TestTP022RegistryAndDescriptors (0.01s)
+=== RUN   TestTP002AllEVMNetworkDomainFixtures
+--- PASS: TestTP002AllEVMNetworkDomainFixtures (0.06s)
+=== RUN   TestTP002IndependentZENTokenTransactionFixtures
+--- PASS: TestTP002IndependentZENTokenTransactionFixtures (0.03s)
+=== RUN   TestTP052AddressAndNumbers
+--- PASS: TestTP052AddressAndNumbers (0.00s)
+=== RUN   TestTP042PlanAndSignatureTampering
+--- PASS: TestTP042PlanAndSignatureTampering (0.01s)
+=== RUN   TestTP050RPCPrepareSubmitReconcile
+=== RUN   TestTP050RPCPrepareSubmitReconcile/ethereum-sepolia
+=== RUN   TestTP050RPCPrepareSubmitReconcile/hyperevm-testnet
+=== RUN   TestTP050RPCPrepareSubmitReconcile/base-sepolia
+=== RUN   TestTP050RPCPrepareSubmitReconcile/horizen-testnet
+--- PASS: TestTP050RPCPrepareSubmitReconcile (0.23s)
+    --- PASS: TestTP050RPCPrepareSubmitReconcile/ethereum-sepolia (0.03s)
+    --- PASS: TestTP050RPCPrepareSubmitReconcile/hyperevm-testnet (0.02s)
+    --- PASS: TestTP050RPCPrepareSubmitReconcile/base-sepolia (0.07s)
+    --- PASS: TestTP050RPCPrepareSubmitReconcile/horizen-testnet (0.10s)
+=== RUN   TestTP052RPCAdversarial
+=== RUN   TestTP052RPCAdversarial/eth_chainId
+=== RUN   TestTP052RPCAdversarial/eth_getBlockByNumber
+=== RUN   TestTP052RPCAdversarial/eth_getCode
+=== RUN   TestTP052RPCAdversarial/eth_getTransactionCount
+=== RUN   TestTP052RPCAdversarial/eth_maxPriorityFeePerGas
+=== RUN   TestTP052RPCAdversarial/eth_call
+=== RUN   TestTP052RPCAdversarial/eth_estimateGas
+=== RUN   TestTP052RPCAdversarial/eth_getBalance
+--- PASS: TestTP052RPCAdversarial (0.14s)
+    --- PASS: TestTP052RPCAdversarial/eth_chainId (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_getBlockByNumber (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_getCode (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_getTransactionCount (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_maxPriorityFeePerGas (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_call (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_estimateGas (0.01s)
+    --- PASS: TestTP052RPCAdversarial/eth_getBalance (0.01s)
+=== RUN   TestTP012StrictJSON
+--- PASS: TestTP012StrictJSON (0.01s)
+=== RUN   TestTP041RPCEnvelope
+--- PASS: TestTP041RPCEnvelope (0.05s)
+=== RUN   TestTP042ReconstructionRejectsAllChangedEffects
+--- PASS: TestTP042ReconstructionRejectsAllChangedEffects (0.03s)
+=== RUN   TestTP052PreparationRejectsInvalidIntent
+--- PASS: TestTP052PreparationRejectsInvalidIntent (0.01s)
+=== RUN   TestTP052TokenAndGasStateFailures
+--- PASS: TestTP052TokenAndGasStateFailures (0.10s)
+=== RUN   TestTP060PendingSpendability
+--- PASS: TestTP060PendingSpendability (0.03s)
+=== RUN   TestTP052MissingRollupDataFee
+--- PASS: TestTP052MissingRollupDataFee (0.01s)
+=== RUN   TestTP060SubmissionAndReconciliationFailures
+--- PASS: TestTP060SubmissionAndReconciliationFailures (0.09s)
+=== RUN   TestTP041RPCReadAndRedirect
+--- PASS: TestTP041RPCReadAndRedirect (0.00s)
+=== RUN   TestTP050BoundedEVMHistory
+--- PASS: TestTP050BoundedEVMHistory (0.16s)
+=== RUN   TestTP052HistoryRejectsHostileBlocksAndReceipts
+--- PASS: TestTP052HistoryRejectsHostileBlocksAndReceipts (0.13s)
+=== RUN   TestTP052HistoryRejectsHostileTokenEvents
+--- PASS: TestTP052HistoryRejectsHostileTokenEvents (0.29s)
+=== RUN   TestTP050LocalEVMProtocolAcceptance
+    integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node
+--- SKIP: TestTP050LocalEVMProtocolAcceptance (0.00s)
+=== RUN   TestTP040MutableScalarErasure
+--- PASS: TestTP040MutableScalarErasure (0.00s)
+=== RUN   TestTP002USDTIndependentEthersTransactionsAndPrecision
+--- PASS: TestTP002USDTIndependentEthersTransactionsAndPrecision (0.01s)
+=== RUN   TestTP050USDTPrepareBalancesSubmitPendingAndFinality
+--- PASS: TestTP050USDTPrepareBalancesSubmitPendingAndFinality (0.07s)
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0x
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0x01
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0x0000000000000000000000000000000000000000000000000000000000000001
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0x
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0x01
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0x0000000000000000000000000000000000000000000000000000000000000001
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0x
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0x01
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0x0000000000000000000000000000000000000000000000000000000000000001
+=== RUN   TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+--- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy (0.55s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0x (0.02s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0x01 (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0x0000000000000000000000000000000000000000000000000000000000000001 (0.02s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/deprecated()0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0x (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0x01 (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0x0000000000000000000000000000000000000000000000000000000000000001 (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/paused()0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0x (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0x01 (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0x0000000000000000000000000000000000000000000000000000000000000001 (0.03s)
+    --- PASS: TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy/basisPointsRate()0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff (0.03s)
+=== RUN   TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent
+=== RUN   TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/latest_gas
+=== RUN   TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/pending_gas
+=== RUN   TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/latest_token
+=== RUN   TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/pending_token
+--- PASS: TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent (0.10s)
+    --- PASS: TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/latest_gas (0.02s)
+    --- PASS: TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/pending_gas (0.02s)
+    --- PASS: TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/latest_token (0.03s)
+    --- PASS: TestTP060USDTPendingTokenAndSeparateGasCannotBeDoubleSpent/pending_token (0.04s)
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/approval_calldata
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/wrong_chain
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/foreign_network_token
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/USDT_as_fee
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/token_recipient
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/native_value
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/ticker_only
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/foreign_account
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/wrong_atomic_amount
+=== RUN   TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/wrong_contract
+--- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects (0.01s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/approval_calldata (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/wrong_chain (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/foreign_network_token (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/USDT_as_fee (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/token_recipient (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/native_value (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/ticker_only (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/foreign_account (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/wrong_atomic_amount (0.00s)
+    --- PASS: TestTP042USDTRejectsChangedContractsDecimalsDomainsAndEffects/wrong_contract (0.00s)
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/missing_effect
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/foreign_token
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_amount
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/removed
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_source
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_recipient
+=== RUN   TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_identity
+--- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect (0.05s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/missing_effect (0.00s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/foreign_token (0.00s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_amount (0.00s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/removed (0.00s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_source (0.00s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_recipient (0.00s)
+    --- PASS: TestTP060USDTReceiptRequiresExactUnremovedTokenEffect/wrong_identity (0.00s)
+=== RUN   TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache
+=== RUN   TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache/index-0
+=== RUN   TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache/index-1
+=== RUN   TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache/index-127
+--- PASS: TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache (1.54s)
+    --- PASS: TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache/index-0 (0.51s)
+    --- PASS: TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache/index-1 (0.52s)
+    --- PASS: TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache/index-127 (0.49s)
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()_pending_change
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()numeric
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()object
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()null
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()_pending_change
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()null
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()numeric
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()object
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()_pending_change
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()null
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()numeric
+=== RUN   TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()object
+--- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed (0.26s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()_pending_change (0.04s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()numeric (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()object (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/deprecated()null (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()_pending_change (0.04s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()null (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()numeric (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/paused()object (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()_pending_change (0.04s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()null (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()numeric (0.02s)
+    --- PASS: TestTP060USDTPendingIssuerChangeAndMalformedReadsFailClosed/basisPointsRate()object (0.02s)
+=== RUN   FuzzTP012AddressAndPlan
+=== RUN   FuzzTP012AddressAndPlan/seed#0
+=== RUN   FuzzTP012AddressAndPlan/00aa2cdb1e932d31
+=== RUN   FuzzTP012AddressAndPlan/00dbd8f9dcc647b7
+=== RUN   FuzzTP012AddressAndPlan/01aff2c53b5100e7
+=== RUN   FuzzTP012AddressAndPlan/031bf20e1971ac66
+=== RUN   FuzzTP012AddressAndPlan/046dd16459d396c2
+=== RUN   FuzzTP012AddressAndPlan/05b31e9112ca67ce
+=== RUN   FuzzTP012AddressAndPlan/05b619bbada6d6f1
+=== RUN   FuzzTP012AddressAndPlan/0a7ec876af520275
+=== RUN   FuzzTP012AddressAndPlan/10b6fcd7bf168a60
+=== RUN   FuzzTP012AddressAndPlan/143942cbc1ec44e6
+=== RUN   FuzzTP012AddressAndPlan/1570f907abeeed70
+=== RUN   FuzzTP012AddressAndPlan/15d3d44c33921fe5
+=== RUN   FuzzTP012AddressAndPlan/16bb33d37bf55a8a
+=== RUN   FuzzTP012AddressAndPlan/16ce6ddb14b5a388
+=== RUN   FuzzTP012AddressAndPlan/1779765cea7e80a0
+=== RUN   FuzzTP012AddressAndPlan/17954f7098edb93a
+=== RUN   FuzzTP012AddressAndPlan/192bc1bd78eb2a3a
+=== RUN   FuzzTP012AddressAndPlan/1a827b0877ca3926
+=== RUN   FuzzTP012AddressAndPlan/1d344f6f6c8b3601
+=== RUN   FuzzTP012AddressAndPlan/1e0cb1564fe30703
+=== RUN   FuzzTP012AddressAndPlan/208c627fab286a10
+=== RUN   FuzzTP012AddressAndPlan/2211e8daf468d128
+=== RUN   FuzzTP012AddressAndPlan/23a165f61eef4424
+=== RUN   FuzzTP012AddressAndPlan/240f2a07f179d1be
+=== RUN   FuzzTP012AddressAndPlan/263684a9194f4b01
+=== RUN   FuzzTP012AddressAndPlan/28a4e613fbee2d20
+=== RUN   FuzzTP012AddressAndPlan/2a1d370292b3e31e
+=== RUN   FuzzTP012AddressAndPlan/2cf4e6e99e179508
+=== RUN   FuzzTP012AddressAndPlan/2e2b6078fb922360
+=== RUN   FuzzTP012AddressAndPlan/3007e212523b34e0
+=== RUN   FuzzTP012AddressAndPlan/33682e3fce6a0db1
+=== RUN   FuzzTP012AddressAndPlan/33c256289ccaf73e
+=== RUN   FuzzTP012AddressAndPlan/36829ada47b3c390
+=== RUN   FuzzTP012AddressAndPlan/394d2ebd414ad51a
+=== RUN   FuzzTP012AddressAndPlan/3990a5bfe939a037
+=== RUN   FuzzTP012AddressAndPlan/3a5c6539a702bff5
+=== RUN   FuzzTP012AddressAndPlan/3a6e64a2a5d48d0a
+=== RUN   FuzzTP012AddressAndPlan/3bb3bfeff98def49
+=== RUN   FuzzTP012AddressAndPlan/3bed662e8209ff20
+=== RUN   FuzzTP012AddressAndPlan/3e0a474b9dc09fa5
+=== RUN   FuzzTP012AddressAndPlan/474fd6f2b2ddf485
+=== RUN   FuzzTP012AddressAndPlan/48acbf497d4575a0
+=== RUN   FuzzTP012AddressAndPlan/4a106093ce807a13
+=== RUN   FuzzTP012AddressAndPlan/4b7b3be88e315fbc
+=== RUN   FuzzTP012AddressAndPlan/4d612c8fcfb0e20d
+=== RUN   FuzzTP012AddressAndPlan/4dea2634cf85f391
+=== RUN   FuzzTP012AddressAndPlan/4e14249f1d330848
+=== RUN   FuzzTP012AddressAndPlan/4e391263e74d99cf
+=== RUN   FuzzTP012AddressAndPlan/4f1b11d7452f0a0d
+=== RUN   FuzzTP012AddressAndPlan/4f40cfe5308cf9c8
+=== RUN   FuzzTP012AddressAndPlan/5222f5337474b07f
+=== RUN   FuzzTP012AddressAndPlan/53f44b84a64c74ed
+=== RUN   FuzzTP012AddressAndPlan/55948851cb16b359
+=== RUN   FuzzTP012AddressAndPlan/56432ac258dfd7de
+=== RUN   FuzzTP012AddressAndPlan/57450890cba5def6
+=== RUN   FuzzTP012AddressAndPlan/5775cc5ce48ab248
+=== RUN   FuzzTP012AddressAndPlan/5798db8abc2dbd0a
+=== RUN   FuzzTP012AddressAndPlan/5b3732f525386a1e
+=== RUN   FuzzTP012AddressAndPlan/5c28f9b1743a9b76
+=== RUN   FuzzTP012AddressAndPlan/5d5dcbcae67ea862
+=== RUN   FuzzTP012AddressAndPlan/5de83366f689b135
+=== RUN   FuzzTP012AddressAndPlan/5edd3494cc66357c
+=== RUN   FuzzTP012AddressAndPlan/5f5545a8f4827f94
+=== RUN   FuzzTP012AddressAndPlan/616823995d504eed
+=== RUN   FuzzTP012AddressAndPlan/639b48c5dce47231
+=== RUN   FuzzTP012AddressAndPlan/6406321cead8d0d2
+=== RUN   FuzzTP012AddressAndPlan/64e1124e3d7b2076
+=== RUN   FuzzTP012AddressAndPlan/653e7022f53100b9
+=== RUN   FuzzTP012AddressAndPlan/6641bc6556735cae
+=== RUN   FuzzTP012AddressAndPlan/67bd5c54fe3ca978
+=== RUN   FuzzTP012AddressAndPlan/6adb824d3f1ff861
+=== RUN   FuzzTP012AddressAndPlan/6c5c3c1bd181dc77
+=== RUN   FuzzTP012AddressAndPlan/6dd94fcb6c744bea
+=== RUN   FuzzTP012AddressAndPlan/6f02ca98310054f6
+=== RUN   FuzzTP012AddressAndPlan/7518efda5399d7be
+=== RUN   FuzzTP012AddressAndPlan/7652694d340687e1
+=== RUN   FuzzTP012AddressAndPlan/7ddb4c2de6c8792e
+=== RUN   FuzzTP012AddressAndPlan/7eea2714e075a208
+=== RUN   FuzzTP012AddressAndPlan/7eeb25f21f508c9b
+=== RUN   FuzzTP012AddressAndPlan/832b6b092b4006ee
+=== RUN   FuzzTP012AddressAndPlan/86035d0ca5e48a60
+=== RUN   FuzzTP012AddressAndPlan/869a1509db5e529e
+=== RUN   FuzzTP012AddressAndPlan/8713752f15d49fb7
+=== RUN   FuzzTP012AddressAndPlan/88b088c6fdd18f4a
+=== RUN   FuzzTP012AddressAndPlan/8b47356138c3b23f
+=== RUN   FuzzTP012AddressAndPlan/8c9eecff7173d6af
+=== RUN   FuzzTP012AddressAndPlan/8dcf823305b43606
+=== RUN   FuzzTP012AddressAndPlan/8e7a4781f0da0595
+=== RUN   FuzzTP012AddressAndPlan/8f6d60169cfd4782
+=== RUN   FuzzTP012AddressAndPlan/8fd9958d73d8c6c2
+=== RUN   FuzzTP012AddressAndPlan/92261b24c359872d
+=== RUN   FuzzTP012AddressAndPlan/92c218e4372d17e0
+=== RUN   FuzzTP012AddressAndPlan/935089faf4b6843e
+=== RUN   FuzzTP012AddressAndPlan/93da5a95efae9300
+=== RUN   FuzzTP012AddressAndPlan/952a42149f70b345
+=== RUN   FuzzTP012AddressAndPlan/971a037d66354187
+=== RUN   FuzzTP012AddressAndPlan/98dec16e68300331
+=== RUN   FuzzTP012AddressAndPlan/9923f8e0d4b82b29
+=== RUN   FuzzTP012AddressAndPlan/9928161ce4dc49a9
+=== RUN   FuzzTP012AddressAndPlan/9d2d179ab6f0a65f
+=== RUN   FuzzTP012AddressAndPlan/9d2d7f8a70962bfe
+=== RUN   FuzzTP012AddressAndPlan/9d4bab524af4b782
+=== RUN   FuzzTP012AddressAndPlan/9fb8a5537d0a64c6
+=== RUN   FuzzTP012AddressAndPlan/a0700b7fedada314
+=== RUN   FuzzTP012AddressAndPlan/a0b079efb9f5f8af
+=== RUN   FuzzTP012AddressAndPlan/a157c95863d0d06a
+=== RUN   FuzzTP012AddressAndPlan/a1d6e1c89ab7bc5f
+=== RUN   FuzzTP012AddressAndPlan/a1e4b5ff7fce89bb
+=== RUN   FuzzTP012AddressAndPlan/a3122aeda0559fdf
+=== RUN   FuzzTP012AddressAndPlan/a4210f7c1e1c06ed
+=== RUN   FuzzTP012AddressAndPlan/a63bf62afd71f272
+=== RUN   FuzzTP012AddressAndPlan/a6fd2848293a4489
+=== RUN   FuzzTP012AddressAndPlan/a7d9e7f3efe7f1a9
+=== RUN   FuzzTP012AddressAndPlan/aa04cd7adf5edf9d
+=== RUN   FuzzTP012AddressAndPlan/aa5104e68150e2f3
+=== RUN   FuzzTP012AddressAndPlan/abd16bcb55f886df
+=== RUN   FuzzTP012AddressAndPlan/abd1b212eaee212c
+=== RUN   FuzzTP012AddressAndPlan/af02bd8322546ffd
+=== RUN   FuzzTP012AddressAndPlan/af2821e483f16796
+=== RUN   FuzzTP012AddressAndPlan/b3ad71d8d209cd47
+=== RUN   FuzzTP012AddressAndPlan/b49380a37332bde0
+=== RUN   FuzzTP012AddressAndPlan/b4e192613a42e824
+=== RUN   FuzzTP012AddressAndPlan/b6df5bd03aeae6a3
+=== RUN   FuzzTP012AddressAndPlan/b75d4a6f5eed33aa
+=== RUN   FuzzTP012AddressAndPlan/b762fe2dfdcfa0d9
+=== RUN   FuzzTP012AddressAndPlan/b7b4bef7e266e913
+=== RUN   FuzzTP012AddressAndPlan/ba91ffaf8adc68a3
+=== RUN   FuzzTP012AddressAndPlan/bcbad3994de49d3d
+=== RUN   FuzzTP012AddressAndPlan/bed147224050e5ed
+=== RUN   FuzzTP012AddressAndPlan/bee997c86a73fe3e
+=== RUN   FuzzTP012AddressAndPlan/c16c0117472269d0
+=== RUN   FuzzTP012AddressAndPlan/c1bfea80b8f7ed90
+=== RUN   FuzzTP012AddressAndPlan/c4ab12b0ed34e174
+=== RUN   FuzzTP012AddressAndPlan/c660d7676c4aeee3
+=== RUN   FuzzTP012AddressAndPlan/c7c64cb562bb5f58
+=== RUN   FuzzTP012AddressAndPlan/c8acc098e5444463
+=== RUN   FuzzTP012AddressAndPlan/caf015f127fe145f
+=== RUN   FuzzTP012AddressAndPlan/cb0d7ad11efa7b58
+=== RUN   FuzzTP012AddressAndPlan/cc090d08e1b86402
+=== RUN   FuzzTP012AddressAndPlan/cdb199b7102e8016
+=== RUN   FuzzTP012AddressAndPlan/cf04de218f15b177
+=== RUN   FuzzTP012AddressAndPlan/cf0dc0e656755271
+=== RUN   FuzzTP012AddressAndPlan/d24cbbdaafc2f942
+=== RUN   FuzzTP012AddressAndPlan/d4551576c1865661
+=== RUN   FuzzTP012AddressAndPlan/dac22335b7efeb50
+=== RUN   FuzzTP012AddressAndPlan/dcff3a3063e59d23
+=== RUN   FuzzTP012AddressAndPlan/e47f4673987959f1
+=== RUN   FuzzTP012AddressAndPlan/e4d389d2d383870d
+=== RUN   FuzzTP012AddressAndPlan/e51c3b2e10886955
+=== RUN   FuzzTP012AddressAndPlan/e5af368f52364c7f
+=== RUN   FuzzTP012AddressAndPlan/ea854bf868164c27
+=== RUN   FuzzTP012AddressAndPlan/eab68f79211d378f
+=== RUN   FuzzTP012AddressAndPlan/ebcfb98d70bfb082
+=== RUN   FuzzTP012AddressAndPlan/eff3acc9192a8389
+=== RUN   FuzzTP012AddressAndPlan/f0970b37f649a006
+=== RUN   FuzzTP012AddressAndPlan/f3ac202939de5465
+=== RUN   FuzzTP012AddressAndPlan/f4ab264514ea9e8d
+=== RUN   FuzzTP012AddressAndPlan/f5b1079d3555e466
+=== RUN   FuzzTP012AddressAndPlan/f5f73ae3b2a539cc
+=== RUN   FuzzTP012AddressAndPlan/f618788296492015
+=== RUN   FuzzTP012AddressAndPlan/f66ce0dccbe09f40
+=== RUN   FuzzTP012AddressAndPlan/f98bd11f043a7be1
+=== RUN   FuzzTP012AddressAndPlan/fa1d12e1d9bc636f
+=== RUN   FuzzTP012AddressAndPlan/fbec18276eb0b009
+=== RUN   FuzzTP012AddressAndPlan/fced41c195aeebfa
+=== RUN   FuzzTP012AddressAndPlan/ff6b7c9a5077968c
+--- PASS: FuzzTP012AddressAndPlan (0.02s)
+    --- PASS: FuzzTP012AddressAndPlan/seed#0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/00aa2cdb1e932d31 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/00dbd8f9dcc647b7 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/01aff2c53b5100e7 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/031bf20e1971ac66 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/046dd16459d396c2 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/05b31e9112ca67ce (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/05b619bbada6d6f1 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/0a7ec876af520275 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/10b6fcd7bf168a60 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/143942cbc1ec44e6 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/1570f907abeeed70 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/15d3d44c33921fe5 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/16bb33d37bf55a8a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/16ce6ddb14b5a388 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/1779765cea7e80a0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/17954f7098edb93a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/192bc1bd78eb2a3a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/1a827b0877ca3926 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/1d344f6f6c8b3601 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/1e0cb1564fe30703 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/208c627fab286a10 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/2211e8daf468d128 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/23a165f61eef4424 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/240f2a07f179d1be (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/263684a9194f4b01 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/28a4e613fbee2d20 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/2a1d370292b3e31e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/2cf4e6e99e179508 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/2e2b6078fb922360 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3007e212523b34e0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/33682e3fce6a0db1 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/33c256289ccaf73e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/36829ada47b3c390 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/394d2ebd414ad51a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3990a5bfe939a037 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3a5c6539a702bff5 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3a6e64a2a5d48d0a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3bb3bfeff98def49 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3bed662e8209ff20 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/3e0a474b9dc09fa5 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/474fd6f2b2ddf485 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/48acbf497d4575a0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4a106093ce807a13 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4b7b3be88e315fbc (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4d612c8fcfb0e20d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4dea2634cf85f391 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4e14249f1d330848 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4e391263e74d99cf (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4f1b11d7452f0a0d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/4f40cfe5308cf9c8 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5222f5337474b07f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/53f44b84a64c74ed (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/55948851cb16b359 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/56432ac258dfd7de (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/57450890cba5def6 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5775cc5ce48ab248 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5798db8abc2dbd0a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5b3732f525386a1e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5c28f9b1743a9b76 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5d5dcbcae67ea862 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5de83366f689b135 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5edd3494cc66357c (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/5f5545a8f4827f94 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/616823995d504eed (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/639b48c5dce47231 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/6406321cead8d0d2 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/64e1124e3d7b2076 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/653e7022f53100b9 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/6641bc6556735cae (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/67bd5c54fe3ca978 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/6adb824d3f1ff861 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/6c5c3c1bd181dc77 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/6dd94fcb6c744bea (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/6f02ca98310054f6 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/7518efda5399d7be (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/7652694d340687e1 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/7ddb4c2de6c8792e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/7eea2714e075a208 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/7eeb25f21f508c9b (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/832b6b092b4006ee (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/86035d0ca5e48a60 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/869a1509db5e529e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8713752f15d49fb7 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/88b088c6fdd18f4a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8b47356138c3b23f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8c9eecff7173d6af (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8dcf823305b43606 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8e7a4781f0da0595 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8f6d60169cfd4782 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/8fd9958d73d8c6c2 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/92261b24c359872d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/92c218e4372d17e0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/935089faf4b6843e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/93da5a95efae9300 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/952a42149f70b345 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/971a037d66354187 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/98dec16e68300331 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/9923f8e0d4b82b29 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/9928161ce4dc49a9 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/9d2d179ab6f0a65f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/9d2d7f8a70962bfe (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/9d4bab524af4b782 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/9fb8a5537d0a64c6 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a0700b7fedada314 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a0b079efb9f5f8af (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a157c95863d0d06a (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a1d6e1c89ab7bc5f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a1e4b5ff7fce89bb (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a3122aeda0559fdf (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a4210f7c1e1c06ed (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a63bf62afd71f272 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a6fd2848293a4489 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/a7d9e7f3efe7f1a9 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/aa04cd7adf5edf9d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/aa5104e68150e2f3 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/abd16bcb55f886df (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/abd1b212eaee212c (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/af02bd8322546ffd (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/af2821e483f16796 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b3ad71d8d209cd47 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b49380a37332bde0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b4e192613a42e824 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b6df5bd03aeae6a3 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b75d4a6f5eed33aa (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b762fe2dfdcfa0d9 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/b7b4bef7e266e913 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/ba91ffaf8adc68a3 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/bcbad3994de49d3d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/bed147224050e5ed (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/bee997c86a73fe3e (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/c16c0117472269d0 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/c1bfea80b8f7ed90 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/c4ab12b0ed34e174 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/c660d7676c4aeee3 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/c7c64cb562bb5f58 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/c8acc098e5444463 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/caf015f127fe145f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/cb0d7ad11efa7b58 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/cc090d08e1b86402 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/cdb199b7102e8016 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/cf04de218f15b177 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/cf0dc0e656755271 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/d24cbbdaafc2f942 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/d4551576c1865661 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/dac22335b7efeb50 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/dcff3a3063e59d23 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/e47f4673987959f1 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/e4d389d2d383870d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/e51c3b2e10886955 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/e5af368f52364c7f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/ea854bf868164c27 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/eab68f79211d378f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/ebcfb98d70bfb082 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/eff3acc9192a8389 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f0970b37f649a006 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f3ac202939de5465 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f4ab264514ea9e8d (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f5b1079d3555e466 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f5f73ae3b2a539cc (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f618788296492015 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f66ce0dccbe09f40 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/f98bd11f043a7be1 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/fa1d12e1d9bc636f (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/fbec18276eb0b009 (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/fced41c195aeebfa (0.00s)
+    --- PASS: FuzzTP012AddressAndPlan/ff6b7c9a5077968c (0.00s)
+PASS
+ok  	localwallet/internal/chains/evm	5.063s

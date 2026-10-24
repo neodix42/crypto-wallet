@@ -1,0 +1,13 @@
+{
+  "status": "NOT_RUN",
+  "scope": "Account-specific production Bybit deposit, spot execution and on-chain withdrawal acceptance",
+  "reason": "No real API key or user funds used; implementation tests use public synthetic credentials and isolated fixtures",
+  "required": [
+    "Authenticated Unified account, IP restrictions, exact permissions and whitelist",
+    "Each enabled exact network/coin deposit credit, including TON memo",
+    "Funding/Unified transfer and both spot directions with actual complete fills/fees/taxes",
+    "Regional/account-specific withdrawal eligibility and independently verified destination credit"
+  ],
+  "mainnetFundMovement": "NOT_RUN",
+  "automaticMainnetSpending": false
+}

@@ -5,6 +5,8 @@ let prepared, viewEpoch = 0, sessionEpoch = 0, vaultMode = 'checking', recoveryR
 let chainHistoryCursor = '', chainHistoryEntries = [], chainHistoryBytes = 0;
 let journalCursor = '', journalBytes = 0, journalRequestEpoch = 0, chainRequestEpoch = 0;
 let journalEpoch = 0, receiveIntent, balanceRunning = false, nativeActionsPending = 0;
+let exchangeOpen = false, exchangeEpoch = 0, exchangeQuoteEpoch = 0, exchangeWithdrawEpoch = 0, exchangeStateEpoch = 0;
+let exchangeBusy = false, exchangeConnected = false, exchangeMarket, exchangeWithdrawal, exchangeOperations = [];
 const rowBalances = new Map(), balanceQueue = [];
 const nativeResultMethods = new Set(['send', 'scanQR']);
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
@@ -48,6 +50,7 @@ function clearLocked() {
   if (!retainError) clearOperationError();
   if (vaultMode === 'ready') vaultMode = 'present';
   accounts = []; networks = []; operations = []; balances = []; walletTabs = []; activeWalletID = ''; activeIndex = 0; prepared = undefined;
+  resetExchange();
   $('account').replaceChildren(); $('asset').replaceChildren(); $('operations').replaceChildren(); $('accountgroups').replaceChildren(); $('viewtabs').replaceChildren();
   $('journalaccount').replaceChildren(); $('journalasset').replaceChildren();
   $('walletpage').hidden = true; $('accountoverview').hidden = false; $('sendpanel').hidden = true; closeSettings();
@@ -106,12 +109,197 @@ function populateAccounts(selected) {
   walletTabs = walletTabs.filter(id => visible.some(account => account.id === id));
   if (!walletTabs.includes(activeWalletID)) activeWalletID = '';
   if (!visible.some(account => account.index === activeIndex)) activeIndex = visible[0]?.index || 0;
-  select(); renderAccountGroups(); renderTabs(); renderView();
+  select(); populateExchangeAccounts(); renderAccountGroups(); renderTabs(); renderView();
 }
 function renderView() {
-  $('accountoverview').hidden = !!activeWalletID;
-  $('walletpage').hidden = !activeWalletID;
+  $('accountoverview').hidden = exchangeOpen || !!activeWalletID;
+  $('walletpage').hidden = exchangeOpen || !activeWalletID;
+  $('exchangepage').hidden = !exchangeOpen;
 }
+function resetExchange() {
+  exchangeOpen = false; exchangeEpoch++; exchangeQuoteEpoch++; exchangeWithdrawEpoch++; exchangeStateEpoch++;
+  exchangeBusy = false; exchangeConnected = false; exchangeMarket = undefined; exchangeWithdrawal = undefined; exchangeOperations = [];
+  for (const id of ['exchangeaccount', 'exchangeasset', 'exchangewithdrawaccount', 'exchangewithdrawasset', 'exchangeoperations']) $(id).replaceChildren();
+  for (const id of ['exchangedepositamount', 'exchangeswapamount', 'exchangewithdrawamount']) $(id).value = '';
+  $('exchangeside').value = 'Sell'; $('exchangeslippage').value = '0.5';
+  for (const id of ['exchangeconnection', 'exchangeroute', 'exchangeprice', 'exchangewithdrawroute', 'exchangebalances', 'exchangeresult']) show(id, 'Locked');
+  show('exchangedetails', 'Locked'); $('exchangedetails').hidden = true;
+  $('exchangepage').hidden = true; renderExchangeControls();
+}
+function leaveExchange() {
+  if (!exchangeOpen) return;
+  exchangeOpen = false; exchangeEpoch++; exchangeQuoteEpoch++; exchangeWithdrawEpoch++; exchangeStateEpoch++;
+}
+function openExchange() {
+  if (vaultMode !== 'ready') return;
+  exchangeOpen = true; exchangeEpoch++; activeWalletID = '';
+  if ($('exchangeresult').textContent === 'Locked') show('exchangeresult', 'No exchange action requested.');
+  select(); renderTabs(); renderView(); $('exchangetitle').focus(); renderExchangeControls();
+  return run(refreshExchangeState, true);
+}
+function exchangeSelection(withdrawal = false) {
+  const account = accounts.find(item => item.id === $(withdrawal ? 'exchangewithdrawaccount' : 'exchangeaccount').value);
+  const asset = networks.find(item => item.id === account?.network)?.assets.find(item => item.id === $(withdrawal ? 'exchangewithdrawasset' : 'exchangeasset').value);
+  return account && asset ? { accountId: account.id, assetId: asset.id } : undefined;
+}
+function populateExchangeAccounts() {
+  for (const withdrawal of [false, true]) {
+    const selector = $(withdrawal ? 'exchangewithdrawaccount' : 'exchangeaccount'), selected = selector.value;
+    selector.replaceChildren();
+    for (const account of visibleAccounts()) {
+      const option = document.createElement('option'); option.value = account.id;
+      option.textContent = `${networks.find(network => network.id === account.network)?.name || account.network} · ${accountName(account.index)}`;
+      selector.append(option);
+    }
+    if (visibleAccounts().some(account => account.id === selected)) selector.value = selected;
+    populateExchangeAssets(withdrawal);
+  }
+}
+function populateExchangeAssets(withdrawal) {
+  const account = accounts.find(item => item.id === $(withdrawal ? 'exchangewithdrawaccount' : 'exchangeaccount').value);
+  const selector = $(withdrawal ? 'exchangewithdrawasset' : 'exchangeasset'), selected = selector.value;
+  const assets = networks.find(network => network.id === account?.network)?.assets || [];
+  selector.replaceChildren();
+  for (const asset of assets) {
+    const option = document.createElement('option'); option.value = asset.id; option.textContent = `${asset.symbol} · ${asset.id}`; selector.append(option);
+  }
+  if (assets.some(asset => asset.id === selected)) selector.value = selected;
+  invalidateExchangeSelection(withdrawal);
+}
+function invalidateExchangeSelection(withdrawal) {
+  if (exchangeOpen) viewEpoch++;
+  if (withdrawal) { exchangeWithdrawEpoch++; exchangeWithdrawal = undefined; show('exchangewithdrawroute', 'Check the selected withdrawal network and current fee.'); }
+  else { exchangeQuoteEpoch++; exchangeMarket = undefined; show('exchangeroute', 'Refresh the selected asset’s market and deposit network.'); show('exchangeprice', 'Price unknown — refresh the selected market.'); }
+  renderExchangeControls();
+}
+function renderExchangeControls() {
+  const ready = vaultMode === 'ready' && exchangeOpen && !exchangeBusy;
+  for (const id of ['exchangeconnect', 'exchangeendpoint', 'exchangeaccount', 'exchangeasset', 'exchangeside', 'exchangewithdrawaccount', 'exchangewithdrawasset', 'exchangedepositamount', 'exchangeswapamount', 'exchangewithdrawamount', 'exchangeslippage']) $(id).disabled = !ready;
+  $('exchangeconnect').textContent = exchangeConnected ? 'Change Bybit API key' : 'Connect Bybit API key';
+  $('exchangedisconnect').hidden = !exchangeConnected; $('exchangedisconnect').disabled = !ready;
+  $('exchangerefresh').disabled = !ready;
+  $('exchangequote').disabled = !ready || !exchangeConnected || !exchangeSelection();
+  $('exchangewithdrawquote').disabled = !ready || !exchangeConnected || !exchangeSelection(true);
+  const authorize = ready && exchangeConnected && !recoveryRequired;
+  $('exchangedeposit').disabled = !authorize || exchangeMarket?.route?.supported !== true || exchangeMarket.route.depositEnabled !== true;
+  $('exchangeswap').disabled = !authorize || !exchangePriceKnown(exchangeMarket) || exchangeMarket.coin === 'USDT';
+  $('exchangewithdraw').disabled = !authorize || exchangeWithdrawal?.route?.supported !== true || exchangeWithdrawal.route.withdrawEnabled !== true;
+  show('exchangeswapunit', $('exchangeside').value === 'Buy' ? 'USDT amount to spend' : 'Amount of wallet asset to sell');
+  for (const button of $('exchangeoperations').querySelectorAll('button')) button.disabled = !ready || !exchangeConnected;
+}
+function exchangePriceKnown(market) {
+  return typeof market?.symbol === 'string' && /^[A-Z0-9]{1,24}USDT$/.test(market.symbol) && typeof market.lastPrice === 'string' && /^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(market.lastPrice) && /[1-9]/.test(market.lastPrice);
+}
+function publicExchangeDetails(value) {
+  const detail = {};
+  for (const field of ['id', 'kind', 'state', 'message', 'remoteId', 'transactionId', 'filledBase', 'filledQuote', 'reportedAmount', 'reportedFee', 'accountId', 'assetId', 'coin', 'symbol', 'amount', 'createdAt']) {
+    if (typeof value?.[field] === 'string' && value[field].length <= 4096) detail[field] = value[field];
+  }
+  if (value?.fees && typeof value.fees === 'object' && !Array.isArray(value.fees)) {
+    const fees = {};
+    for (const [coin, fee] of Object.entries(value.fees).slice(0, 32)) if (/^[A-Z0-9]{1,16}$/.test(coin) && typeof fee === 'string' && fee.length <= 128 && /^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(fee)) fees[coin] = fee;
+    if (Object.keys(fees).length) detail.fees = fees;
+  }
+  return detail;
+}
+function renderExchangeOperations(value) {
+  exchangeOperations = Array.isArray(value) ? value.slice(0, 256) : [];
+  $('exchangeoperations').replaceChildren();
+  for (const operation of exchangeOperations) {
+    if (!operation || typeof operation.id !== 'string' || typeof operation.state !== 'string') continue;
+    const row = document.createElement('div'), detail = document.createElement('pre');
+    detail.textContent = JSON.stringify(publicExchangeDetails(operation), null, 2); row.append(detail);
+    if (['UNKNOWN', 'SUBMITTED', 'SUBMITTING', 'PENDING', 'PARTIALLY_FILLED', 'ACCEPTED'].includes(operation.state)) {
+      const button = document.createElement('button'); button.textContent = 'Reconcile original exchange operation';
+      button.onclick = () => exchangeMutation('exchangeReconcile', { id: operation.id }); row.append(button);
+    }
+    $('exchangeoperations').append(row);
+  }
+  renderExchangeControls();
+}
+async function refreshExchangeState(afterMutation = false) {
+  if (!exchangeOpen || vaultMode !== 'ready' || exchangeBusy && !afterMutation) return;
+  const epoch = exchangeEpoch, session = sessionEpoch, request = ++exchangeStateEpoch;
+  exchangeConnected = false; exchangeMarket = undefined; exchangeWithdrawal = undefined; exchangeQuoteEpoch++; exchangeWithdrawEpoch++;
+  show('exchangebalances', 'Balances unknown — querying Bybit.'); renderExchangeControls();
+  let value;
+  try { value = await window.wallet.exchangeStatus({}); }
+  catch (error) { if (epoch !== exchangeEpoch || session !== sessionEpoch || request !== exchangeStateEpoch) return; exchangeConnected = false; exchangeMarket = undefined; exchangeWithdrawal = undefined; exchangeQuoteEpoch++; exchangeWithdrawEpoch++; renderExchangeControls(); show('exchangebalances', 'Balances unknown — exchange query failed.'); show('exchangeprice', 'Price unknown — exchange query failed.'); show('exchangeconnection', 'Bybit connection unavailable. Operation state remains unknown; reconnect and reconcile the original request.'); throw error; }
+  if (epoch !== exchangeEpoch || session !== sessionEpoch || request !== exchangeStateEpoch) return;
+  if (typeof value?.connected !== 'boolean') throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+  exchangeConnected = value.connected;
+  const guidance = typeof value.message === 'string' ? ' · ' + value.message : '';
+  show('exchangeconnection', (exchangeConnected ? `Connected to Bybit · ${value.endpoint || 'verified API endpoint'}${value.keySuffix ? ' · key ending ' + value.keySuffix : ''}` : 'Bybit is disconnected. Enter API credentials only in the dedicated wallet dialog.') + guidance);
+  if (!exchangeConnected) { exchangeMarket = undefined; exchangeWithdrawal = undefined; exchangeQuoteEpoch++; exchangeWithdrawEpoch++; show('exchangeprice', 'Price unknown — connect and refresh the market.'); }
+  show('exchangebalances', Array.isArray(value.balances) ? value.balances : 'Balances unknown — refresh a verified market.');
+  renderExchangeOperations(value.operations);
+}
+function exchangeRouteText(market, withdrawal) {
+  const route = market.route;
+  if (route?.supported !== true) return `Network unavailable: ${route?.reason || 'Bybit has no verified route for this exact wallet asset.'}`;
+  return `${market.coin} · ${route.chainType || route.chain} · ${withdrawal ? route.withdrawEnabled === true ? 'Withdrawals enabled' : 'Withdrawals suspended' : route.depositEnabled === true ? 'Deposits enabled' : 'Deposits suspended'}${withdrawal ? ' · minimum ' + (route.minWithdraw || 'unknown') + ' · withdrawal fee ' + (route.withdrawFee || 'unknown') : ' · minimum deposit ' + (route.minDeposit || 'unknown')}${route.reason ? ' · ' + route.reason : ''}`;
+}
+async function refreshExchangeQuote(withdrawal = false) {
+  const selection = exchangeSelection(withdrawal);
+  if (!exchangeOpen || vaultMode !== 'ready' || exchangeBusy || !exchangeConnected || !selection) return;
+  const epoch = exchangeEpoch, session = sessionEpoch;
+  const request = withdrawal ? ++exchangeWithdrawEpoch : ++exchangeQuoteEpoch;
+  if (withdrawal) exchangeWithdrawal = undefined; else exchangeMarket = undefined;
+  show(withdrawal ? 'exchangewithdrawroute' : 'exchangeprice', 'Querying Bybit — current observation is unknown.');
+  renderExchangeControls();
+  let value;
+  try { value = await window.wallet.exchangeQuote({ ...selection, side: withdrawal ? 'Sell' : $('exchangeside').value }); }
+  catch (error) { if (epoch !== exchangeEpoch || session !== sessionEpoch || request !== (withdrawal ? exchangeWithdrawEpoch : exchangeQuoteEpoch)) return; show(withdrawal ? 'exchangewithdrawroute' : 'exchangeprice', 'Unavailable — no complete current exchange observation.'); throw error; }
+  if (epoch !== exchangeEpoch || session !== sessionEpoch || request !== (withdrawal ? exchangeWithdrawEpoch : exchangeQuoteEpoch)) return;
+  if (value?.accountId !== selection.accountId || value?.assetId !== selection.assetId || typeof value.coin !== 'string' || !value.route || value.side !== (withdrawal ? 'Sell' : $('exchangeside').value)) throw new Error('REQUEST_FAILED_STATE_UNKNOWN');
+  if (withdrawal) { exchangeWithdrawal = value; show('exchangewithdrawroute', exchangeRouteText(value, true)); }
+  else {
+    exchangeMarket = value; show('exchangeroute', exchangeRouteText(value, false));
+    show('exchangeprice', exchangePriceKnown(value) ? `${value.symbol} · last ${value.lastPrice} USDT · bid ${value.bidPrice || 'unknown'} · ask ${value.askPrice || 'unknown'}\nLast price is an observation; execution uses a relative slippage limit.` : 'No complete spot USDT price observation. Deposits and withdrawals depend on the exact verified network.');
+  }
+  if (Array.isArray(value.balances)) show('exchangebalances', value.balances);
+  renderExchangeControls();
+}
+async function exchangeMutation(method, body) {
+  if (!exchangeOpen || vaultMode !== 'ready' || exchangeBusy) return;
+  const epoch = exchangeEpoch, session = sessionEpoch;
+  exchangeBusy = true; exchangeMarket = undefined; exchangeWithdrawal = undefined; exchangeQuoteEpoch++; exchangeWithdrawEpoch++; renderExchangeControls();
+  show('exchangeresult', 'Awaiting review or operation result. An uncertain outcome must be reconciled before another request.');
+  show('exchangedetails', ''); $('exchangedetails').hidden = true;
+  try {
+    await run(async () => {
+      let value;
+      try { value = await nativeAction(() => window.wallet[method](body)); }
+      catch (error) { if (epoch !== exchangeEpoch || session !== sessionEpoch) return; throw error; }
+      if (epoch !== exchangeEpoch || session !== sessionEpoch) return;
+      const detail = publicExchangeDetails(value);
+      show('exchangedetails', detail); $('exchangedetails').hidden = Object.keys(detail).length === 0;
+      show('exchangeresult', method === 'exchangeConnect' ? 'Bybit connection checked. Review the current connection and permissions below.' : method === 'exchangeDisconnect' ? 'Bybit credentials disconnected.' : `Request returned ${typeof value?.state === 'string' ? value.state : 'an unverified state'}. Acceptance does not establish a fill, deposit credit or completed withdrawal. Reconcile the original operation.${method === 'exchangeDeposit' ? ' Track this wallet payment in Settings → Local payment journal; Bybit credit remains unverified.' : ''}`);
+      exchangeMarket = undefined; exchangeWithdrawal = undefined; exchangeQuoteEpoch++; exchangeWithdrawEpoch++;
+      show('exchangeprice', 'Refresh the market before another operation.'); show('exchangewithdrawroute', 'Refresh the withdrawal network before another withdrawal.');
+      await refreshExchangeState(true);
+    }, true);
+  } finally { if (session === sessionEpoch) { exchangeBusy = false; renderExchangeControls(); } }
+}
+$('exchangeaccount').onchange = () => populateExchangeAssets(false);
+$('exchangewithdrawaccount').onchange = () => populateExchangeAssets(true);
+$('exchangeasset').onchange = () => invalidateExchangeSelection(false);
+$('exchangewithdrawasset').onchange = () => invalidateExchangeSelection(true);
+$('exchangeside').onchange = () => invalidateExchangeSelection(false);
+$('exchangequote').onclick = () => run(() => refreshExchangeQuote(false), true);
+$('exchangewithdrawquote').onclick = () => run(() => refreshExchangeQuote(true), true);
+$('exchangerefresh').onclick = () => run(refreshExchangeState, true);
+$('exchangeconnect').onclick = () => exchangeMutation('exchangeConnect', { endpoint: 'https://' + $('exchangeendpoint').value });
+$('exchangedisconnect').onclick = () => exchangeConnected ? exchangeMutation('exchangeDisconnect', {}) : undefined;
+for (const [button, method, input, withdrawal] of [
+  ['exchangedeposit', 'exchangeDeposit', 'exchangedepositamount', false],
+  ['exchangeswap', 'exchangeSwap', 'exchangeswapamount', false],
+  ['exchangewithdraw', 'exchangeWithdraw', 'exchangewithdrawamount', true]
+]) $(button).onclick = () => {
+  const selection = exchangeSelection(withdrawal);
+  if ($(button).disabled || !selection) return;
+  return exchangeMutation(method, { ...selection, amount: $(input).value, ...(method === 'exchangeSwap' ? { side: $('exchangeside').value, slippage: $('exchangeslippage').value } : {}) });
+};
 function closeWallet(id) {
   if (!walletTabs.includes(id)) return;
   const restoreFocus = activeWalletID === id || $('viewtabs').contains(document.activeElement);
@@ -152,7 +340,8 @@ function renderTabs() {
     $('viewtabs').append(button);
   }
   for (const index of [...new Set(visible.map(account => account.index))].sort((a, b) => a - b)) {
-    tab(accountName(index), !activeWalletID && activeIndex === index, 'accountoverview', () => {
+    tab(accountName(index), !exchangeOpen && !activeWalletID && activeIndex === index, 'accountoverview', () => {
+      leaveExchange();
       activeWalletID = ''; activeIndex = index;
       const first = visible.find(account => account.index === index); $('account').value = first.id;
       select(); renderAccountGroups(); renderTabs(); renderView();
@@ -160,8 +349,10 @@ function renderTabs() {
   }
   for (const id of walletTabs) {
     const account = visible.find(account => account.id === id), network = networks.find(network => network.id === account.network);
-    tab(`${network?.name || account.network} · ${accountName(account.index)}`, activeWalletID === id, 'walletpage', () => openWallet(id), id);
+    tab(`${network?.name || account.network} · ${accountName(account.index)}`, !exchangeOpen && activeWalletID === id, 'walletpage', () => openWallet(id), id);
   }
+  tab('Exchange', exchangeOpen, 'exchangepage', openExchange);
+  $('viewtabs').lastElementChild.id = 'exchangetab';
 }
 function copyIcon() {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -232,7 +423,7 @@ function updateRowBalance(account) {
   for (const cell of $('accountgroups').querySelectorAll('.walletbalance')) if (cell.dataset.accountId === account.id) renderRowBalance(cell, account);
 }
 function queueVisibleBalances(force = false) {
-  if (vaultMode !== 'ready' || activeWalletID) return;
+  if (vaultMode !== 'ready' || activeWalletID || exchangeOpen) return;
   for (const account of visibleAccounts().filter(account => account.index === activeIndex)) {
     const scope = balanceScope(account), previous = rowBalances.get(account.id);
     if (!force && previous?.scope === scope) continue;
@@ -250,7 +441,7 @@ async function drainBalanceQueue() {
   try {
     while (balanceQueue.length && !credentialPending && !nativeActionsPending && !receiveIntent) {
       const { account, entry, epoch } = balanceQueue.shift();
-      if (epoch !== sessionEpoch || vaultMode !== 'ready' || activeWalletID || account.index !== activeIndex || rowBalances.get(account.id) !== entry) {
+      if (epoch !== sessionEpoch || vaultMode !== 'ready' || activeWalletID || exchangeOpen || account.index !== activeIndex || rowBalances.get(account.id) !== entry) {
         if (rowBalances.get(account.id) === entry) rowBalances.delete(account.id);
         continue;
       }
@@ -267,6 +458,7 @@ $('refreshbalances').onclick = () => queueVisibleBalances(true);
 function openWallet(id) {
   const account = visibleAccounts().find(account => account.id === id);
   if (!account) return;
+  leaveExchange();
   activeWalletID = id; activeIndex = account.index; $('account').value = id;
   if (!walletTabs.includes(id)) walletTabs.push(id);
   select(); renderTabs(); renderView(); $('wallettitle').focus();

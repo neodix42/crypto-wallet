@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "sourceStable": true,
+  "sourceSHA256": {
+    "internal/exchange/bybit/beneficiary.go": "1e7f42e2cb3d9333fdbf70880474fe80bb7630207ed847ab4adbec0dcbfc05eb",
+    "internal/exchange/bybit/beneficiary_test.go": "dc3515e4a3bee57cf1a2b9bcf008661bb0570335a354c3c1b77085bdc9207b80",
+    "internal/exchange/bybit/client.go": "d77a2c11fbf037fdd962aff81e9f92fdabdfcc83e6f44316b9a38cb6a6ffe68c",
+    "internal/exchange/bybit/client_test.go": "63589ba3cfa407b8d345f9a77e3973a3a9116694db16030ee5b139130036dc3d",
+    "internal/exchange/bybit/fees.go": "05e3331bd6b8f2f11afaab96aaa816b5d32d7a7f145e8bdd60405e577b423a99",
+    "internal/exchange/bybit/fees_test.go": "a889f0bc4e2a0b303183b1e01f01c644bd775e819b8b127ac0f093fca2582e22",
+    "internal/exchange/bybit/types.go": "e4763e601e11b650ba420560f1537cfdb7f95e7b5f4f4de44cf97ae47e844072",
+    "internal/exchange/bybit/validation.go": "85cec1f41704b9e82f58a732af78f644e2062b677ef1cfa96bdcb49c1c4da17d",
+    "internal/exchange/bybit/validation_test.go": "0a75d0203b0f7902228be5f62c586532dfdfb8c18a3a083318b9748a98690c75"
+  },
+  "mutants": [
+    {
+      "name": "accept-margin",
+      "status": "KILLED",
+      "test": "TestCanonicalPostSchemasRejectAdditionalAuthority",
+      "mutatedSourceSHA256": "5653d56260af1ed540bd9a8534a9663cab0af5462ce177f211d266e002941e28",
+      "outputSHA256": "5fd70275321ecb162603a0d4b8aa3ff8c1987aee5eff82ae7781458fd10faf19"
+    },
+    {
+      "name": "allow-offchain-withdrawal",
+      "status": "KILLED",
+      "test": "TestCanonicalPostSchemasRejectAdditionalAuthority",
+      "mutatedSourceSHA256": "0bd8cfd7f2732efe4c8550ceebfaaf6a91b519729620c539f1577f115cf6857e",
+      "outputSHA256": "0f181f47172e50cb4ba3a448e0e217989f6a1beb4d94edcb93f5984d83efe8b5"
+    },
+    {
+      "name": "allow-different-wire-encoding",
+      "status": "KILLED",
+      "test": "TestCanonicalPostSchemasRejectAdditionalAuthority",
+      "mutatedSourceSHA256": "c172b5024034b6a254bb28dcc63faf19a049a99a127706ae27d0b6397341bfe7",
+      "outputSHA256": "7a48d218ebabfd5ab478b14d2a225106334bbeda5e21025391a21f90d659f9a2"
+    },
+    {
+      "name": "allow-untrusted-authority",
+      "status": "KILLED",
+      "test": "TestAuthenticationAndEndpointBoundaries",
+      "mutatedSourceSHA256": "189fa18113b3c0831db1ac09db4ef196689dffcf4f2dbf43dbbfd8acdc058eeb",
+      "outputSHA256": "42575e49da34562c26785f6bd82d933c7c0429e7c1915208506559560be06b1d"
+    },
+    {
+      "name": "allow-post-replay-body",
+      "status": "KILLED",
+      "test": "TestTypedAPIWireAndExactAmounts",
+      "mutatedSourceSHA256": "b7b5109ce29e1503716ffb54ad90294f115db25755ae4be0c82654d4accc9df2",
+      "outputSHA256": "d73489240a618544627f7458c5383481bfe8749f3ba904f42bd4bd5a16625997"
+    }
+  ],
+  "scope": "Bybit client policy and transport overlays; no live credentials or exchange funds"
+}

@@ -6,7 +6,7 @@ Use a Go module and a separately packaged Electron/TypeScript application. The o
 
 | Component | Responsibilities | Must not receive |
 | --- | --- | --- |
-| Ordinary Electron renderer/public preload | Portfolio, network/account selection, ordinary previews, history, QR import entry | Passwords, phrases/passphrases, seeds, private keys, prompt API, arbitrary native APIs |
+| Ordinary Electron renderer/public preload | Portfolio, network/account selection, ordinary previews, history, QR import entry, public Exchange controls/results | Passwords, phrases/passphrases, exchange keys/secrets, beneficiary data, seeds, private keys, prompt API, arbitrary native APIs |
 | Electron main | Public IPC, fixed windows/permissions, transient signer-authored prompt routing, public address copy/file dialogs | Root entropy, binary seeds, private/extended keys, vault decryption keys, generic signing authority |
 | Dedicated Electron prompt renderer/preload | Masked credential/import/challenge input, pending phrase display, exact Go-authored receive/approval details | Root entropy, binary seeds, private/extended keys, vault keys, portfolio/generic IPC or filesystem APIs |
 | Go wallet-core/supervisor | Network adapters, scheduling, public state and bounded transient prompt/reply forwarding | Root entropy, binary seeds, private derivation/signing keys or persistent plaintext credential/phrase state |
@@ -30,6 +30,7 @@ Use Go packages with narrow interfaces so an adapter cannot read a root seed sim
 | `internal/ipc/` | Schemas, framing, message bounds, lifecycle |
 | `internal/amount/` | Exact atomic amount parsing/formatting |
 | `internal/chains/` | EVM, HyperCore, NEAR, Aptos, Decred and TON adapters |
+| `internal/exchange/` | Exact wallet/exchange route policy and the bounded Bybit V5 transport/credential-free authorization descriptors |
 | `internal/store/` | Public state, encrypted private metadata, durable transaction journal |
 | `desktop/` | Electron main/preload/renderer and packaging |
 | `testdata/`, `tests/interop/` | Public deterministic fixtures, independent oracle generators |
@@ -48,7 +49,7 @@ All API quantities are decimal strings of atomic integers with explicit units. D
 
 Define explicit protobuf or equally strict versioned schemas for IPC. Include request ID, session generation, protocol version and operation type. Unknown fields/actions, duplicate IDs, oversized frames, invalid enums and inappropriate state transitions fail closed. Send cancellation and lifecycle events explicitly. Every error response is sanitized.
 
-Allowed public application operations can include `ListNetworks`, `ListAccounts`, `GetBalances`, `GetHistory`, `RequestCreateWallet`, `RequestImportWallet`, `RequestUnlock`, `Lock`, `AddAccount`, `ShowVerifiedReceive`, `PrepareTransfer`, `RequestTransferConfirmation`, `GetOperationStatus`, `RequestRecoveryConfirmation`, `RequestPhraseRestore`, and `RequestPasswordChange`. Credential parameters are absent from the ordinary portfolio bridge; these methods request a separate Electron prompt. No public `GetMnemonic`, `ExportPrivateKey`, `SignBytes`, `Eval`, `ReadFile` or generic wallet JSON-RPC passthrough exists.
+Allowed public application operations can include `ListNetworks`, `ListAccounts`, `GetBalances`, `GetHistory`, `RequestCreateWallet`, `RequestImportWallet`, `RequestUnlock`, `Lock`, `AddAccount`, `ShowVerifiedReceive`, `PrepareTransfer`, `RequestTransferConfirmation`, `GetOperationStatus`, `RequestRecoveryConfirmation`, `RequestPhraseRestore`, and `RequestPasswordChange`. The owner-authorized Exchange extension adds typed connect/disconnect/status/quote/deposit/swap/withdraw/reconcile requests. Credential and beneficiary parameters are absent from the ordinary portfolio bridge; relevant methods request a separate Electron prompt. No public `GetMnemonic`, `ExportPrivateKey`, `SignBytes`, `Eval`, `ReadFile`, generic authenticated exchange request or wallet JSON-RPC passthrough exists.
 
 The prompt uses `wallet://prompt/`, its own minimal preload and a fresh nonpersistent Electron session partition per window, separate from `wallet://app/`. Main binds delivery, reply and public-address copy to the exact live window/main frame, pending request/session/generation and signer-generated 128-bit prompt ID. A prompt is delivered once and a reply consumed once; unknown/extra fields, wrong-kind values, duplicates, stale IDs and unsolicited prompt frames fail closed. Only input replies contain masked values; recovery acknowledgment alone never authorizes the wallet. Go issues a separate three-word challenge and verifies it before persisting completion. Prompt data and DOM are cleared on completion/cancellation; lock, hide, navigation, crash and teardown revoke the prompt. Neither best-effort clearing nor ephemeral sessions guarantee erasure of all Go/V8/Chromium/OS copies.
 
@@ -100,7 +101,7 @@ Go wallet-core performs all remote chain operations over validated TLS endpoints
 
 RPC endpoints can lie, censor and correlate public addresses. Matching two providers is a consistency check, not proof of consensus. Prefer validated chain/proof data where the chosen SDK offers it, and use the documented Decred SPV/trusted-node model. Show incomplete synchronization, stale heads and provider disagreement explicitly. Test fallback so switching an endpoint cannot switch the ledger.
 
-No hosted service is required to create a wallet, record or restore its phrase, derive addresses or verify signing fixtures offline. Live balances and submission require a chain connection. An optional fiat-price service is outside v1 and must never be part of a signing decision.
+No hosted service is required to create a wallet, record or restore its phrase, derive addresses or verify signing fixtures offline. Live balances and submission require a chain connection. The owner-authorized Bybit extension queries USDT spot prices for its explicitly approved exchange operations; a last price is an indicative observation and cannot establish an execution price. A general fiat-price service remains outside v1.
 
 ## A-09: Build and deployment
 
@@ -111,3 +112,15 @@ Build for stock Ubuntu as a non-root user. Ship Go executable artifacts and an e
 Provide separate development/testnet and production build profiles. Test-only RNG injection, secret fixture hooks, debug automation and confirmation bypasses must be absent from production binaries. Mainnet send logic remains part of the implementation, but production release requires the recorded gates. No automated test or build script should spend mainnet funds.
 
 An auditable dependency and build manifest accompanies each artifact. The release report must identify the exact commit, toolchain, dependencies, package hash, configuration and tests actually executed.
+
+## A-10: Owner-authorized Bybit Exchange — 2026-10-24
+
+The original local wallet remains noncustodial. The optional Bybit account is custodial: the service controls credited balances, trading, fees, withdrawals and restrictions. Ethereum USDT is an explicit pinned token addition; it reuses the existing Ethereum account and transfer validator, requires ETH gas and changes no derivation profile. Nine mainnet networks now expose twelve asset identities. No TON jetton or arbitrary token discovery is implied.
+
+Go core performs bounded HTTPS exchange requests through `internal/exchange/bybit`; the signer holds the encrypted HMAC credentials. Only the dedicated masked prompt and transient trusted transport carry entered credentials or UAE beneficiary fields. Core receives the API key plus each exact request's signature; the API secret stays in the signer outside that authorized input transport. Ordinary Electron receives public status, a key suffix and projected operation results. All network access remains disabled in Electron and signer.
+
+The signer validates fixed GET schemas and three typed POST schemas, authorizes immutable spot/transfer/owned-withdrawal intents and persists their identities before transmission. Core sends the exact canonical request and reconciles the original order link, transfer UUID or returned withdrawal ID. Internal Funding/Unified moves and a subsequent swap/withdrawal have separate confirmations. Lock/session change invalidates unused authorizations; network ambiguity preserves unresolved state. Deposits use the existing on-chain payment journal, with exact full token/network validation and the TON memo. Known regional withdrawal restrictions are checked before moving funds internally.
+
+Bybit's HMAC protocol signs timestamp, API key, receive window and query/body, excluding method/path/endpoint. Local policy validates those descriptor fields, but a compromised network core can replay an unexpired signature to an endpoint accepting the same payload. Core is therefore trusted exchange authorization transport; do not claim cryptographic path binding. The production client has an exact official-host allowlist, no redirects/environment proxy, bounded JSON and redacted errors. UAE beneficiary data is sent only to the selected UAE endpoint. Unimplemented regional questionnaire requirements stay gated.
+
+Exchange execution and fees remain service observations. Require complete exact fill/fee pages, known fee assets and documented taxes; incomplete metadata remains UNKNOWN. A lost withdrawal acknowledgment cannot be resolved by a guessed amount/address match because the record API does not expose request-ID lookup. A completed withdrawal is labeled as an exchange report, separately from chain credit/finality. Phrase restoration reproduces wallet addresses but cannot recreate Bybit account access, API keys, beneficiary data or the local exchange journal. See [Exchange guide](docs/EXCHANGE.md) and [API contract](docs/BYBIT_API.md).

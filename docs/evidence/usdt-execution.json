@@ -1,0 +1,71 @@
+{
+  "results": [
+    {
+      "amountAtomic": "123456789",
+      "chainId": "1",
+      "gasChargeAtomic": "24821915522354",
+      "gasUsed": "63209",
+      "identity": "0xeadd64360bea7ae55542dea1419b0c095b05ef95cb1eb1fce99ee531f5a2fade",
+      "nativeDebitAtomic": "24821915522354",
+      "nonceAfter": "8",
+      "receiptStatus": "0x1",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "recipientAfterAtomic": "123456789",
+      "simulation": "0x",
+      "source": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+      "sourceAfterAtomic": "876543211",
+      "status": "PASS",
+      "transactionType": 2
+    },
+    {
+      "amountAtomic": "123456789",
+      "chainId": "1",
+      "gasChargeAtomic": "24821915522354",
+      "gasUsed": "63209",
+      "identity": "0x1d42e2952968285dc8e1e233662326085893f34713badc6c64441f68fd991c62",
+      "nativeDebitAtomic": "24821915522354",
+      "nonceAfter": "8",
+      "receiptStatus": "0x1",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "recipientAfterAtomic": "123456789",
+      "simulation": "0x",
+      "source": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+      "sourceAfterAtomic": "876543211",
+      "status": "PASS",
+      "transactionType": 2
+    },
+    {
+      "amountAtomic": "123456789",
+      "chainId": "1",
+      "gasChargeAtomic": "24821915522354",
+      "gasUsed": "63209",
+      "identity": "0x8850de47a3d36cb3be451da39792857c5774d9b14e329a66e19c1c4b95d36ab0",
+      "nativeDebitAtomic": "24821915522354",
+      "nonceAfter": "8",
+      "receiptStatus": "0x1",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "recipientAfterAtomic": "123456789",
+      "simulation": "0x",
+      "source": "0x59fb421A70e40d883C239006c3aB088C9fc86D43",
+      "sourceAfterAtomic": "876543211",
+      "status": "PASS",
+      "transactionType": 2
+    }
+  ],
+  "scope": "Actual Go-signed type-2 Ethereum-shaped USDT transactions executed against pinned deployed USDT runtime in isolated in-process Ganache; synthetic storage/funds only; no Bybit, public RPC, mainnet funds, consensus or finality claim",
+  "sourceSHA256": {
+    "go.mod": "66139c41fc8f6ffa10da02609f6efcaaf480691669e0f62327a1c91342abdb7b",
+    "go.sum": "0d1121b965162a4493b5ba7ed5dd430b43f177e051792ef7bf8e1a1dec75b204",
+    "internal/amount/amount.go": "1dc0c1084827aee26b9e95c820397b65f4db6daeaa3d31e0a105858038607636",
+    "internal/chains/evm/adapter.go": "157a9b72ed56823149b5ae44b23b02bc97018f67aa4ec8f17c78c7a70fe9bdc3",
+    "internal/chains/evm/registry.go": "e39f4508d9bf3aa9efff835e6edc008998af6a5a8239debc96fdd979111fd62f",
+    "internal/chains/evm/usdt_test.go": "126e06df4f7c4d8540d7429750828a3c23d6dcd8fd43b685f83e1091b28078ec",
+    "tests/oracles/evm/package-lock.json": "374ac7b1275c79e0ea8157ce680bf006f7b1ca227090711f6cdd514a65a9dd6a",
+    "tests/oracles/evm/usdt-fixtures.json": "c2878e0a6ffc0c96f9daa5a4009c8c404da1ccad92a51b6c3ffabf47f039bbe4",
+    "tests/oracles/evm/usdt-generate.mjs": "96376513139a1329fe2fc63e2e4aca1d41171faeab9b75323acb1dbae45d4d27",
+    "tests/oracles/evm/usdt-replay.mjs": "9a9f7ebe19a96a273d4c53daa936ae5fa6a9d10630068a836737b95da63f03d7",
+    "tests/oracles/evm/usdt-runtime.json": "c8d115f289339afc38d198e1da54cb615e9315498d3c50465a09e0dd0cf5bba0"
+  },
+  "sourceStable": true,
+  "status": "PASS"
+}

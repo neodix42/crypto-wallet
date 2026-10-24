@@ -1,5 +1,7 @@
 # Recovery and ordinary use
 
+The optional Bybit integration does not change deterministic wallet keys. The phrase cannot restore Bybit API credentials, regional beneficiary information, exchange account access or the local exchange-operation journal. Reconnect only after checking the original account/operations independently; restoring a phrase must never automatically repeat an uncertain deposit, order or withdrawal. See [EXCHANGE.md](EXCHANGE.md).
+
 The recovery phrase is the backup of the wallet's cryptographic root. The app no longer creates, verifies or restores encrypted portable backup files. The live vault remains encrypted. There is no password reset service or hidden master password.
 
 All application windows now use Electron by explicit owner instruction (2026-10-24). The former native Go-window requirement is superseded; Go still generates entropy, validates restoration, checks recorded words/passwords and signs approved transactions.

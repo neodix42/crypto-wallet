@@ -4,7 +4,7 @@ TOOLS := ./scripts/with-toolchain.sh
 GO_TOOLS := ./scripts/with-go.sh
 FUZZ_SECONDS ?= 60
 SOAK_SECONDS ?= 86400
-.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred coverage package-desktop package-go verify-release check-deps
+.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
 build-go: build
@@ -28,10 +28,20 @@ test:
 	$(TOOLS) npm --prefix desktop test
 test-go:
 	$(GO_TOOLS) go test ./...
+test-exchange:
+	$(GO_TOOLS) go test ./internal/exchange/...
+	$(GO_TOOLS) go test ./internal/signer ./cmd/wallet-signer ./cmd/wallet-core ./internal/chains/evm -run 'Exchange|Bybit|USDT'
+	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
+	$(GO_TOOLS) python3 scripts/exchange-mutation.py
+	WALLET_USDT_EVM=1 $(TOOLS) go test ./internal/chains/evm -run USDT -count=1
+	$(TOOLS) npm --prefix desktop run build
+	$(TOOLS) npm --prefix desktop test
 test-security:
 	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./cmd/wallet-core ./cmd/wallet-signer ./cmd/wallet-launcher
 	$(TOOLS) python3 scripts/native-input.py
 	$(TOOLS) python3 scripts/mutation.py
+	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
+	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	$(TOOLS) python3 scripts/surface-check.py
 test-race:
 	$(GO_TOOLS) go test -race -p 2 ./...

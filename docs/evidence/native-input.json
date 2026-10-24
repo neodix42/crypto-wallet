@@ -10,12 +10,12 @@
     {
       "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
       "status": "PASS",
-      "seconds": 0.18
+      "seconds": 0.22
     },
     {
       "name": "TestRealX11NativeKeyAndButtonActivity",
       "status": "PASS",
-      "seconds": 3.8
+      "seconds": 3.84
     },
     {
       "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
@@ -55,22 +55,22 @@
     {
       "name": "TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible",
       "status": "PASS",
-      "seconds": 0.21
+      "seconds": 0.19
     },
     {
       "name": "TestNativeFileChooserCancelAndVerifiedSelection",
       "status": "PASS",
-      "seconds": 1.03
+      "seconds": 0.94
     },
     {
       "name": "TestNativeInitUnavailableDisplayFailsClosed",
       "status": "PASS",
-      "seconds": 1.04
+      "seconds": 1.03
     },
     {
       "name": "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
       "status": "PASS",
-      "seconds": 0.13
+      "seconds": 0.07
     },
     {
       "name": "TestRealX11NativeActivityBeyondFiveMinutes",
@@ -80,10 +80,10 @@
     {
       "name": "TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets",
       "status": "PASS",
-      "seconds": 2.24
+      "seconds": 2.22
     }
   ],
   "exit": 0,
   "coverage": "total:\t\t\t\t\t\t\t\t(statements)\t\t\t98.3%",
-  "seconds": 11.715
+  "seconds": 12.044
 }

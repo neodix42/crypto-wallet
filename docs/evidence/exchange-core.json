@@ -1,0 +1,79 @@
+{
+  "status": "PASS",
+  "scope": "coordinator inherited-pipe fake signer and hostile-provider fixtures; actual wallet journal coordinator paths, exact request identity, decimal/fee reconciliation and no automatic replacement; no blockchain/exchange acceptance claim",
+  "generatedAt": "2026-10-24T15:06:18.804774+00:00",
+  "sourceSHA256": {
+    "cmd/wallet-core/exchange.go": "001aba57d71915e8c14db212224a269533d6da6dee750b4024ce5e1e2a848855",
+    "cmd/wallet-core/exchange_overflow_test.go": "246535fe651ea0b88a955dcb61051e399f84ae2d3428208f1933f6e218ae129c",
+    "cmd/wallet-core/exchange_test.go": "ea3463a5f393da852a436ecfe934dd1821db899b4b29433f5ce42ac9c29b5f22",
+    "cmd/wallet-core/history.go": "27e9521a50e894e82c74ac522f63043cef384dbdb66dded9c5fa8560ff3629a1",
+    "cmd/wallet-core/history_test.go": "9cf7cd58adb8ad7bd00e389bd6ffdf7919d55aadb9d8f1f8bf319ee06f5732af",
+    "cmd/wallet-core/main.go": "cda00406798dff378681f362134fb2cd027a7d1154db0f382df44bf9b435610e",
+    "cmd/wallet-core/main_test.go": "a823862b0fd1934485087e95d0a7cc3226b333ed801658b64fe0ef1be16d668e",
+    "cmd/wallet-core/mainnet_profile_test.go": "a0feb7bf37fc82b5c41cb26d32c8e5ee2fc68ea0596c6231fb037b3e56f60142",
+    "cmd/wallet-core/memory_test.go": "2f5a7619fa1a5a97d5fa1b89cc437dcc786710a6a52f06d46a1d5748fd611afd",
+    "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
+    "cmd/wallet-core/prompt_test.go": "cc273baf04c1f900c4dd05eff811da8dfd28c839e417ea7e8d69ab766c7a4ff1",
+    "cmd/wallet-core/public_pages.go": "8bc61418c4053d69e2cedba71cd32ed1b273697432c15393c27f40b6b72bcedf",
+    "cmd/wallet-core/public_pages_test.go": "65c9897fb4e7d46495308d671be0f2a080d018f35ab2fe6a7bc0cb3aac4abe6d",
+    "cmd/wallet-core/session_test.go": "a3c005a8b81645ac057f8f750274c89fee7dd2860cab3f724e54716d71279cee",
+    "cmd/wallet-core/version_test.go": "73a3c98970dca9b8c62c8baaaf56c78c1b0c201ad115850efe5a9dce1b0cf34d",
+    "internal/exchange/routes.go": "d076a1d4d2a94cb4bf0de5dab653aebadee281fb605cf0c39b2d46067784a3b2",
+    "internal/exchange/routes_test.go": "e857aca5056018ea202fcca588cdaa024fcbaf6fe88458ae38115688b421b719",
+    "internal/exchange/bybit/beneficiary.go": "1e7f42e2cb3d9333fdbf70880474fe80bb7630207ed847ab4adbec0dcbfc05eb",
+    "internal/exchange/bybit/beneficiary_test.go": "dc3515e4a3bee57cf1a2b9bcf008661bb0570335a354c3c1b77085bdc9207b80",
+    "internal/exchange/bybit/client.go": "d77a2c11fbf037fdd962aff81e9f92fdabdfcc83e6f44316b9a38cb6a6ffe68c",
+    "internal/exchange/bybit/client_test.go": "63589ba3cfa407b8d345f9a77e3973a3a9116694db16030ee5b139130036dc3d",
+    "internal/exchange/bybit/fees.go": "05e3331bd6b8f2f11afaab96aaa816b5d32d7a7f145e8bdd60405e577b423a99",
+    "internal/exchange/bybit/fees_test.go": "a889f0bc4e2a0b303183b1e01f01c644bd775e819b8b127ac0f093fca2582e22",
+    "internal/exchange/bybit/types.go": "e4763e601e11b650ba420560f1537cfdb7f95e7b5f4f4de44cf97ae47e844072",
+    "internal/exchange/bybit/validation.go": "85cec1f41704b9e82f58a732af78f644e2062b677ef1cfa96bdcb49c1c4da17d",
+    "internal/exchange/bybit/validation_test.go": "0a75d0203b0f7902228be5f62c586532dfdfb8c18a3a083318b9748a98690c75"
+  },
+  "unit": {
+    "status": "PASS",
+    "namedTestsAndSubtests": 365,
+    "skippedTests": [],
+    "raw": "reports/exchange-core-test.jsonl",
+    "rawSHA256": "afdc2abc1e02c94b9477f816737efc2a78ca918cde8a9e8b6a08ff278da2ff5e",
+    "packageResults": [
+      {
+        "Time": "2026-10-24T19:05:11.80294738+04:00",
+        "Action": "pass",
+        "Package": "localwallet/cmd/wallet-core",
+        "Elapsed": 8.614
+      }
+    ]
+  },
+  "coverage": {
+    "status": "PASS",
+    "coveredStatements": 1347,
+    "totalStatements": 1391,
+    "percent": 96.837,
+    "raw": "reports/exchange-core.cover",
+    "rawSHA256": "b0144464a1d0803a8809d004c72581e37145eb0bc9d963c8ca5c9cbe90f027a7"
+  },
+  "race": {
+    "status": "PASS",
+    "raw": "reports/exchange-core-race.log",
+    "rawSHA256": "470ecc997b320d294dd39573fde437d855d271825c082f67cc67d2e372cdf431",
+    "scope": "fresh core, actual-registry routing and Bybit package run after checked decimal-formatting/amount-overflow fix"
+  },
+  "routeCoverage": {
+    "status": "PASS",
+    "coveredStatements": 30,
+    "totalStatements": 30,
+    "percent": 100.0,
+    "raw": "reports/exchange-routes.cover",
+    "rawSHA256": "cd9cf2a7f41cf81890cee09cd6a8e91b51be74ac8855e4de90a5390cce945745"
+  },
+  "livePrivateExchange": {
+    "status": "NOT_RUN",
+    "reason": "No real credential, funded account or live deposit/order/transfer/withdrawal used"
+  },
+  "packagedDesktopExchange": {
+    "status": "NOT_RUN",
+    "reason": "Package-level evidence does not certify actual desktop exchange execution"
+  },
+  "supersedes": "reports/exchange-core-before-amount-overflow-fix.json; checked decimal formatting now propagates nil/negative/uint256 errors; overflow regressions are included. Historical earlier report also supersedes pre-TON-registry-identity evidence."
+}

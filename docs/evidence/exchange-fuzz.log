@@ -1,0 +1,16 @@
+{"package": "uiprompt", "target": "FuzzPromptProtocol", "status": "PASS", "output": "reports/fuzz-uiprompt-FuzzPromptProtocol.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.429}
+{"package": "vault", "target": "FuzzTP012Envelope", "status": "PASS", "output": "reports/fuzz-vault-FuzzTP012Envelope.log", "exit": 0, "fuzzExecuted": true, "seconds": 3.912}
+{"package": "derivation", "target": "FuzzTP012Mnemonic", "status": "PASS", "output": "reports/fuzz-derivation-FuzzTP012Mnemonic.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.739}
+{"package": "ipc", "target": "FuzzTP012IPC", "status": "PASS", "output": "reports/fuzz-ipc-FuzzTP012IPC.log", "exit": 0, "fuzzExecuted": true, "seconds": 3.686}
+{"package": "strictjson", "target": "FuzzTP012JSON", "status": "PASS", "output": "reports/fuzz-strictjson-FuzzTP012JSON.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.573}
+{"package": "amount", "target": "FuzzTP012Amount", "status": "PASS", "output": "reports/fuzz-amount-FuzzTP012Amount.log", "exit": 0, "fuzzExecuted": true, "seconds": 3.492}
+{"package": "qr", "target": "FuzzTP012QR", "status": "PASS", "output": "reports/fuzz-qr-FuzzTP012QR.log", "exit": 0, "fuzzExecuted": true, "seconds": 3.698}
+{"package": "chains/chainutil", "target": "FuzzJSON", "status": "PASS", "output": "reports/fuzz-chains-chainutil-FuzzJSON.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.395}
+{"package": "chains/evm", "target": "FuzzTP012AddressAndPlan", "status": "PASS", "output": "reports/fuzz-chains-evm-FuzzTP012AddressAndPlan.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.58}
+{"package": "chains/hypercore", "target": "FuzzTP012CoreAction", "status": "PASS", "output": "reports/fuzz-chains-hypercore-FuzzTP012CoreAction.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.635}
+{"package": "chains/near", "target": "FuzzAddress", "status": "PASS", "output": "reports/fuzz-chains-near-FuzzAddress.log", "exit": 0, "fuzzExecuted": true, "seconds": 3.983}
+{"package": "chains/aptos", "target": "FuzzAddress", "status": "PASS", "output": "reports/fuzz-chains-aptos-FuzzAddress.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.132}
+{"package": "chains/decred", "target": "FuzzAddressesScriptsOutpoints", "status": "PASS", "output": "reports/fuzz-chains-decred-FuzzAddressesScriptsOutpoints.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.182}
+{"package": "chains/ton", "target": "FuzzAddressAndBOC", "status": "PASS", "output": "reports/fuzz-chains-ton-FuzzAddressAndBOC.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.981}
+{"package": "exchange/bybit", "target": "FuzzBybitAuthRequest", "status": "PASS", "output": "reports/fuzz-exchange-bybit-FuzzBybitAuthRequest.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.78}
+{"package": "exchange/bybit", "target": "FuzzBybitExecutionExtraFees", "status": "PASS", "output": "reports/fuzz-exchange-bybit-FuzzBybitExecutionExtraFees.log", "exit": 0, "fuzzExecuted": true, "seconds": 4.885}

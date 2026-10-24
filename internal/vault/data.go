@@ -33,6 +33,7 @@ type Data struct {
 	Accounts                 []model.Account     `json:"accounts"`
 	Operations               []journal.Operation `json:"operations"`
 	Endpoints                map[string]Endpoint `json:"endpoints"`
+	Exchange                 *ExchangeData       `json:"exchange,omitempty"`
 }
 
 func (d *Data) Destroy() {
@@ -43,6 +44,10 @@ func (d *Data) Destroy() {
 	d.Accounts = nil
 	d.Operations = nil
 	d.Endpoints = nil
+	if d.Exchange != nil {
+		d.Exchange.Destroy()
+		d.Exchange = nil
+	}
 }
 func (d *Data) Encode() ([]byte, error) {
 	if e := d.Validate(); e != nil {
@@ -103,6 +108,9 @@ func (d *Data) Validate() error {
 			return ErrFormat
 		}
 	}
+	if err := validateExchange(d.Exchange, seen); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -118,12 +126,14 @@ func VerifyRecovery(a, b *Data) error {
 		Accounts   []model.Account
 		Operations []journal.Operation
 		Endpoints  map[string]Endpoint
-	}{a.Accounts, a.Operations, a.Endpoints})
+		Exchange   *ExchangeData
+	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange})
 	y, _ := json.Marshal(struct {
 		Accounts   []model.Account
 		Operations []journal.Operation
 		Endpoints  map[string]Endpoint
-	}{b.Accounts, b.Operations, b.Endpoints})
+		Exchange   *ExchangeData
+	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange})
 	if sha256.Sum256(x) != sha256.Sum256(y) {
 		return errors.New("backup public descriptors differ")
 	}

@@ -41,7 +41,7 @@
     {
       "id": "INV-01-secret-boundary",
       "status": "PASS",
-      "evidence": "Owner-authorized isolated Electron prompt path; ordinary portfolio/snapshots remain secret-free in 107 frontend tests, typed protocol and owned-process crash/canary checks.",
+      "evidence": "Owner-authorized isolated Electron prompt path; ordinary portfolio/snapshots remain secret-free in 125 frontend tests, typed protocol and owned-process crash/canary checks.",
       "remaining": "Electron main/prompt and transient coordinator transport are trusted; complete Electron/host/storage/clipboard/QR/network crash-canary acceptance and independent review NOT_RUN.",
       "previousEvidence": "Engine/snapshot/publicJSON/surface-check/frontend strict schema; native-only input tests"
     },
@@ -288,7 +288,7 @@
       "id": "TP-070",
       "status": "NOT_RUN",
       "evidence": "Final uninstrumented private-X11 Electron recovery passes 20 checks; actual portable Electron Send passes seven checks against real geth in an ordinary-user loopback-only network namespace. Default 12-word GUI and all-five-length component scopes remain distinct.",
-      "remaining": "Clean Ubuntu 24.04/26.04 × X11/Wayland lock/suspend/install/upgrade/full-flow acceptance, separate physical-machine recovery and other-chain installed sending NOT_RUN; earlier container sandbox obstacles remain BLOCKED."
+      "remaining": "Clean Ubuntu 24.04/26.04 \u00d7 X11/Wayland lock/suspend/install/upgrade/full-flow acceptance, separate physical-machine recovery and other-chain installed sending NOT_RUN; earlier container sandbox obstacles remain BLOCKED."
     },
     {
       "id": "TP-071",
@@ -314,13 +314,13 @@
     {
       "id": "UX-MAINNET-PROFILES",
       "status": "PASS",
-      "evidence": "MAINNET_TABS.md; actual defaultmainnet/explicit-testnet bootstrap, nine mainnet network wallets/eleven assets, unchanged mainnet ciphertext during separate testnet launch",
+      "evidence": "Actual registry retains nine mainnet domains and twelve assets, including canonical Ethereum USDT. Mainnet/testnet profiles stay separate; Exchange never switches environments.",
       "remaining": "Mainnet enablement does not establish production acceptance"
     },
     {
       "id": "UX-WALLET-TABS",
       "status": "PASS",
-      "evidence": "Current 107 frontend tests, 20 installed recovery checks and seven installed local-geth Send checks: tables/native balances/copy, wallet/account tabs, on-demand Send, isolated Receive QR, Settings journal and stale/lock rejection.",
+      "evidence": "Current 125 frontend tests, 23 installed recovery/Exchange checks and seven installed local-geth Send checks: tables/native balances/copy, wallet/account/Exchange tabs, on-demand Send, isolated Receive QR, Settings journal, credential-dialog cancellation and stale/lock rejection.",
       "remaining": "Full supported OS/display matrix NOT_RUN."
     },
     {
@@ -338,7 +338,7 @@
     {
       "id": "INV-13-electron-prompt-scope",
       "status": "PASS",
-      "evidence": "Current 107 frontend tests and Go supervisor/core/protocol adversarial tests reject wrong window/frame/origin, stale/replayed/unsolicited/wrong-kind/duplicate prompt replies.",
+      "evidence": "Current 125 frontend tests and Go supervisor/core/protocol adversarial tests reject wrong window/frame/origin, stale/replayed/unsolicited/wrong-kind/duplicate prompt replies.",
       "remaining": "Independent review and complete real OS acceptance NOT_RUN."
     },
     {
@@ -370,6 +370,36 @@
       "status": "NOT_RUN",
       "evidence": "Actual notice texts/provenance for 39 Go and 40 desktop components are packaged; 13 technical regression tests and deterministic collection pass.",
       "remaining": "Independent license classification, compatibility, redistribution/source/relinking/patent obligations and project/system-runtime licensing review remain NOT_RUN."
+    },
+    {
+      "id": "EX-01-private-custody-credentials",
+      "status": "PASS",
+      "evidence": "Encrypted optional exchange credentials/journal; dedicated masked Electron input; app-password reauthentication; narrow private HMAC API; no ordinary renderer API key/secret/payload. Bybit and signer security tests and five runtime policy mutants pass locally.",
+      "remaining": "Trusted Electron main/prompt and Go coordinator can hold transient data; independent review and full live canary acceptance NOT_RUN."
+    },
+    {
+      "id": "EX-02-deposit-swap-withdraw",
+      "status": "PASS",
+      "evidence": "Real Bybit V5 HTTP client, exact registry route/token matching including actual TON ID and memo, native signed deposit journal, separately authorized FUND/UNIFIED deficit transfer, spot-only market order and owned-wallet forced-on-chain withdrawal; isolated HTTP/component/fault tests. Final installed Exchange navigation/disabled controls/credential cancellation pass; no private exchange call is claimed.",
+      "remaining": "No real private Bybit API or funds used. Unsupported regional withdrawal questionnaires remain disabled."
+    },
+    {
+      "id": "EX-03-uncertain-identities",
+      "status": "PASS",
+      "evidence": "Durable SUBMITTING before HMAC, one-use session capability, no POST retries, exact original identities and bounded fill/fee/tax reconciliation; lost withdrawal acknowledgment remains UNKNOWN. Calculated monetary overflow fails explicitly; it cannot be reported as zero or confirm incomplete execution.",
+      "remaining": "Provider-reported withdrawal completion does not establish independent recipient credit/finality. Unknown extra fee currencies and missing metadata fail closed."
+    },
+    {
+      "id": "EX-04-ethereum-usdt",
+      "status": "PASS",
+      "evidence": "Pinned canonical six-decimal Ethereum USDT runtime, independent ethers fixtures and three actual Go-signed transfers executed in isolated Ganache with exact recipient/debit/gas/log/nonce checks; hostile issuer-state/no-return/receipt tests.",
+      "remaining": "No TON USDT jetton. Public Ethereum execution, issuer administrative risks and independent review remain separate acceptance."
+    },
+    {
+      "id": "EX-05-live-bybit-acceptance",
+      "status": "NOT_RUN",
+      "evidence": "No real API key, private Bybit request, deposit, trade, withdrawal or mainnet fund movement was used in development.",
+      "remaining": "Owner-controlled disposable capped account acceptance: exact-chain deposit credit/memo, FUND/UNIFIED, both spot directions, actual fees/taxes, whitelist/regional restrictions, independent withdrawal credit; never automatically send mainnet funds."
     }
   ]
 }

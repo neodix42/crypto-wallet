@@ -125,6 +125,8 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		}
 	}
 	switch m.Method {
+	case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize", "exchangeOperation", "exchangeCancel", "exchangeAuth", "exchangeUpdate", "exchangeReject":
+		return handleExchange(e, m.Method, m.Body)
 	case "create", "import":
 		var b struct {
 			Words int `json:"words"`

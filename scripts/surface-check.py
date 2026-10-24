@@ -50,9 +50,15 @@ for (const method of ['accounts','history','chainHistory']) {
   validate(method,{...base,cursor:'ab'.repeat(16)});
   for(const cursor of ['https://untrusted.invalid','',null,'A'.repeat(32),'a'.repeat(33)])assert.throws(()=>validate(method,{...base,cursor}));
 }
-for (const method of ['account','accountPage','operation','journalPage','pending','backup','restore','getMnemonic','revealPhrase','exportPhrase','exportPrivateKey','signBytes','promptReply','prompt']) {
+for (const method of ['exchangeAuth','exchangePrepare','exchangeAuthorize','exchangeUpdate','exchangeReject','exchangeOperation','exchangeCancel','account','accountPage','operation','journalPage','pending','backup','restore','getMnemonic','revealPhrase','exportPhrase','exportPrivateKey','signBytes','promptReply','prompt']) {
   assert.ok(!methods.includes(method), method);
   assert.throws(() => validate(method, {}), method);
+}
+validate('exchangeConnect',{endpoint:'https://api.bybit.com'});
+for(const method of ['exchangeStatus','exchangeDisconnect','exchangeConnect','exchangeQuote','exchangeDeposit','exchangeSwap','exchangeWithdraw','exchangeReconcile']){
+ const base=method==='exchangeConnect'?{endpoint:'https://api.bybit.com'}:method==='exchangeReconcile'?{id:'a'.repeat(32)}:method==='exchangeQuote'?{accountId:'public',assetId:'public:native',side:'Sell'}:method==='exchangeSwap'?{accountId:'public',assetId:'public:native',side:'Sell',amount:'1',slippage:'0.5'}:['exchangeDeposit','exchangeWithdraw'].includes(method)?{accountId:'public',assetId:'public:native',amount:'1'}:{};
+ validate(method,base);
+ for(const key of ['apiKey','apiSecret','secret','signature','payload','address','beneficiary','questionnaire'])assert.throws(()=>validate(method,{...base,[key]:'PUBLIC_FORBIDDEN_FIELD'}));
 }
 for (const method of ['create','import','unlock','confirmRecovery']) {
   const base = method === 'create' || method === 'import' ? {words:12} : {};

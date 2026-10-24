@@ -216,7 +216,7 @@ def go_rows(profile):
         totals[package] = covered + (number if count else 0), total + number
     rows = []
     for package, (covered, total) in sorted(totals.items()):
-        critical = any('/' + name in package for name in ('vault', 'derivation', 'signer', 'amount', 'chains', 'ipc', 'journal', 'qr', 'strictjson', 'isolation', 'secureui', 'uiprompt', 'supervisor', 'wallet-core', 'wallet-signer'))
+        critical = any('/' + name in package for name in ('vault', 'derivation', 'signer', 'amount', 'chains', 'exchange', 'ipc', 'journal', 'qr', 'strictjson', 'isolation', 'secureui', 'uiprompt', 'supervisor', 'wallet-core', 'wallet-signer'))
         floor = 95 if critical else 90
         percent = 100 * covered / total if total else 100
         rows.append({'package': package, 'statements': total, 'covered': covered, 'percent': round(percent, 2), 'floor': floor,
@@ -231,7 +231,7 @@ def validate_go(root, report, floor_report):
         raise EvidenceError('go-coverage-missing-or-incomplete')
     equal_snapshot(report.get('sourceSHA256'), go_sources(root), 'go-coverage-stale-or-incomplete-source-set')
     gates = report.get('gates')
-    if not isinstance(gates, list) or {row.get('gate') for row in gates if isinstance(row, dict)} != {'decred-simnet', 'ton-v5r1-emulator'} or any(not isinstance(row, dict) or row.get('status') != 'PASS' for row in gates):
+    if not isinstance(gates, list) or len(gates) != 3 or {row.get('gate') for row in gates if isinstance(row, dict)} != {'decred-simnet', 'ton-v5r1-emulator', 'usdt-evm-execution'} or any(not isinstance(row, dict) or row.get('status') != 'PASS' for row in gates):
         raise EvidenceError('go-coverage-original-local-gates-incomplete')
     profiles = report.get('profiles')
     required = {'reports/go-base.cover', 'reports/go-native.cover'}

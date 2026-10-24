@@ -1,6 +1,6 @@
 import {contextBridge,ipcRenderer} from 'electron';
 // No generic IPC, native objects, files, credentials or signing methods escape.
-const methods=['networks','accounts','status','create','import','unlock','lock','balances','receive','history','prepare','send','retry','reconcile','confirmRecovery','password','addAccount','hideAccount','discoverAccounts','cancelPrepared','copyReceive','saveQR','scanQR','configure','associate','chainHistory','max','discovery'] as const;
+const methods=['networks','accounts','status','create','import','unlock','lock','balances','receive','history','prepare','send','retry','reconcile','confirmRecovery','password','addAccount','hideAccount','discoverAccounts','cancelPrepared','copyReceive','saveQR','scanQR','configure','associate','chainHistory','max','discovery','exchangeStatus','exchangeConnect','exchangeDisconnect','exchangeQuote','exchangeDeposit','exchangeSwap','exchangeWithdraw','exchangeReconcile'] as const;
 const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
 function unwrap(value:unknown):unknown{
  if(value!==null&&typeof value==='object'&&!Array.isArray(value)){

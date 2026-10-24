@@ -1,5 +1,7 @@
 # Stress and soak evidence
 
+The pre-Exchange 24-hour campaign was interrupted before completion when the extension changed its source baseline. Its retained result is partial NOT_RUN, not PASS. Current bounded tests and any replacement campaign retain their own source bindings; live ignored reports are authoritative for RUNNING status. Bybit private/funded acceptance remains NOT_RUN; local stress/fuzz does not establish exchange acceptance.
+
 ## Current scoped campaign
 
 The hardening batch reran bounded stress and full Go race checks. It also started a source/binary-pinned **86,400-second non-Decred soak**, currently **RUNNING**. This workload uses the actual production signer/KDF, encrypted lock/restart/phrase recovery, growing accounts/history and exact signed-journal EVM fake-ledger reconciliation. It omits Decred operations and never accesses public networks. It is narrower than all-chain, desktop or consensus acceptance; the complete production soak gate stays **NOT_RUN**. The [hardening checklist](PRODUCTION_HARDENING.md) records final-candidate evidence separately from historical measurements below.

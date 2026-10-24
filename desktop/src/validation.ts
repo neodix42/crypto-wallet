@@ -1,6 +1,8 @@
-export const methods = Object.freeze(['networks','accounts','status','create','import','unlock','lock','balances','receive','history','prepare','send','retry','reconcile','confirmRecovery','password','addAccount','copyReceive','saveQR','scanQR','configure','associate','chainHistory','max','discovery','hideAccount','discoverAccounts','cancelPrepared'] as const);
+export const methods = Object.freeze(['networks','accounts','status','create','import','unlock','lock','balances','receive','history','prepare','send','retry','reconcile','confirmRecovery','password','addAccount','copyReceive','saveQR','scanQR','configure','associate','chainHistory','max','discovery','hideAccount','discoverAccounts','cancelPrepared','exchangeStatus','exchangeConnect','exchangeDisconnect','exchangeQuote','exchangeDeposit','exchangeSwap','exchangeWithdraw','exchangeReconcile'] as const);
 export type Method = typeof methods[number];
-const fields: Record<Method, Record<string, 'string'|'index'|'words'|'height'|'gap'|'limit'|'budget'|'boolean'|'cursor'|'optionalString'>> = {
+const exchangeEndpoints = new Set(['https://api.bybit.com','https://api.bybit.ae','https://api.bytick.com','https://api.bybit.tr','https://api.bybit.kz','https://api.bybitgeorgia.ge','https://api.bybit.eu','https://api.bybit.id','https://api.manepa.jp','https://api.spark-fintech.com']);
+const fields: Record<Method, Record<string, 'string'|'index'|'words'|'height'|'gap'|'limit'|'budget'|'boolean'|'cursor'|'optionalString'|'side'|'decimal'|'slippage'|'endpoint'>> = {
+ exchangeStatus:{},exchangeConnect:{endpoint:'endpoint'},exchangeDisconnect:{},exchangeQuote:{accountId:'string',assetId:'string',side:'side'},exchangeDeposit:{accountId:'string',assetId:'string',amount:'decimal'},exchangeSwap:{accountId:'string',assetId:'string',side:'side',amount:'decimal',slippage:'slippage'},exchangeWithdraw:{accountId:'string',assetId:'string',amount:'decimal'},exchangeReconcile:{id:'string'},
  cancelPrepared:{id:'string'},hideAccount:{accountId:'string',hidden:'boolean'},discoverAccounts:{start:'index',end:'index'},max:{accountId:'string',asset:'string',recipient:'string',amount:'string',memo:'string'},discovery:{accountId:'string',birthday:'height',gap:'gap',limit:'limit',blockBudget:'budget'},chainHistory:{accountId:'string',cursor:'cursor'},configure:{network:'string'},associate:{accountId:'string',address:'string'},copyReceive:{accountId:'string'},saveQR:{accountId:'string'},scanQR:{},networks:{},accounts:{cursor:'cursor'},status:{},create:{words:'words'},import:{words:'words'},unlock:{},lock:{},balances:{accountId:'string'},receive:{accountId:'string'},history:{accountId:'optionalString',asset:'optionalString',cursor:'cursor'},prepare:{accountId:'string',asset:'string',recipient:'string',amount:'string',memo:'string'},send:{id:'string'},retry:{id:'string'},reconcile:{id:'string'},confirmRecovery:{},password:{},addAccount:{index:'index'}
 };
 export function validate(method: unknown, body: unknown): asserts method is Method {
@@ -10,6 +12,10 @@ export function validate(method: unknown, body: unknown): asserts method is Meth
  if (Object.keys(value).some(key=>!Object.hasOwn(schema,key))||Object.entries(schema).some(([key,type])=>type!=='cursor'&&type!=='optionalString'&&!Object.hasOwn(value,key))) throw new Error('Invalid fields');
  for(const [key,type] of Object.entries(schema)) {
   const input=value[key];
+  if(type==='endpoint'&&(typeof input!=='string'||!exchangeEndpoints.has(input)))throw new Error('Invalid exchange endpoint');
+  if(type==='side'&&input!=='Buy'&&input!=='Sell')throw new Error('Invalid exchange direction');
+  if(type==='slippage'&&(typeof input!=='string'||!/^(0\.[0-9]{1,2}|1(\.0{1,2})?)$/.test(input)||!/[1-9]/.test(input)))throw new Error('Invalid slippage limit');
+  if(type==='decimal'&&(typeof input!=='string'||input.length>128||!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(input)||!/[1-9]/.test(input)))throw new Error('Invalid exact decimal');
   if(type==='optionalString'&&Object.hasOwn(value,key)&&(typeof input!=='string'||input.length>4096))throw new Error('Invalid public field');
   if(type==='cursor' && Object.hasOwn(value,key) && (typeof input!=='string'||!/^[0-9a-f]{32}$/.test(input)))throw new Error('Invalid continuation');
   if(type==='string' && (typeof input!=='string'||input.length>4096)) throw new Error('Invalid public field');
