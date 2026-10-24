@@ -1,4 +1,5 @@
-// Package isolation installs a process-wide seccomp filter before secret input.
+// Package isolation protects secret-bearing memory and installs signer IP
+// restrictions. The network core uses memory protection without the IP filter.
 package isolation
 
 /*
@@ -16,8 +17,11 @@ extern int seccomp_rule_add(scmp_filter_ctx,uint32_t,int,unsigned int,...);
 extern int seccomp_syscall_resolve_name(const char*);
 extern int seccomp_load(scmp_filter_ctx);
 extern void seccomp_release(scmp_filter_ctx);
+static int protect_memory(){
+ struct rlimit r={0,0};return setrlimit(RLIMIT_CORE,&r)||prctl(PR_SET_DUMPABLE,0);
+}
 static int isolate(){
- struct rlimit r={0,0};if(setrlimit(RLIMIT_CORE,&r)||prctl(PR_SET_DUMPABLE,0)||prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0))return -1;
+ if(protect_memory()||prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0))return -1;
  scmp_filter_ctx c=seccomp_init(0x7fff0000);if(!c)return -1;
  if(seccomp_attr_set(c,4,1)){seccomp_release(c);return -1;}
  int domains[]={AF_INET,AF_INET6,AF_PACKET};int calls[]={seccomp_syscall_resolve_name("socket"),seccomp_syscall_resolve_name("socketpair")};
@@ -25,13 +29,25 @@ static int isolate(){
  const char*blocked[]={"io_uring_setup","io_uring_enter","io_uring_register"};for(int i=0;i<3;i++){int n=seccomp_syscall_resolve_name(blocked[i]);if(n>=0&&seccomp_rule_add(c,0x00050000|EPERM,n,0)){seccomp_release(c);return -1;}}
  int result=seccomp_load(c);seccomp_release(c);return result;
 }
-static int dump_disabled(){struct rlimit r;if(getrlimit(RLIMIT_CORE,&r))return 0;return r.rlim_cur==0&&prctl(PR_GET_DUMPABLE)==0;}
+static int dump_disabled(){struct rlimit r;if(getrlimit(RLIMIT_CORE,&r))return 0;return r.rlim_cur==0&&r.rlim_max==0&&prctl(PR_GET_DUMPABLE)==0;}
 */
 import "C"
 import (
 	"errors"
 	"syscall"
 )
+
+// ProtectMemory disables ordinary process core dumps and dumpability before
+// transient credentials or recovery prompts enter the network coordinator.
+// It preserves networking and fails closed if the kernel state cannot be set
+// and verified. Exec may reset dumpability; call this in the process receiving
+// secrets rather than relying on its launcher to establish that state.
+func ProtectMemory() error {
+	if C.protect_memory() != 0 || C.dump_disabled() == 0 {
+		return errors.New("wallet memory protection unavailable")
+	}
+	return nil
+}
 
 func Install() error {
 	if C.isolate() != 0 || C.dump_disabled() == 0 {

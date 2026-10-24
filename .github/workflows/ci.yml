@@ -20,7 +20,7 @@ jobs:
       - run: make check-deps
       - name: Restore all wallets in independent fresh application copies
         run: make test-recovery
-      - name: Check native phrase setup and recovery through the production desktop
+      - name: Check Electron phrase setup and recovery through the production desktop
         run: make test-packaged
       - uses: actions/upload-artifact@v4
         if: always()

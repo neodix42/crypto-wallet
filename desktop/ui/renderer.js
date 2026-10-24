@@ -7,10 +7,10 @@ const rowBalances = new Map(), balanceQueue = [];
 const nativeResultMethods = new Set(['send', 'scanQR']);
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
 const operationErrors = Object.freeze({
-  PASSWORD_POLICY: 'Use an app password of 12–4096 UTF-8 bytes. Enter and repeat it in the native Go window, then try again.',
-  INPUT_TOO_LONG: 'An input exceeds 4,096 UTF-8 bytes. Shorten it in the native window.',
-  PASSWORD_MISMATCH: 'The passwords did not match. Enter the same app password in both native fields and try again.',
-  INVALID_MNEMONIC: 'Enter a valid English BIP39 recovery phrase (12, 15, 18, 21 or 24 words) in the native Go window. A new wallet generates its phrase automatically.',
+  PASSWORD_POLICY: 'Use an app password of 12–4096 UTF-8 bytes. Enter and repeat it in the wallet dialog, then try again.',
+  INPUT_TOO_LONG: 'An input exceeds 4,096 UTF-8 bytes. Shorten it in the wallet dialog.',
+  PASSWORD_MISMATCH: 'The passwords did not match. Enter the same app password in both password fields and try again.',
+  INVALID_MNEMONIC: 'Enter a valid English BIP39 recovery phrase (12, 15, 18, 21 or 24 words) in the wallet dialog. A new wallet generates its phrase automatically.',
   REQUEST_CANCELLED: 'Request cancelled. Check the wallet state before retrying.',
   REQUEST_FAILED_STATE_UNKNOWN: 'Request failed or is unavailable. Balance is unknown until verified; reconcile any pending payment before retrying.'
 });
@@ -24,8 +24,8 @@ function showOperationError(error) {
 }
 const gates = {
   checking: ['Checking your local wallet', 'Reading the local vault status. No password dialog opens until you choose an action.'],
-  missing: ['Create your app password', 'Choose your password in the native Go window. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Write down your generated phrase in the native Go window, then confirm the requested words to finish setup.'],
-  present: ['Welcome back', 'Your encrypted wallet is already on this device. Enter its app password in the native Go window to unlock your accounts.'],
+  missing: ['Create your app password', 'Choose your password in the wallet dialog. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Write down your generated phrase in the wallet dialog, then confirm the requested words to finish setup.'],
+  present: ['Welcome back', 'Your encrypted wallet is already on this device. Enter its app password in the wallet dialog to unlock your accounts.'],
   unavailable: ['Wallet storage unavailable', 'The local vault could not be inspected safely. Check storage access and retry. Creation and restoration remain unavailable while its state is uncertain.']
 };
 function renderGate() {
@@ -55,7 +55,7 @@ function clearLocked() {
   $('send').disabled = true;
   for (const id of ['recipient', 'amount', 'memo', 'associateaddress', 'birthday', 'gap', 'limit', 'blockbudget']) $(id).value = '';
   for (const id of ['address', 'diagnostics', 'preview', 'balance', 'chainhistoryresult', 'journalcontext', 'journalresult']) show(id, 'Locked');
-  if (!retainError) $('message').textContent = vaultMode === 'missing' ? 'Start by choosing your app password in the native Go window.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the native Go window.';
+  if (!retainError) $('message').textContent = vaultMode === 'missing' ? 'Start by choosing your app password in the wallet dialog.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the wallet dialog.';
   renderGate();
 }
 const removeLockListener = window.wallet.onLocked(clearLocked);
@@ -468,7 +468,7 @@ async function receiveWallet(id) {
   return nativeAction(async () => {
   const epoch = sessionEpoch;
   const value = await window.wallet.receive({ accountId: id });
-  // The Go window owns the verified QR/address and clipboard. A committed
+  // Go supplies the verified QR/address to the dedicated wallet dialog. A committed
   // Decred receive index must still refresh the overview after a tab switch.
   if (epoch !== sessionEpoch || !value.account || value.account.id !== id || !accounts.some(account => account.id === id)) return;
   accounts = accounts.map(account => account.id === id ? value.account : account); renderAccountGroups();

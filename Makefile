@@ -2,7 +2,7 @@
 export GOTOOLCHAIN := go1.27.3
 TOOLS := ./scripts/with-toolchain.sh
 GO_TOOLS := ./scripts/with-go.sh
-.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-fuzz test-packaged test-recovery test-e2e test-testnet test-stress test-soak coverage package-desktop package-go verify-release check-deps
+.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-packaged test-recovery test-e2e test-testnet test-stress test-soak coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
 build-go: build
@@ -23,7 +23,7 @@ test:
 test-go:
 	$(GO_TOOLS) go test ./...
 test-security:
-	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/journal ./internal/supervisor ./cmd/wallet-core ./cmd/wallet-signer ./cmd/wallet-launcher
+	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./cmd/wallet-core ./cmd/wallet-signer ./cmd/wallet-launcher
 	$(TOOLS) python3 scripts/native-input.py
 	$(TOOLS) python3 scripts/mutation.py
 	$(TOOLS) python3 scripts/surface-check.py
@@ -35,6 +35,9 @@ test-integration:
 	$(TOOLS) python3 scripts/integration.py
 test-fuzz:
 	$(TOOLS) python3 scripts/fuzz.py
+test-dialogs:
+	$(TOOLS) npm --prefix desktop run build
+	$(TOOLS) npm --prefix desktop test
 test-native:
 	$(TOOLS) python3 scripts/native-input.py
 test-packaged: install

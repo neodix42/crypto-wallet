@@ -6,9 +6,9 @@
   "packages": [
     {
       "package": "localwallet/cmd/wallet-core",
-      "statements": 496,
-      "covered": 475,
-      "percent": 95.77,
+      "statements": 519,
+      "covered": 496,
+      "percent": 95.57,
       "floor": 95,
       "status": "PASS"
     },
@@ -22,9 +22,9 @@
     },
     {
       "package": "localwallet/cmd/wallet-signer",
-      "statements": 157,
-      "covered": 155,
-      "percent": 98.73,
+      "statements": 158,
+      "covered": 152,
+      "percent": 96.2,
       "floor": 95,
       "status": "PASS"
     },
@@ -118,8 +118,8 @@
     },
     {
       "package": "localwallet/internal/isolation",
-      "statements": 9,
-      "covered": 9,
+      "statements": 12,
+      "covered": 12,
       "percent": 100.0,
       "floor": 95,
       "status": "PASS"
@@ -143,8 +143,8 @@
     {
       "package": "localwallet/internal/secureui",
       "statements": 216,
-      "covered": 214,
-      "percent": 99.07,
+      "covered": 213,
+      "percent": 98.61,
       "floor": 95,
       "status": "PASS"
     },
@@ -166,9 +166,17 @@
     },
     {
       "package": "localwallet/internal/supervisor",
-      "statements": 138,
-      "covered": 132,
-      "percent": 95.65,
+      "statements": 183,
+      "covered": 177,
+      "percent": 96.72,
+      "floor": 95,
+      "status": "PASS"
+    },
+    {
+      "package": "localwallet/internal/uiprompt",
+      "statements": 160,
+      "covered": 152,
+      "percent": 95.0,
       "floor": 95,
       "status": "PASS"
     },

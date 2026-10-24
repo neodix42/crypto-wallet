@@ -31,12 +31,13 @@ assert 'spawn(' not in desktop
 subprocess.run(['npm', '--prefix', 'desktop', 'run', 'build'], cwd=root, check=True)
 # Exercise the compiled validator rather than trusting the TypeScript text.
 # The only public inputs to setup are choices/IDs; phrase words and passwords
-# are accepted exclusively by Go's own native surface.
+# are accepted exclusively by the dedicated ephemeral Electron prompt surface.
+# The portfolio preload never receives or replies to those prompts.
 subprocess.run(['node', '-e', r'''
 const assert = require('node:assert/strict');
 const {validate, methods} = require('./desktop/app/validation.js');
 validate('confirmRecovery', {});
-for (const method of ['backup','restore','getMnemonic','revealPhrase','exportPhrase','exportPrivateKey','signBytes']) {
+for (const method of ['backup','restore','getMnemonic','revealPhrase','exportPhrase','exportPrivateKey','signBytes','promptReply','prompt']) {
   assert.ok(!methods.includes(method), method);
   assert.throws(() => validate(method, {}), method);
 }
@@ -48,4 +49,17 @@ for (const method of ['create','import','unlock','confirmRecovery']) {
 }
 '''], cwd=root, check=True)
 subprocess.run(['npm', '--prefix', 'desktop', 'test'], cwd=root, check=True)
-print('PASS production API/DTO policy, forbidden secret payloads and Electron regression checks')
+# The secret-bearing prompt bridge is intentionally separate from the portfolio
+# bridge. It has no generic request, file, clipboard-value or signing capability.
+prompt_preload = (root / 'desktop/src/prompt-preload.ts').read_text()
+assert "exposeInMainWorld('walletPrompt'" in prompt_preload
+for forbidden in ['wallet:request', 'wallet:version', 'readFile', 'process.env', 'writeText', 'signBytes']:
+    assert forbidden not in prompt_preload, forbidden
+assert "const promptOrigin='wallet://prompt'" in desktop
+assert "'wallet-prompt-'+randomBytes(16)" in desktop
+assert "preload:path.join(__dirname,'prompt-preload.js')" in desktop
+assert 'clearStorageData()' in desktop
+portfolio_preload = (root / 'desktop/src/preload.ts').read_text()
+assert 'wallet:prompt' not in portfolio_preload
+assert 'promptReply' not in portfolio_preload
+print('PASS public API/DTO policy, isolated Electron prompt boundary and regression checks')

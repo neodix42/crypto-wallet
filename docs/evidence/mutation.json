@@ -1,7 +1,17 @@
 {
   "status": "PASS",
-  "elapsedSeconds": 276.047,
+  "elapsedSeconds": 283.942,
   "mutants": [
+    {
+      "id": "prompt-identity-binding",
+      "status": "KILLED",
+      "exit": 1
+    },
+    {
+      "id": "electron-recorded-word-verification",
+      "status": "KILLED",
+      "exit": 1
+    },
     {
       "id": "aead-authentication",
       "status": "KILLED",

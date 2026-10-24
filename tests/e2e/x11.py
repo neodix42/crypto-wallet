@@ -69,9 +69,15 @@ class Desktop:
  def geometry(self,window):
   root=C.c_ulong();x=C.c_int();y=C.c_int();w=C.c_uint();h=C.c_uint();border=C.c_uint();depth=C.c_uint();X.XGetGeometry(self.d,window,C.byref(root),C.byref(x),C.byref(y),C.byref(w),C.byref(h),C.byref(border),C.byref(depth));return x.value,y.value,w.value,h.value
  def accept(self,prefix):
-  window,_=self.wait(prefix);x,y,w,h=self.geometry(window);self.click(x+w-52,y+h-22)
+  window,title=self.wait(prefix);x,y,w,h=self.geometry(window);self.click(x+w-88,y+h-46) if title.startswith('LocalWallet — ') else self.click(x+w-52,y+h-22)
  def inputs(self,prefix,values):
-  window,_=self.wait(prefix,25);self.focus(window);x,y,w,h=self.geometry(window)
+  window,title=self.wait(prefix,25);self.focus(window);x,y,w,h=self.geometry(window)
+  if title.startswith('LocalWallet — '):
+   time.sleep(.35)
+   for index,value in enumerate(values):
+    if index:self.key('Tab')
+    self.type(value)
+   return
   # Private fresh-HOME test displays use the default light GTK theme. Locate
   # empty input rectangles rather than assuming the host's font/DPI spacing.
   im=self.image().convert('RGB')
@@ -86,7 +92,7 @@ class Desktop:
  def wait(self,prefix,seconds=10):
   until=time.monotonic()+seconds
   while time.monotonic()<until:
-   found=[w for w in self.windows() if w[1].startswith(prefix)]
+   found=[w for w in self.windows() if w[1].startswith(prefix) or w[1].startswith('LocalWallet — '+prefix)]
    if found:return found[0]
    time.sleep(.1)
   raise RuntimeError('Expected native/public window did not appear: '+prefix)
@@ -95,6 +101,15 @@ class Desktop:
   try:
    data=C.string_at(p.contents.data,p.contents.bytes_per_line*1024);return Image.frombytes('RGB',(1280,1024),data,'raw','BGRX',p.contents.bytes_per_line,1)
   finally:X.XDestroyImage(p)
+ def secret_window(self):
+  titles=[title for _,title in self.windows()]
+  if sum(title=='LocalWallet' for title in titles)>1:return True
+  public=('Verify receive address','Wallet request failed','Recovery phrase not confirmed','Imported account recovery limits','Verification pending')
+  private=('Create local wallet','Unlock local wallet','Complete recovery setup','Record recovery phrase','Confirm recovery phrase','Change app storage password','Configure trusted RPC')
+  for title in titles:
+   if title.startswith('LocalWallet — ') and not title.removeprefix('LocalWallet — ').startswith(public):return True
+   if title.startswith(private):return True
+  return False
  def screenshot(self,path):
-  if any(title.startswith(('Create local wallet','Unlock local wallet','Complete recovery setup','Record recovery phrase','Confirm recovery phrase')) for _,title in self.windows()):raise RuntimeError('Refusing to save native secret-window pixels')
+  if self.secret_window():raise RuntimeError('Refusing to save secret-dialog pixels')
   self.image().save(path)

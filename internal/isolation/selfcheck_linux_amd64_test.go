@@ -38,9 +38,29 @@ func TestTP041StartupRejectsApparentlyPermissiveKernel(t *testing.T) {
 }
 
 func traceIsolationFault(t *testing.T, fault string) {
+	traceStartupFault(t, "TestTP041StartupRejectsApparentlyPermissiveKernel", "LOCALWALLET_ISOLATION_PERMISSIVE_TEST", fault)
+}
+
+func TestTP041MemoryProtectionFailsClosedOnKernelErrors(t *testing.T) {
+	if fault := os.Getenv("LOCALWALLET_MEMORY_FAULT_TEST"); fault != "" {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		if err := ProtectMemory(); err == nil || err.Error() != "wallet memory protection unavailable" {
+			t.Fatal("core dump protection failure accepted", err)
+		}
+		return
+	}
+	for _, fault := range []string{"dump-set", "dump-check"} {
+		t.Run(fault, func(t *testing.T) {
+			traceStartupFault(t, "TestTP041MemoryProtectionFailsClosedOnKernelErrors", "LOCALWALLET_MEMORY_FAULT_TEST", fault)
+		})
+	}
+}
+
+func traceStartupFault(t *testing.T, testName, environment, fault string) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	args := []string{"-test.run=^TestTP041StartupRejectsApparentlyPermissiveKernel$"}
+	args := []string{"-test.run=^" + testName + "$"}
 	// Go's raw test coverage directory aggregates the real helper execution.
 	// No counters or expected outcomes are synthesized by the tracer.
 	for _, arg := range os.Args[1:] {
@@ -49,7 +69,7 @@ func traceIsolationFault(t *testing.T, fault string) {
 		}
 	}
 	cmd := exec.Command(os.Args[0], args...)
-	cmd.Env = append(os.Environ(), "LOCALWALLET_ISOLATION_PERMISSIVE_TEST="+fault)
+	cmd.Env = append(os.Environ(), environment+"="+fault)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Ptrace: true}
 	var output bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &output, &output
@@ -102,9 +122,13 @@ func traceIsolationFault(t *testing.T, fault string) {
 			}
 			socketFault := fault == "socket" && registers.Orig_rax == unix.SYS_SOCKET && (registers.Rdi == unix.AF_INET || registers.Rdi == unix.AF_INET6) && int64(registers.Rax) == -int64(unix.EPERM)
 			prctlFault := fault == "prctl" && registers.Orig_rax == unix.SYS_PRCTL && registers.Rdi == unix.PR_SET_NO_NEW_PRIVS && registers.Rax == 0
-			if !injected && (socketFault || prctlFault) {
+			dumpSetFault := fault == "dump-set" && registers.Orig_rax == unix.SYS_PRCTL && registers.Rdi == unix.PR_SET_DUMPABLE && registers.Rax == 0
+			dumpCheckFault := fault == "dump-check" && registers.Orig_rax == unix.SYS_PRCTL && registers.Rdi == unix.PR_GET_DUMPABLE && registers.Rax == 0
+			if !injected && (socketFault || prctlFault || dumpSetFault || dumpCheckFault) {
 				if socketFault {
 					registers.Rax = 0
+				} else if dumpCheckFault {
+					registers.Rax = 1
 				} else {
 					denied := -int64(unix.EPERM)
 					registers.Rax = uint64(denied)

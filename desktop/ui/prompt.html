@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'">
+  <title>LocalWallet — Wallet dialog</title><link rel="stylesheet" href="prompt.css"><script defer src="prompt.js"></script>
+</head>
+<body>
+  <form id="promptform" class="prompt-shell" autocomplete="off">
+    <header>
+      <div class="brand"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 7V5a2 2 0 0 1 2-2h10v4M4 7h16v14H4zM15 12h5v5h-5z"/></svg><span>LocalWallet</span></div>
+      <h1 id="prompttitle">Wallet request</h1>
+      <p id="description">Preparing your wallet request…</p>
+    </header>
+    <main id="promptcontent" tabindex="-1">
+      <div id="inputfields" hidden></div>
+      <section id="recovery" aria-label="Recovery phrase" hidden>
+        <p class="recovery-warning">Write these words down in order. Keep them offline and private.</p>
+        <ol id="recoverywords" class="recovery-words"></ol>
+        <p class="recovery-note">Next, confirm a few words from your written copy. Never share your phrase or enter it on a website. If you used an additional BIP39 passphrase, keep that separately too.</p>
+      </section>
+      <section id="receive" aria-label="Receive address" hidden>
+        <p id="receivedomain" class="receive-domain"></p>
+        <div class="qr-frame"><img id="receiveqr" alt="Receive address QR code" draggable="false"></div>
+        <div class="address-line"><code id="receiveaddress" tabindex="0"></code><button id="copyaddress" type="button" aria-label="Copy address"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 8h12v12H8zM4 15V4h11"/></svg><span>Copy address</span></button></div>
+        <p id="copystatus" class="copy-status" role="status" aria-live="polite"></p>
+        <p class="receive-note">Use this exact network at the sender. The QR contains only this public address.</p>
+      </section>
+      <pre id="summary" hidden></pre>
+      <p id="prompterror" class="prompt-error" role="alert" tabindex="-1" hidden></p>
+    </main>
+    <footer><button id="cancel" type="button" disabled>Cancel</button><button id="accept" class="primary" type="submit" disabled>Continue</button></footer>
+  </form>
+</body>
+</html>

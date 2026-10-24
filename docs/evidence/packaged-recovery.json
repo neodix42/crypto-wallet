@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-to-native-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing and validation feedback; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing and validation feedback; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -23,7 +23,7 @@
       "status": "PASS"
     },
     {
-      "name": "Native password reauthentication and correct recorded words enable the original wallet receive QR without a file backup",
+      "name": "Electron password reauthentication and correct recorded words enable the original wallet receive QR without a file backup",
       "status": "PASS"
     },
     {
@@ -39,7 +39,7 @@
       "status": "PASS"
     },
     {
-      "name": "Wallet table copy icon invokes native verification and copies the full independent public address",
+      "name": "Wallet table copy icon invokes dialog verification and copies the full independent public address",
       "status": "PASS"
     },
     {
@@ -51,7 +51,7 @@
       "status": "PASS"
     },
     {
-      "name": "Native Receive displays independently decoded QR pixels and copies the exact address",
+      "name": "Electron Receive displays independently decoded QR pixels and copies the exact address",
       "status": "PASS"
     },
     {
@@ -63,7 +63,7 @@
       "status": "PASS"
     },
     {
-      "name": "Restart requires native unlock and preserves confirmed recovery and wallet address",
+      "name": "Restart requires dialog unlock and preserves confirmed recovery and wallet address",
       "status": "PASS"
     },
     {
@@ -79,7 +79,7 @@
       "status": "PASS"
     },
     {
-      "name": "Native validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors",
+      "name": "Electron validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors",
       "status": "PASS"
     }
   ],
@@ -94,16 +94,16 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "1111dbfadb696f1f60de871cee427bdedb303acb91c6922f5cf475e1ceb0caee",
-      "wallet-launcher": "69cf422fc21b4c524ee952f0d30e90ea0b1d6921394e9fbb685d9dbeb5a0873d",
-      "wallet-signer": "bd4337cb0b54474ea9712deb466048a90dda3d92dd9e1b7c61a27284e5c78350"
+      "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
+      "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
+      "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
     },
-    "asarSHA256": "ef0d6d1ad8db74c1eb8fcef5d9bf49809da987ba3ed92faaa6272daff4c3088f"
+    "asarSHA256": "5cc7a106d01b16ed6ff4898a54570c7404b9f553557c8f0bd3ed4d5a80a5833f"
   },
   "nativeBalanceObservation": {
     "status": "PASS",
     "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - 0x1 1cdc1e8bc976f8cfd89f0f6c5d 16909d350879e9 76150a83c74974ca96a72a3"
+    "publicText": "0 ETH - provider-observed - 0x44d1a78994c9e2bad6d9694706b65a9578e689a a8ac07deaf5fe6\u00e99e7a030e949"
   },
   "liveLogChecks": [
     {
@@ -131,5 +131,5 @@
       "ordinaryIPCStackTrace": false
     }
   ],
-  "recoveryMethod": "Native recorded-word confirmation and phrase import; no encrypted backup API or file needed"
+  "recoveryMethod": "Electron recorded-word confirmation and phrase import; no encrypted backup API or file needed"
 }

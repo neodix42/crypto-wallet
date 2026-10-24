@@ -4,6 +4,8 @@ are INVALID, never counted as killed. Surviving mutants fail the command."""
 import json,pathlib,shutil,subprocess,tempfile,time
 root=pathlib.Path(__file__).resolve().parents[1]
 mutants=[
+ ('prompt-identity-binding','internal/uiprompt/prompt.go','r.PromptID != p.ID','false','./internal/uiprompt'),
+ ('electron-recorded-word-verification','internal/uiprompt/prompt.go','subtle.ConstantTimeCompare(value, words[positions[i]]) != 1','subtle.ConstantTimeCompare(value, words[positions[i]]) < 0','./internal/uiprompt'),
  ('aead-authentication','internal/vault/envelope.go','return nil, ErrUnlock','return []byte("synthetic authentication bypass"), nil','./internal/vault'),
  ('kdf-floor','internal/vault/envelope.go','p.Memory >= 64*1024','p.Memory >= 1024','./internal/vault'),
  ('chain-id','internal/chains/evm/adapter.go','if x.ChainID != n.ChainID {','if false {','./internal/chains/evm'),

@@ -35,12 +35,13 @@ These executables do not depend on .tools, Go, Node, npm, Python or the source r
 They are backend components of the existing Go + Electron wallet; this archive has no standalone main wallet interface.
 
 wallet-core is the public coordinator using bounded framed stdin/stdout IPC.
-wallet-signer is the separate isolated signer with native GTK password/approval windows.
+wallet-signer is the separate isolated signer producing typed Electron prompt requests.
+It opens no Go/GTK windows; user-facing input requires the complete Electron desktop.
 Keep wallet-core, wallet-signer and manifest.json together. Do not enter credentials into a terminal or protocol client.
 wallet-launcher belongs to the optional complete Electron desktop layout; it cannot start a desktop from this flat archive.
 
-Ubuntu amd64 runtime libraries: libc; libseccomp2; libgtk-3-0t64 (or libgtk-3-0) with its transitive GTK3 dependencies.
-A working X11/Wayland session is required for native signer dialogs. Blockchain node/test tools are not needed.
+Ubuntu amd64 Go runtime libraries: libc and libseccomp2.
+The separate complete Electron desktop needs its normal graphical runtime libraries and X11/Wayland session. Blockchain node/test tools are not needed.
 Run each executable with --version to inspect its public version without opening a wallet.
 
 This unsigned development build has incomplete production release gates. No mainnet spending is automated.

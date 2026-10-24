@@ -44,7 +44,7 @@ EVM accounts deliberately use the same derivation profile across supported EVM n
 
 ### Recovery boundaries
 
-The generated recovery phrase is shown only in native Go during pending setup for offline recording and masked word confirmation. Private keys, extended keys and binary seeds are never displayed. Fresh-install restoration uses the phrase and any original optional BIP39 passphrase; a specified app password encrypts the new local vault and does not affect canonical keys.
+Go generates the recovery phrase; the dedicated isolated Electron prompt displays it during pending setup for offline recording, and Go verifies the separate masked word challenge. The ordinary portfolio/public API never receives it. The owner-authorized transient prompt transport, Go coordinator, Electron main and dedicated prompt renderer/preload are trusted with phrase/password inputs. Private keys, extended keys, binary seeds and entropy remain in Go and are never displayed. Fresh-install restoration uses the phrase and any original optional BIP39 passphrase; a specified app password encrypts the new local vault and does not affect canonical keys.
 
 A known phrase can recreate this app's canonical keys, subject to the same BIP39 passphrase and profiles. It does not recreate arbitrary account names, labels, historical custom paths, rotated authorities or every contract choice. The encrypted local vault preserves profiles, indices, discovery ranges, contract parameters and associations. A phrase alone does not carry that metadata; recovery must use the immutable registered profile and explicit index/discovery/association controls. Provide bounded discovery with explicit rescan controls; a search limit or offline RPC is never proof of zero funds.
 
@@ -111,7 +111,7 @@ Test unfunded receipt, uninitialized accounts and first-send StateInit deploymen
 
 ## 9. Evidence required before compatibility claims
 
-All fixtures use public synthetic seeds. Commit generator version, inputs, profile, expected outputs and provenance. Reference SDKs run only in tests with synthetic secrets; production keys stay in the approved Go secret boundary.
+All fixtures use public synthetic seeds. Commit generator version, inputs, profile, expected outputs and provenance. Reference SDKs run only in tests with synthetic secrets; production key derivation and signing remain in Go. Only the owner-authorized dedicated Electron prompt and transient transport handle entered credentials or displayed/imported phrases; no production JavaScript SDK receives binary seeds or private keys.
 
 | Area | Independent expected oracle | Remaining implementation gate |
 |---|---|---|

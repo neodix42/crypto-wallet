@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"localwallet/internal/ipc"
+	"localwallet/internal/uiprompt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,6 +33,13 @@ type Child struct {
 	// OnActivity receives native key/button activity during an active request.
 	// Set it before the first Call. It receives no credential or event values.
 	OnActivity func()
+	// OnPrompt relays a validated, signer-generated transient prompt. It must
+	// return promptly; the out-of-band ReplyPrompt method supplies the answer.
+	OnPrompt                     func(json.RawMessage) error
+	prompt                       *uiprompt.Prompt
+	promptRequest, promptSession string
+	promptGeneration             uint64
+	seenPrompts                  map[string]bool
 }
 
 type processOwner struct {
@@ -137,6 +145,7 @@ func (c *Child) start() error {
 	c.owner = owner
 	c.channel = &ipc.Channel{R: r, W: w}
 	c.session = hex.EncodeToString(b[:])
+	c.seenPrompts = map[string]bool{}
 	return nil
 }
 func (c *Child) Call(method string, body any, out any) error {
@@ -188,6 +197,7 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 	var r ipc.Message
 	var activityWindow, lastActivity time.Time
 	activityCount := 0
+	promptIDs := map[string]bool{}
 	for {
 		r, e = ch.Read()
 		c.life.Lock()
@@ -196,6 +206,29 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 		if e != nil || changed || r.ID != id || r.Session != session {
 			c.Kill()
 			return errors.New("secure child session ended")
+		}
+		if r.Method == "prompt" {
+			p, promptError := uiprompt.DecodePrompt(r.Body)
+			if promptError != nil || r.Error != "" || promptIDs[p.ID] || len(promptIDs) >= 64 || c.OnPrompt == nil {
+				c.Kill()
+				return errors.New("invalid secure child prompt")
+			}
+			promptIDs[p.ID] = true
+			c.life.Lock()
+			if c.generation != generation || c.prompt != nil || c.seenPrompts[p.ID] || len(c.seenPrompts) >= 100000 {
+				c.life.Unlock()
+				c.Kill()
+				return errors.New("secure child session ended")
+			}
+			c.prompt, c.promptRequest, c.promptSession, c.promptGeneration = &p, id, session, generation
+			c.seenPrompts[p.ID] = true
+			c.life.Unlock()
+			if err := c.OnPrompt(r.Body); err != nil {
+				c.Kill()
+				return errors.New("secure prompt unavailable")
+			}
+			clear(r.Body)
+			continue
 		}
 		if r.Method != "activity" {
 			if r.Method != method {
@@ -220,6 +253,13 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 			c.OnActivity()
 		}
 	}
+	c.life.Lock()
+	unanswered := c.prompt != nil
+	c.life.Unlock()
+	if unanswered {
+		c.Kill()
+		return errors.New("secure prompt was not answered")
+	}
 	if r.Error != "" {
 		return ipc.NewRequestError(r.Error)
 	}
@@ -228,10 +268,37 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 	}
 	return nil
 }
+
+// ReplyPrompt deliberately does not take mu: Call is waiting for this answer.
+// Consume the capability before writing so replay and competing replies fail.
+// Never hold life across a pipe write; Kill must remain able to cancel it.
+func (c *Child) ReplyPrompt(raw json.RawMessage) error {
+	c.life.Lock()
+	if c.prompt == nil || c.promptGeneration != c.generation || c.channel == nil {
+		c.life.Unlock()
+		return errors.New("no active secure prompt")
+	}
+	if _, err := uiprompt.DecodeReply(raw, *c.prompt); err != nil {
+		c.life.Unlock()
+		return err
+	}
+	ch, id, session := c.channel, c.promptRequest, c.promptSession
+	c.prompt = nil
+	c.promptRequest, c.promptSession = "", ""
+	c.life.Unlock()
+	if err := ch.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: "promptReply", Body: raw}); err != nil {
+		c.Kill()
+		return errors.New("secure prompt unavailable")
+	}
+	return nil
+}
 func (c *Child) Kill() {
 	c.life.Lock()
 	defer c.life.Unlock()
 	c.generation++
+	c.prompt = nil
+	c.promptRequest, c.promptSession = "", ""
+	c.seenPrompts = nil
 	if c.cmd != nil {
 		cmd := c.cmd
 		c.owner.kill(cmd)

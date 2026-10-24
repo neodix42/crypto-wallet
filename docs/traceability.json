@@ -41,8 +41,8 @@
     {
       "id": "INV-01-secret-boundary",
       "status": "PASS",
-      "evidence": "Current strict public API/snapshot schemas, 68 frontend tests, surface enumeration, 14 native tests and phrase-recovery public IPC/log/file canary checks; phrase appears only in native Go setup",
-      "remaining": "Complete clean-OS leakage campaign and independent review retain their own NOT_RUN gates",
+      "evidence": "Owner-authorized isolated Electron prompt path; normal portfolio/snapshots stay secret-free;95 frontend tests, typed protocol and current ordinary-IPC/log/file canary checks",
+      "remaining": "Electron main/prompt and coordinator are now trusted with transient secrets; independent review and full crash/OS campaign NOT_RUN",
       "previousEvidence": "Engine/snapshot/publicJSON/surface-check/frontend strict schema; native-only input tests"
     },
     {
@@ -66,8 +66,8 @@
     {
       "id": "INV-05-exact-approval",
       "status": "PASS",
-      "evidence": "Current all-profile recorded-phrase eligibility checked at receive/preparation/signing and native approval/reauthentication boundaries; callback lock/root-replacement tests and 12 semantic mutants PASS",
-      "remaining": "",
+      "evidence": "Go-authored isolated Electron approval bound to exact plans/session; Go password/word checks; strict one-use prompt capabilities, locked/root replacement regressions and14 mutants PASS",
+      "remaining": "Compromised trusted prompt/main can spoof the display; no independent hardware/Go window remains",
       "previousEvidence": "Changed recipient/amount/network/fee/nonce/memo/contracts/outputs fail chain validators and approval digest; current mainnet verified-backup eligibility rechecked before approval, after confirmation and after reauthentication; revocation and critical mutant regressions pass"
     },
     {
@@ -85,8 +85,8 @@
     {
       "id": "INV-08-address-recovery",
       "status": "PASS",
-      "evidence": "Current random 12/24-word unit restoration and independent copied-app native recovery: all nine mainnet domains at indices0/1/127 with same/different app passwords and restart",
-      "remaining": "Physical second-machine and full clean-OS matrix NOT_RUN; phrase does not encode installation metadata",
+      "evidence": "Real prompt-protocol recovery in3freshinstallationcopies: all9mainnetdomains\u00d7indices0/1/127 (27descriptors), same/different apppasswords and restart; installedElectronphrase restorationPASS",
+      "remaining": "Separate physical machines/fullOS NOT_RUN; metadata limitations retained",
       "previousEvidence": "Independent profiles, password-preserving addresses and all-family verified encrypted backup rederive"
     },
     {
@@ -116,8 +116,8 @@
     {
       "id": "S-02",
       "status": "NOT_RUN",
-      "evidence": "Isolated Go native credential input and secret-only engine; no JS input/export; buffer clearing tests",
-      "remaining": "Go/C/OS copies cannot be guaranteed erased; same-user malware/OS outside boundary"
+      "evidence": "Go-only derivation/signing; owner-authorized Electron prompt credentials/phrase transport, Go core/signer dump protection and DOM clearing",
+      "remaining": "Trusted Electron/coordinator compromise, runtime copies and post-exec Electron/host crash extraction remain limitations; independent review NOT_RUN"
     },
     {
       "id": "S-03",
@@ -170,20 +170,20 @@
     {
       "id": "TP-010",
       "status": "PASS",
-      "evidence": "reports/go-coverage.json: frozen source-hashed 22/22 shipped package floors PASS; 14 real native tests PASS; all five shipped JS files100% statements, critical four100% branches and renderer97.98%; full block index in docs/COVERAGE.md",
-      "remaining": "Coverage is statement instrumentation for Go, not a cryptographic audit; C/GTK/third-party code remains unmeasured"
+      "evidence": "Current149source/test/modulehashes,23measuredfloors including22shipped+legacyGTK,193uncoveredblocks; all8shippedJS100%statements, main98.4/portfolio97.98branch; criticalprompt95/90",
+      "remaining": "Go statements are not branches; third-party/C/Chromium and external acceptance remain separate"
     },
     {
       "id": "TP-011",
       "status": "PASS",
-      "evidence": "Current reports/mutation.json:12/12 semantic mutants killed, including recovery gate and recorded-word confirmation; full Go race suite, vet and workflow actionlint PASS",
-      "remaining": "Existing dependency/vulnerability reports retain their recorded scope; external audit NOT_RUN"
+      "evidence": "14/14semanticmutants killed including prompt identity and word proof; fullGo race/vet/workflowlint/dependencychecksPASS",
+      "remaining": "One uncalled required-module advisory; independent external audit NOT_RUN"
     },
     {
       "id": "TP-012",
       "status": "PASS",
-      "evidence": "reports/fuzz.json:13 bounded3s campaigns; Go test corpus replay and retained regressions; no panic/failure",
-      "remaining": "Longer scheduled campaigns remain NOT_RUN; short campaigns are not exhaustive"
+      "evidence": "14bounded3s fuzz campaigns including typedprompt/reply decoder plus retained corpus; no failure",
+      "remaining": "Longer scheduled campaigns NOT_RUN"
     },
     {
       "id": "TP-020",
@@ -218,22 +218,22 @@
     {
       "id": "TP-032",
       "status": "PASS",
-      "evidence": "Current native password-to-random-phrase setup and three independent installation recovery copies reproduce27 descriptors, restart locked and preserve identities with same/different app passwords; packaged phrase restore PASS",
-      "remaining": "Separate physical-machine/full supported-OS matrix NOT_RUN",
+      "evidence": "Headless real Go prompt recovery6checks/3copies/27descriptors and actual installedElectron20checks; same/different password, wrongwords,pendingresume,legacygates,restart",
+      "remaining": "Installedsending,physicalsecondmachine/fullOSmatrix NOT_RUN",
       "previousEvidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented portable generated-root and phrase-import fresh-profile recovery PASS"
     },
     {
       "id": "TP-033",
       "status": "PASS",
-      "evidence": "Removed encrypted-file backup/restore and secret reveal/export IPC; strict confirmRecovery:{} API, masked native-only import/challenge and nonselectable recording window; component, native and installed checks PASS",
-      "remaining": "Trusted OS/display can observe native phrase pixels; clearing does not prove erasure of every external copy",
+      "evidence": "Owner-approved dedicated Electron prompt origin/preload/session; Go authors prompts and verifies words, passwords and plans; ordinary portfolio has no prompt API, secrets/keys absent snapshots",
+      "remaining": "Transient phrase/credential IPC now explicitly allowed only for prompts; Electron/Go runtime erasure and host dumps not guaranteed",
       "previousEvidence": "surface-check.py; Electron public schema/menus/routes tests; actual masked native input; no reveal/export endpoint"
     },
     {
       "id": "TP-040",
       "status": "NOT_RUN",
-      "evidence": "Current tested synthetic password/phrase plaintext/hex/base64 canary checks across public IPC, persisted profile files and process logs; signer secret/snapshot and native clearing tests PASS",
-      "remaining": "Complete every-encoding/process/env/network/crash path installed campaign is not established by this session"
+      "evidence": "Current synthetic password/phrase plaintext/hex/base64 canaries absent ordinary public IPC, logs and persisted files; approved secret prompt path excluded deliberately",
+      "remaining": "Complete process/crash/encoding/network campaign and post-exec Electron non-dumpability remain unestablished"
     },
     {
       "id": "TP-041",
@@ -250,7 +250,7 @@
     {
       "id": "TP-043",
       "status": "NOT_RUN",
-      "evidence": "Epoch/generation/queued-work/dialog/signing/persistence race tests; actual X11 native key/button activity; Electron OS callback and cache clearing tests PASS; actual native XTest5m12s campaignPASS in reports/native-input-long.json",
+      "evidence": "Current epoch/generation/prompt capability/Go race tests and Electron OS event/cleanup component tests PASS; preceding GTK5minute tests historical only",
       "remaining": "Current-candidate full real OS screen lock/logout/suspend and Wayland acceptance NOT_RUN; preceding scoped long native-typing runs do not certify that complete lifecycle matrix"
     },
     {
@@ -286,8 +286,8 @@
     {
       "id": "TP-070",
       "status": "NOT_RUN",
-      "evidence": "Current Ubuntu26.04 private X11 installed desktop20-step native phrase setup/import/restart/fresh restore PASS; historical portable container sandbox probes BLOCKED",
-      "remaining": "Clean Ubuntu24.04/26.04 x X11/Wayland full flows/upgrade/uninstall matrix NOT_RUN; container Chromium sandbox obstacles BLOCKED"
+      "evidence": "Current Ubuntu26.04/privateX11 installedElectron20checksPASS; default12wordactualGUI plus all5lengthsDOMtests",
+      "remaining": "CleanUbuntu24.04/26.04\u00d7X11/Waylandlock/suspend/upgrade/fullflowmatrix andinstalledsending NOT_RUN; priorcontainer sandbox obstacles BLOCKED"
     },
     {
       "id": "TP-071",
@@ -316,8 +316,8 @@
     {
       "id": "UX-WALLET-TABS",
       "status": "PASS",
-      "evidence": "Current68 frontend tests and20-step installed drill: account/wallet tabs, table rows/native balances, one-line public addresses/native copy, selected-wallet Send/Receive, Settings journal and stale-response tests",
-      "remaining": "Full supported OS/display matrix NOT_RUN"
+      "evidence": "Current95frontendtests/20installedchecks; tables/balances/copy, wallet/accounttabs, on-demandSend, isolatedElectronReceiveQR,Settingsjournal andstale/locktests",
+      "remaining": "FullsupportedOSmatrix NOT_RUN"
     },
     {
       "id": "OPS-MAINNET-CONNECTIVITY",
@@ -328,8 +328,20 @@
     {
       "id": "INV-12-native-recorded-phrase",
       "status": "PASS",
-      "evidence": "Durable pending root, masked recorded-word challenge, password-reauthenticated resumption, legacy flag denied, widget/buffer clearing, current native and copied-app checks PASS",
-      "remaining": "Transcription challenge cannot establish physical backup quality; OS/display compromise and whole-directory rollback remain limitations"
+      "evidence": "Stable requirement ID retained; current policy uses isolated Electron recording and masked replies with actual Go word verification, durable pending root and password-reauthenticated resume",
+      "remaining": "Go-only window policy superseded by owner; trusted Electron compromise and runtime copies remain limitations"
+    },
+    {
+      "id": "INV-13-electron-prompt-scope",
+      "status": "PASS",
+      "evidence": "95frontendtests and Go supervisor/core/protocol adversarial tests reject wrongwindow/frame/origin, stale/replayed/unsolicited/wrongkind/duplicate prompt replies",
+      "remaining": "Independentreview/fullrealOS acceptance NOT_RUN"
+    },
+    {
+      "id": "INV-14-coordinator-memory",
+      "status": "PASS",
+      "evidence": "Core startup sets and self-checks RLIMIT_CORE soft/hard0 and non-dumpable0; owned subprocess tests prove loopback connectivity and fail-closed protection/startup errors",
+      "remaining": "Independentreview/fullrealOS acceptance NOT_RUN"
     }
   ]
 }

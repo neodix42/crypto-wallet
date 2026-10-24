@@ -1,0 +1,60 @@
+./scripts/build.sh
+Building LocalWallet Go components 0.1.0 with go version go1.27.3 linux/amd64
+Compiling wallet-core...
+Compiling wallet-signer...
+Compiling wallet-launcher...
+Build complete: bin/wallet-core, bin/wallet-signer, bin/wallet-launcher.
+These are Go components; the desktop interface is built separately with make build-desktop (no Debian package).
+./scripts/with-go.sh python3 scripts/phrase-recovery.py
+PASS Headless Go backend persists a random root and rejects wrong recorded words through typed Electron prompts
+PASS Password reauthentication and correct words enable all nine networks at indices0,1,127
+PASS Fresh independent installation restores all27 descriptors using only specified password and recorded phrase
+PASS Recovered installation starts locked and unlocks to the same wallets
+PASS Different local app password preserves every recovered wallet identity
+PASS Ordinary public-data IPC, persisted files and process logs contain no tested secret canaries
+{
+  "status": "PASS",
+  "scope": "Recover disposable Go-generated wallets through the Electron prompt protocol.\n\nThree independent installations, homes and processes share only the recorded\nphrase in test memory. This is a headless protocol integration; the separate\npackaged drill operates the actual Electron dialogs. No original vault, keyring,\nuser secret, secret screenshot, or mainnet payment is used.\n",
+  "steps": [
+    {
+      "name": "Headless Go backend persists a random root and rejects wrong recorded words through typed Electron prompts",
+      "status": "PASS"
+    },
+    {
+      "name": "Password reauthentication and correct words enable all nine networks at indices0,1,127",
+      "status": "PASS"
+    },
+    {
+      "name": "Fresh independent installation restores all27 descriptors using only specified password and recorded phrase",
+      "status": "PASS"
+    },
+    {
+      "name": "Recovered installation starts locked and unlocks to the same wallets",
+      "status": "PASS"
+    },
+    {
+      "name": "Different local app password preserves every recovered wallet identity",
+      "status": "PASS"
+    },
+    {
+      "name": "Ordinary public-data IPC, persisted files and process logs contain no tested secret canaries",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "Separate physical machines",
+    "Full supported OS/Wayland matrix",
+    "Funded transactions"
+  ],
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
+      "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
+      "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
+    }
+  },
+  "walletsCompared": 27,
+  "walletDescriptorsSHA256": "ed831a6a231368b57d3a9a14f601bf4228e0fe36d664e7a63f167d275142fd58",
+  "promptTransportException": "Transient recovery phrase to isolated Electron dialog; input-only passwords/phrase/challenge replies to Go. Never snapshots/logs/files/network."
+}

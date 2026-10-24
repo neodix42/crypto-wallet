@@ -7,7 +7,7 @@
 </head>
 <body>
 <header>
-  <div><strong>LocalWallet</strong><small>Local custody · Go signer</small><small id="version">Version loading…</small></div>
+  <div><strong>LocalWallet</strong><small>Encrypted on this device</small><small id="version">Version loading…</small></div>
   <span id="profile" class="profile-badge" data-environment="unknown">Checking network profile…</span>
   <a id="release-link" class="release-status" href="#release-status">Release status: development; verification outstanding</a>
   <div class="header-actions"><button id="lock" disabled>Lock wallet</button><button id="settings" aria-haspopup="dialog" aria-controls="settingsdialog" aria-expanded="false">⚙ Settings</button></div>
@@ -22,11 +22,11 @@
       <button id="onboardcreate" class="primary" hidden>Create app password &amp; wallet</button>
       <button id="onboardrestore" hidden>Restore from recovery phrase</button>
       <button id="onboardunlock" class="primary" hidden>Unlock wallet</button><button id="onboardretry" hidden>Retry storage check</button>
-      <p class="recovery-note">After choosing your app password, write down the recovery phrase shown only in the native Go window and confirm the requested words. Your phrase restores the same wallets on another device; the app password encrypts this device’s storage.</p>
+      <p class="recovery-note">After choosing your app password, write down the recovery phrase shown in the recovery dialog and confirm the requested words. Your phrase restores the same wallets on another device; the app password encrypts this device’s storage.</p>
     </div>
     <div id="walletcontent" hidden>
       <div class="overview-heading"><div><h1>Your wallets</h1><p>One shared root. Separate wallets for each network.</p></div><span id="recoverystatus">Recovery phrase setup required</span></div>
-      <div id="recoverycallout" class="recovery-callout" role="status" hidden><div><strong>Write down your recovery phrase</strong><p>Finish recording your phrase in the native Go window, then confirm the requested words to enable receiving and sending.</p></div><button id="recoverycontinue">Finish recovery phrase setup</button></div>
+      <div id="recoverycallout" class="recovery-callout" role="status" hidden><div><strong>Write down your recovery phrase</strong><p>Finish recording your phrase in the recovery dialog, then confirm the requested words to enable receiving and sending.</p></div><button id="recoverycontinue">Finish recovery phrase setup</button></div>
       <div id="viewtabs" class="viewtabs" role="tablist" aria-label="Accounts and open wallets"></div>
       <div id="accountoverview" role="tabpanel">
       <button id="refreshbalances">Refresh balances</button><p id="overviewbalancestatus">Balances are queried once per visible wallet. Refresh explicitly for new network data.</p>
@@ -48,12 +48,12 @@
       <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div><button id="scan">Scan local QR image</button>
         <div id="sendrecoverynotice" class="recovery-callout" hidden><p>Record your recovery phrase and confirm the requested words before preparing this payment. Your recipient and amount stay in this form.</p><button id="sendrecovery">Finish recovery phrase setup</button></div>
         <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Exact decimal amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
-        <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Confirm in native signer</button></div><pre id="preview">No payment prepared.</pre>
+        <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Review & confirm payment</button></div><pre id="preview">No payment prepared.</pre>
       </div>
       <details><summary>Network details &amp; public diagnostics</summary>
         <div id="associationcontrols" hidden><label>Named or rotated account address <input id="associateaddress" autocomplete="off" spellcheck="false"></label><button id="associate">Associate named / rotated account</button></div>
         <div id="dcrdiscoverycontrols" hidden>
-        <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings in Go</button></div><pre id="diagnostics">Locked</pre>
+        <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings</button></div><pre id="diagnostics">Locked</pre>
       </details>
 
       </div>
@@ -86,14 +86,14 @@
         <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
     </div>
-    <hr><p>Passwords and recovery phrases are entered or displayed only in the separate native Go window.</p>
+    <hr><p>Passwords and recovery phrases use dedicated wallet dialogs. Keep your recovery phrase offline and private.</p>
     <p>Keep your written recovery phrase offline. It recreates canonical accounts; named or rotated account associations and historical discovery state may require additional recovery steps. The app password protects local storage and does not change your addresses.</p>
   </section>
 </div>
 <div id="receiverecoverydialog" class="modal-backdrop" hidden>
   <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="receiverecoverytitle" tabindex="-1">
     <div class="settings-heading"><h2 id="receiverecoverytitle">Finish recovery phrase setup</h2><button id="closereceiverecovery">Cancel</button></div>
-    <p id="receiverecoverycontext"></p><p>Write down your recovery phrase in the native Go window and confirm the requested words. Once complete, the Go signer opens this wallet’s verified address and QR code. Keep the phrase offline and never share it.</p>
+    <p id="receiverecoverycontext"></p><p>Write down your recovery phrase in the recovery dialog and confirm the requested words. Once complete, this wallet’s verified address and QR code will open. Keep the phrase offline and never share it.</p>
     <button id="receiverecovery" class="primary">Finish recovery phrase setup</button>
   </section>
 </div>

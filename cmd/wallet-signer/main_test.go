@@ -17,17 +17,12 @@ import (
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
-	"localwallet/internal/secureui"
 	"localwallet/internal/signer"
 	"localwallet/internal/vault"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -38,34 +33,6 @@ import (
 const publicPassword = "PUBLIC-TEST-ONLY-storage-password-31954"
 const publicNewPassword = "PUBLIC-TEST-ONLY-replacement-password-97124"
 const publicPhrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-
-var signerTestDisplay string
-var signerTestXvfb *exec.Cmd
-
-func TestMain(m *testing.M) {
-	code := m.Run()
-	if signerTestXvfb != nil {
-		_ = signerTestXvfb.Process.Signal(syscall.SIGTERM)
-		waited := make(chan struct{})
-		go func() { _ = signerTestXvfb.Wait(); close(waited) }()
-		select {
-		case <-waited:
-		case <-time.After(3 * time.Second):
-			_ = signerTestXvfb.Process.Kill()
-			<-waited
-		}
-		// SIGTERM normally removes both entries. If forced termination was
-		// necessary, remove leftovers only while the lock still identifies the
-		// exact child we have now reaped. Never touch an unrelated/live display.
-		number := strings.TrimPrefix(signerTestDisplay, ":")
-		lock := "/tmp/.X" + number + "-lock"
-		if data, err := os.ReadFile(lock); err == nil && strings.TrimSpace(string(data)) == strconv.Itoa(signerTestXvfb.Process.Pid) {
-			_ = os.Remove("/tmp/.X11-unix/X" + number)
-			_ = os.Remove(lock)
-		}
-	}
-	os.Exit(code)
-}
 
 type dispatchUI struct {
 	inputs                                                           [][][]byte
@@ -663,287 +630,44 @@ func TestSignerStartupExitHelper(t *testing.T) {
 	main()
 	os.Exit(0)
 }
-func TestSignerRejectsInvalidStartupEnvironmentAndDisplay(t *testing.T) {
+func TestSignerRejectsInvalidEnvironmentAndStartsWithoutDisplay(t *testing.T) {
 	for _, tc := range []struct {
 		mode string
 		code int
-	}{{"environment", 2}, {"display", 4}} {
+	}{{"environment", 2}, {"display", 0}} {
 		t.Run(tc.mode, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestSignerStartupExitHelper$")
 			cmd.Env = append(os.Environ(), "LOCALWALLET_SIGNER_TEST_HELPER="+tc.mode, "LOCALWALLET_SIGNER_TEST_DIR="+filepath.Join(t.TempDir(), "profile"), "DISPLAY=", "WAYLAND_DISPLAY=", "GDK_BACKEND=x11")
 			out, err := cmd.CombinedOutput()
 			var exit *exec.ExitError
-			if !errors.As(err, &exit) || exit.ExitCode() != tc.code {
+			if (tc.code == 0 && err != nil) || (tc.code != 0 && (!errors.As(err, &exit) || exit.ExitCode() != tc.code)) {
 				t.Fatalf("startup %s exit mismatch: %v (%q)", tc.mode, err, out)
 			}
 		})
 	}
 }
 
-func privateSignerDisplay(t *testing.T) {
-	t.Helper()
-	if strings.HasPrefix(os.Getenv("DISPLAY"), ":18") {
-		t.Setenv("WAYLAND_DISPLAY", "")
-		t.Setenv("GDK_BACKEND", "x11")
-		t.Setenv("XDG_RUNTIME_DIR", "")
-		t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
-		return
-	}
-	if signerTestDisplay != "" {
-		t.Setenv("DISPLAY", signerTestDisplay)
-		t.Setenv("WAYLAND_DISPLAY", "")
-		t.Setenv("GDK_BACKEND", "x11")
-		t.Setenv("XDG_RUNTIME_DIR", "")
-		t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
-		return
-	}
-	server, _ := exec.LookPath("Xvfb")
-	_, source, _, _ := runtime.Caller(0)
-	root := filepath.Join(filepath.Dir(source), "..", "..")
-	local := filepath.Join(root, ".tools", "xvfb", "root", "usr", "bin", "Xvfb")
-	if server == "" {
-		if st, err := os.Stat(local); err == nil && st.Mode().IsRegular() {
-			server = local
-		}
-	}
-	if server == "" {
-		t.Skip("NOT_RUN: isolated signer startup requires test-only Xvfb")
-	}
-	for n := 189; n >= 180; n-- {
-		socket := fmt.Sprintf("/tmp/.X11-unix/X%d", n)
-		if _, err := os.Lstat(socket); !errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if _, err := os.Lstat(fmt.Sprintf("/tmp/.X%d-lock", n)); !errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		display := fmt.Sprintf(":%d", n)
-		cmd := exec.Command(server, display, "-screen", "0", "1280x1024x24", "-nolisten", "tcp")
-		cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH="+filepath.Join(root, ".tools", "xvfb", "root", "usr", "lib", "x86_64-linux-gnu")+":"+os.Getenv("LD_LIBRARY_PATH"))
-		var output bytes.Buffer
-		cmd.Stdout, cmd.Stderr = &output, &output
-		if err := cmd.Start(); err != nil {
-			t.Fatalf("BLOCKED: private Xvfb startup: %v", err)
-		}
-		signerTestXvfb = cmd
-		for start := time.Now(); time.Since(start) < 5*time.Second; {
-			if _, err := os.Stat(socket); err == nil {
-				signerTestDisplay = display
-				t.Setenv("DISPLAY", display)
-				t.Setenv("WAYLAND_DISPLAY", "")
-				t.Setenv("GDK_BACKEND", "x11")
-				t.Setenv("XDG_RUNTIME_DIR", "")
-				t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
-				return
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		t.Fatal("BLOCKED: private Xvfb did not become ready")
-	}
-	t.Fatal("BLOCKED: no unused private :18x Xvfb display")
-}
-
-type countedFailedWriter struct {
-	calls int
-	err   error
-}
-
-func (w *countedFailedWriter) Write([]byte) (int, error) { w.calls++; return 0, w.err }
-
-func TestRespondNativeActivityIsCorrelatedValueFreeAndCleared(t *testing.T) {
-	privateSignerDisplay(t)
-	if err := secureui.Init(); err != nil {
-		runtime.UnlockOSThread()
-		t.Fatalf("BLOCKED: native GTK initialization: %v", err)
-	}
-	defer runtime.UnlockOSThread()
-	_, source, _, _ := runtime.Caller(0)
-	module := filepath.Join(filepath.Dir(source), "..", "..", "tests", "e2e")
-	const script = `import ctypes as C,sys,time
-sys.path.insert(0,sys.argv[1])
-from x11 import Desktop,X
-d=Desktop(sys.argv[2].encode());w=d.wait(sys.argv[3])[0]
-X.XSetInputFocus.argtypes=[C.c_void_p,C.c_ulong,C.c_int,C.c_ulong]
-X.XSetInputFocus(d.d,w,2,0);X.XFlush(d.d)
-d.key('a');time.sleep(1.1);d.key('b');d.key('Escape')
-`
-	drive := func(title string) func() {
-		cmd := exec.Command("/usr/bin/python3", "-c", script, module, os.Getenv("DISPLAY"), title)
-		var output bytes.Buffer
-		cmd.Stdout, cmd.Stderr = &output, &output
-		if err := cmd.Start(); err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { _ = cmd.Process.Kill() })
-		return func() {
-			if err := cmd.Wait(); err != nil {
-				t.Fatalf("BLOCKED: actual private X11 input failed: %v: %s", err, output.String())
-			}
-		}
-	}
-	m := request("sign", map[string]string{"id": "public-activity-operation"})
-	var wire bytes.Buffer
-	wait := drive("TEST signer response public activity")
-	if err := respond(&ipc.Channel{W: &wire}, m, func() (json.RawMessage, error) {
-		if secureui.Confirm("TEST signer response public activity", "Public fixture: no credentials or transaction submission") {
-			t.Error("X11 cancellation unexpectedly approved")
-		}
-		return []byte(`{"password":"PUBLIC-redacted-output"}`), errors.New("PUBLIC-redacted-error")
-	}); err != nil {
-		t.Fatal(err)
-	}
-	wait()
-	r := ipc.Channel{R: bytes.NewReader(wire.Bytes())}
-	activities := 0
-	for {
-		frame, err := r.Read()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		if frame.ID != m.ID || frame.Session != m.Session {
-			t.Fatal("native activity escaped request correlation")
-		}
-		if frame.Method == "activity" {
-			activities++
-			if string(frame.Body) != "{}" || frame.Error != "" {
-				t.Fatal("native input values appeared in activity frame")
-			}
-		} else if frame.Method != m.Method || frame.Error != "REQUEST_DENIED" || string(frame.Body) != "null" {
-			t.Fatal("final native response was not sanitized")
-		}
-	}
-	if activities < 2 || bytes.Contains(wire.Bytes(), []byte("PUBLIC-redacted")) {
-		t.Fatal("real key activity missing or private denial leaked")
-	}
-	before := wire.Len()
-	wait = drive("TEST signer response after cleanup")
-	_ = secureui.Confirm("TEST signer response after cleanup", "No pending IPC request")
-	wait()
-	if wire.Len() != before {
-		t.Fatal("native activity callback survived final response")
-	}
-	sentinel := errors.New("PUBLIC-activity-pipe-failure")
-	writer := &countedFailedWriter{err: sentinel}
-	wait = drive("TEST signer response broken private pipe")
-	err := respond(&ipc.Channel{W: writer}, m, func() (json.RawMessage, error) {
-		_ = secureui.Confirm("TEST signer response broken private pipe", "Public activity pipe failure fixture")
-		return []byte(`{}`), nil
-	})
-	wait()
-	if !errors.Is(err, sentinel) || writer.calls != 1 {
-		t.Fatal("activity write failure retried or followed by final response")
-	}
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Fatal("missing public test panic")
-			}
-		}()
-		_ = respond(&ipc.Channel{W: &wire}, m, func() (json.RawMessage, error) { panic("PUBLIC-test-panic") })
-	}()
-	before = wire.Len()
-	wait = drive("TEST signer response after panic")
-	_ = secureui.Confirm("TEST signer response after panic", "No pending IPC request")
-	wait()
-	if wire.Len() != before || writer.calls != 1 {
-		t.Fatal("native activity callback survived panic/error cleanup")
-	}
-}
-
-type observedSignerReader struct {
-	r               io.Reader
-	read, threshold int
-	reached         chan struct{}
-	once            sync.Once
-}
-
-func (r *observedSignerReader) Read(p []byte) (int, error) {
-	n, err := r.r.Read(p)
-	r.read += n
-	if r.read >= r.threshold {
-		r.once.Do(func() { close(r.reached) })
-	}
-	return n, err
-}
-
-type blockedSignerWriter struct {
-	ready <-chan struct{}
-	err   error
-}
-
-func (w blockedSignerWriter) Write([]byte) (int, error) {
-	select {
-	case <-w.ready:
-		return 0, w.err
-	case <-time.After(3 * time.Second):
-		return 0, errors.New("bounded reader did not reach fixture")
-	}
-}
-func TestServePumpsNativeEventsWhileIdleAndBoundsReaderAhead(t *testing.T) {
-	privateSignerDisplay(t)
-	if err := secureui.Init(); err != nil {
-		runtime.UnlockOSThread()
-		t.Fatalf("BLOCKED: native GTK initialization: %v", err)
-	}
-	defer runtime.UnlockOSThread()
+func TestServeHandlesIdleEOFAndFramedRepliesWithoutDisplay(t *testing.T) {
 	e, _ := dispatchEngine(t, "testnet", false)
-	var source bytes.Buffer
-	encoder := ipc.Channel{W: &source}
-	if err := encoder.Write(request("snapshot", struct{}{})); err != nil {
+	var input, output bytes.Buffer
+	enc := ipc.Channel{W: &input}
+	if err := enc.Write(request("snapshot", struct{}{})); err != nil {
 		t.Fatal(err)
 	}
-	r, w := io.Pipe()
-	defer r.Close()
-	written := make(chan error, 1)
-	go func() {
-		time.Sleep(75 * time.Millisecond)
-		_, err := w.Write(source.Bytes())
-		_ = w.Close()
-		written <- err
-	}()
-	var output bytes.Buffer
-	serve(&ipc.Channel{R: r, W: &output}, e, "testnet")
-	if err := <-written; err != nil {
-		t.Fatal(err)
-	}
-	decoder := ipc.Channel{R: &output}
-	got, err := decoder.Read()
+	serve(&ipc.Channel{R: &input, W: &output}, e, "testnet")
+	dec := ipc.Channel{R: &output}
+	got, err := dec.Read()
 	if err != nil || got.Method != "snapshot" || !bytes.Contains(got.Body, []byte(`"locked":true`)) {
-		t.Fatal("idle native pump interrupted framed IPC")
+		t.Fatal("headless signer failed bounded request", err)
 	}
-	if _, err = decoder.Read(); !errors.Is(err, io.EOF) {
-		t.Fatal("idle native pump generated spurious activity")
+	if _, err = dec.Read(); !errors.Is(err, io.EOF) {
+		t.Fatal("unexpected extra prompt/response")
 	}
-	// Block the first response until two further complete frames are read.
-	// The second request occupies the sole queue slot; the third reader send
-	// must then stop on done after the first response's deliberate pipe error.
-	var ahead bytes.Buffer
-	enc := ipc.Channel{W: &ahead}
-	for i := 0; i < 3; i++ {
-		m := request("snapshot", struct{}{})
-		m.ID = fmt.Sprintf("bounded-%d", i)
-		if err := enc.Write(m); err != nil {
-			t.Fatal(err)
-		}
-	}
-	reached := make(chan struct{})
-	observed := &observedSignerReader{r: bytes.NewReader(ahead.Bytes()), threshold: ahead.Len(), reached: reached}
-	serve(&ipc.Channel{R: observed, W: blockedSignerWriter{ready: reached, err: errors.New("PUBLIC-deliberate-private-pipe-close")}}, e, "testnet")
-	select {
-	case <-reached:
-	case <-time.After(time.Second):
-		t.Fatal("reader did not respect the bounded fixture")
-	}
-	time.Sleep(20 * time.Millisecond)
 }
 
-func TestZZSignerMainUsesRealIsolationNativeInitAndBoundedIPC(t *testing.T) {
+func TestZZSignerMainUsesRealIsolationAndBoundedIPCWithoutDisplay(t *testing.T) {
 	// This test intentionally installs process-wide isolation. Keep it last and
 	// never use a desktop user's display. CI provides a dedicated :18x Xvfb.
-	privateSignerDisplay(t)
 	previousArgs, previousFlags, previousIn, previousOut := os.Args, flag.CommandLine, os.Stdin, os.Stdout
 	defer func() {
 		os.Args = previousArgs
@@ -1001,10 +725,8 @@ func TestZZSignerMainUsesRealIsolationNativeInitAndBoundedIPC(t *testing.T) {
 			os.Stdin, os.Stdout = in, out
 			flag.CommandLine = flag.NewFlagSet("wallet-signer", flag.ContinueOnError)
 			os.Args = []string{"wallet-signer", "-data", filepath.Join(t.TempDir(), "profile"), "-environment", "testnet"}
-			// main and secureui.Init each lock the current OS thread.
+			// The signer needs no native display or GUI event loop.
 			main()
-			runtime.UnlockOSThread()
-			runtime.UnlockOSThread()
 			if tc.closedOutput {
 				return
 			}
@@ -1033,5 +755,4 @@ func TestZZSignerMainUsesRealIsolationNativeInitAndBoundedIPC(t *testing.T) {
 			}
 		})
 	}
-	secureui.SetActivity(nil)
 }

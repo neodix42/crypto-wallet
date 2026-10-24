@@ -1,45 +1,46 @@
 {
   "status": "PASS",
-  "scope": "Restore a disposable generated phrase in isolated copies of shipped Go apps.\n\nThree installation trees, HOME/config directories, core/signer processes and vaults\nshare only a phrase entered through native GUI input. No wallet file, keyring or\nmachine-specific state is copied. This simulates a new machine; actual separate\nhardware and the full supported-OS matrix retain their own NOT_RUN status.\n",
+  "scope": "Recover disposable Go-generated wallets through the Electron prompt protocol.\n\nThree independent installations, homes and processes share only the recorded\nphrase in test memory. This is a headless protocol integration; the separate\npackaged drill operates the actual Electron dialogs. No original vault, keyring,\nuser secret, secret screenshot, or mainnet payment is used.\n",
   "steps": [
     {
-      "name": "Fresh generated root persists encrypted before confirmation; incorrect recorded words leave recovery pending",
+      "name": "Headless Go backend persists a random root and rejects wrong recorded words through typed Electron prompts",
       "status": "PASS"
     },
     {
-      "name": "Native phrase confirmation enables all nine mainnet wallets and account indices0,1,127 without file backup",
+      "name": "Password reauthentication and correct words enable all nine networks at indices0,1,127",
       "status": "PASS"
     },
     {
-      "name": "Independent fresh installation restores all27 exact public wallet descriptors using only the same app password and recorded phrase",
+      "name": "Fresh independent installation restores all27 descriptors using only specified password and recorded phrase",
       "status": "PASS"
     },
     {
-      "name": "Fresh restored installation restarts locked and unlocks to identical wallets",
+      "name": "Recovered installation starts locked and unlocks to the same wallets",
       "status": "PASS"
     },
     {
-      "name": "A different app storage password restores the same wallets; password is independent of BIP39 key derivation",
+      "name": "Different local app password preserves every recovered wallet identity",
       "status": "PASS"
     },
     {
-      "name": "Public IPC, persisted files and process logs contain none of the tested plaintext/hex/base64 secret canaries",
+      "name": "Ordinary public-data IPC, persisted files and process logs contain no tested secret canaries",
       "status": "PASS"
     }
   ],
   "notRun": [
     "Separate physical machines",
-    "Full clean Ubuntu X11/Wayland lifecycle matrix",
+    "Full supported OS/Wayland matrix",
     "Funded transactions"
   ],
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "1111dbfadb696f1f60de871cee427bdedb303acb91c6922f5cf475e1ceb0caee",
-      "wallet-launcher": "69cf422fc21b4c524ee952f0d30e90ea0b1d6921394e9fbb685d9dbeb5a0873d",
-      "wallet-signer": "bd4337cb0b54474ea9712deb466048a90dda3d92dd9e1b7c61a27284e5c78350"
+      "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
+      "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
+      "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
     }
   },
-  "walletDescriptorsSHA256": "3cd31874ddfdc06333c52cf27d5c723a04e0cb4893767deb952da0a74fb29ea8",
-  "walletsCompared": 27
+  "walletsCompared": 27,
+  "walletDescriptorsSHA256": "ed831a6a231368b57d3a9a14f601bf4228e0fe36d664e7a63f167d275142fd58",
+  "promptTransportException": "Transient recovery phrase to isolated Electron dialog; input-only passwords/phrase/challenge replies to Go. Never snapshots/logs/files/network."
 }

@@ -2,16 +2,17 @@
 
 ## A-01: Components and ownership
 
-Use a Go workspace/module layout and a separately packaged Electron/TypeScript application. A small Go native GUI component is part of the required Go stack, for credential input, pending recovery-phrase recording/confirmation and authoritative receive/send confirmation; Electron remains the main desktop interface.
+Use a Go module and a separately packaged Electron/TypeScript application. The owner's 2026-10-24 interface instruction replaces all Go/GTK application windows with Electron dialogs. Go still owns entropy generation, phrase/challenge validation, password authentication, immutable transaction interpretation, authorization and signing. Presentation and credential entry now place Electron main and the dedicated prompt renderer/preload inside the secret trust boundary; backend generation alone does not preserve the former native-display isolation.
 
 | Component | Responsibilities | Must not receive |
 | --- | --- | --- |
-| Electron renderer | Portfolio, network/account selection, ordinary previews, history, QR import UI | Passwords, phrases, seeds, private keys, arbitrary native APIs |
-| Electron preload/main | Narrow public IPC, windows/permissions, fixed child-process supervision | Recovery secrets, vault decryption keys, signing authority derived from UI events |
-| Go wallet-core | Network adapters, public account state, fee preparation, transaction scheduling and reconciliation | Recovery entropy, phrase/passphrase, private derivation/signing keys |
-| Go secure signer/vault | Secret generation and storage, native phrase setup, exact derivation, input dialogs, receive verification, final policy checks and signing | Unbounded renderer objects, arbitrary code or unreviewed signing payloads |
+| Ordinary Electron renderer/public preload | Portfolio, network/account selection, ordinary previews, history, QR import entry | Passwords, phrases/passphrases, seeds, private keys, prompt API, arbitrary native APIs |
+| Electron main | Public IPC, fixed windows/permissions, transient signer-authored prompt routing, public address copy/file dialogs | Root entropy, binary seeds, private/extended keys, vault decryption keys, generic signing authority |
+| Dedicated Electron prompt renderer/preload | Masked credential/import/challenge input, pending phrase display, exact Go-authored receive/approval details | Root entropy, binary seeds, private/extended keys, vault keys, portfolio/generic IPC or filesystem APIs |
+| Go wallet-core/supervisor | Network adapters, scheduling, public state and bounded transient prompt/reply forwarding | Root entropy, binary seeds, private derivation/signing keys or persistent plaintext credential/phrase state |
+| Go secure signer/vault | Secret generation/storage, challenge/password verification, exact derivation, receive/approval data, final policy checks and signing | Unbounded renderer objects, arbitrary code or unreviewed signing payloads |
 
-The core launches the secure child using inherited private handles. The secure component owns its native confirmation surface and its authority state. It has no remote IP access. Signed transactions may flow to the Go network core; they are public broadcast artifacts, but must not be exposed to Electron as an unnecessary raw signing API.
+The core launches the secure child using inherited private handles. The signer owns authority state and generates one-use prompts; Electron displays them without accepting replacement content from the ordinary renderer. Transient password/phrase/passphrase bytes cross the inherited prompt channel through core/supervisor and Electron main. Core treats them as bounded transport data, validates schemas and never uses them for derivation or persistence; its memory is nevertheless inside that transient-secret trust boundary. The signer and Electron descendants have no remote IP access. Signed transactions may flow to the Go network core as public broadcast artifacts, but are not exposed as an unnecessary Electron signing API.
 
 Use Go packages with narrow interfaces so an adapter cannot read a root seed simply because it needs an address. Separate public transaction preparation from private signing. Minimize dependencies in the secret-bearing executable; GUI and cryptographic dependencies still belong in its audit scope.
 
@@ -20,11 +21,12 @@ Use Go packages with narrow interfaces so an adapter cannot read a root seed sim
 | Path | Contents |
 | --- | --- |
 | `cmd/wallet-core/` | Network/coordinator process |
-| `cmd/wallet-signer/` | Vault, signing policy and native input/confirmation process |
+| `cmd/wallet-signer/` | Vault, signing policy and signer-authored prompt process |
 | `internal/vault/` | Versioned envelope, atomic writes, crash-recovery generations and migrations |
 | `internal/derivation/` | Versioned profiles, mnemonic validation, key derivation |
 | `internal/policy/` | Immutable plans, approval binding, allowed operations |
-| `internal/secureui/` | Minimal native Go input and confirmation integration |
+| `internal/uiprompt/` | Bounded one-use prompt/reply protocol and Go recovery-word verification |
+| `internal/secureui/` | Retained legacy GTK implementation/tests; absent from shipped command dependency graphs |
 | `internal/ipc/` | Schemas, framing, message bounds, lifecycle |
 | `internal/amount/` | Exact atomic amount parsing/formatting |
 | `internal/chains/` | EVM, HyperCore, NEAR, Aptos, Decred and TON adapters |
@@ -46,7 +48,9 @@ All API quantities are decimal strings of atomic integers with explicit units. D
 
 Define explicit protobuf or equally strict versioned schemas for IPC. Include request ID, session generation, protocol version and operation type. Unknown fields/actions, duplicate IDs, oversized frames, invalid enums and inappropriate state transitions fail closed. Send cancellation and lifecycle events explicitly. Every error response is sanitized.
 
-Allowed public application operations can include `ListNetworks`, `ListAccounts`, `GetBalances`, `GetHistory`, `RequestCreateWallet`, `RequestImportWallet`, `RequestUnlock`, `Lock`, `AddAccount`, `ShowVerifiedReceive`, `PrepareTransfer`, `RequestTransferConfirmation`, `GetOperationStatus`, `RequestRecoveryConfirmation`, `RequestPhraseRestore`, and `RequestPasswordChange`. Credential parameters are absent; these methods trigger the secure native input flow. No `GetMnemonic`, `ExportPrivateKey`, `SignBytes`, `Eval`, `ReadFile` or generic wallet JSON-RPC passthrough exists.
+Allowed public application operations can include `ListNetworks`, `ListAccounts`, `GetBalances`, `GetHistory`, `RequestCreateWallet`, `RequestImportWallet`, `RequestUnlock`, `Lock`, `AddAccount`, `ShowVerifiedReceive`, `PrepareTransfer`, `RequestTransferConfirmation`, `GetOperationStatus`, `RequestRecoveryConfirmation`, `RequestPhraseRestore`, and `RequestPasswordChange`. Credential parameters are absent from the ordinary portfolio bridge; these methods request a separate Electron prompt. No public `GetMnemonic`, `ExportPrivateKey`, `SignBytes`, `Eval`, `ReadFile` or generic wallet JSON-RPC passthrough exists.
+
+The prompt uses `wallet://prompt/`, its own minimal preload and a fresh nonpersistent Electron session partition per window, separate from `wallet://app/`. Main binds delivery, reply and public-address copy to the exact live window/main frame, pending request/session/generation and signer-generated 128-bit prompt ID. A prompt is delivered once and a reply consumed once; unknown/extra fields, wrong-kind values, duplicates, stale IDs and unsolicited prompt frames fail closed. Only input replies contain masked values; recovery acknowledgment alone never authorizes the wallet. Go issues a separate three-word challenge and verifies it before persisting completion. Prompt data and DOM are cleared on completion/cancellation; lock, hide, navigation, crash and teardown revoke the prompt. Neither best-effort clearing nor ephemeral sessions guarantee erasure of all Go/V8/Chromium/OS copies.
 
 ## A-04: Derivation and account discovery
 
@@ -60,7 +64,7 @@ Watch-only data must never gain signing authority by being paired with a similar
 
 ## A-05: Transaction adapters
 
-Separate responsibilities into narrow public preparation and private signing interfaces. Public adapters validate recipients, obtain state, estimate fees, construct a typed plan, submit a signed artifact and reconcile its lifecycle. Secure adapters derive only registered account keys, reconstruct/decode the prepared transaction, check policy and produce/verify a signature after native approval.
+Separate responsibilities into narrow public preparation and private signing interfaces. Public adapters validate recipients, obtain state, estimate fees, construct a typed plan, submit a signed artifact and reconcile its lifecycle. Secure adapters derive only registered account keys, reconstruct/decode the prepared transaction, check policy and produce/verify a signature after a scoped Electron approval and Go password verification.
 
 Each transaction plan contains chain/ledger identity, source account/profile, exact asset identity, recipient(s), atomic amount(s), memo/comment, maximum fee and fee currency, nonce/sequence/expiry, applicable inputs/change, relevant contract parameters, state provenance and the canonical bytes/digest to be approved. Never rely on ticker labels to describe a transaction's effects.
 
@@ -104,6 +108,6 @@ Pin a currently supported stable Go toolchain, Electron version, Node build runt
 
 Build for stock Ubuntu as a non-root user. Ship Go executable artifacts and an explicit complete portable Electron/Go runtime with fixed binaries/assets and documented native shared-library prerequisites. The owner excludes Debian packaging; local installation needs no sudo. Application execution must use an ordinary user and preserve the sandbox. Resolve Linux sandbox/AppArmor compatibility through supported application-specific configuration rather than system-wide weakening.
 
-Provide separate development/testnet and production build profiles. Test-only RNG injection, secret fixture hooks, debug automation and native confirmation bypasses must be absent from production binaries. Mainnet send logic remains part of the implementation, but production release requires the recorded gates. No automated test or build script should spend mainnet funds.
+Provide separate development/testnet and production build profiles. Test-only RNG injection, secret fixture hooks, debug automation and confirmation bypasses must be absent from production binaries. Mainnet send logic remains part of the implementation, but production release requires the recorded gates. No automated test or build script should spend mainnet funds.
 
 An auditable dependency and build manifest accompanies each artifact. The release report must identify the exact commit, toolchain, dependencies, package hash, configuration and tests actually executed.

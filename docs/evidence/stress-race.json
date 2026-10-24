@@ -5,15 +5,15 @@
   "settledCheckpoints": [
     {
       "cycle": 1,
-      "rssBytes": 2291421184,
-      "heapBytes": 4097656,
+      "rssBytes": 1695588352,
+      "heapBytes": 4130504,
       "goroutines": 18,
       "journalRecords": 2
     },
     {
       "cycle": 2,
-      "rssBytes": 2296877056,
-      "heapBytes": 4102312,
+      "rssBytes": 1666273280,
+      "heapBytes": 4140744,
       "goroutines": 18,
       "journalRecords": 4
     }
@@ -49,48 +49,48 @@
     "realSignedFakeNodeTransfers": 1000,
     "testnetAddressProfiles": 12
   },
-  "elapsedSeconds": 121.853080388,
-  "p50Micros": 7,
-  "p99Micros": 830,
+  "elapsedSeconds": 53.40504817,
+  "p50Micros": 6,
+  "p99Micros": 511,
   "rssBudgetMiB": 3072,
   "goMemoryLimitMiB": 768,
-  "StartHeap": 1848352,
-  "EndHeap": 4304008,
+  "StartHeap": 1847856,
+  "EndHeap": 4220488,
   "StartGoroutines": 2,
   "EndGoroutines": 2,
-  "startRSSBytes": 39612416,
-  "endRSSBytes": 2265559040,
-  "peakObservedRSSBytes": 2305806336,
-  "kernelHighWaterRSSBytes": 2305806336,
-  "resourceSamples": 6094,
-  "peakGoroutines": 22,
+  "startRSSBytes": 39264256,
+  "endRSSBytes": 1628667904,
+  "peakObservedRSSBytes": 1717170176,
+  "kernelHighWaterRSSBytes": 1717170176,
+  "resourceSamples": 2672,
+  "peakGoroutines": 26,
   "latencies": {
     "boundedIPCParser": {
       "count": 100000,
-      "p50Micros": 7,
-      "p99Micros": 830,
-      "maxMicros": 4023,
+      "p50Micros": 6,
+      "p99Micros": 511,
+      "maxMicros": 3209,
       "budgetP99Micros": 10000
     },
     "concurrentSchedulingTransfer": {
       "count": 1000,
-      "p50Micros": 14729,
-      "p99Micros": 20212,
-      "maxMicros": 22036,
+      "p50Micros": 12033,
+      "p99Micros": 15614,
+      "maxMicros": 18080,
       "budgetP99Micros": 1000000
     },
     "productionKDFSealReopen": {
       "count": 8,
-      "p50Micros": 1573398,
-      "p99Micros": 1637570,
-      "maxMicros": 1637570,
+      "p50Micros": 984100,
+      "p99Micros": 1072095,
+      "maxMicros": 1072095,
       "budgetP99Micros": 15000000
     },
     "productionSignerLifecycle": {
       "count": 2,
-      "p50Micros": 43400129,
-      "p99Micros": 43400129,
-      "maxMicros": 43400129,
+      "p50Micros": 13995064,
+      "p99Micros": 13995064,
+      "maxMicros": 13995064,
       "budgetP99Micros": 60000000
     }
   },

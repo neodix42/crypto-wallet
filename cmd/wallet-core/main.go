@@ -27,6 +27,7 @@ import (
 	"localwallet/internal/chains/near"
 	"localwallet/internal/chains/ton"
 	"localwallet/internal/ipc"
+	"localwallet/internal/isolation"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
@@ -101,6 +102,29 @@ func (c *core) nativeActivity() {
 	if channel != nil && id != "" && session != "" {
 		_ = channel.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: "activity", Body: []byte(`{}`)})
 	}
+}
+
+// relayPrompt forwards only a supervisor-validated signer prompt. The opaque
+// transient body intentionally bypasses publicJSON and all persistent state.
+func (c *core) relayPrompt(body json.RawMessage) error {
+	c.mu.Lock()
+	if !c.promptPending || c.requestEpoch != c.epoch || c.requestID == "" || c.requestSession == "" || c.publicChannel == nil {
+		c.mu.Unlock()
+		return errors.New("no active wallet prompt")
+	}
+	channel, id, session := c.publicChannel, c.requestID, c.requestSession
+	c.mu.Unlock()
+	return channel.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: "prompt", Body: body})
+}
+
+func (c *core) replyPrompt(m ipc.Message) error {
+	c.mu.Lock()
+	valid := m.Version == 1 && m.Method == "promptReply" && m.Error == "" && c.promptPending && c.requestEpoch == c.epoch && c.requestID == m.ID && c.requestSession == m.Session
+	c.mu.Unlock()
+	if !valid {
+		return errors.New("no active wallet prompt")
+	}
+	return c.child.ReplyPrompt(m.Body)
 }
 
 func (c *core) lockIfIdle(now time.Time) bool {
@@ -221,6 +245,9 @@ func main() {
 	if *environment != "testnet" && *environment != "mainnet" {
 		os.Exit(2)
 	}
+	if isolation.ProtectMemory() != nil {
+		os.Exit(4)
+	}
 	exe, e := os.Executable()
 	if e != nil {
 		os.Exit(3)
@@ -236,6 +263,7 @@ func main() {
 	ch := ipc.Channel{R: os.Stdin, W: os.Stdout}
 	c.publicChannel = &ch
 	c.child.OnActivity = c.nativeActivity
+	c.child.OnPrompt = c.relayPrompt
 	go func() {
 		tick := time.NewTicker(time.Second)
 		defer tick.Stop()
@@ -279,7 +307,20 @@ func main() {
 	}()
 	for {
 		m, e := ch.Read()
-		if e != nil || ch.Accept(m) != nil {
+		if e != nil {
+			return
+		}
+		// Prompt answers reuse the active original request identity and must be
+		// consumed while its worker is blocked. All normal actions still pass
+		// the request replay guard below. Invalid controls close the session.
+		if m.Method == "promptReply" {
+			if !objectBody(m.Body) || c.replyPrompt(m) != nil {
+				return
+			}
+			clear(m.Body)
+			continue
+		}
+		if ch.Accept(m) != nil {
 			return
 		}
 		if !objectBody(m.Body) || ((m.Method == "lock" || m.Method == "activity") && strictjson.Decode(m.Body, &struct{}{}) != nil) {

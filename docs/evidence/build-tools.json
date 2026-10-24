@@ -161,12 +161,12 @@
     "scripts/install.py": "395085a49b25935538f94100c12f70cef8b77277b774940ca1fc6347cb227126",
     "scripts/verify-version.py": "502bc80801b3fb629ad5a9ddd280bedc0b76c1398261a43f3c9bb806bc84204e",
     "scripts/package.cjs": "504ef4acf1ba28f394a9c7d1d6e9505fe598514b5561403137aa8e494bf56214",
-    "scripts/package-go.py": "ef158a88a5efd6dffd43017b632505d0665a8b9d4dc6942930ddabcd014ad459",
+    "scripts/package-go.py": "6d9a4c03086f2909969b49081ad5e52cea15fcc58ca0fc40980ef312948a2a9a",
     "scripts/with-toolchain.sh": "5a2f2e3b0616ceef1fb378e88e02fc6d2b0cf95794a0da69ab2ceb30b961bb8f",
     "scripts/bootstrap-node.py": "b67714e06d3bd61b63fa5f9ab853df0e4f93f308dfc26ee49763ada60eb9c0d8",
     "scripts/sbom.py": "97882ee176650cd6888feee6fb5bfd135d5e8aac2ff27f740a03e489ae83a1c3",
     "scripts/build-tools-test.py": "3b82756c67ed1256bddf4287b907542ead822aae52fda2bf11b584514bfd601b",
-    "Makefile": "09cdacf3d6e53b2c72afef40444302aa082143f9b9afe423b709d71d69fef7d7",
-    ".github/workflows/release.yml": "452540b736164a8c791e0252d8233578b10362367933403b0b0ec19acb28eb10"
+    "Makefile": "a52352dcd43c19318eecbe8ec195a0ca85ee01043b1e5d20565eaa6f445b0032",
+    ".github/workflows/release.yml": "7a1707710cdf48dc820274d3aa92df8932c840bfab5dcc202502d748eca30081"
   }
 }

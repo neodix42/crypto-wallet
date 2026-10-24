@@ -10,12 +10,12 @@
     {
       "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
       "status": "PASS",
-      "seconds": 0.25
+      "seconds": 0.17
     },
     {
       "name": "TestRealX11NativeKeyAndButtonActivity",
       "status": "PASS",
-      "seconds": 3.84
+      "seconds": 3.8
     },
     {
       "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
@@ -60,12 +60,12 @@
     {
       "name": "TestNativeFileChooserCancelAndVerifiedSelection",
       "status": "PASS",
-      "seconds": 1.01
+      "seconds": 0.96
     },
     {
       "name": "TestNativeInitUnavailableDisplayFailsClosed",
       "status": "PASS",
-      "seconds": 1.03
+      "seconds": 1.02
     },
     {
       "name": "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
@@ -85,5 +85,5 @@
   ],
   "exit": 0,
   "coverage": "total:\t\t\t\t\t\t\t\t(statements)\t\t\t98.3%",
-  "seconds": 13.362
+  "seconds": 11.438
 }

@@ -10,13 +10,11 @@ import (
 	"localwallet/internal/ipc"
 	"localwallet/internal/isolation"
 	"localwallet/internal/model"
-	"localwallet/internal/secureui"
 	"localwallet/internal/signer"
+	"localwallet/internal/uiprompt"
 	"localwallet/internal/vault"
 	"os"
-	"runtime"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -24,7 +22,6 @@ func main() {
 		fmt.Println(buildinfo.Version)
 		return
 	}
-	runtime.LockOSThread()
 	syscall.Umask(0077)
 	dir := flag.String("data", "", "private profile directory")
 	environment := flag.String("environment", "mainnet", "fixed profile environment")
@@ -35,81 +32,75 @@ func main() {
 	if isolation.Install() != nil {
 		os.Exit(3)
 	}
-	if secureui.Init() != nil {
-		os.Exit(4)
-	}
 	files, e := vault.NewFiles(*dir)
 	if e != nil {
 		os.Exit(5)
 	}
 	defer files.Close()
-	engine := signer.New(files, secureui.Native{}, chains.All())
+	engine := signer.New(files, &uiprompt.UI{}, chains.All())
 	engine.Environment = *environment
 	defer engine.Lock()
 	c := ipc.Channel{R: os.Stdin, W: os.Stdout}
 	serve(&c, engine, *environment)
 }
 
+// serve serializes engine operations. During an operation the UI exchange owns
+// the next input frame, which must be that prompt's exact one-use reply.
 func serve(c *ipc.Channel, engine *signer.Engine, environment string) {
-	type incoming struct {
-		message ipc.Message
-		err     error
-	}
-	requests := make(chan incoming, 1)
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		for {
-			m, err := c.Read()
-			select {
-			case requests <- incoming{m, err}:
-			case <-done:
-				return
-			}
-			if err != nil {
-				return
+	for {
+		m, err := c.Read()
+		if err != nil || m.Error != "" || c.Accept(m) != nil {
+			return
+		}
+		var promptError error
+		if ui, ok := engine.UI.(*uiprompt.UI); ok {
+			ui.Exchange = func(p uiprompt.Prompt) (uiprompt.Reply, error) {
+				raw, err := json.Marshal(p)
+				if err != nil {
+					promptError = uiprompt.ErrProtocol
+					return uiprompt.Reply{}, promptError
+				}
+				defer clear(raw)
+				err = c.Write(ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: "prompt", Body: raw})
+				if err != nil {
+					promptError = err
+					return uiprompt.Reply{}, err
+				}
+				reply, err := c.Read()
+				if err != nil || reply.ID != m.ID || reply.Session != m.Session || reply.Method != "promptReply" || reply.Error != "" {
+					promptError = uiprompt.ErrProtocol
+					return uiprompt.Reply{}, promptError
+				}
+				defer clear(reply.Body)
+				decoded, err := uiprompt.DecodeReply(reply.Body, p)
+				if err != nil {
+					promptError = err
+				}
+				return decoded, err
 			}
 		}
-	}()
-	pump := time.NewTicker(20 * time.Millisecond)
-	defer pump.Stop()
-	for {
-		select {
-		case <-pump.C:
-			secureui.Pump()
-		case request := <-requests:
-			m := request.message
-			if request.err != nil || c.Accept(m) != nil {
-				return
+		err = respond(c, m, func() (json.RawMessage, error) {
+			body, err := handle(engine, m, environment)
+			if err != nil && promptError == nil {
+				notifyFailure(engine.UI, err)
 			}
-			if respond(c, m, func() (json.RawMessage, error) {
-				body, err := handle(engine, m, environment)
-				if err != nil {
-					notifyFailure(engine.UI, err)
-				}
-				return body, err
-			}) != nil {
-				return
+			if promptError != nil {
+				return nil, promptError
 			}
+			return body, err
+		})
+		if ui, ok := engine.UI.(*uiprompt.UI); ok {
+			ui.Exchange = nil
+		}
+		clear(m.Body)
+		if err != nil || promptError != nil {
+			return
 		}
 	}
 }
 
-// respond keeps activity on the same bounded private pipe as its request.
-// The callback is removed before the final response, including error paths.
 func respond(c *ipc.Channel, m ipc.Message, run func() (json.RawMessage, error)) error {
-	var activityError error
-	secureui.SetActivity(func() {
-		if activityError == nil {
-			activityError = c.Write(ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: "activity", Body: []byte(`{}`)})
-		}
-	})
-	defer secureui.SetActivity(nil)
 	body, err := run()
-	secureui.SetActivity(nil)
-	if activityError != nil {
-		return activityError
-	}
 	response := ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: body}
 	if err != nil {
 		response.Body = []byte(`null`)

@@ -1,26 +1,27 @@
-ok  	localwallet/cmd/wallet-core	2.078s
-ok  	localwallet/cmd/wallet-launcher	(cached)
-ok  	localwallet/cmd/wallet-signer	19.364s
+ok  	localwallet/cmd/wallet-core	3.717s
+ok  	localwallet/cmd/wallet-launcher	54.677s
+ok  	localwallet/cmd/wallet-signer	28.570s
 ok  	localwallet/internal/amount	(cached)
 ?   	localwallet/internal/buildinfo	[no test files]
 ?   	localwallet/internal/chains	[no test files]
-ok  	localwallet/internal/chains/aptos	1.937s
+ok  	localwallet/internal/chains/aptos	(cached)
 ok  	localwallet/internal/chains/chainutil	(cached)
 ok  	localwallet/internal/chains/decred	(cached)
 ok  	localwallet/internal/chains/evm	(cached)
 ok  	localwallet/internal/chains/hypercore	(cached)
-ok  	localwallet/internal/chains/near	2.530s
-ok  	localwallet/internal/chains/ton	3.047s
-ok  	localwallet/internal/derivation	1.275s
+ok  	localwallet/internal/chains/near	(cached)
+ok  	localwallet/internal/chains/ton	(cached)
+ok  	localwallet/internal/derivation	(cached)
 ok  	localwallet/internal/ipc	(cached)
-ok  	localwallet/internal/isolation	(cached)
+ok  	localwallet/internal/isolation	7.169s
 ok  	localwallet/internal/journal	(cached)
 ?   	localwallet/internal/model	[no test files]
 ok  	localwallet/internal/qr	(cached)
-ok  	localwallet/internal/secureui	1.032s
-ok  	localwallet/internal/signer	175.084s
+ok  	localwallet/internal/secureui	(cached)
+ok  	localwallet/internal/signer	(cached)
 ok  	localwallet/internal/strictjson	(cached)
 ok  	localwallet/internal/supervisor	(cached)
-ok  	localwallet/internal/vault	10.854s
+ok  	localwallet/internal/uiprompt	(cached)
+ok  	localwallet/internal/vault	(cached)
 ?   	localwallet/tests/oracles/decred	[no test files]
-ok  	localwallet/tests/stress	123.215s
+ok  	localwallet/tests/stress	54.556s

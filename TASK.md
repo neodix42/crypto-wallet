@@ -32,7 +32,7 @@ Generate entropy with Go's operating-system-backed cryptographic random source. 
 
 Use the standard English BIP39 word list and standard mnemonic-to-seed conversion. Default generation is 12 words for the TON interoperability convention documented in TEP-3. An advanced 24-word BIP39 creation option is permitted, explicitly labeled and saved as BIP39; it must not be represented as a native TON phrase. Import valid English BIP39 lengths 12, 15, 18, 21, and 24, with exact checksum and normalization rules. Cross-wallet acceptance of each length is a separate compatibility claim. Do not translate the words or silently repair a phrase.
 
-After the app password is specified, the isolated native Go surface displays the generated phrase for offline recording and confirms selected words. The phrase never enters Electron or public IPC. Preserve the actual entropy/word-list/profile information inside the encrypted vault so restoration is deterministic.
+After the app password is specified, Go generates the phrase and the dedicated Electron recovery dialog displays it for offline recording. Go verifies the selected words entered in a separate masked challenge. The ordinary portfolio renderer/public API never receives the phrase. The explicitly authorized prompt/reply channel carries transient phrase/password inputs through the coordinator and Electron main to a separate prompt origin, preload and nonpersistent session. These components are trusted with those secrets; Go generation does not make a compromised Electron process safe. Preserve the actual entropy/word-list/profile information inside the encrypted vault so restoration is deterministic.
 
 New wallets default to an empty BIP39 passphrase. Import supports an explicit optional BIP39 passphrase using the secure input path, with independent vectors. A passphrase typo creates a different valid wallet; no checksum can prove the passphrase is correct. Confirm imported public addresses and warn against interpreting an unexpectedly empty balance as proof of an empty wallet.
 
@@ -44,11 +44,11 @@ Account index, derivation profile, authentication scheme, network, public key, T
 
 Do not imply that keys on different chains are literally identical, or that identical EVM addresses imply balances can be transferred between networks without a bridge.
 
-### 3.3 Native phrase recording and fresh-install recovery
+### 3.3 Electron phrase recording and fresh-install recovery
 
-Owner policy update: recovery uses a written BIP39 phrase, replacing the former encrypted portable-backup requirement. Generate the phrase after native app-password entry, persist the root encrypted before showing it, then display it only in the isolated native Go window. Require deliberate recording acknowledgment and correct masked word challenges before enabling receiving or payment authorization. Cancellation leaves the same encrypted root pending; it must never create a replacement root.
+Owner policy updates: recovery uses a written BIP39 phrase, replacing encrypted portable-backup operations, and all application windows use Electron. Generate the phrase in Go after masked app-password entry, persist the root encrypted before showing it in a dedicated temporary Electron prompt, and require deliberate recording acknowledgment followed by correct masked word challenges verified in Go before enabling receiving or payment authorization. Cancellation leaves the same encrypted root pending; it must never create a replacement root. No production Go/GTK window is opened.
 
-The phrase has no Electron display/input, public IPC response, plaintext-file export, clipboard or QR operation. Private keys, extended private keys, binary seeds and BIP39 passphrases remain undisplayed. A pending or legacy vault can finish setup only after native app-password reauthentication. After confirmation, the current generation has no repeated phrase-reveal operation. Whole-directory rollback to an older valid pending generation cannot be prevented without an external monotonic anchor.
+The phrase has no ordinary public IPC response, plaintext-file export, clipboard, print, save or QR operation. The dedicated prompt loads no remote resources, never uses browser storage, and has no Node access, generic IPC, reveal toggle or portfolio API. Clear secret fields and phrase DOM before submitting/cancelling and revoke the one-use prompt on lock, hide, navigation, crash or session change. JavaScript/Chromium copies cannot be guaranteed erased. Private keys, extended private keys, binary seeds and entropy remain in Go; imported optional BIP39 passphrases are masked input only. A pending or legacy vault can finish setup only after app-password reauthentication verified in Go. After confirmation, the current generation has no repeated phrase-reveal operation. Whole-directory rollback to an older valid pending generation cannot be prevented without an external monotonic anchor.
 
 A completely fresh installation must restore canonical wallets with the recorded phrase and a specified local app password; an optional original BIP39 passphrase is additionally required when one was used. The app password encrypts this installation and does not derive blockchain keys: either the same or a different app password must recover identical canonical addresses. Keep the encrypted local vault, current generation and prior crash-recovery generation protected by the existing file/cryptography rules.
 
@@ -58,7 +58,7 @@ Remove encrypted-backup creation, file verification and file restore from produc
 
 Select asset, network and account. Show the complete public receive address with checksum/canonical formatting, its network, and a locally generated QR. Show account activation or deployment prerequisites where applicable. Never use a remote QR service or URL shortener.
 
-Provide a Go-owned authoritative receive verification window containing the same network/address/QR, derived independently of renderer input. It is the confirmation surface for a deposit address. Electron's ordinary display can be compromised, so a renderer-supplied PNG or address string must not be treated as authoritative.
+Provide a dedicated Electron receive dialog containing the network/address/QR authored and verified in Go, independently of ordinary renderer input. Copy uses the current Go-provided address held in main, never a string supplied by the prompt or portfolio renderer. The ordinary portfolio can be compromised without being allowed to replace that data; compromise of Electron main or the dedicated prompt itself can spoof the display and is outside this separation claim.
 
 Default QR payload is the plain public address/account ID for broad compatibility. A plain EVM address cannot identify its network: display a clear network label next to it and instruct the user to choose that network at the sender. Offer network-aware payment URIs only where a specific standard is implemented and tested. Never invent a universal URI and imply other wallets understand it.
 
@@ -73,7 +73,7 @@ For Decred, maintain the receive-address sequence and change tracking without ad
 3. Validate the address/account, network, amount, memo/comment constraints and account authority in Go. No automatic send after scanning or following a link.
 4. Obtain balance, spendability, fee estimates and the relevant network state. Stale, unavailable or incomplete data must be visible. Do not show unknown data as a confirmed zero.
 5. Build an immutable, chain-specific transaction plan in Go. Show recipient, exact amount, asset identity, network, source, all outputs/change, native fee currency, maximum charge, and any deployment/activation requirements.
-6. Request an authoritative native confirmation owned by the signing component, with password reauthentication for each send by default. Its text is generated from the exact transaction to be signed, not renderer descriptions.
+6. Request a dedicated Electron confirmation whose text is generated in Go from the exact transaction to be signed, with password reauthentication verified in Go for each send by default. The ordinary renderer cannot supply approval text, authorize a different prompt or fabricate its one-use reply.
 7. Sign only the approved transaction, verify the produced signature locally, durably journal the signed transaction and its identity, then submit through the Go network component.
 8. Reconcile submission, execution success and finality separately. Show pending, accepted, failed, unknown, replaced, reorged and confirmed states accurately.
 
@@ -85,13 +85,13 @@ Never automatically create a second payment after a timeout. Retry of the same s
 
 ## 6. Application UX and local operations
 
-Provide creation, import, unlock/lock, account management, asset/network selection, balances, receive, send, transaction history, native phrase recording/restore, password change, network settings and an accurate support-status screen. Show advanced derivation metadata in a read-only public diagnostics view without exposing keys.
+Provide creation, import, unlock/lock, account management, asset/network selection, balances, receive, send, transaction history, Electron phrase recording/restore, password change, network settings and an accurate support-status screen. Show advanced derivation metadata in a read-only public diagnostics view without exposing keys.
 
 Use clear mainnet/testnet labels throughout. Test wallets and production wallets live in distinct profiles and directories; never import a test fixture automatically into a real vault. State the synchronization/trust mode for each chain, especially Decred SPV or trusted node access. Allow approved custom RPCs with explicit network verification and encrypted credential storage.
 
 Automatic lock defaults to five minutes of real user inactivity and also occurs on OS session lock, suspend, logout, parent-process failure and application exit. Background polling must not reset inactivity. Lock cancels unapproved/in-progress signing and destroys secret-bearing process state; it cannot recall a transaction already signed or broadcast. Reopening always starts locked.
 
-No analytics, remote fonts, remote script execution, background advertisements, browser-based seed import, mandatory cloud account, or unsolicited update execution. Essential public-chain queries reveal public addresses to the chosen providers; that privacy limitation must be accurately described.
+No analytics, remote fonts, remote script execution, background advertisements, remote/web-browser seed import, mandatory cloud account, or unsolicited update execution. The authorized local isolated Electron prompt is the only phrase-input/display interface. Essential public-chain queries reveal public addresses to the chosen providers; that privacy limitation must be accurately described.
 
 ## 7. Completion definition
 

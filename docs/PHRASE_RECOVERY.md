@@ -1,3 +1,5 @@
+> Superseded interface policy: the current wallet uses Electron dialogs for all input, phrase recording, receive and approval. Go generation, encrypted persistence, word/password checks and signing remain. See [ELECTRON_INTERFACE.md](ELECTRON_INTERFACE.md) for the current trust boundary and tests; native GTK evidence below is historical.
+
 # Native phrase setup and independent-installation recovery
 
 This owner-authorized policy replaces encrypted portable-backup creation, verification and file restoration. After native app-password entry, Go generates a random English BIP39 phrase, encrypts the root durably, displays the phrase only in its native window, and asks the user to confirm recorded words. The phrase display is nonselectable and has no clipboard, save or QR action. Confirmation checks transcription; software cannot prove that a physical offline copy was stored safely.

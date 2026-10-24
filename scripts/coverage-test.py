@@ -65,7 +65,7 @@ class CoverageEvidence(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
 
     def test_critical_security_packages_enforce_95_percent(self):
-        for name in ("vault", "secureui", "supervisor", "wallet-core", "wallet-signer"):
+        for name in ("vault", "secureui", "uiprompt", "supervisor", "wallet-core", "wallet-signer"):
             profile = self.profile("critical.cover", [f"localwallet/internal/{name}/sample.go:1.1,2.1 94 1", f"localwallet/internal/{name}/sample.go:3.1,4.1 6 0"])
             result = subprocess.run(["python3", str(source.with_name("coverage.py")), str(profile)], cwd=coverage.root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.assertNotEqual(result.returncode, 0, name)

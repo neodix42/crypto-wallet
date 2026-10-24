@@ -2,7 +2,7 @@
 """Bounded local fuzz campaigns; never a sustained/nightly coverage claim."""
 import json,os,pathlib,subprocess,time
 root=pathlib.Path(__file__).resolve().parents[1];reports=root/'reports';reports.mkdir(exist_ok=True)
-targets=[('vault','FuzzTP012Envelope'),('derivation','FuzzTP012Mnemonic'),('ipc','FuzzTP012IPC'),('strictjson','FuzzTP012JSON'),('amount','FuzzTP012Amount'),('qr','FuzzTP012QR'),('chains/chainutil','FuzzJSON'),('chains/evm','FuzzTP012AddressAndPlan'),('chains/hypercore','FuzzTP012CoreAction'),('chains/near','FuzzAddress'),('chains/aptos','FuzzAddress'),('chains/decred','FuzzAddressesScriptsOutpoints'),('chains/ton','FuzzAddressAndBOC')]
+targets=[('uiprompt','FuzzPromptProtocol'),('vault','FuzzTP012Envelope'),('derivation','FuzzTP012Mnemonic'),('ipc','FuzzTP012IPC'),('strictjson','FuzzTP012JSON'),('amount','FuzzTP012Amount'),('qr','FuzzTP012QR'),('chains/chainutil','FuzzJSON'),('chains/evm','FuzzTP012AddressAndPlan'),('chains/hypercore','FuzzTP012CoreAction'),('chains/near','FuzzAddress'),('chains/aptos','FuzzAddress'),('chains/decred','FuzzAddressesScriptsOutpoints'),('chains/ton','FuzzAddressAndBOC')]
 rows=[]
 for package,target in targets:
  start=time.monotonic();command=['go','test','./internal/'+package,'-run','^$','-fuzz','^'+target+'$','-fuzztime=3s','-parallel=2']

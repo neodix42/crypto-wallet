@@ -1,0 +1,215 @@
+{
+  "status": "PASS",
+  "scope": "All production application windows use Electron; Go remains responsible for generation, validation, encryption and signing. Local evidence only.",
+  "sourceCommit": "cb0b687c36d9756b5b3d49cd489b106058f6413f",
+  "dirty": true,
+  "sourceSHA256": {
+    ".gitignore": "9cd5f37af149b3e4d6d940e01b2e3c9d631d5ae68e07286630c8fd9df5af7713",
+    "Makefile": "a52352dcd43c19318eecbe8ec195a0ca85ee01043b1e5d20565eaa6f445b0032",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "007484f6a4780cd3d2592d2e84985fcaf28f10b39206b5ed9520783f8422f79e",
+    "desktop/src/preload.ts": "205f4f31a52f7cf5d59380d0995c023cb225ba0c66a1db66d5eb3be45d431886",
+    "desktop/src/prompt-preload.ts": "2acc5b222e6c0382c4dd4bdf0a2180968582a08af4daa63a59e38a348b4f145c",
+    "desktop/src/prompts.ts": "5178a6a216943169b43d93f4836db8f02d3fc7b6a0d89c0f8fbb9189b59e3f25",
+    "desktop/src/validation.ts": "75c2f5c70578df967d458aee6de869cbe0cc7f61a5fec4202b12cdef47c02b75",
+    "desktop/tests/fixtures/networks-mainnet.json": "628d001a66ca81edeb44a475099ddd3034cc7f7517522a0d8898aedf73c8f9e4",
+    "desktop/tests/fixtures/networks-testnet.json": "9062e02e5af1e04d08ea32facfab36240ec409c66956c4dcb9eb83c11ef66a52",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/prompt-security.test.cjs": "bdac998278ad105c341aa676654da72e1ad41cec36f32d0b4292cc2e6345c60c",
+    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726",
+    "desktop/tests/runtime.test.cjs": "98d9ca97aed7b4bf69c09feedd6f353cfaed08a604faa147407f653a8bff3050",
+    "desktop/tests/security.test.cjs": "fd15e38224393cbafdf003f605e9fffe954475b765869f69163292bc7c3ed5ca",
+    "desktop/ui/index.html": "8e96bf6421daa6285105040e13677e212c0767747fb09ac2cd1d2bee1a563517",
+    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/renderer.js": "5ea457cab1abc9d0701a85e144e41543f16151cf644df0cf64458f00c9e714cb",
+    "desktop/ui/style.css": "ea1f029ca90d1ef1f7dc63d08c959f148f978205d133d97b48db2effd3eb4217",
+    "scripts/coverage-test.py": "cd1bb3c834b65bf7bbc31d18461ad295ecf3f18fb3c8ab74f02ead320ed65109",
+    "scripts/coverage.py": "4dc913e6442608794dfec7e06f77e2ebb345985e7a222dd4ae46768c33fb0f8a",
+    "scripts/frontend-coverage.py": "e5dbd77e15e2ecac8f4f133e12a845ab49e561ea15b4a94d05ddff4e8e470d20",
+    "scripts/fuzz.py": "60f05d3e607ac1a98baca655412818b9ae35c6b1747521d76bff00cdd622ea59",
+    "scripts/mutation.py": "bed7b9ca92fabc627390ecd8825a51b4278c54fcc510090bd4ca6891d1000ac8",
+    "scripts/packaged-recovery.py": "f6def14a6f8e1f53121012361bb719c2128497d308115ba733b0643a52c1f7ff",
+    "scripts/phrase-recovery.py": "4616732c8649aee2c5e9228e1ed2dbadb563a35cd72bdd6d7879f67482cc5343",
+    "scripts/surface-check.py": "3abfe472f25bbbd8d1e23b100a456990f5625dd9f98eef61545b02d2758c19c8",
+    "scripts/verify-artifact.cjs": "391dc4e16f5f1181bead8d911aa36e95fc0eaa55a722123fa93a9c3f7af42880",
+    "tests/e2e/phrase.py": "29ea2fafed1140c0b7ad3cc39b948c81ca5b1295fc07fa68d86ab483cc5629f9",
+    "tests/e2e/x11.py": "6095988878081eeb5fab7edb871b9b0618ba9c671e4d72d838a3f613a2f33ed1"
+  },
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "f596338fda94c38bb96078537d8f49666e978aec6f00ff08ed9ceeaa2713d0c9",
+      "wallet-launcher": "8029e51484b6bb9ac107b2833a5dddeeb95ed0fb51cec59a276feb238e222565",
+      "wallet-signer": "328c758aa65c44337995d31822c0d0c0ad9c70724777445a3be72d5f10469bca"
+    },
+    "asarSHA256": "5cc7a106d01b16ed6ff4898a54570c7404b9f553557c8f0bd3ed4d5a80a5833f"
+  },
+  "checks": [
+    {
+      "check": "Go-generated recovery and actual fresh installations",
+      "status": "PASS",
+      "steps": 6,
+      "copies": 3,
+      "mainnetNetworks": 9,
+      "walletDescriptors": 27,
+      "indices": [
+        0,
+        1,
+        127
+      ],
+      "passwords": [
+        "same",
+        "different"
+      ],
+      "report": "phrase-recovery.json"
+    },
+    {
+      "check": "Actual uninstrumented installed Electron",
+      "status": "PASS",
+      "steps": 20,
+      "generatedWords": 12,
+      "scope": "Setup/restoration, incorrect-word denial, reauthentication, Receive QR/copy, Send form, tabs, Settings journal/balances, restart/isolation; no installed sending",
+      "report": "packaged-recovery.json"
+    },
+    {
+      "check": "Electron components and coverage",
+      "status": "PASS",
+      "tests": 95,
+      "skips": 0,
+      "shippedJS": 8,
+      "statementPercentAllFiles": 100,
+      "mainBranches": 98.4,
+      "portfolioBranches": 97.98,
+      "otherBranches": 100,
+      "secretPromptFloors": [
+        95,
+        90
+      ],
+      "report": "frontend-coverage.json"
+    },
+    {
+      "check": "Source-stable Go coverage",
+      "status": "PASS",
+      "hashes": 149,
+      "measuredFloors": 23,
+      "shippedPackages": 22,
+      "retainedLegacyGTKPackages": 1,
+      "seconds": 66.439,
+      "report": "go-coverage.json"
+    },
+    {
+      "check": "Coordinator memory protection",
+      "status": "PASS",
+      "scope": "Core startup verifies zero soft/hard core limit and non-dumpable state; owned positive/negative subprocess tests preserve loopback networking",
+      "electronDumpability": "NOT_ESTABLISHED: inherited core limit does not prove post-exec non-dumpability"
+    },
+    {
+      "check": "Full Go race, vet, workflow and dependency checks",
+      "status": "PASS",
+      "logs": [
+        "electron-race.log",
+        "electron-dependencies.log"
+      ],
+      "reachableGoVulnerabilities": 0,
+      "uncalledRequiredModuleAdvisories": 1,
+      "npmAdvisories": 0
+    },
+    {
+      "check": "Semantic mutants and bounded fuzz",
+      "status": "PASS",
+      "mutantsKilled": 14,
+      "invalid": 0,
+      "survived": 0,
+      "fuzzTargets": 14,
+      "secondsPerFuzzTarget": 3,
+      "scope": "Target code unchanged by later memory helper; helper separately covered/race tested"
+    },
+    {
+      "check": "Bounded stress",
+      "status": "PASS",
+      "report": "stress.json"
+    },
+    {
+      "check": "Version, ASAR, build and coverage-integrity checks",
+      "status": "PASS",
+      "productionFilesCompared": 12,
+      "logs": [
+        "electron-build-tools.log",
+        "electron-coverage-integrity.log",
+        "electron-version.log"
+      ]
+    }
+  ],
+  "productionSignerGTKDependency": false,
+  "secretBoundary": "Transient password/phrase prompts and replies pass through coordinator/supervisor, Electron main and isolated prompt renderer/preload. Ordinary portfolio/API/snapshots/logs/files/browserstorage/clipboard/QR/network do not receive tested secrets. Entropy/private keys/binary seeds stay in Go. Trusted Electron/coordinator compromise can capture prompts.",
+  "memoryLimits": "Go core/signer dumpability is set and tested. Post-exec Electron non-dumpability is not guaranteed; host piped core handling and immutable runtime copies remain limitations.",
+  "developmentAttempts": [
+    {
+      "status": "FAIL",
+      "scope": "Two early packaged title probes failed; BrowserWindow event binding and setTitle-before-show fixed, regression improved"
+    },
+    {
+      "status": "FAIL",
+      "scope": "Initial whole-grid ordinal OCR failed safely; in-memory per-cell alphabet-whitelist reader and two public fixture probes corrected test automation. Complete random-root final drill passed"
+    }
+  ],
+  "canaryScope": "Tested synthetic password/phrase plaintext/hex/base64 in ordinary public responses, process logs and persisted files. Approved private prompt frames are an explicit exception. No generated phrase/password screenshots or word logs retained.",
+  "notRun": [
+    "Separate physical machines",
+    "Clean full supported Ubuntu X11/Wayland lock/suspend/upgrade matrix",
+    "Installed-package sending",
+    "Funded public testnets and external wallet/version acceptance",
+    "24-hour workload",
+    "Independent external review"
+  ],
+  "blocked": [
+    "Authenticated live Decred mainnet access requires configured TLS dcrd",
+    "Historical container sandbox obstacles"
+  ],
+  "goSkippedTests": [
+    {
+      "package": "localwallet/cmd/wallet-launcher",
+      "test": "TestTP041BootstrapWorker",
+      "status": "NOT_RUN",
+      "reason": "Explicit test skip; inspect go-test.jsonl for prerequisites"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:263: NOT_RUN: pinned local validator required"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNodeRotation",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:392: NOT_RUN: independent TS SDK rotation setup required"
+    },
+    {
+      "package": "localwallet/internal/chains/aptos",
+      "test": "TestLocalNodeCommittedFailure",
+      "status": "NOT_RUN",
+      "reason": "aptos_test.go:462: NOT_RUN: local validator required"
+    },
+    {
+      "package": "localwallet/internal/chains/near",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "near_test.go:233: NOT_RUN: pinned sandbox harness required"
+    },
+    {
+      "package": "localwallet/internal/chains/evm",
+      "test": "TestTP050LocalEVMProtocolAcceptance",
+      "status": "NOT_RUN",
+      "reason": "integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node"
+    },
+    {
+      "package": "localwallet/tests/stress",
+      "test": "TestTP072Soak",
+      "status": "NOT_RUN",
+      "reason": "stress_test.go:222: NOT_RUN: invoke make test-soak for explicit 24-hour campaign"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "scope": "Dedicated isolated Electron prompt DOM/component tests; synthetic credentials/public mnemonic fixtures only",
+  "command": "./scripts/with-toolchain.sh node --test desktop/tests/prompt-ui.test.cjs",
+  "tests": {
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0
+  },
+  "coverage": {
+    "source": "desktop/ui/prompt.js",
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "measurement": "c8/V8 focused prompt suite, reports/prompt-ui-coverage/coverage-final.json"
+  },
+  "sourceSHA256": {
+    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/index.html": "8e96bf6421daa6285105040e13677e212c0767747fb09ac2cd1d2bee1a563517",
+    "desktop/ui/renderer.js": "5ea457cab1abc9d0701a85e144e41543f16151cf644df0cf64458f00c9e714cb",
+    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726"
+  },
+  "notEstablished": [
+    "Packaged Electron/Chromium display boundary",
+    "Separate physical-machine recovery",
+    "Supported Ubuntu/X11/Wayland acceptance matrix",
+    "Independent security review"
+  ]
+}

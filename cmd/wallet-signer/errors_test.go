@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"localwallet/internal/ipc"
-	"localwallet/internal/secureui"
 	"localwallet/internal/signer"
+	"localwallet/internal/uiprompt"
 	"strings"
 	"testing"
 )
@@ -24,9 +24,9 @@ func TestNativeFailureGuidanceAndPublicFramesContainNoInputOrPath(t *testing.T) 
 		err  error
 		code string
 	}{
-		{signer.ErrPasswordPolicy, "PASSWORD_POLICY"}, {secureui.ErrInputTooLong, "INPUT_TOO_LONG"},
+		{signer.ErrPasswordPolicy, "PASSWORD_POLICY"}, {uiprompt.ErrInputTooLong, "INPUT_TOO_LONG"},
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"}, {signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},
-		{secureui.ErrCancelled, "REQUEST_CANCELLED"}, {signer.ErrDenied, "REQUEST_DENIED"}, {errors.New("PASSWORD_POLICY"), "REQUEST_DENIED"},
+		{uiprompt.ErrCancelled, "REQUEST_CANCELLED"}, {signer.ErrDenied, "REQUEST_DENIED"}, {errors.New("PASSWORD_POLICY"), "REQUEST_DENIED"},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			err := fmt.Errorf("CANARY-private-password-or-path: %w", tc.err)

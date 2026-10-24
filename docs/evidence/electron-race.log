@@ -1,0 +1,27 @@
+ok  	localwallet/cmd/wallet-core	3.717s
+ok  	localwallet/cmd/wallet-launcher	54.677s
+ok  	localwallet/cmd/wallet-signer	28.570s
+ok  	localwallet/internal/amount	(cached)
+?   	localwallet/internal/buildinfo	[no test files]
+?   	localwallet/internal/chains	[no test files]
+ok  	localwallet/internal/chains/aptos	(cached)
+ok  	localwallet/internal/chains/chainutil	(cached)
+ok  	localwallet/internal/chains/decred	(cached)
+ok  	localwallet/internal/chains/evm	(cached)
+ok  	localwallet/internal/chains/hypercore	(cached)
+ok  	localwallet/internal/chains/near	(cached)
+ok  	localwallet/internal/chains/ton	(cached)
+ok  	localwallet/internal/derivation	(cached)
+ok  	localwallet/internal/ipc	(cached)
+ok  	localwallet/internal/isolation	7.169s
+ok  	localwallet/internal/journal	(cached)
+?   	localwallet/internal/model	[no test files]
+ok  	localwallet/internal/qr	(cached)
+ok  	localwallet/internal/secureui	(cached)
+ok  	localwallet/internal/signer	(cached)
+ok  	localwallet/internal/strictjson	(cached)
+ok  	localwallet/internal/supervisor	(cached)
+ok  	localwallet/internal/uiprompt	(cached)
+ok  	localwallet/internal/vault	(cached)
+?   	localwallet/tests/oracles/decred	[no test files]
+ok  	localwallet/tests/stress	54.556s

@@ -46,6 +46,13 @@ while True:
  if method==state.get('activityMethod',''):
   activity={'version':1,'id':request['id'],'session':request['session'],'method':'activity','body':{}}
   encoded=json.dumps(activity).encode();sys.stdout.buffer.write(struct.pack('>I',len(encoded))+encoded);sys.stdout.buffer.flush()
+ if method==state.get('promptMethod',''):
+  prompt={'version':1,'id':request['id'],'session':request['session'],'method':'prompt','body':{'id':'0123456789abcdef0123456789abcdef','kind':'confirm','title':'Public fixture','summary':'Go signer supplied public fixture summary'}}
+  encoded=json.dumps(prompt).encode();sys.stdout.buffer.write(struct.pack('>I',len(encoded))+encoded);sys.stdout.buffer.flush()
+  header=sys.stdin.buffer.read(4)
+  if len(header)!=4:sys.exit(0)
+  reply=json.loads(sys.stdin.buffer.read(struct.unpack('>I',header)[0]))
+  if reply['id']!=request['id'] or reply['session']!=request['session'] or reply['method']!='promptReply':sys.exit(4)
  if method==state.get('delayMethod',''):
   open(os.path.join(folder,'native-ready'),'w').close()
   while not os.path.exists(os.path.join(folder,'native-release')):time.sleep(0.001)
@@ -468,6 +475,41 @@ func TestTP041CoreMainInheritedPipes(t *testing.T) {
 			t.Fatal("unknown action accepted")
 		}
 	}
+	// The worker is blocked in a signer prompt, while activity and its answer
+	// travel through the reader fast paths without opening another operation.
+	promptStatePath := filepath.Join(profile, "public-state.json")
+	promptState := readPublicState(t, promptStatePath)
+	promptState["promptMethod"] = "confirmRecovery"
+	writePublicState(t, promptStatePath, promptState)
+	promptRequest := message("confirmRecovery", struct{}{})
+	promptRequest.ID = "prompt-original"
+	promptRequest.Session = strings.Repeat("a", 32)
+	if e = ch.Write(promptRequest); e != nil {
+		t.Fatal(e)
+	}
+	promptEvent, e := ch.Read()
+	if e != nil || promptEvent.Method != "prompt" || promptEvent.ID != promptRequest.ID || !bytes.Contains(promptEvent.Body, []byte("Go signer supplied public fixture summary")) {
+		t.Fatal("signer prompt not relayed", e)
+	}
+	activityRequest := message("activity", struct{}{})
+	activityRequest.ID = "prompt-activity"
+	activityRequest.Session = promptRequest.Session
+	if e = ch.Write(activityRequest); e != nil {
+		t.Fatal(e)
+	}
+	if ack, e := ch.Read(); e != nil || ack.ID != activityRequest.ID || ack.Method != "activity" {
+		t.Fatal("prompt blocked real activity", e)
+	}
+	answer := ipc.Message{Version: 1, ID: promptRequest.ID, Session: promptRequest.Session, Method: "promptReply", Body: []byte(`{"promptId":"0123456789abcdef0123456789abcdef","accepted":true}`)}
+	if e = ch.Write(answer); e != nil {
+		t.Fatal(e)
+	}
+	if final, e := ch.Read(); e != nil || final.ID != promptRequest.ID || final.Method != "confirmRecovery" || final.Error != "" {
+		t.Fatal("prompt answer did not complete original operation", e)
+	}
+	promptState = readPublicState(t, promptStatePath)
+	delete(promptState, "promptMethod")
+	writePublicState(t, promptStatePath, promptState)
 	for i, malformed := range []struct{ method, body string }{
 		{"activity", "null"}, {"lock", "null"}, {"networks", "null"},
 		{"activity", `{"input":"public forbidden field"}`}, {"lock", `{"unexpected":true}`},
