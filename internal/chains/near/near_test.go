@@ -288,6 +288,12 @@ func TestLocalNode(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	if balances, err := a.Balance(ctx, fresh); err != nil || len(balances) != 1 || balances[0].Atomic != "0" || balances[0].State != missingBalanceState || len(base58.Decode(balances[0].At)) != 32 {
+		t.Fatalf("fresh implicit account before creation: %+v %v", balances, err)
+	}
+	if _, err := a.Prepare(ctx, fresh, model.Transfer{AccountID: fresh.ID, Asset: asset(fresh.Network), Recipient: ac.Address, Amount: "1"}); err == nil {
+		t.Fatal("uninitialized sender obtained a transaction plan")
+	}
 	fund, e := a.Prepare(ctx, ac, model.Transfer{AccountID: ac.ID, Asset: asset(ac.Network), Recipient: fresh.Address, Amount: "1000000000000000000000000"})
 	if e != nil {
 		t.Fatal(e)
@@ -301,6 +307,9 @@ func TestLocalNode(t *testing.T) {
 	}
 	if got, e := directBalance(ctx, endpoint, fresh.Address); e != nil || got != "1000000000000000000000000" {
 		t.Fatalf("fresh implicit balance %s %v", got, e)
+	}
+	if balances, err := a.Balance(ctx, fresh); err != nil || len(balances) != 1 || balances[0].Atomic != "1000000000000000000000000" || balances[0].State != "FINAL" {
+		t.Fatalf("created implicit account retained missing-account state: %+v %v", balances, err)
 	}
 	for _, account := range []model.Account{ac, fresh} {
 		entries, err := a.History(ctx, account)

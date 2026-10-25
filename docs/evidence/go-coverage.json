@@ -51,15 +51,21 @@
     },
     {
       "package": "localwallet/internal/chains/near",
-      "test": "TestLocalNode",
+      "test": "TestNEARPublicBalanceReadOnly",
       "status": "NOT_RUN",
-      "reason": "near_test.go:233: NOT_RUN: pinned sandbox harness required"
+      "reason": "balance_test.go:493: NOT_RUN: explicit public read-only NEAR balance probe not requested"
     },
     {
       "package": "localwallet/internal/chains/evm",
       "test": "TestTP050LocalEVMProtocolAcceptance",
       "status": "NOT_RUN",
       "reason": "integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node"
+    },
+    {
+      "package": "localwallet/internal/chains/near",
+      "test": "TestLocalNode",
+      "status": "NOT_RUN",
+      "reason": "near_test.go:233: NOT_RUN: pinned sandbox harness required"
     },
     {
       "package": "localwallet/tests/stress",
@@ -85,7 +91,7 @@
   "profiles": [
     {
       "file": "reports/go-base.cover",
-      "sha256": "294fc8c0cb73b50de34ad431d447b2b9aadd7e37474bc35010ea072bc8c775d6"
+      "sha256": "dd65d8f6199e2772a81eb0f4c37488e49c9f6db6f6d362846a9eceadd5192ba4"
     },
     {
       "file": "reports/go-native.cover",
@@ -98,25 +104,25 @@
     "packages": {
       "localwallet/internal/buildinfo": "SKIP",
       "localwallet/internal/model": "SKIP",
-      "localwallet/internal/journal": "PASS",
       "localwallet/internal/amount": "PASS",
+      "localwallet/internal/journal": "PASS",
       "localwallet/internal/ipc": "PASS",
-      "localwallet/internal/secureui": "PASS",
       "localwallet/internal/exchange": "PASS",
+      "localwallet/internal/secureui": "PASS",
       "localwallet/internal/exchange/bybit": "PASS",
       "localwallet/internal/uiprompt": "PASS",
       "localwallet/internal/derivation": "PASS",
-      "localwallet/internal/chains/chainutil": "PASS",
       "localwallet/internal/strictjson": "PASS",
-      "localwallet/internal/qr": "PASS",
+      "localwallet/internal/chains/chainutil": "PASS",
       "localwallet/internal/isolation": "PASS",
       "localwallet/internal/chains/aptos": "PASS",
       "localwallet/tests/oracles/decred": "PASS",
       "localwallet/internal/chains": "PASS",
+      "localwallet/internal/qr": "PASS",
       "localwallet/internal/chains/near": "PASS",
-      "localwallet/internal/chains/decred": "PASS",
       "localwallet/internal/chains/ton": "PASS",
       "localwallet/internal/supervisor": "PASS",
+      "localwallet/internal/chains/decred": "PASS",
       "localwallet/internal/chains/hypercore": "PASS",
       "localwallet/cmd/wallet-launcher": "PASS",
       "localwallet/internal/chains/evm": "PASS",
@@ -140,7 +146,7 @@
       {
         "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
         "status": "PASS",
-        "seconds": 0.17
+        "seconds": 0.16
       },
       {
         "name": "TestRealX11NativeKeyAndButtonActivity",
@@ -185,12 +191,12 @@
       {
         "name": "TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible",
         "status": "PASS",
-        "seconds": 0.2
+        "seconds": 0.21
       },
       {
         "name": "TestNativeFileChooserCancelAndVerifiedSelection",
         "status": "PASS",
-        "seconds": 0.93
+        "seconds": 0.91
       },
       {
         "name": "TestNativeInitUnavailableDisplayFailsClosed",
@@ -215,7 +221,7 @@
     ],
     "exit": 0,
     "coverage": "total:\t\t\t\t\t\t\t\t(statements)\t\t\t98.3%",
-    "seconds": 11.405
+    "seconds": 11.418
   },
   "sourceSHA256": {
     "cmd/wallet-core/exchange.go": "001aba57d71915e8c14db212224a269533d6da6dee750b4024ce5e1e2a848855",
@@ -297,11 +303,13 @@
     "internal/chains/hypercore/keys_test.go": "1b9ba974ec7dfe1a13da44e193c25bd8f916d402514c608a03aac5617d8bfd8b",
     "internal/chains/hypercore/pagination.go": "682950892a05a01849bddd3b1a0e6c5f8e30958bd76ecfd621938ee2bcba8e78",
     "internal/chains/hypercore/pagination_test.go": "82a15d595d1966dbb69f6a98516f045181c6a8c88b9d040729678973c2f365fa",
-    "internal/chains/near/adversarial_test.go": "4506b500bca8e57785edd8416a8493fd7ddae098571ef4a093f1b3e00e9d897e",
+    "internal/chains/near/adversarial_test.go": "1b16a9617cc596d831bd73b452a1ff6e5ae41e669cf47e51f7f9a38e23d8f512",
+    "internal/chains/near/balance.go": "20e2fa935c0451669f0e7022a687cd0828c5b3ab0199fcd0f580a28634581b1b",
+    "internal/chains/near/balance_test.go": "34401ea5f987f6382f932eb1ca8531774675b98a93cda45256a07f47db325fff",
     "internal/chains/near/history.go": "f3048c0fa60915d1519d0582893a112d6914bbf2da38aea151e0b78bd8f9f00e",
-    "internal/chains/near/history_test.go": "92fa6db09ae186245d30e0917538584a24c8c762ca992f737e7ebdaeed10b858",
-    "internal/chains/near/near.go": "ea66cf20a6545a625d8cdc531c128c2ad1f59f829ecc088f3440c5d396c3bb2b",
-    "internal/chains/near/near_test.go": "902c4c573cf29036a6fa241c46ec97abd05c5c03ff22a8c8138c35750fef2d79",
+    "internal/chains/near/history_test.go": "ec99c766cfca01e5fcdaa38ca1d287807576bb757406decba0de33f95b7508eb",
+    "internal/chains/near/near.go": "130338ac7e41d4d903f49cc567de91ccc67e67b2ef52fa1cb080c7397c283c43",
+    "internal/chains/near/near_test.go": "99efd7dd062571a0ff1663d1fa4d5fad6d5bff401926f150becc2979a7a21443",
     "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
     "internal/chains/ton/adverse_test.go": "f2940bd56f98be4c730a997c8f657585e468dec2012e5c9065efb48b1fea4a5f",
     "internal/chains/ton/archival.go": "07e433acaf341e5a06462ea405b56d9584d9f76bec1ce3de58fd593a9e9c3feb",
@@ -409,7 +417,7 @@
     "tests/stress/scheduling_test.go": "b79df83a936ae5793246c56a8b407eebcd6c83087e48e074d1b351fdf177bc4c",
     "tests/stress/stress_test.go": "a7f9b112affb4fe4d8eaf7113b0eac8b7afac2a882c1de86b40c48fa9e867356"
   },
-  "sourceCommit": "e0b8113efe80c5d6bc6a6180ff157a62e8dccd05",
+  "sourceCommit": "0af0024acbea5458e4506372c02ad9fd9f9f6be8",
   "floors": "PASS",
-  "seconds": 90.774
+  "seconds": 91.752
 }

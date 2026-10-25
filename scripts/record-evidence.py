@@ -6,7 +6,7 @@ root=pathlib.Path(__file__).resolve().parents[1];out=root/'docs/evidence';out.mk
 names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','mainnet-rpc','mainnet-tabs','wallet-layout','wallet-actions','phrase-recovery','phrase-onboarding','phrase-native-focused','electron-interface','prompt-ui','release-banner-removal','receive-small-display','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
 names += ['hypercore-pagination','license-notices','release-auth','release-evidence','crash-security','packaged-send','fuzz-long','nondecred-soak-run','production-hardening']
 names += ['bybit-client','bybit-client-mutations','exchange-core','exchange-signermutation',
-          'usdt-execution','exchange','exchange-live','exchange-settings','settings-main','x11-diagnostics','pre-exchange-soak','pre-exchange-nondecred-soak-run']
+          'usdt-execution','exchange','exchange-live','exchange-settings','settings-main','x11-diagnostics','near-dcr-balances','pre-exchange-soak','pre-exchange-nondecred-soak-run']
 index=[]
 for name in names:
  source=root/'reports'/(name+'.json')
@@ -46,6 +46,14 @@ for name in ['x11-diagnostics-install.log','x11-diagnostics-packaged.log','x11-d
              'x11-diagnostics-go-coverage.log','x11-diagnostics-race.log','x11-diagnostics-recovery.log',
              'x11-diagnostics-crash.log','x11-diagnostics-display.log','x11-diagnostics-version.log',
              'x11-diagnostics-production-gate.log']:
+ source=root/'reports'/name
+ if source.is_file():shutil.copyfile(source,out/name)
+for name in ['near-balance-unit.log','near-balance-local.log','near-balance-live.log',
+             'near-balance-live-not-run.log','near-dcr-frontend-coverage.log',
+             'near-dcr-frontend-first-attempt.log','near-dcr-go-coverage.log',
+             'near-dcr-install.log','near-dcr-packaged.log','near-dcr-packaged-send.log',
+             'near-dcr-recovery.log','near-dcr-crash.log','near-dcr-race.log',
+             'near-dcr-version.log','near-dcr-production-gate.log']:
  source=root/'reports'/name
  if source.is_file():shutil.copyfile(source,out/name)
 manifest=json.loads((root/'dist'/('go-build-manifest.json' if args.go_only else 'build-manifest.json')).read_text())

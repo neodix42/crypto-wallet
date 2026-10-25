@@ -39,7 +39,7 @@
         <label>Asset <select id="asset"></select></label><p id="address"></p>
         <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p><p id="connectionstatus"></p>
         <div class="actions"><button id="refresh">Refresh balance</button><button id="copy">Copy verified address</button><button id="saveqr">Save verified QR</button><button id="configure">Configure trusted RPC</button><button id="hideaccount">Hide selected</button></div>
-        <p id="decrednote" hidden>Decred spendable balance excludes immature outputs. Query bounded chain history for maturity details.</p>
+        <p id="decrednote" hidden>Decred requires a synchronized dcrd node on the selected network, with authenticated TLS RPC and a certificate trusted by this system. Use Configure trusted RPC to enter its HTTPS endpoint and RPC username/password in the wallet dialog. Network details sets the wallet birthday, address range and block scan budget; an incomplete scan leaves balance unknown. This is trusted-node synchronization. Spendable balance excludes immature outputs; query bounded chain history for maturity details.</p>
         <p>Choose this exact network at the sender. A plain address QR does not identify an EVM network. Hiding an account preserves its derivation index and recovery data.</p>
       </div>
       <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div><button id="scan">Scan local QR image</button>

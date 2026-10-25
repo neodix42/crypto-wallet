@@ -42,6 +42,8 @@ The default profile stores data in `~/.config/localwallet/mainnet` or `$XDG_CONF
 
 Public mainnet connections are configured for Ethereum, HyperEVM, HyperCore, Base, Horizen, NEAR, Aptos and TON. Decred remains available and requires an authenticated TLS `dcrd` connection configured through the **Configure trusted RPC** wallet dialog. See [mainnet connection setup](docs/MAINNET.md) for exact endpoints, API-key/rate-limit considerations and Decred setup. An unavailable connection displays an unknown balance; it is never treated as a verified zero.
 
+A new NEAR implicit address is not an on-chain account until it receives NEAR. A confirmed missing account now displays zero with activation guidance; transport, authority and malformed-response failures remain unknown. Decred without a configured node displays connection guidance. Its current bounded scan also limits historical mainnet recovery: see [balance troubleshooting and verification](docs/BALANCE_CONNECTIVITY.md) before configuring a scan.
+
 ## Tests
 
 Use public synthetic fixtures only. No test automatically spends mainnet funds. The default tests run offline after dependencies/toolchains have been installed; optional node integrations explicitly report a skip when their prerequisites are absent.

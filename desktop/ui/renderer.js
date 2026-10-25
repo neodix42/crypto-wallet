@@ -9,6 +9,7 @@ let exchangeOpen = false, exchangeEpoch = 0, exchangeQuoteEpoch = 0, exchangeWit
 let exchangeBusy = false, exchangeConnected = false, exchangeMarket, exchangeWithdrawal, exchangeOperations = [];
 let settingsOpen = false, settingsSection = 'wallet', notificationReturnFocus;
 const rowBalances = new Map(), balanceQueue = [];
+const decredConnectionRequired = 'Connection required — configure an authenticated TLS dcrd node. Balance unknown.';
 const nativeResultMethods = new Set(['send', 'scanQR']);
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
 function showStatus(message) {
@@ -458,10 +459,11 @@ function nativeAsset(network) {
   return network?.family === 'evm' || network?.assets?.some(asset => asset.id.endsWith(':native'))
     ? network.assets.find(asset => asset.id.endsWith(':native')) : network?.assets?.length === 1 ? network.assets[0] : undefined;
 }
+function needsDecredConnection(network) { return network?.family === 'decred' && !network.rpc; }
 function renderRowBalance(cell, account) {
   const network = networks.find(network => network.id === account.network), asset = nativeAsset(network), entry = rowBalances.get(account.id);
   const matches = entry?.value.filter(balance => balance?.asset === asset?.id) || [];
-  cell.textContent = !asset ? 'Balance unknown — asset unavailable.' : entry?.scope !== balanceScope(account) || entry.status === 'loading' ? `Loading ${asset.symbol}…` : entry.status === 'failed' ? `${asset.symbol} unavailable — connection query failed.` : balanceText(asset, matches.length === 1 ? matches[0] : undefined);
+  cell.textContent = needsDecredConnection(network) ? decredConnectionRequired : !asset ? 'Balance unknown — asset unavailable.' : entry?.scope !== balanceScope(account) || entry.status === 'loading' ? `Loading ${asset.symbol}…` : entry.status === 'failed' ? `${asset.symbol} unavailable — connection query failed.` : balanceText(asset, matches.length === 1 ? matches[0] : undefined);
   cell.title = `${cell.textContent} · ${network?.trust || 'Provider verification required.'}`;
 }
 function updateRowBalance(account) {
@@ -470,6 +472,7 @@ function updateRowBalance(account) {
 function queueVisibleBalances(force = false) {
   if (vaultMode !== 'ready' || activeWalletID || exchangeOpen || settingsOpen) return;
   for (const account of visibleAccounts().filter(account => account.index === activeIndex)) {
+    if (needsDecredConnection(networks.find(network => network.id === account.network))) { rowBalances.delete(account.id); updateRowBalance(account); continue; }
     const scope = balanceScope(account), previous = rowBalances.get(account.id);
     if (!force && previous?.scope === scope) continue;
     for (let index = balanceQueue.length - 1; index >= 0; index--) if (balanceQueue[index].account.id === account.id) balanceQueue.splice(index, 1);
@@ -486,7 +489,7 @@ async function drainBalanceQueue() {
   try {
     while (balanceQueue.length && !credentialPending && !nativeActionsPending && !receiveIntent) {
       const { account, entry, epoch } = balanceQueue.shift();
-      if (epoch !== sessionEpoch || vaultMode !== 'ready' || activeWalletID || exchangeOpen || settingsOpen || account.index !== activeIndex || rowBalances.get(account.id) !== entry) {
+      if (epoch !== sessionEpoch || vaultMode !== 'ready' || activeWalletID || exchangeOpen || settingsOpen || account.index !== activeIndex || rowBalances.get(account.id) !== entry || needsDecredConnection(networks.find(network => network.id === account.network))) {
         if (rowBalances.get(account.id) === entry) rowBalances.delete(account.id);
         continue;
       }
@@ -573,7 +576,8 @@ function select() {
   const network = networks.find(network => network.id === account?.network);
   show('wallettitle', network?.name || account?.network || 'Network wallet');
   show('walletsubtitle', account ? `${accountName(account.index)} · ${account.network}` : 'No account selected');
-  show('connectionstatus', network?.family === 'decred' && !network.rpc ? 'Connection required — configure an authenticated TLS dcrd node before querying or sending.' : network ? `${network.rpc ? 'RPC: ' + network.rpc + ' · ' : ''}${network.trust || 'Provider verification required.'}` : 'Connection details unavailable.');
+  show('connectionstatus', needsDecredConnection(network) ? decredConnectionRequired : network ? `${network.rpc ? 'RPC: ' + network.rpc + ' · ' : ''}${network.trust || 'Provider verification required.'}` : 'Connection details unavailable.');
+  if (needsDecredConnection(network)) show('balance', decredConnectionRequired);
   loadDiscovery(network?.family === 'decred' ? account : null);
   $('decrednote').hidden = network?.family !== 'decred'; $('dcrdiscoverycontrols').hidden = network?.family !== 'decred';
   $('associationcontrols').hidden = !['near', 'aptos'].includes(network?.family);
@@ -601,10 +605,12 @@ function balanceText(asset, balance) {
   if (!balance || typeof balance.atomic !== 'string' || !/^(0|[1-9][0-9]*)$/.test(balance.atomic) || typeof balance.state !== 'string' || !balance.state || /unknown|unavailable|synchroniz|stale|pending|error|failed|incomplete/i.test(balance.state) || typeof balance.at !== 'string' || !balance.at) return 'Balance unknown — no complete network observation.';
   const padded = balance.atomic.padStart(asset.decimals + 1, '0');
   const value = asset.decimals ? padded.slice(0, -asset.decimals) + '.' + padded.slice(-asset.decimals) : padded;
-  return `${value.replace(/(\.[0-9]*?)0+$/, '$1').replace(/\.$/, '')} ${asset.symbol} · ${balance.state} · ${balance.at}`;
+  const state = balance.state === 'NOT_CREATED (final state)' ? 'Account not created (final state) — receive NEAR to activate' : balance.state;
+  return `${value.replace(/(\.[0-9]*?)0+$/, '$1').replace(/\.$/, '')} ${asset.symbol} · ${state} · ${balance.at}`;
 }
 function renderBalance() {
   const network = networks.find(network => network.id === current()?.network), asset = network?.assets.find(asset => asset.id === $('asset').value);
+  if (needsDecredConnection(network)) { show('balance', decredConnectionRequired); $('gasbalance').hidden = true; return; }
   show('balance', asset ? balanceText(asset, balances.find(balance => balance.asset === asset.id)) : 'Balance unknown — no asset selected.');
   const gas = network?.assets.find(item => item.id.endsWith(':native'));
   $('gasbalance').hidden = !asset?.contract || !gas;
@@ -612,6 +618,10 @@ function renderBalance() {
 }
 async function loadBalance() {
   const epoch = viewEpoch, session = sessionEpoch, account = current();
+  if (needsDecredConnection(networks.find(network => network.id === account?.network))) {
+    balances = []; rowBalances.delete(account.id); updateRowBalance(account);
+    show('balance', decredConnectionRequired); $('gasbalance').hidden = true; return;
+  }
   const entry = account && { scope: balanceScope(account), status: 'loading', value: [] };
   if (entry) rowBalances.set(account.id, entry);
   balances = []; show('balance', 'Balance unknown — querying the selected network…'); $('gasbalance').hidden = true;

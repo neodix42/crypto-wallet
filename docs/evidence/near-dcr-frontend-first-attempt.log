@@ -1,0 +1,188 @@
+
+> localwallet-desktop@0.1.0 build
+> tsc --project tsconfig.json
+
+✔ TP033 prompt schemas accept only the expected bounded fields and never interpret hostile text as authority (3.347133ms)
+✔ TP042 prompt replies bind acceptance to one ID and exactly the current prompt kind (1.459375ms)
+✔ TP033 prompt preload exposes only three scoped operations and sanitizes all transport errors (1.904788ms)
+✔ TP033 dedicated prompt is local-only, has no wallet API, storage, reveal or secret export actions (151.258036ms)
+✔ TP033 masked inputs preserve exact text and are cleared before the scoped response crosses the bridge (20.847056ms)
+✔ TP033 empty input remains a Go policy decision and all eight permitted fields stay masked (17.383454ms)
+✔ TP033 cancelling or abandoning any input clears retained nodes and never returns their values (94.567731ms)
+✔ TP033 phrase acknowledgement has no phrase values and clears all displayed words before replying (79.233912ms)
+✔ TP033 recording phase blocks copy, cut, drag, context menu, print and save shortcuts without affecting other prompts (26.243213ms)
+✔ TP042 transaction confirmation displays only inert backend details and never signs automatically (24.531713ms)
+✔ TP041 notice has one Close action and a fixed sanitized unavailable state on failed dispatch (14.592182ms)
+✔ TP061 receive uses only the backend address and QR with a scoped argument-free copy action (16.919452ms)
+✔ TP061 receive copy errors are sanitized, duplicate work is disabled, and late completion cannot repopulate a closed prompt (54.011781ms)
+✔ TP043 prompt focus stays in the current modal and visible-state events do not cancel (14.808528ms)
+✔ TP043 a hidden or closed window cannot render a delayed phrase response (12.042365ms)
+✔ TP041 malformed prompt data fails closed without reflecting supplied data or sending a response (482.006973ms)
+✔ TP041 submitting twice while a response is outstanding never sends duplicate approval or secrets (25.279801ms)
+✔ TP041 an empty backend summary remains a usable title-only notice, confirmation or receive prompt (78.185412ms)
+✔ TP041 main startup binds inherited handles, sandbox, packaged identity and local assets (33.623548ms)
+✔ TP041 startup errors quit without providing a signing or secret fallback (7.947214ms)
+✔ TP041 main denies remote resources, navigation, webviews, popups, permissions and downloads (2.068555ms)
+✔ TP041 real Node stream framing handles partial headers, fragments, multiplexing and sanitized errors (3.643718ms)
+✔ TP041 response identity, method, strict schema, replay, truncation and bounds fail closed (20.5235ms)
+✔ TP041 hostile IPC senders and origins cannot reach the core; valid calls retain strict public schemas (2.064055ms)
+✔ TP043 input activity throttles and OS/renderer lifecycle events request lock; stop cancels pending work (2.441448ms)
+✔ TP060 timeout keeps original request ambiguous and locks after send; stream errors terminate the session (14.407415ms)
+✔ TP041 every public request schema exercises exact fields, own members and numeric bounds (3.396142ms)
+✔ TP012 response codec rejects malformed, duplicate, ambiguous and excessive frames before use (0.930954ms)
+✔ TP033 preload exposes a frozen public allowlist and accepts activity only from trusted pointer events (2.106384ms)
+✔ TP033 renderer public flows remain inert text, use exact decimal strings and never acquire secrets (257.97663ms)
+✔ TP042 renderer editing, account selection, QR scan and lock invalidate prepared payments (77.006419ms)
+✔ TP060 renderer offers reconciliation only for unresolved original identities and renders hostile metadata as text (61.479764ms)
+✔ TP060 renderer cancellation, RPC failure and empty-state actions never create an automatic payment (38.662152ms)
+✔ TP043 main polls only idle status, never sends polling activity, and clears the renderer immediately on every lock (3.807085ms)
+✔ TP043 status-poll failure ends the session and clears cached public data (1.785759ms)
+✔ TP041 account hiding and manual recovery ranges have exact bounded public schemas (0.59743ms)
+✔ TP043 automatic lock removes cached accounts, QR data, diagnostics, history and the pending plan (50.289794ms)
+✔ TP043 delayed public replies after a lock cannot repopulate the renderer or authorize a stale send (523.581988ms)
+✔ TP042 editing or switching account while preparation is pending discards its eventual preview (319.81961ms)
+✔ TP032 hiding preserves account indices; hidden accounts can be restored and a written phrase can recover a manual range (120.382705ms)
+✔ TP043 locked snapshots clear the screen and empty selections contain no inferred account identifiers (53.888244ms)
+✔ TP042 only durable unsigned PREPARED operations offer explicit cancellation of their original ID (78.141866ms)
+✔ TP043 disposed renderer notification failures cannot interrupt OS locking or core teardown (4.023902ms)
+✔ TP041 visible app version is read-only local metadata with exact sender, frame and origin checks (141.445773ms)
+✔ TP043 native prompt activity renews only its correlated six-minute deadline and never resolves or creates a request (24.811709ms)
+✔ TP043 malformed, non-native, stale and excessive native activity fail closed without exposing input values (13.691188ms)
+✔ TP031 first launch explicitly creates one shared-root wallet through a dedicated dialog and lists every returned network under Main account (130.135816ms)
+✔ TP031 profile is explicit before onboarding and follows trusted snapshot metadata without rendering arbitrary environment text (41.254321ms)
+✔ TP031 existing locked vault offers unlock rather than new-wallet creation and reveals no cached account cards (39.696868ms)
+✔ TP031 unavailable or inconsistent storage never authorizes onboarding creation or restoration; retry requires confirmed absence (672.671549ms)
+✔ TP031 initial status failure is unavailable and password-dialog cancellation preserves setup (193.152844ms)
+✔ TP041 operation failures resolve the IPC handler with only allowlisted value-free codes (12.818423ms)
+✔ TP041 preload strictly unwraps operation results and drops raw handler, protocol and error details (3.911864ms)
+✔ TP031 setup and recovery confirmation failures show focused persistent safe guidance with no secrets or automatic retries (152.352624ms)
+✔ TP031 mainnet account tabs list all nine production networks and card copy confirms only the captured public account ID (808.725551ms)
+✔ TP052 opening wallet tabs isolates real balance responses, selected assets, gas currency, forms and the journal (324.196142ms)
+✔ TP043 late wallet queries, native receive, prepared plans and errors cannot overwrite another tab (591.256926ms)
+✔ TP052 absent, malformed and failed balance data stay unknown or unavailable and never become zero (114.495463ms)
+✔ TP032 recovery confirmation gating survives tab navigation during native phrase setup and cannot be revived after locking (109.217472ms)
+✔ TP061 Decred copy and QR saving refresh the committed receive descriptor without changing wallet or losing form data (68.752282ms)
+✔ TP060 journal entries without a current wallet or exact account descriptor provide no controls (32.349305ms)
+✔ TP051 Decred discovery controls load each selected wallet descriptor and clear on lock (126.158287ms)
+✔ TP033 overview uses one semantic table and row activation opens only its wallet while copy stays on overview (73.849737ms)
+✔ TP033 Settings is a permanent main tab after Exchange with Wallet and Journal pages and no modal (51.874667ms)
+✔ TP042 Send is shown by explicit action and closing clears intent without cancelling its journal reservation (49.35451ms)
+✔ TP043 middle click closes only wallet tabs, keeps inactive intent and falls back to its account overview on active close (63.393983ms)
+✔ TP043 closing an active wallet invalidates late balances, history, preparations and scan without sending or cancelling (160.100239ms)
+✔ TP061 dedicated Receive is the sole QR window and its committed descriptor survives tab closing but never a lock (43.209934ms)
+✔ TP043 closing an inactive tab preserves pending work for the active wallet without activation or cancellation (126.886489ms)
+✖ TP052 Decred without a configured node keeps balance unknown and skips RPC calls in rows and wallet workflows (43.347482ms)
+✔ TP052 configuring Decred enables fresh RPC observations while provider failures and stale replies stay unknown (52.568787ms)
+✔ TP052 NEAR proven absent implicit accounts show zero and activation guidance while RPC errors remain unknown (37.765236ms)
+✔ TP032 unlocked Send and Receive open their workflows before phrase confirmation without bypassing preparation or native receive gates (60.652821ms)
+✔ TP032 Receive resumes only the captured wallet after phrase confirmation and cancellation, incomplete confirmation, lock or navigation never opens QR (388.320159ms)
+✔ TP032 Send phrase confirmation preserves exact token, recipient, amount and memo without preparing or sending automatically (100.336195ms)
+✔ TP060 Settings owns a scoped journal independent of the open Send draft and rejects stale journal replies (64.89717ms)
+✔ TP052 overview queries native balances once, serially and exactly for every supported mainnet domain (196.208923ms)
+✔ TP052 explicit balance refresh supersedes late replies, bounds pending work and never treats invalid observations as zero (205.34722ms)
+✔ TP043 overview balance replies are bound to descriptor, network settings and lock session even when wallet tabs close (106.480286ms)
+✔ TP043 closed-wallet balance failures and same-origin RPC reconfiguration refresh the correct overview observation (61.720106ms)
+✔ TP060 changing journal asset clears prior reconciliation and rejects delayed results without changing Send intent (49.737057ms)
+✔ TP043 overview balance scheduling pauses for native address actions until success, cancellation, failure or lock settles (220.983498ms)
+✔ TP043 native prompts continue pausing overview queries after closing their wallet tab (423.559753ms)
+✔ TP043 committed association and discovery metadata update closed-wallet rows before balance scheduling resumes (418.890048ms)
+✔ TP033 TP041 recovery phrase setup has no encrypted-file workflow or public secret fields (87.457828ms)
+✔ TP032 confirmed recovery enables wallet actions in every profile and metadata updates never revoke confirmation (232.496794ms)
+✔ TP032 pending phrase confirmation remains required on testnet and old backup metadata cannot enable it (507.642902ms)
+✔ TP033 isolated Electron prompt receives secrets once, returns bound input and clears its entire session (7.335847ms)
+✔ TP041 prompt assets and permissions are scoped to a distinct ephemeral origin (7.825879ms)
+✔ TP033 renderer reply cannot change prompt IDs, inject extra inputs, bypass delivery or authorize another kind (17.117825ms)
+✔ TP043 prompt navigation, crash, OS lock, close, timeout and core EOF release secrets and cancel approvals (31.888068ms)
+✔ TP043 prompt activity comes from its current trusted frame, renews operation deadline and throttles without bypassing lock (2.97267ms)
+✔ TP061 receive clipboard uses only signer-bound address and file prompts use Electron chooser results (7.683791ms)
+✔ TP041 malformed, replayed, unsolicited and concurrent prompts stop instead of opening fallback surfaces (12.372883ms)
+✔ TP061 copy and save first show the same validated receive screen before the subsequent clipboard or file prompt (4.262338ms)
+✔ TP033 ordinary portfolio delegates private entry to isolated dialogs without exposing their API or fields (56.088804ms)
+✔ TP043 a locked status response from another request clears a live prompt immediately (11.734135ms)
+✔ TP060 history schema accepts only optional opaque continuation capabilities (0.435203ms)
+✔ TP060 history appends bounded inert pages and stops at the disclosed scope (32.649536ms)
+✔ TP043 history continuations clear on account, asset, refresh and lock; stale pages cannot append (44.34311ms)
+✔ TP060 failed and oversized history pages invalidate continuation without fabricating balances (148.595741ms)
+✔ TP032 account pages install one complete generation before exposing a portfolio (61.899458ms)
+✔ TP043 account paging rejects changed, duplicated, truncated and excessive generations without a partial portfolio (546.600323ms)
+✔ TP043 lock during account paging revokes late complete metadata (41.031017ms)
+✔ TP060 journal pages append only exact local identities and clear on context or generation errors (42.151409ms)
+✔ TP041 account and local journal page request schemas preserve optional-field bounds (0.722548ms)
+✔ TP043 repeated same-context refreshes discard older replies and errors independently per history view (54.228037ms)
+✔ TP060 querying chain history leaves an in-flight local journal continuation usable (32.734335ms)
+✔ Floating notifications remain outside page flow, are accessible, dismiss without calls and restore public focus safely (83.551219ms)
+✔ Exchange labels owned receive addresses separately from full ERC-20 contracts without changing quote identity (43.070323ms)
+✔ HyperCore spot identifiers remain distinct from EVM token contracts in wallet and Exchange selectors (47.877464ms)
+✔ Settings Exchange owns region and connection controls and connects without opening the trading page (52.555285ms)
+✔ Settings three tabs support keyboard navigation without a modal focus trap and stay usable while locked (45.566681ms)
+✔ Settings connection cancellation and failures float sanitized guidance and block duplicate credential operations (41.032048ms)
+✔ Leaving Settings Exchange rejects delayed connection replies, errors and completion notices (496.459616ms)
+✔ Exchange tab is explicit, accessible, isolated from Send and never collects API credentials in the portfolio (177.500712ms)
+✔ Exchange keeps all amounts as exact strings and each of the three buttons sends only its own reviewed action (132.137756ms)
+✔ Exchange can trade TON while withdrawing canonical USDT to a different owned Ethereum wallet (141.033918ms)
+✔ Exchange respects exact network suspension, unsupported routes and recovery confirmation independently (111.817696ms)
+✔ Exchange operation acknowledgment stays unresolved, offers original-ID reconciliation and renders remote strings inertly (89.254401ms)
+✔ Exchange blocks duplicate mutation clicks and unrelated actions while its dedicated approval is pending (80.715332ms)
+✔ Exchange drops stale quote, withdrawal and connection replies on selection changes, tab navigation and lock (440.714078ms)
+✔ Exchange concurrent market and state refresh use the latest request and never accept a foreign selection (39.18997ms)
+✔ Exchange failures are visible and sanitized, preserve uncertainty and never retry a monetary operation (602.029687ms)
+✔ Exchange public schemas reject credentials, arbitrary endpoints, side confusion and inexact numeric amounts (6.05554ms)
+✔ Exchange requires a complete positive price for Swap while keeping verified deposit routes independent (121.214727ms)
+✔ Exchange operation failures clear prior authority and stale errors cannot alter the next wallet view (354.158315ms)
+✔ Exchange preserves hidden account policy and exposes no reconcile control for finalized, malformed or locked operations (115.923284ms)
+✔ Exchange shows backend route restrictions even for an otherwise supported coin without implying an absolute execution price (87.395206ms)
+✔ Exchange displays public completion reasons, exact fills, fees and remote identities as inert text while dropping private fields (77.511941ms)
+✔ Exchange recent operations and reconciled rejection details retain public reasons while stripping unknown and malformed fields (80.603431ms)
+✔ Exchange clears prior public details before another request and never reflects unsupported result shapes or oversized fields (71.185176ms)
+✔ Exchange restores a truthful empty operation state after unlocking a previously locked renderer (43.356895ms)
+✔ TP041 privileged methods have strict public schemas (2.093904ms)
+✔ TP033 TP041 production surface no secret inputs or remote assets (0.419523ms)
+ℹ tests 135
+ℹ suites 0
+ℹ pass 134
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15076.712334
+
+✖ failing tests:
+
+test at tests/runtime.test.cjs:427:1
+✖ TP052 Decred without a configured node keeps balance unknown and skips RPC calls in rows and wallet workflows (43.347482ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /synchronized mainnet dcrd.*authenticated TLS RPC.*certificate trusted by this system/. Input:
+  
+  'Decred requires a synchronized dcrd node on the selected network, with authenticated TLS RPC and a certificate trusted by this system. Use Configure trusted RPC to enter its HTTPS endpoint and RPC username/password in the wallet dialog. Network details sets the wallet birthday, address range and block scan budget; an incomplete scan leaves balance unknown. This is trusted-node synchronization. Spendable balance excludes immature outputs; query bounded chain history for maturity details.'
+  
+      at TestContext.<anonymous> (/home/neodix/gitProjects/crypto-wallet/desktop/tests/runtime.test.cjs:434:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Decred requires a synchronized dcrd node on the selected network, with authenticated TLS RPC and a certificate trusted by this system. Use Configure trusted RPC to enter its HTTPS endpoint and RPC username/password in the wallet dialog. Network details sets the wallet birthday, address range and block scan budget; an incomplete scan leaves balance unknown. This is trusted-node synchronization. Spendable balance excludes immature outputs; query bounded chain history for maturity details.',
+    expected: /synchronized mainnet dcrd.*authenticated TLS RPC.*certificate trusted by this system/,
+    operator: 'match',
+    diff: 'simple'
+  }
+--------------------|---------|----------|---------|---------|--------------------------------------
+File                | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                    
+--------------------|---------|----------|---------|---------|--------------------------------------
+All files           |     100 |    98.68 |     100 |     100 |                                      
+ app                |     100 |    99.19 |     100 |     100 |                                      
+  codec.js          |     100 |      100 |     100 |     100 |                                      
+  main.js           |     100 |    98.41 |     100 |     100 | 162,200,230,248                      
+  preload.js        |     100 |      100 |     100 |     100 |                                      
+  prompt-preload.js |     100 |      100 |     100 |     100 |                                      
+  prompts.js        |     100 |      100 |     100 |     100 |                                      
+  validation.js     |     100 |      100 |     100 |     100 |                                      
+ ui                 |     100 |    98.46 |     100 |     100 |                                      
+  prompt.js         |     100 |      100 |     100 |     100 |                                      
+  renderer.js       |     100 |    98.31 |     100 |     100 | ...6,801,819-820,845,868-869,871,882 
+--------------------|---------|----------|---------|---------|--------------------------------------
+{
+  "status": "FAIL",
+  "sourceStable": false,
+  "measurement": "Istanbul statement/branch coverage from c8/V8; every shipped JS file included, absent files fail",
+  "files": [],
+  "reason": "frontend-measurement-failed"
+}

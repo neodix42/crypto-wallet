@@ -1,0 +1,5 @@
+=== RUN   TestLocalNode
+    near_test.go:361: PASS: sandbox accepted native implicit/named transfers and fresh implicit creation; independent balances match; removed/restricted keys refused; accepted receipt failure remains FAILED
+--- PASS: TestLocalNode (2.89s)
+PASS
+ok  	localwallet/internal/chains/near	2.891s

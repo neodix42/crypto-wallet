@@ -123,10 +123,12 @@ func public(s string) ([]byte, error) {
 
 type rpcError struct {
 	Code    int             `json:"code"`
+	Name    string          `json:"name"`
 	Message string          `json:"message"`
 	Data    json.RawMessage `json:"data"`
 	Cause   struct {
-		Name string `json:"name"`
+		Name string          `json:"name"`
+		Info json.RawMessage `json:"info"`
 	} `json:"cause"`
 }
 
@@ -149,6 +151,9 @@ func (a *Adapter) rpc(ctx context.Context, network, method string, params any, o
 		return errInvalid
 	}
 	if r.Error != nil {
+		if len(r.Result) != 0 {
+			return errInvalid
+		}
 		return r.Error
 	}
 	if len(r.Result) == 0 || bytes.Equal(r.Result, []byte("null")) {
@@ -205,19 +210,28 @@ func (a *Adapter) state(ctx context.Context, ac model.Account) (accountState, ke
 	}
 	e := a.rpc(ctx, ac.Network, "query", map[string]string{"request_type": "view_account", "finality": "final", "account_id": ac.Address}, &st)
 	if e != nil {
-		return st, key, e
+		return st, key, &accountQueryFailure{cause: e}
 	}
-	e = a.rpc(ctx, ac.Network, "query", map[string]string{"request_type": "view_access_key", "block_id": st.Hash, "account_id": ac.Address, "public_key": ac.PublicKey}, &key)
+	key, e = a.accessKey(ctx, ac, st)
+	return st, key, e
+}
+
+func (a *Adapter) accessKey(ctx context.Context, ac model.Account, st accountState) (keyState, error) {
+	var key keyState
+	e := a.rpc(ctx, ac.Network, "query", map[string]string{"request_type": "view_access_key", "block_id": st.Hash, "account_id": ac.Address, "public_key": ac.PublicKey}, &key)
 	if e != nil {
-		return st, key, e
+		return key, e
 	}
 	if string(key.Permission) != `"FullAccess"` {
-		return st, key, errors.New("NEAR derived key lacks full-access authority")
+		return key, errors.New("NEAR derived key lacks full-access authority")
 	}
 	if key.Hash != st.Hash || len(base58.Decode(st.Hash)) != 32 {
-		return st, key, errInvalid
+		return key, errInvalid
 	}
-	return st, key, nil
+	if _, e = chainutil.Uint(st.Height.String(), 64); e != nil || key.Height != st.Height {
+		return key, errInvalid
+	}
+	return key, nil
 }
 
 // Associate verifies a named account against the derived key on this network.
@@ -240,12 +254,13 @@ func (a *Adapter) Associate(ctx context.Context, ac model.Account, name string) 
 func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balance, error) {
 	st, _, e := a.state(ctx, ac)
 	if e != nil {
+		var query *accountQueryFailure
+		if errors.As(e, &query) && unknownAccount(query.cause) {
+			return a.balanceAfterMissing(ctx, ac)
+		}
 		return nil, e
 	}
-	if _, e = chainutil.Big(st.Amount, 128); e != nil {
-		return nil, e
-	}
-	return []model.Balance{{Asset: asset(ac.Network), Atomic: st.Amount, State: "FINAL", At: st.Hash}}, nil
+	return accountBalance(ac, st)
 }
 
 type cost struct {

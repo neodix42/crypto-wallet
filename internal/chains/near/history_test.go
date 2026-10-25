@@ -24,7 +24,7 @@ func TestTP050BoundedNEARNativeHistory(t *testing.T) {
 					var kind string
 					_ = json.Unmarshal(params["request_type"], &kind)
 					if kind == "view_access_key" {
-						return map[string]any{"nonce": 42, "permission": "FullAccess", "block_hash": historyHash(2)}, nil
+						return map[string]any{"nonce": 42, "permission": "FullAccess", "block_hash": historyHash(2), "block_height": 2}, nil
 					}
 					height := any(2)
 					if mode == "state-height" {

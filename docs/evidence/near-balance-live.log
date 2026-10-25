@@ -1,0 +1,5 @@
+=== RUN   TestNEARPublicBalanceReadOnly
+    balance_test.go:506: PUBLIC READ-ONLY OBSERVATION: address=f6b9ec871b48ea2c8d4a689e1c26b40b6f889c59d3bcb85ecb557a2ba0e02825 block=YHBy9L2XMsdEc94PwqcL45C3Vwrz2AgpgUs5nYWjkSQ state=NOT_CREATED (final state); no transfer or funding requested
+--- PASS: TestNEARPublicBalanceReadOnly (12.97s)
+PASS
+ok  	localwallet/internal/chains/near	12.972s

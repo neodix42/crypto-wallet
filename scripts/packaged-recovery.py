@@ -16,7 +16,7 @@ vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
 phrase_spec=importlib.util.spec_from_file_location('test_phrase',root/'tests/e2e/phrase.py');phrase_ui=importlib.util.module_from_spec(phrase_spec);phrase_spec.loader.exec_module(phrase_ui)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals','authenticated live Decred mainnet balance/discovery']}
 report['environment']=selected_profile
 report['producerSHA256']=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()
 report.update(status='RUNNING',sourceStable=False)
@@ -263,6 +263,40 @@ def overviewbalance():
  else:raise RuntimeError('First wallet row lacks native-currency amount or explicit unavailable state: '+words)
  desktop.screenshot(reports/'packaged-dialog-balance-table.png')
  passed('Overview table displays its native balance column and an exact ETH quantity or explicit unknown state')
+def decredconnection():
+ overview();dismissnotification();rows=textboxes()
+ native=[a for a in rows if a[11].lower()=='native']
+ receive=[a for a in rows if a[11].lower()=='receive']
+ if not native or not receive:raise RuntimeError('Balance-column coordinates unavailable for Decred guidance')
+ left=min(int(a[6]) for a in native)-5;right=min(int(a[6]) for a in receive)-5
+ # Locate the actual table row by its network label after scrolling. The
+ # observation rectangle covers only its native-balance column, using the
+ # independently visible column headings rather than renderer internals.
+ for attempt in range(10):
+  rows=textboxes();matches=[a for a in rows if a[11].lower()=='decred' and int(a[6])<400]
+  if matches:
+   label=matches[0];middle=int(label[7])+int(label[9])//2
+   cell=' '.join(a[11] for a in rows if left<=int(a[6])<right and middle-65<=int(a[7])<middle+65).lower()
+   if all(fragment in cell for fragment in ('connection required','authenticated tls','dcrd node','balance unknown')):break
+  desktop.key('Page_Down');time.sleep(.25)
+ else:raise RuntimeError('Unconfigured Decred row lacks its connection-required guidance')
+ if 'rpc query failed' in cell or re.search(r'\b0(?:\.0+)? dcr\b',cell):raise RuntimeError('Unconfigured Decred row reports an RPC failure or verified zero')
+ report['decredConnectionObservations']={'overview':{'status':'PASS','publicBalanceText':cell},'configuredNodeBalance':'NOT_RUN: no authenticated trusted-TLS Decred mainnet node supplied'}
+ desktop.screenshot(reports/'packaged-decred-table-guidance.png')
+ passed('Unconfigured Decred table row explains authenticated TLS node setup and leaves balance unknown')
+ desktop.click(int(label[6])+int(label[8])//2,int(label[7])+int(label[9])//2);time.sleep(.5)
+ desktop.key('Home',ctrl=True);time.sleep(.2);words=' '.join(a[11] for a in textboxes()).lower()
+ if words.count('connection required')<2 or 'dcrd node' not in words or 'balance unknown' not in words:raise RuntimeError('Opened unconfigured Decred wallet lost its balance/connection guidance')
+ if 'rpc query failed' in words or 'no balance has been verified' in words or re.search(r'\b0(?:\.0+)? dcr\b',words):raise RuntimeError('Opened unconfigured Decred wallet reports an RPC failure or verified zero')
+ if 'configure trusted rpc' not in words:raise RuntimeError('Decred wallet has no actionable RPC configuration control')
+ for attempt in range(4):
+  if all(fragment in words for fragment in ('authenticated tls rpc','certificate trusted','rpc username/password','block scan budget')):break
+  desktop.key('Page_Down');time.sleep(.2);words=' '.join(a[11] for a in textboxes()).lower()
+ else:raise RuntimeError('Decred wallet lacks certificate, credentials and incomplete-scan guidance')
+ report['decredConnectionObservations']['wallet']={'status':'PASS','scope':'Both balance and connection guidance visible; Configure trusted RPC and certificate/credential/discovery requirements verified from installed public pixels'}
+ desktop.screenshot(reports/'packaged-decred-wallet-guidance.png')
+ passed('Opened Decred wallet retains connection-required guidance and explains certificate, credentials and scan requirements')
+ overview()
 def settingsjournal():
  openfirstwallet()
  # The journal must not remain on any scroll position of the wallet page.
@@ -501,7 +535,7 @@ try:
   passed('Known phrase restoration reproduces the independently generated public address without backup files')
   if copyfirstrow()!=expected:raise RuntimeError('Wallet row copied a different public address')
   passed('Wallet table copy icon invokes dialog verification and copies the full independent public address')
-  overviewbalance();settingsjournal();exchangedisconnected(profile);openfirstwallet()
+  overviewbalance();decredconnection();settingsjournal();exchangedisconnected(profile);openfirstwallet()
   desktop.screenshot(reports/'packaged-wallet-tab.png');clickprimary('Receive');waitprompt('Verify receive address');decodereceive(expected)
   if promptcopy()!=expected:raise RuntimeError('Electron QR popup copied a different address')
   desktop.accept('Verify receive address');time.sleep(.3)

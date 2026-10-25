@@ -1,0 +1,36 @@
+python3 scripts/verify-release.py
+FAIL: production release blocked
+ - requirement BC-APTOS: incomplete
+ - requirement BC-CORE: incomplete
+ - requirement BC-DCR: incomplete
+ - requirement BC-EVM: incomplete
+ - requirement BC-NEAR: incomplete
+ - requirement BC-TON: incomplete
+ - requirement S-01: incomplete
+ - requirement S-02: incomplete
+ - requirement S-03: incomplete
+ - requirement S-04: incomplete
+ - requirement S-05: incomplete
+ - requirement S-06: incomplete
+ - requirement S-07: incomplete
+ - requirement S-08: incomplete
+ - requirement TP-012: incomplete
+ - requirement TP-040: incomplete
+ - requirement TP-043: incomplete
+ - requirement TP-050: incomplete
+ - requirement TP-061: incomplete
+ - requirement TP-070: incomplete
+ - requirement TP-072: incomplete
+ - requirement TP-080: incomplete
+ - requirement OPS-MAINNET-CONNECTIVITY: incomplete
+ - requirement BC-CORE-ACTIVATION: incomplete
+ - requirement OPS-RELEASE-PROVENANCE: incomplete
+ - requirement OPS-LICENSE-REVIEW: incomplete
+ - requirement EX-05-live-bybit-acceptance: incomplete
+ - go-coverage: missing-or-incomplete
+ - soak: missing-or-incomplete
+ - desktop-e2e: missing-or-incomplete
+ - public-testnets: missing-or-incomplete
+ - independent-review: missing-or-incomplete
+ - go-coverage-binding: go-coverage-missing-or-incomplete
+make: *** [Makefile:104: verify-release] Error 1

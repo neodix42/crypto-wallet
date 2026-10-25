@@ -327,7 +327,7 @@ func TestTP060SubmissionFaultsStayUnknown(t *testing.T) {
 						if mode == "nonce" {
 							nonce = 42
 						}
-						return map[string]any{"nonce": nonce, "permission": "FullAccess", "block_hash": d.BlockHash}, nil
+						return map[string]any{"nonce": nonce, "permission": "FullAccess", "block_hash": d.BlockHash, "block_height": 123}, nil
 					}
 					amount := "1000000000000000000000000000"
 					if mode == "invalid-balance" {

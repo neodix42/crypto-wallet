@@ -4,11 +4,11 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
-      "wallet-launcher": "2900a8200be01478b8325247a31f0826a0aaaad9e3068e5e7c842ef2cbb5bf9b",
-      "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+      "wallet-core": "7800ef19547a217a4edc91c8126086757b451980c2179c883869fc1c0df14f2f",
+      "wallet-launcher": "799fab84ac4cdfe1a685517cee6c058acb8f50b3a872195805e295cf5e118b5c",
+      "wallet-signer": "617b6e0f10215a30ccb0bf93d25da9cf5585e981ff2f4f12ba47ecebac442893"
     },
-    "asarSHA256": "4b68184af8ec7a2d8f3f9b5ecb987fd739bb725ce5f337c4665f105195a69a96",
+    "asarSHA256": "b3ecf4262b3be27dc95bd45ca62035daac6584af77c65c2058422efc9495b5be",
     "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c"
   },
   "fuses": {
@@ -47,11 +47,11 @@
     "app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
     "app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
     "app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "ui/index.html": "d5a29ac3fdc3f8d2955d82ebecf601eeed2eca056129f338288a0a33b1263def",
+    "ui/index.html": "d0828bfebb40aa1a84c8a8cbd8474b8975adbd3671b9abb468019e4f2188510f",
     "ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
     "ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
     "ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
-    "ui/renderer.js": "ec0f1f2333ac125fbdc004175f3b2500a2b697d52e4824ddd978857ebc88a5f6",
+    "ui/renderer.js": "a1af01fe5aa711fcdb16f1e4750baaaeaf5d8afb10dd1433c7a123e740c343fd",
     "ui/style.css": "b199426fa81dd19c8e1a088ab3ace82b50a635aec284fb21d8908912f10469a0"
   },
   "productionSourceSHA256": {
@@ -61,11 +61,11 @@
     "desktop/app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
     "desktop/app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
     "desktop/app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "desktop/ui/index.html": "d5a29ac3fdc3f8d2955d82ebecf601eeed2eca056129f338288a0a33b1263def",
+    "desktop/ui/index.html": "d0828bfebb40aa1a84c8a8cbd8474b8975adbd3671b9abb468019e4f2188510f",
     "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
     "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
     "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
-    "desktop/ui/renderer.js": "ec0f1f2333ac125fbdc004175f3b2500a2b697d52e4824ddd978857ebc88a5f6",
+    "desktop/ui/renderer.js": "a1af01fe5aa711fcdb16f1e4750baaaeaf5d8afb10dd1433c7a123e740c343fd",
     "desktop/ui/style.css": "b199426fa81dd19c8e1a088ab3ace82b50a635aec284fb21d8908912f10469a0"
   },
   "productionPayloadMatchesSource": true,

@@ -1,8 +1,10 @@
 # Implementation and release evidence
 
-The current 2026-10-25 launcher update filters only three complete, precisely identified Chromium X11 atom-cache messages. Other errors, unknown atoms, FATAL output, malformed/partial/binary data and oversized lines remain visible. The bounded stderr helper has no coordinator IPC descriptors; Electron still replaces the launcher on its locked creator thread, preserving coordinator parent-death behavior. See [X11_DIAGNOSTICS.md](X11_DIAGNOSTICS.md) for the pinned upstream cause, implementation boundary and current verification checklist.
+The current 2026-10-25 balance update distinguishes a NEAR implicit account that has not been created on chain from an unavailable RPC. A zero requires structured absence at an exact fresh final block; network errors, removed/restricted keys and ambiguous responses remain unavailable. An unconfigured Decred wallet now displays authenticated-TLS node guidance and skips futile balance queries. Its historical synchronization limits remain unchanged. See [BALANCE_CONNECTIVITY.md](BALANCE_CONNECTIVITY.md) for setup and the evidence checklist.
 
-The preceding interface update makes **Settings** a main-window tab immediately to the right of **Exchange**, with **Wallet**, **Exchange** and **Journal** subtabs. Bybit configuration remains under Settings → Exchange and the local payment journal under Settings → Journal. Floating notices preserve the page layout; asset controls distinguish owned addresses, EVM token contracts and HyperCore token identifiers. Clearer signer credential labels preserve the authentication design. These frontend/signer sources are unchanged by the X11 diagnostic task. [The Settings evidence](EXCHANGE_SETTINGS.md) describes its previous launcher/artifact; its unchanged frontend coverage remains source-bound.
+The preceding launcher update filters only three complete, precisely identified Chromium X11 atom-cache messages. Other errors, unknown atoms, FATAL output, malformed/partial/binary data and oversized lines remain visible. The bounded stderr helper has no coordinator IPC descriptors; Electron still replaces the launcher on its locked creator thread, preserving coordinator parent-death behavior. See [X11_DIAGNOSTICS.md](X11_DIAGNOSTICS.md) for that historical candidate's implementation and verification.
+
+The earlier interface update makes **Settings** a main-window tab immediately to the right of **Exchange**, with **Wallet**, **Exchange** and **Journal** subtabs. Bybit configuration remains under Settings → Exchange and the local payment journal under Settings → Journal. Floating notices preserve the page layout; asset controls distinguish owned addresses, EVM token contracts and HyperCore token identifiers. Clearer signer credential labels preserve the authentication design. [The Settings evidence](EXCHANGE_SETTINGS.md) describes its previous source/artifact; the current balance candidate has new frontend measurements.
 
 Earlier ASAR hashes, counts and candidate-specific PASS results below are historical. The previously RUNNING soak no longer has its recorded process or a completion report; it is **NOT_RUN/partial**, not active or passing.
 
@@ -12,7 +14,23 @@ PASS means the named scope ran successfully. RUNNING does not mean complete. NOT
 
 Every root specification and applicable instruction was read; no applicable AGENTS.md was present. Source/test hashes and binary/ASAR identities identify the modified working tree; a base Git commit alone does not. [candidate.json](evidence/candidate.json), [production-hardening.json](evidence/production-hardening.json) and generated source inventories retain the candidate bindings.
 
-## Current X11 diagnostic verification — 2026-10-25
+## Current NEAR and Decred balance verification — 2026-10-25
+
+| Status | Measured scope and limit |
+| --- | --- |
+| PASS | Ten new hermetic NEAR regression groups cover verified absence, exact final-block context, malformed/error ambiguity, stale/wrong chain, funding races, invalid descriptors, missing/restricted keys and transport/cancellation failures. Preparation still refuses an uncreated sender. |
+| PASS | Actual pinned NEAR sandbox: fresh implicit account zero before creation, real signed local funding, exact funded balance afterward, independent recipient queries and rejected removed/restricted keys. Explicit **read-only** default-mainnet probe also verifies absence of a public-fixture account at a final block; no public transaction or user wallet involved. |
+| PASS | **135 frontend tests**, zero skipped; all eight shipped JS files at **100% statements**, renderer **98.40% branches**, main **98.41%**. Missing Decred configuration avoids RPC calls; configured failures/stale replies remain unknown. |
+| PASS | Full Go package tests and all **25** unchanged coverage floors, bound to **192** source/test/module hashes. NEAR measures **98.03%** statements. Actual TON V5R1 emulator, isolated USDT execution and focused NEAR/core race-detector checks pass. |
+| FAIL / BLOCKED | Overall Go coverage gate remains **FAIL** because pinned **dcrd v1.10.9** is unavailable. Nine aggregate skips are explicit; the NEAR sandbox and public read-only probe ran separately. No gate or floor was waived. |
+| PASS | Rebuilt and installed **0.1.0** wallet; all **12** packaged payload comparisons, production fuses and consistent versions pass. **Seven** actual packaged Send checks execute against isolated real geth; **six** headless fresh-install recovery and **seven** owned-Go-process crash/canary checks pass against these binaries. |
+| PASS | **29/29** source-stable actual packaged X11 recovery checks, including two new Decred overview/wallet setup-guidance observations. Six live-log observations contain no Mesa, ordinary IPC stack or known X11 atom diagnostic. Public-pixel automation uses disposable profiles only; this is not the full installed OS matrix. |
+| NOT_RUN / deferred | Authenticated live Decred mainnet balance: no configured synchronized trusted-TLS node. Persistent historical synchronization remains deferred; increasing the bounded scan budget alone does not overcome its sequential requests and 30-second deadline. |
+| NOT_RUN | Public funded testnets, complete installed X11/Wayland/lifecycle matrix, complete soak, private Bybit acceptance and independent review. This fix does not establish production readiness. |
+
+The current scoped report is [near-dcr-balances.json](evidence/near-dcr-balances.json). The first public-probe command selected a nonexistent test and ran none; its result is **NOT_RUN**, retained separately from the correctly selected passing probe. The first formal frontend run caught a stale static-text assertion after the wording changed; that assertion was corrected and the full suite reran successfully. Earlier candidates below retain their historical results and bindings.
+
+## Previous X11 diagnostic candidate — historical 2026-10-25 evidence
 
 | Status | Measured scope and limit |
 | --- | --- |

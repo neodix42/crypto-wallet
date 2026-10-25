@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -48,6 +48,14 @@
     },
     {
       "name": "Overview table displays its native balance column and an exact ETH quantity or explicit unknown state",
+      "status": "PASS"
+    },
+    {
+      "name": "Unconfigured Decred table row explains authenticated TLS node setup and leaves balance unknown",
+      "status": "PASS"
+    },
+    {
+      "name": "Opened Decred wallet retains connection-required guidance and explains certificate, credentials and scan requirements",
       "status": "PASS"
     },
     {
@@ -117,19 +125,20 @@
     "OS suspend/session lock",
     "send from installed package",
     "upgrade/uninstall recovery matrix",
-    "live Bybit authentication, deposits, spot fills and withdrawals"
+    "live Bybit authentication, deposits, spot fills and withdrawals",
+    "authenticated live Decred mainnet balance/discovery"
   ],
   "environment": "mainnet",
-  "producerSHA256": "eb82f90d8ef9082ed470bdc758e57e283eeb61b6d50dfde39d9b7044e900aa1b",
+  "producerSHA256": "8a469c5bf0cdf8dba87ab9e637fe253d251ae8d54394ac00f38296aff838420f",
   "sourceStable": true,
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
-      "wallet-launcher": "2900a8200be01478b8325247a31f0826a0aaaad9e3068e5e7c842ef2cbb5bf9b",
-      "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+      "wallet-core": "7800ef19547a217a4edc91c8126086757b451980c2179c883869fc1c0df14f2f",
+      "wallet-launcher": "799fab84ac4cdfe1a685517cee6c058acb8f50b3a872195805e295cf5e118b5c",
+      "wallet-signer": "617b6e0f10215a30ccb0bf93d25da9cf5585e981ff2f4f12ba47ecebac442893"
     },
-    "asarSHA256": "4b68184af8ec7a2d8f3f9b5ecb987fd739bb725ce5f337c4665f105195a69a96"
+    "asarSHA256": "b3ecf4262b3be27dc95bd45ca62035daac6584af77c65c2058422efc9495b5be"
   },
   "notificationLayoutObservations": [
     {
@@ -199,7 +208,18 @@
   "nativeBalanceObservation": {
     "status": "PASS",
     "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - 0x0ee7013a3f6690793F7 1 bb9de2 1b6b55634e9 164 \u00a33931 3ecd2813822c11e183e"
+    "publicText": "0 ETH - provider-observed - 0x663fe1 aff08e2ced623b88326eecdff77f6al 25bdb 52e0e58f0b3e75c02307cb"
+  },
+  "decredConnectionObservations": {
+    "overview": {
+      "status": "PASS",
+      "publicBalanceText": "connection required \u2014 configure an authenticated tls dcrd node. balance unknown. - active (trusted"
+    },
+    "configuredNodeBalance": "NOT_RUN: no authenticated trusted-TLS Decred mainnet node supplied",
+    "wallet": {
+      "status": "PASS",
+      "scope": "Both balance and connection guidance visible; Configure trusted RPC and certificate/credential/discovery requirements verified from installed public pixels"
+    }
   },
   "exchangeAssetIdentity": {
     "status": "PASS",

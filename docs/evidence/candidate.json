@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "e0b8113efe80c5d6bc6a6180ff157a62e8dccd05",
+  "sourceCommit": "0af0024acbea5458e4506372c02ad9fd9f9f6be8",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "01f5121677a88ffae73da03f1adfed92f6da042a145910e5024021aaa1292408",
+  "sha256": "4f2bc0d8a1a0ff194ebd1d388054fda7d0397ecbba26065ffb0e639ef9763490",
   "binaryManifest": {
-    "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
-    "wallet-launcher": "2900a8200be01478b8325247a31f0826a0aaaad9e3068e5e7c842ef2cbb5bf9b",
-    "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+    "wallet-core": "7800ef19547a217a4edc91c8126086757b451980c2179c883869fc1c0df14f2f",
+    "wallet-launcher": "799fab84ac4cdfe1a685517cee6c058acb8f50b3a872195805e295cf5e118b5c",
+    "wallet-signer": "617b6e0f10215a30ccb0bf93d25da9cf5585e981ff2f4f12ba47ecebac442893"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -16,19 +16,19 @@
       "report": "coverage",
       "status": "PASS",
       "file": "coverage.json",
-      "sha256": "43866d94f59509cac0115b706509c54cd122545f704d1c50e79162a9ed70b87f"
+      "sha256": "6c63e6b6a5c54f4a97c36c4a9d7a721ab29240aad95269eee8bdfef7b1df7cc0"
     },
     {
       "report": "go-coverage",
       "status": "FAIL",
       "file": "go-coverage.json",
-      "sha256": "ea6b5c4a39e3972ca5c8b03ad84bbc84884b527336c58fb72274c00225816fbb"
+      "sha256": "28c57da900a907061408abd8af3f1e42b2b90f0a1122d8c4b1bdf7584682cf5d"
     },
     {
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "fa04c349572b509df8003facd20bc9fea106914031141a1a6492f9a07e29abb7"
+      "sha256": "40f1744e2af2dedaeeef046244ecd5436c98260da957fa5ce10f08a5c1bc89f5"
     },
     {
       "report": "mutation",
@@ -52,7 +52,7 @@
       "report": "stress",
       "status": "PASS",
       "file": "stress.json",
-      "sha256": "01be2a4d3a4a04c40e108a0b9ef47a0aeb4f6f1b9c1de569615fead2e3266e36"
+      "sha256": "44fa0f8fabe9c23c3f2b52a13e430db7a11fcbcfa51e94a2c97f439e09b4092c"
     },
     {
       "report": "stress-race",
@@ -76,7 +76,7 @@
       "report": "native-input",
       "status": "PASS",
       "file": "native-input.json",
-      "sha256": "3e6d63b932472c7f5bf3079caff484f36834d8c6782c15588d1b5c5cc2c4a82b"
+      "sha256": "eb7d349147981c0850d10189313d29a2dea58128d0a219b48e16c12f9f76cbda"
     },
     {
       "report": "native-input-long",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "863d4b5d0e38790b4d9d6211ede2842d0b774451110c7ac37bf970761e1c72a6"
+      "sha256": "4b0b648064a0435dc4826f09b695509826ef9d2357c2abe68d02462c7beaee0f"
     },
     {
       "report": "display-startup",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "131b21ebc01088455a267c0204516a7e9c66efb92e8d1954a0334563b37a762c"
+      "sha256": "d388d93abe0fec6c6b468fbf56b62f35b084e3ded0d381aee338ee6c93959f2a"
     },
     {
       "report": "phrase-onboarding",
@@ -232,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "c6ec3a4f720afa30a1d2a4594bbc5874199f7c84b4385c39f2b2861f3253976b"
+      "sha256": "4fb65b389739553633920058842e0129f1a0a6a732817d8be0595a761304a982"
     },
     {
       "report": "hypercore-pagination",
@@ -262,13 +262,13 @@
       "report": "crash-security",
       "status": "PASS",
       "file": "crash-security.json",
-      "sha256": "0f022e1c7905f178d6052a1aabd63791df9e1db213df92e8f181dad9272be78e"
+      "sha256": "31cc6d43742d3f183ee2cc7a26203fb0f021b519cc7c03ad87a92ee013fa3ca9"
     },
     {
       "report": "packaged-send",
       "status": "PASS",
       "file": "packaged-send.json",
-      "sha256": "976843a890a8759377820d5e4c262a7ff3069f535e441e0a760d7e2584836edf"
+      "sha256": "2bbc379b3d6b0f222fdb0ae54c456ba9c8db43a5c5e4002ab75e1e5fd3090caf"
     },
     {
       "report": "fuzz-long",
@@ -347,6 +347,12 @@
       "status": "PASS",
       "file": "x11-diagnostics.json",
       "sha256": "7be5e3ed2deda7942e840a66724b7edb7555c0aa38b035e127e5ae7dde2e7269"
+    },
+    {
+      "report": "near-dcr-balances",
+      "status": "PASS",
+      "file": "near-dcr-balances.json",
+      "sha256": "ff6edaf56119a88b91af12424d57acf9a6bf689de27c76dd05721428c8f7ee62"
     },
     {
       "report": "pre-exchange-soak",

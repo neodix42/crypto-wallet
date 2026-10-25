@@ -86,9 +86,9 @@
     },
     {
       "package": "localwallet/internal/chains/near",
-      "statements": 403,
-      "covered": 399,
-      "percent": 99.01,
+      "statements": 456,
+      "covered": 447,
+      "percent": 98.03,
       "floor": 95,
       "status": "PASS"
     },
