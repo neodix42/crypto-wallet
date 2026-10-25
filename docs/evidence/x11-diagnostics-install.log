@@ -1,0 +1,32 @@
+./scripts/build.sh
+Building LocalWallet Go components 0.1.0 with go version go1.27.3 linux/amd64
+Compiling wallet-core...
+Compiling wallet-signer...
+Compiling wallet-launcher...
+Build complete: bin/wallet-core, bin/wallet-signer, bin/wallet-launcher.
+These are Go components; the desktop interface is built separately with make build-desktop (no Debian package).
+./scripts/with-toolchain.sh npm --prefix desktop ci --ignore-scripts
+
+added 131 packages, and audited 132 packages in 987ms
+
+36 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+./scripts/with-toolchain.sh npm --prefix desktop run build
+
+> localwallet-desktop@0.1.0 build
+> tsc --project tsconfig.json
+
+./scripts/with-toolchain.sh node --check desktop/ui/renderer.js
+./scripts/with-toolchain.sh node scripts/package.cjs
+Packaging app for platform linux x64 using electron v45.0.0
+PASS redistribution texts: 40 components; legal review NOT_RUN
+/home/neodix/gitProjects/crypto-wallet/dist/localwallet-0.1.0-linux-amd64.tar.gz
+./scripts/with-toolchain.sh python3 scripts/sbom.py
+Wrote SBOM, dependency/license review inventory and source manifest under dist/
+./scripts/with-toolchain.sh node scripts/verify-artifact.cjs
+PASS packaged fuses and 12 production payloads bound to current ASAR and Go binaries
+python3 scripts/install.py
+Installed complete wallet at /home/neodix/gitProjects/crypto-wallet/wallet; run ./wallet as an ordinary user.
+Runtime and resources: /home/neodix/gitProjects/crypto-wallet/wallet-runtime/app-fb7b710486df4c138103eb25cea2a447

@@ -35,6 +35,9 @@ func run() int {
 		fmt.Println(buildinfo.Version)
 		return 0
 	}
+	if len(os.Args) == 2 && os.Args[1] == stderrRelayArgument {
+		return runStderrRelay()
+	}
 	// Linux Pdeathsig follows the thread that creates the child. Exec kills
 	// the other threads, so Start and Exec must stay on this same thread or
 	// the core can receive SIGKILL while Electron starts successfully.
@@ -59,8 +62,18 @@ func (l *launch) stop() {
 }
 
 func (l *launch) execute() int {
+	// Retain exec and its locked creator thread: the coordinator must remain
+	// owned by the same process/thread when Electron takes over. The relay is
+	// only a bounded diagnostics reader and has no coordinator descriptors.
+	relay, e := startStderrRelay()
+	if e != nil {
+		fmt.Fprintln(os.Stderr, "Wallet startup failed: cannot initialize diagnostic output.")
+		l.stop()
+		return 7
+	}
 	// Successful exec never returns. Failure must reap the already-started core.
 	_ = syscall.Exec(l.electron, l.args, l.env)
+	relay.stop()
 	l.stop()
 	return 6
 }

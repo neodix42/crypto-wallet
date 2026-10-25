@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -17,6 +18,28 @@ import (
 // Public fake executables test process isolation/pipe bootstrap only, never
 // blockchain acceptance. These init hooks exist exclusively in the test binary.
 func init() {
+	if len(os.Args) == 2 && os.Args[1] == stderrRelayArgument {
+		// Exercise the real helper after exec of this public fixture. It must
+		// inherit renderer isolation and no private core protocol descriptors.
+		for _, af := range []int{syscall.AF_INET, syscall.AF_INET6} {
+			if fd, e := syscall.Socket(af, syscall.SOCK_STREAM, 0); e == nil {
+				syscall.Close(fd)
+				os.Exit(101)
+			}
+		}
+		for _, fd := range []int{3, 4} {
+			var inherited, stderr syscall.Stat_t
+			if syscall.Fstat(fd, &inherited) != nil || syscall.Fstat(2, &stderr) != nil || inherited.Dev != stderr.Dev || inherited.Ino != stderr.Ino || inherited.Mode != stderr.Mode {
+				os.Exit(102)
+			}
+		}
+		for _, key := range []string{"LOCALWALLET_INHERITED_CORE", "LD_PRELOAD", "NODE_OPTIONS", "HOME"} {
+			if _, present := os.LookupEnv(key); present {
+				os.Exit(103)
+			}
+		}
+		os.Exit(run())
+	}
 	switch filepath.Base(os.Args[0]) {
 	case "launcher-test-entry":
 		main()
@@ -41,6 +64,10 @@ func init() {
 		io.ReadFull(os.Stdin, b[:])
 		os.Exit(0)
 	case "LocalWallet":
+		for _, atom := range []string{"_NET_WM_STATE_MODAL", "application/vnd.portal.filetransfer", "application/vnd.portal.files"} {
+			fmt.Fprintf(os.Stderr, "[163420:1025/143139.802842:ERROR:ui/gfx/x/atom_cache.cc:236] Add %s to kAtomsToCache\n", atom)
+		}
+		os.Stderr.WriteString("PUBLIC genuine error remains visible\n")
 		if os.Getenv("LOCALWALLET_INHERITED_CORE") != "1" {
 			os.Exit(92)
 		}
@@ -94,7 +121,7 @@ func TestTP041LauncherExecInheritanceAndFixedPipes(t *testing.T) {
 	for attempt := 0; attempt < 32; attempt++ {
 		cmd := exec.Command(filepath.Join(dir, "launcher-test-entry"))
 		cmd.Env = append(os.Environ(), "LD_PRELOAD=synthetic-ignored-by-launcher")
-		if b, e := cmd.CombinedOutput(); e != nil {
+		if b, e := cmd.CombinedOutput(); e != nil || !bytes.HasSuffix(b, []byte("PUBLIC genuine error remains visible\n")) || bytes.Count(b, []byte("PUBLIC genuine error remains visible\n")) != 1 || bytes.Contains(b, []byte("kAtomsToCache")) {
 			t.Fatalf("public bootstrap attempt %d failed: %v %s", attempt, e, b)
 		}
 	}

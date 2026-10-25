@@ -1,5 +1,5 @@
 {
-  "executionStatus": "RUNNING",
+  "executionStatus": "NOT_RUN",
   "instrumentation": "ordinary Go test",
   "cpuModel": "AMD Ryzen 9 5950X 16-Core Processor",
   "settledCheckpoints": [
@@ -149,27 +149,790 @@
       "heapBytes": 2406048,
       "goroutines": 7,
       "journalRecords": 42
+    },
+    {
+      "cycle": 22,
+      "rssBytes": 563822592,
+      "heapBytes": 2424000,
+      "goroutines": 7,
+      "journalRecords": 44
+    },
+    {
+      "cycle": 23,
+      "rssBytes": 564019200,
+      "heapBytes": 2449856,
+      "goroutines": 7,
+      "journalRecords": 46
+    },
+    {
+      "cycle": 24,
+      "rssBytes": 563732480,
+      "heapBytes": 2453232,
+      "goroutines": 7,
+      "journalRecords": 48
+    },
+    {
+      "cycle": 25,
+      "rssBytes": 564277248,
+      "heapBytes": 2471328,
+      "goroutines": 7,
+      "journalRecords": 50
+    },
+    {
+      "cycle": 26,
+      "rssBytes": 564174848,
+      "heapBytes": 2462560,
+      "goroutines": 7,
+      "journalRecords": 52
+    },
+    {
+      "cycle": 27,
+      "rssBytes": 564908032,
+      "heapBytes": 2466928,
+      "goroutines": 7,
+      "journalRecords": 54
+    },
+    {
+      "cycle": 28,
+      "rssBytes": 564178944,
+      "heapBytes": 2471376,
+      "goroutines": 7,
+      "journalRecords": 56
+    },
+    {
+      "cycle": 29,
+      "rssBytes": 564006912,
+      "heapBytes": 2483904,
+      "goroutines": 7,
+      "journalRecords": 58
+    },
+    {
+      "cycle": 30,
+      "rssBytes": 564588544,
+      "heapBytes": 2481632,
+      "goroutines": 7,
+      "journalRecords": 60
+    },
+    {
+      "cycle": 31,
+      "rssBytes": 564363264,
+      "heapBytes": 2484032,
+      "goroutines": 7,
+      "journalRecords": 62
+    },
+    {
+      "cycle": 32,
+      "rssBytes": 564838400,
+      "heapBytes": 2488304,
+      "goroutines": 7,
+      "journalRecords": 64
+    },
+    {
+      "cycle": 33,
+      "rssBytes": 564469760,
+      "heapBytes": 2491312,
+      "goroutines": 7,
+      "journalRecords": 66
+    },
+    {
+      "cycle": 34,
+      "rssBytes": 564621312,
+      "heapBytes": 2490112,
+      "goroutines": 7,
+      "journalRecords": 68
+    },
+    {
+      "cycle": 35,
+      "rssBytes": 564875264,
+      "heapBytes": 2494784,
+      "goroutines": 7,
+      "journalRecords": 70
+    },
+    {
+      "cycle": 36,
+      "rssBytes": 565321728,
+      "heapBytes": 2523184,
+      "goroutines": 7,
+      "journalRecords": 72
+    },
+    {
+      "cycle": 37,
+      "rssBytes": 564936704,
+      "heapBytes": 2525248,
+      "goroutines": 7,
+      "journalRecords": 74
+    },
+    {
+      "cycle": 38,
+      "rssBytes": 565260288,
+      "heapBytes": 2527872,
+      "goroutines": 7,
+      "journalRecords": 76
+    },
+    {
+      "cycle": 39,
+      "rssBytes": 565276672,
+      "heapBytes": 2529992,
+      "goroutines": 7,
+      "journalRecords": 78
+    },
+    {
+      "cycle": 40,
+      "rssBytes": 565448704,
+      "heapBytes": 2532200,
+      "goroutines": 7,
+      "journalRecords": 80
+    },
+    {
+      "cycle": 41,
+      "rssBytes": 565223424,
+      "heapBytes": 2534488,
+      "goroutines": 7,
+      "journalRecords": 82
+    },
+    {
+      "cycle": 42,
+      "rssBytes": 565497856,
+      "heapBytes": 2536840,
+      "goroutines": 7,
+      "journalRecords": 84
+    },
+    {
+      "cycle": 43,
+      "rssBytes": 565927936,
+      "heapBytes": 2538904,
+      "goroutines": 7,
+      "journalRecords": 86
+    },
+    {
+      "cycle": 44,
+      "rssBytes": 565592064,
+      "heapBytes": 2533912,
+      "goroutines": 7,
+      "journalRecords": 88
+    },
+    {
+      "cycle": 45,
+      "rssBytes": 565858304,
+      "heapBytes": 2537160,
+      "goroutines": 7,
+      "journalRecords": 90
+    },
+    {
+      "cycle": 46,
+      "rssBytes": 565903360,
+      "heapBytes": 2539192,
+      "goroutines": 7,
+      "journalRecords": 92
+    },
+    {
+      "cycle": 47,
+      "rssBytes": 565911552,
+      "heapBytes": 2541816,
+      "goroutines": 7,
+      "journalRecords": 94
+    },
+    {
+      "cycle": 48,
+      "rssBytes": 565673984,
+      "heapBytes": 2544424,
+      "goroutines": 7,
+      "journalRecords": 96
+    },
+    {
+      "cycle": 49,
+      "rssBytes": 565616640,
+      "heapBytes": 2550392,
+      "goroutines": 7,
+      "journalRecords": 98
+    },
+    {
+      "cycle": 50,
+      "rssBytes": 566136832,
+      "heapBytes": 2565120,
+      "goroutines": 7,
+      "journalRecords": 100
+    },
+    {
+      "cycle": 51,
+      "rssBytes": 566018048,
+      "heapBytes": 2568000,
+      "goroutines": 7,
+      "journalRecords": 102
+    },
+    {
+      "cycle": 52,
+      "rssBytes": 566534144,
+      "heapBytes": 2570496,
+      "goroutines": 7,
+      "journalRecords": 104
+    },
+    {
+      "cycle": 53,
+      "rssBytes": 566263808,
+      "heapBytes": 2573888,
+      "goroutines": 7,
+      "journalRecords": 106
+    },
+    {
+      "cycle": 54,
+      "rssBytes": 566378496,
+      "heapBytes": 2578704,
+      "goroutines": 7,
+      "journalRecords": 108
+    },
+    {
+      "cycle": 55,
+      "rssBytes": 566435840,
+      "heapBytes": 2576608,
+      "goroutines": 7,
+      "journalRecords": 110
+    },
+    {
+      "cycle": 56,
+      "rssBytes": 566546432,
+      "heapBytes": 2591920,
+      "goroutines": 7,
+      "journalRecords": 112
+    },
+    {
+      "cycle": 57,
+      "rssBytes": 566767616,
+      "heapBytes": 2600192,
+      "goroutines": 7,
+      "journalRecords": 114
+    },
+    {
+      "cycle": 58,
+      "rssBytes": 566685696,
+      "heapBytes": 2604016,
+      "goroutines": 7,
+      "journalRecords": 116
+    },
+    {
+      "cycle": 59,
+      "rssBytes": 566972416,
+      "heapBytes": 2608064,
+      "goroutines": 7,
+      "journalRecords": 118
+    },
+    {
+      "cycle": 60,
+      "rssBytes": 567349248,
+      "heapBytes": 2610112,
+      "goroutines": 7,
+      "journalRecords": 120
+    },
+    {
+      "cycle": 61,
+      "rssBytes": 567021568,
+      "heapBytes": 2614400,
+      "goroutines": 7,
+      "journalRecords": 122
+    },
+    {
+      "cycle": 62,
+      "rssBytes": 567386112,
+      "heapBytes": 2616384,
+      "goroutines": 7,
+      "journalRecords": 124
+    },
+    {
+      "cycle": 63,
+      "rssBytes": 566165504,
+      "heapBytes": 2611360,
+      "goroutines": 7,
+      "journalRecords": 126
+    },
+    {
+      "cycle": 64,
+      "rssBytes": 567431168,
+      "heapBytes": 2615664,
+      "goroutines": 7,
+      "journalRecords": 128
+    },
+    {
+      "cycle": 65,
+      "rssBytes": 567504896,
+      "heapBytes": 2630064,
+      "goroutines": 7,
+      "journalRecords": 130
+    },
+    {
+      "cycle": 66,
+      "rssBytes": 567472128,
+      "heapBytes": 2622456,
+      "goroutines": 7,
+      "journalRecords": 132
+    },
+    {
+      "cycle": 67,
+      "rssBytes": 567517184,
+      "heapBytes": 2618904,
+      "goroutines": 7,
+      "journalRecords": 134
+    },
+    {
+      "cycle": 68,
+      "rssBytes": 567640064,
+      "heapBytes": 2623976,
+      "goroutines": 7,
+      "journalRecords": 136
+    },
+    {
+      "cycle": 69,
+      "rssBytes": 567406592,
+      "heapBytes": 2630856,
+      "goroutines": 7,
+      "journalRecords": 138
+    },
+    {
+      "cycle": 70,
+      "rssBytes": 566575104,
+      "heapBytes": 2638504,
+      "goroutines": 7,
+      "journalRecords": 140
+    },
+    {
+      "cycle": 71,
+      "rssBytes": 567533568,
+      "heapBytes": 2642120,
+      "goroutines": 7,
+      "journalRecords": 142
+    },
+    {
+      "cycle": 72,
+      "rssBytes": 567918592,
+      "heapBytes": 2694104,
+      "goroutines": 7,
+      "journalRecords": 144
+    },
+    {
+      "cycle": 73,
+      "rssBytes": 567726080,
+      "heapBytes": 2703016,
+      "goroutines": 7,
+      "journalRecords": 146
+    },
+    {
+      "cycle": 74,
+      "rssBytes": 567197696,
+      "heapBytes": 2707336,
+      "goroutines": 7,
+      "journalRecords": 148
+    },
+    {
+      "cycle": 75,
+      "rssBytes": 567615488,
+      "heapBytes": 2691376,
+      "goroutines": 7,
+      "journalRecords": 150
+    },
+    {
+      "cycle": 76,
+      "rssBytes": 567209984,
+      "heapBytes": 2693568,
+      "goroutines": 7,
+      "journalRecords": 152
+    },
+    {
+      "cycle": 77,
+      "rssBytes": 567701504,
+      "heapBytes": 2714112,
+      "goroutines": 7,
+      "journalRecords": 154
+    },
+    {
+      "cycle": 78,
+      "rssBytes": 568033280,
+      "heapBytes": 2711792,
+      "goroutines": 7,
+      "journalRecords": 156
+    },
+    {
+      "cycle": 79,
+      "rssBytes": 568008704,
+      "heapBytes": 2726816,
+      "goroutines": 7,
+      "journalRecords": 158
+    },
+    {
+      "cycle": 80,
+      "rssBytes": 568127488,
+      "heapBytes": 2732880,
+      "goroutines": 7,
+      "journalRecords": 160
+    },
+    {
+      "cycle": 81,
+      "rssBytes": 567705600,
+      "heapBytes": 2734704,
+      "goroutines": 7,
+      "journalRecords": 162
+    },
+    {
+      "cycle": 82,
+      "rssBytes": 567783424,
+      "heapBytes": 2737448,
+      "goroutines": 7,
+      "journalRecords": 164
+    },
+    {
+      "cycle": 83,
+      "rssBytes": 568279040,
+      "heapBytes": 2740864,
+      "goroutines": 7,
+      "journalRecords": 166
+    },
+    {
+      "cycle": 84,
+      "rssBytes": 568287232,
+      "heapBytes": 2743344,
+      "goroutines": 7,
+      "journalRecords": 168
+    },
+    {
+      "cycle": 85,
+      "rssBytes": 568213504,
+      "heapBytes": 2758320,
+      "goroutines": 7,
+      "journalRecords": 170
+    },
+    {
+      "cycle": 86,
+      "rssBytes": 568459264,
+      "heapBytes": 2749216,
+      "goroutines": 7,
+      "journalRecords": 172
+    },
+    {
+      "cycle": 87,
+      "rssBytes": 569008128,
+      "heapBytes": 2754544,
+      "goroutines": 7,
+      "journalRecords": 174
+    },
+    {
+      "cycle": 88,
+      "rssBytes": 569184256,
+      "heapBytes": 2750080,
+      "goroutines": 7,
+      "journalRecords": 176
+    },
+    {
+      "cycle": 89,
+      "rssBytes": 569012224,
+      "heapBytes": 2754752,
+      "goroutines": 7,
+      "journalRecords": 178
+    },
+    {
+      "cycle": 90,
+      "rssBytes": 568856576,
+      "heapBytes": 2750560,
+      "goroutines": 7,
+      "journalRecords": 180
+    },
+    {
+      "cycle": 91,
+      "rssBytes": 569012224,
+      "heapBytes": 2753728,
+      "goroutines": 7,
+      "journalRecords": 182
+    },
+    {
+      "cycle": 92,
+      "rssBytes": 568864768,
+      "heapBytes": 2756568,
+      "goroutines": 7,
+      "journalRecords": 184
+    },
+    {
+      "cycle": 93,
+      "rssBytes": 569077760,
+      "heapBytes": 2758392,
+      "goroutines": 7,
+      "journalRecords": 186
+    },
+    {
+      "cycle": 94,
+      "rssBytes": 569376768,
+      "heapBytes": 2760216,
+      "goroutines": 7,
+      "journalRecords": 188
+    },
+    {
+      "cycle": 95,
+      "rssBytes": 569450496,
+      "heapBytes": 2756632,
+      "goroutines": 7,
+      "journalRecords": 190
+    },
+    {
+      "cycle": 96,
+      "rssBytes": 569405440,
+      "heapBytes": 2759576,
+      "goroutines": 7,
+      "journalRecords": 192
+    },
+    {
+      "cycle": 97,
+      "rssBytes": 569712640,
+      "heapBytes": 2763864,
+      "goroutines": 7,
+      "journalRecords": 194
+    },
+    {
+      "cycle": 98,
+      "rssBytes": 569655296,
+      "heapBytes": 2767704,
+      "goroutines": 7,
+      "journalRecords": 196
+    },
+    {
+      "cycle": 99,
+      "rssBytes": 569839616,
+      "heapBytes": 2781432,
+      "goroutines": 7,
+      "journalRecords": 198
+    },
+    {
+      "cycle": 100,
+      "rssBytes": 570179584,
+      "heapBytes": 2772136,
+      "goroutines": 7,
+      "journalRecords": 200
+    },
+    {
+      "cycle": 101,
+      "rssBytes": 569995264,
+      "heapBytes": 2775080,
+      "goroutines": 7,
+      "journalRecords": 202
+    },
+    {
+      "cycle": 102,
+      "rssBytes": 569778176,
+      "heapBytes": 2779752,
+      "goroutines": 7,
+      "journalRecords": 204
+    },
+    {
+      "cycle": 103,
+      "rssBytes": 569966592,
+      "heapBytes": 2783800,
+      "goroutines": 7,
+      "journalRecords": 206
+    },
+    {
+      "cycle": 104,
+      "rssBytes": 570118144,
+      "heapBytes": 2789448,
+      "goroutines": 7,
+      "journalRecords": 208
+    },
+    {
+      "cycle": 105,
+      "rssBytes": 570265600,
+      "heapBytes": 2785576,
+      "goroutines": 7,
+      "journalRecords": 210
+    },
+    {
+      "cycle": 106,
+      "rssBytes": 570232832,
+      "heapBytes": 2790184,
+      "goroutines": 7,
+      "journalRecords": 212
+    },
+    {
+      "cycle": 107,
+      "rssBytes": 570085376,
+      "heapBytes": 2785064,
+      "goroutines": 7,
+      "journalRecords": 214
+    },
+    {
+      "cycle": 108,
+      "rssBytes": 570560512,
+      "heapBytes": 2788328,
+      "goroutines": 7,
+      "journalRecords": 216
+    },
+    {
+      "cycle": 109,
+      "rssBytes": 570515456,
+      "heapBytes": 2791944,
+      "goroutines": 7,
+      "journalRecords": 218
+    },
+    {
+      "cycle": 110,
+      "rssBytes": 570228736,
+      "heapBytes": 2794200,
+      "goroutines": 7,
+      "journalRecords": 220
+    },
+    {
+      "cycle": 111,
+      "rssBytes": 570580992,
+      "heapBytes": 2792776,
+      "goroutines": 7,
+      "journalRecords": 222
+    },
+    {
+      "cycle": 112,
+      "rssBytes": 570777600,
+      "heapBytes": 2795032,
+      "goroutines": 7,
+      "journalRecords": 224
+    },
+    {
+      "cycle": 113,
+      "rssBytes": 570621952,
+      "heapBytes": 2832280,
+      "goroutines": 7,
+      "journalRecords": 226
+    },
+    {
+      "cycle": 114,
+      "rssBytes": 570687488,
+      "heapBytes": 2834152,
+      "goroutines": 7,
+      "journalRecords": 228
+    },
+    {
+      "cycle": 115,
+      "rssBytes": 570814464,
+      "heapBytes": 2836312,
+      "goroutines": 7,
+      "journalRecords": 230
+    },
+    {
+      "cycle": 116,
+      "rssBytes": 570912768,
+      "heapBytes": 2838776,
+      "goroutines": 7,
+      "journalRecords": 232
+    },
+    {
+      "cycle": 117,
+      "rssBytes": 570646528,
+      "heapBytes": 2842504,
+      "goroutines": 7,
+      "journalRecords": 234
+    },
+    {
+      "cycle": 118,
+      "rssBytes": 570933248,
+      "heapBytes": 2846904,
+      "goroutines": 7,
+      "journalRecords": 236
+    },
+    {
+      "cycle": 119,
+      "rssBytes": 571863040,
+      "heapBytes": 2855632,
+      "goroutines": 7,
+      "journalRecords": 238
+    },
+    {
+      "cycle": 120,
+      "rssBytes": 571207680,
+      "heapBytes": 2859168,
+      "goroutines": 7,
+      "journalRecords": 240
+    },
+    {
+      "cycle": 121,
+      "rssBytes": 571518976,
+      "heapBytes": 2861728,
+      "goroutines": 7,
+      "journalRecords": 242
+    },
+    {
+      "cycle": 122,
+      "rssBytes": 571551744,
+      "heapBytes": 2858848,
+      "goroutines": 7,
+      "journalRecords": 244
+    },
+    {
+      "cycle": 123,
+      "rssBytes": 571363328,
+      "heapBytes": 2855992,
+      "goroutines": 7,
+      "journalRecords": 246
+    },
+    {
+      "cycle": 124,
+      "rssBytes": 570707968,
+      "heapBytes": 2851920,
+      "goroutines": 7,
+      "journalRecords": 248
+    },
+    {
+      "cycle": 125,
+      "rssBytes": 571310080,
+      "heapBytes": 2855920,
+      "goroutines": 7,
+      "journalRecords": 250
+    },
+    {
+      "cycle": 126,
+      "rssBytes": 571731968,
+      "heapBytes": 2859784,
+      "goroutines": 7,
+      "journalRecords": 252
+    },
+    {
+      "cycle": 127,
+      "rssBytes": 571805696,
+      "heapBytes": 2864168,
+      "goroutines": 7,
+      "journalRecords": 254
+    },
+    {
+      "cycle": 128,
+      "rssBytes": 571785216,
+      "heapBytes": 2868920,
+      "goroutines": 7,
+      "journalRecords": 256
+    },
+    {
+      "cycle": 129,
+      "rssBytes": 572026880,
+      "heapBytes": 2873544,
+      "goroutines": 7,
+      "journalRecords": 258
+    },
+    {
+      "cycle": 130,
+      "rssBytes": 572268544,
+      "heapBytes": 2878520,
+      "goroutines": 7,
+      "journalRecords": 260
     }
   ],
-  "status": "RUNNING",
+  "status": "NOT_RUN",
   "seed": "public BIP39 abandon/about fixture; scenario ordinal modulo 55; fixed 30-second cadence; cryptographic RNG is not replaced",
   "go": "go1.27.3",
   "os": "linux/amd64",
   "cpus": 32,
   "workloads": {
     "additionalAccountGroups": 16,
-    "cycles": 21,
-    "encryptedSignerRestartUnlock": 42,
-    "growingHistoryScans": 21,
-    "lifecycleRPC-outage": 21,
-    "lifecycleRPC-rate-limit": 21,
-    "lockedSignatureDenied": 21,
-    "observedHistoryItems": 231,
-    "productionSignedJournalReconciled": 21,
+    "cycles": 130,
+    "encryptedSignerRestartUnlock": 260,
+    "growingHistoryScans": 130,
+    "lifecycleRPC-outage": 130,
+    "lifecycleRPC-rate-limit": 130,
+    "lockedSignatureDenied": 130,
+    "observedHistoryItems": 8512,
+    "productionSignedJournalReconciled": 130,
     "productionSignerCreate": 1,
-    "productionSignerPhraseRecoveries": 21
+    "productionSignerPhraseRecoveries": 130
   },
-  "elapsedSeconds": 604.765166928,
+  "elapsedSeconds": 3875.906042025,
   "requestedSeconds": 86400,
   "campaign24hStatus": "NOT_RUN",
   "p50Micros": 0,
@@ -192,5 +955,7 @@
   "excluded": [
     "Decred work deferred by owner; no public testnet activity"
   ],
-  "scopedCampaign24hStatus": "NOT_RUN"
+  "scopedCampaign24hStatus": "NOT_RUN",
+  "partial": true,
+  "reason": "Previously RUNNING campaign has no surviving recorded process and no terminal completion report; last checkpoints retained. Completion was not established."
 }

@@ -6,7 +6,7 @@ root=pathlib.Path(__file__).resolve().parents[1];out=root/'docs/evidence';out.mk
 names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','mainnet-rpc','mainnet-tabs','wallet-layout','wallet-actions','phrase-recovery','phrase-onboarding','phrase-native-focused','electron-interface','prompt-ui','release-banner-removal','receive-small-display','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
 names += ['hypercore-pagination','license-notices','release-auth','release-evidence','crash-security','packaged-send','fuzz-long','nondecred-soak-run','production-hardening']
 names += ['bybit-client','bybit-client-mutations','exchange-core','exchange-signermutation',
-          'usdt-execution','exchange','exchange-live','pre-exchange-soak','pre-exchange-nondecred-soak-run']
+          'usdt-execution','exchange','exchange-live','exchange-settings','settings-main','x11-diagnostics','pre-exchange-soak','pre-exchange-nondecred-soak-run']
 index=[]
 for name in names:
  source=root/'reports'/(name+'.json')
@@ -29,6 +29,23 @@ for name in ['exchange-go-coverage.log','exchange-race.log','exchange-frontend-c
              'usdt-adapter-race.log','exchange-ton-route-regression.log',
              'exchange-target.log','exchange-surface.log','exchange-install.log',
              'exchange-artifact.log','exchange-version.log','exchange-go-version.log']:
+ source=root/'reports'/name
+ if source.is_file():shutil.copyfile(source,out/name)
+for name in ['exchange-settings-coverage.log','exchange-settings-install.log',
+             'exchange-settings-packaged.log','exchange-settings-send.log','exchange-settings-surface.log',
+             'exchange-settings-recovery.log','exchange-settings-crash.log']:
+ source=root/'reports'/name
+ if source.is_file():shutil.copyfile(source,out/name)
+for name in ['settings-main-coverage.log','settings-main-install.log','settings-main-packaged.log',
+             'settings-main-send.log','settings-main-surface.log','settings-main-recovery.log',
+             'settings-main-crash.log','settings-main-go-coverage.log','settings-main-fuzz.log',
+             'settings-main-mutation.log','settings-main-version.log','settings-main-production-gate.log']:
+ source=root/'reports'/name
+ if source.is_file():shutil.copyfile(source,out/name)
+for name in ['x11-diagnostics-install.log','x11-diagnostics-packaged.log','x11-diagnostics-send.log',
+             'x11-diagnostics-go-coverage.log','x11-diagnostics-race.log','x11-diagnostics-recovery.log',
+             'x11-diagnostics-crash.log','x11-diagnostics-display.log','x11-diagnostics-version.log',
+             'x11-diagnostics-production-gate.log']:
  source=root/'reports'/name
  if source.is_file():shutil.copyfile(source,out/name)
 manifest=json.loads((root/'dist'/('go-build-manifest.json' if args.go_only else 'build-manifest.json')).read_text())

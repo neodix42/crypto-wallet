@@ -1,6 +1,6 @@
 {
-  "status": "RUNNING",
-  "executionStatus": "RUNNING",
+  "status": "NOT_RUN",
+  "executionStatus": "NOT_RUN",
   "requestedSeconds": 86400,
   "sourceSHA256": {
     "cmd/wallet-core/exchange.go": "001aba57d71915e8c14db212224a269533d6da6dee750b4024ce5e1e2a848855",
@@ -202,5 +202,7 @@
   "campaign24hStatus": "NOT_RUN",
   "allChainReleaseGate": "NOT_RUN",
   "testBinarySHA256": "64f692384a624f94f2e82585f968b5806ad6ee8937ab45c6cf1e5569e0b1a812",
-  "pid": 285631
+  "pid": 285631,
+  "partial": true,
+  "reason": "Previously RUNNING campaign has no surviving recorded process and no terminal completion report; last checkpoints retained. Completion was not established."
 }

@@ -1,9 +1,13 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing, disconnected Exchange controls, isolated Connect cancellation and validation feedback; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed error feedback remains readable across polling without moving onboarding and dismisses independently",
       "status": "PASS"
     },
     {
@@ -47,7 +51,11 @@
       "status": "PASS"
     },
     {
-      "name": "Local payment journal exists only in Settings with explicit wallet and asset context",
+      "name": "Settings is a permanent main-window tab immediately after Exchange; Journal owns payment history and survives Escape/middle-click",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed Exchange USDT selection separates its exact token contract from the independently verified owned Ethereum receive address",
       "status": "PASS"
     },
     {
@@ -59,7 +67,11 @@
       "status": "PASS"
     },
     {
-      "name": "Installed Bybit Connect uses isolated credential dialogs and both cancellation boundaries preserve the disconnected vault",
+      "name": "Installed Settings Exchange owns Bybit region and Connect; isolated credential cancellation preserves the disconnected vault",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed cancellation feedback floats without moving the Exchange settings heading and can be dismissed",
       "status": "PASS"
     },
     {
@@ -93,6 +105,10 @@
     {
       "name": "Electron validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors",
       "status": "PASS"
+    },
+    {
+      "name": "Installed modal and public clipboard workflows emit none of the three known Chromium X11 atom-cache diagnostics",
+      "status": "PASS"
     }
   ],
   "notRun": [
@@ -104,21 +120,92 @@
     "live Bybit authentication, deposits, spot fills and withdrawals"
   ],
   "environment": "mainnet",
-  "producerSHA256": "e22e366ef5eb82ba4d8ca9989415a70f0ba2e4c077b90bfc3474ae0a64c94a34",
+  "producerSHA256": "eb82f90d8ef9082ed470bdc758e57e283eeb61b6d50dfde39d9b7044e900aa1b",
   "sourceStable": true,
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "79f9efee548a857e64f6c1a38097ef236c2030eb169d5b075ed294736afc8af7",
-      "wallet-launcher": "164b9c11ee193392dab11ea0cf484bcd94fb1d91e02281609a5b6bbd13c34065",
-      "wallet-signer": "6340d8f4a7773e873ffc6a98d8e5cafa20dddaa3d5b553158240fe5df09db077"
+      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+      "wallet-launcher": "2900a8200be01478b8325247a31f0826a0aaaad9e3068e5e7c842ef2cbb5bf9b",
+      "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
     },
-    "asarSHA256": "013c01b218cf05e1a5a295e9333e7d67a66a29488281c78ba8b82b2064c2d9d6"
+    "asarSHA256": "4b68184af8ec7a2d8f3f9b5ecb987fd739bb725ce5f337c4665f105195a69a96"
   },
+  "notificationLayoutObservations": [
+    {
+      "anchor": "Create your app password",
+      "before": [
+        311,
+        486,
+        698,
+        516
+      ],
+      "whileFeedbackVisible": [
+        311,
+        486,
+        698,
+        516
+      ],
+      "afterDismissal": [
+        311,
+        486,
+        698,
+        516
+      ]
+    },
+    {
+      "anchor": "Bybit connection",
+      "before": [
+        104,
+        522,
+        250,
+        540
+      ],
+      "whileFeedbackVisible": [
+        104,
+        522,
+        250,
+        540
+      ],
+      "afterDismissal": [
+        104,
+        522,
+        250,
+        540
+      ]
+    },
+    {
+      "anchor": "Bybit connection",
+      "before": [
+        104,
+        522,
+        250,
+        540
+      ],
+      "whileFeedbackVisible": [
+        104,
+        522,
+        250,
+        540
+      ],
+      "afterDismissal": [
+        104,
+        522,
+        250,
+        540
+      ]
+    }
+  ],
   "nativeBalanceObservation": {
     "status": "PASS",
     "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - Oxdde47b48b8c79a741a59875eb880a1 8fc8c0a88a f27e0bfb7e7caef107b55d0e"
+    "publicText": "0 ETH - provider-observed - 0x0ee7013a3f6690793F7 1 bb9de2 1b6b55634e9 164 \u00a33931 3ecd2813822c11e183e"
+  },
+  "exchangeAssetIdentity": {
+    "status": "PASS",
+    "scope": "Public screenshot OCR contains the complete independently verified owned Ethereum receive address and separate exact canonical USDT contract after native keyboard selection; no live Bybit query",
+    "walletAddress": "0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
+    "tokenContract": "0xdAC17F958D2ee523a2206206994597C13D831ec7"
   },
   "exchangeConnectionDrill": {
     "status": "PASS",
@@ -127,27 +214,33 @@
   "liveLogChecks": [
     {
       "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
+      "ordinaryIPCStackTrace": false,
+      "knownX11AtomDiagnostic": false
     },
     {
       "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
+      "ordinaryIPCStackTrace": false,
+      "knownX11AtomDiagnostic": false
     },
     {
       "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
+      "ordinaryIPCStackTrace": false,
+      "knownX11AtomDiagnostic": false
     },
     {
       "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
+      "ordinaryIPCStackTrace": false,
+      "knownX11AtomDiagnostic": false
     },
     {
       "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
+      "ordinaryIPCStackTrace": false,
+      "knownX11AtomDiagnostic": false
     },
     {
       "mesaLoaderError": false,
-      "ordinaryIPCStackTrace": false
+      "ordinaryIPCStackTrace": false,
+      "knownX11AtomDiagnostic": false
     }
   ],
   "recoveryMethod": "Electron recorded-word confirmation and phrase import; no encrypted backup API or file needed"

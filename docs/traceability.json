@@ -41,7 +41,7 @@
     {
       "id": "INV-01-secret-boundary",
       "status": "PASS",
-      "evidence": "Owner-authorized isolated Electron prompt path; ordinary portfolio/snapshots remain secret-free in 125 frontend tests, typed protocol and owned-process crash/canary checks.",
+      "evidence": "Owner-authorized isolated Electron prompt path; ordinary portfolio/snapshots remain secret-free in132 current frontend tests, typed protocol and seven owned-process crash/canary checks. See settings-main.json for source/candidate bindings.",
       "remaining": "Electron main/prompt and transient coordinator transport are trusted; complete Electron/host/storage/clipboard/QR/network crash-canary acceptance and independent review NOT_RUN.",
       "previousEvidence": "Engine/snapshot/publicJSON/surface-check/frontend strict schema; native-only input tests"
     },
@@ -55,7 +55,7 @@
       "id": "INV-03-bounded-resource-use",
       "status": "PASS",
       "evidence": "KDF/IPC/JSON/RPC/QR/transaction/script bounds; account/journal/chain pages, opaque one-use cursors, 10,000-record and byte budgets; oversized archives and saturation fail explicitly.",
-      "remaining": "Scoped 24-hour resource campaign is RUNNING; no final long-duration or all-chain resource result is claimed."
+      "remaining": "The recorded 24-hour campaign has no surviving process or terminal completion report and is NOT_RUN/partial; no all-chain resource result is claimed."
     },
     {
       "id": "INV-04-no-sign-after-lock",
@@ -85,7 +85,7 @@
     {
       "id": "INV-08-address-recovery",
       "status": "PASS",
-      "evidence": "Six real prompt-protocol checks across three fresh installations restore all nine mainnet domains at indices 0/1/127 (27 exact descriptors), same/different app passwords and locked restart; final installed Electron recovery passes 20 checks.",
+      "evidence": "Six real Go prompt-protocol checks across three fresh installations restore all nine domains at indices0/1/127 (27 exact descriptors), same/different app passwords and locked restart;26 current installed X11 checks include fresh-profile recorded-phrase recovery.",
       "remaining": "Separate physical-machine/full-OS acceptance NOT_RUN; a phrase does not recover associations, settings, discovery counters or the local journal.",
       "previousEvidence": "Independent profiles, password-preserving addresses and all-family verified encrypted backup rederive"
     },
@@ -140,7 +140,7 @@
     {
       "id": "S-06",
       "status": "NOT_RUN",
-      "evidence": "All eight shipped Electron JS files have 100% statement coverage; 107 tests exercise narrow bridges/CSP/fuses, isolated prompts and bounded public paging; final portable X11 recovery and local-geth Send pass.",
+      "evidence": "All eight shipped Electron JS files have 100% statements;132 current tests exercise narrow bridges/CSP/fuses, isolated prompts, public paging, main-window Settings/Journal, floating notices and asset identity.26actual packaged X11 and seven isolated-geth Send checks pass.",
       "remaining": "Full clean supported-OS/display matrix and independent Electron/build-chain review NOT_RUN."
     },
     {
@@ -170,7 +170,7 @@
     {
       "id": "TP-010",
       "status": "PASS",
-      "evidence": "Source-stable Go coverage: 163 source/test/module hashes, all 23 measured floors (22 shipped plus legacy GTK), 203 uncovered blocks/219 statements reviewed. All eight shipped JS files have 100% statements; main/portfolio branches 98.41%/98.18%, critical prompt floors 95%/90%.",
+      "evidence": "Source-stable current Go package tests and all 25 measured statement floors pass, with186 source/test/module hashes; required Decred simnet prerequisite is BLOCKED, so complete Go wrapper aggregate remains FAIL. All 8 shipped JS files have 100% statements; main/portfolio branches 98.41%/98.38%;132 frontend tests pass.",
       "remaining": "Go statements are not branches; C/Chromium/third-party internals and external acceptance remain separate."
     },
     {
@@ -219,7 +219,7 @@
     {
       "id": "TP-032",
       "status": "PASS",
-      "evidence": "Six headless real Go prompt checks across three copies/27 descriptors and 20 final installed Electron checks; same/different password, wrong words, pending resume, legacy gates and locked restart. Seven installed local-geth Send checks pass separately.",
+      "evidence": "Six headless real Go prompt checks across three copies/27 descriptors and26 installed X11 checks including recovery; same/different password, wrong words, pending resume and locked restart. Seven installed local-geth Send checks pass separately.",
       "remaining": "Separate physical-machine and full supported OS matrix NOT_RUN; private local EVM sending does not establish every network or public-chain acceptance.",
       "previousEvidence": "All-family engine encrypted backup/restore/rotation tests and actual uninstrumented portable generated-root and phrase-import fresh-profile recovery PASS"
     },
@@ -257,7 +257,7 @@
     {
       "id": "TP-050",
       "status": "NOT_RUN",
-      "evidence": "Independent fixtures exist for every domain; earlier source-bound local geth/ZEN, NEAR and Aptos node results remain available; current dcrd simnet/TON TVM and seven actual portable Electron/geth Send checks pass.",
+      "evidence": "Independent fixtures exist for every domain; earlier source-bound local geth/ZEN/NEAR/Aptos/dcrd results remain historical. Current TON emulator, actual isolated USDT and seven portable Electron/geth Send checks pass; current pinned dcrd simnet prerequisite is BLOCKED.",
       "remaining": "Public funded testnet receive/send-back rows were deferred and remain NOT_RUN; identified third-party application imports and accepted public Core action remain NOT_RUN."
     },
     {
@@ -287,22 +287,22 @@
     {
       "id": "TP-070",
       "status": "NOT_RUN",
-      "evidence": "Final uninstrumented private-X11 Electron recovery passes 20 checks; actual portable Electron Send passes seven checks against real geth in an ordinary-user loopback-only network namespace. Default 12-word GUI and all-five-length component scopes remain distinct.",
+      "evidence": "Current uninstrumented private-X11 Electron candidate passes 26 checks; actual portable Electron Send passes seven checks against real geth in an ordinary-user loopback-only namespace. Default 12-word GUI and all-five-length component scopes remain distinct.",
       "remaining": "Clean Ubuntu 24.04/26.04 \u00d7 X11/Wayland lock/suspend/install/upgrade/full-flow acceptance, separate physical-machine recovery and other-chain installed sending NOT_RUN; earlier container sandbox obstacles remain BLOCKED."
     },
     {
       "id": "TP-071",
       "status": "PASS",
       "evidence": "Bounded scheduling, malformed requests, production-KDF/phrase lifecycle, exact signed-journal fake-ledger reconciliation and Go race results pass; account/history paging and archive-size regressions remain bounded.",
-      "remaining": "These passing bounded scopes do not complete the running 24-hour or all-chain campaign."
+      "remaining": "Passing bounded scopes do not complete the interrupted 24-hour or all-chain campaign."
     },
     {
       "id": "TP-072",
       "status": "NOT_RUN",
-      "evidence": "An actual source/test-executable-pinned 86,400-second non-Decred soak is RUNNING with production 256 MiB Argon2id, encrypted restart/phrase recovery, account discovery/growing history and an exact EVM signed-journal fake ledger.",
-      "remaining": "No final resources/latency/reconciliation result is claimed. Full all-chain 24-hour, other-chain consensus and desktop/OS lifecycle soak acceptance remain NOT_RUN.",
-      "executionStatus": "RUNNING",
-      "scopedCampaign24hStatus": "RUNNING",
+      "evidence": "The recorded source/test-executable-pinned 86,400-second non-Decred soak has no surviving recorded process or completion report. Retained checkpoints do not establish completed duration, final resources or reconciliation.",
+      "remaining": "Restart a source-bound campaign and complete its duration and final reconciliation. Full all-chain24-hour, other-chain consensus and desktop/OS lifecycle acceptance remain NOT_RUN.",
+      "executionStatus": "NOT_RUN",
+      "scopedCampaign24hStatus": "NOT_RUN",
       "allChainReleaseGate": "NOT_RUN"
     },
     {
@@ -320,7 +320,7 @@
     {
       "id": "UX-WALLET-TABS",
       "status": "PASS",
-      "evidence": "Current 125 frontend tests, 23 installed recovery/Exchange checks and seven installed local-geth Send checks: tables/native balances/copy, wallet/account/Exchange tabs, on-demand Send, isolated Receive QR, Settings journal, credential-dialog cancellation and stale/lock rejection.",
+      "evidence": "Current132 frontend tests,26 installed X11 checks and seven installed local-geth Send checks: table balances/copy, permanent account/Exchange/Settings tabs, wallet middle-close, on-demand Send, isolated Receive, Settings Wallet/Exchange/Journal, floating messages and credential cancellation/stale/lock rejection.",
       "remaining": "Full supported OS/display matrix NOT_RUN."
     },
     {
@@ -338,7 +338,7 @@
     {
       "id": "INV-13-electron-prompt-scope",
       "status": "PASS",
-      "evidence": "Current 125 frontend tests and Go supervisor/core/protocol adversarial tests reject wrong window/frame/origin, stale/replayed/unsolicited/wrong-kind/duplicate prompt replies.",
+      "evidence": "Current132 frontend tests and Go supervisor/core/protocol adversarial tests reject wrong window/frame/origin, stale/replayed/unsolicited/wrong-kind/duplicate prompt replies.",
       "remaining": "Independent review and complete real OS acceptance NOT_RUN."
     },
     {
@@ -400,6 +400,24 @@
       "status": "NOT_RUN",
       "evidence": "No real API key, private Bybit request, deposit, trade, withdrawal or mainnet fund movement was used in development.",
       "remaining": "Owner-controlled disposable capped account acceptance: exact-chain deposit credit/memo, FUND/UNIFIED, both spot directions, actual fees/taxes, whitelist/regional restrictions, independent withdrawal credit; never automatically send mainnet funds."
+    },
+    {
+      "id": "EX-06-settings-connection",
+      "status": "PASS",
+      "evidence": "docs/evidence/settings-main.json: main-window Settings follows Exchange and owns Wallet/Exchange/Journal; no key/secret field in ordinary UI.132 frontend and26 current-candidate packaged checks pass, including navigation, focused floating feedback, address/contract identity and credential cancellation; seven isolated actual-geth Send checks pass separately.",
+      "remaining": "Actual private Bybit acceptance, funded flows and original production gates remain separate and NOT_RUN."
+    },
+    {
+      "id": "UX-FLOATING-FEEDBACK-ASSET-IDENTITY",
+      "status": "PASS",
+      "evidence": "Source-stable132 frontend and26 current installed X11 checks: fixed dismissible sanitized info/errors, accessible focus restoration, unchanged public page-heading rectangles before/during/after feedback; exact independently verified owned Ethereum address separate from canonical USDT contract. Core spot token identifiers remain distinct from EVM contracts in component tests. See settings-main.json.",
+      "remaining": "Full supported OS/display matrix and live Bybit acceptance NOT_RUN."
+    },
+    {
+      "id": "UX-X11-ATOM-DIAGNOSTICS",
+      "status": "PASS",
+      "evidence": "docs/evidence/x11-diagnostics.json: exact three known upstream cache diagnostics omitted with bounded buffering; genuine/FATAL/unknown/partial/binary output preserved. Twelve real process/fault/lifecycle cases and 32 repeated exec/private-pipe checks pass; scoped race passes. Final artifact passes 27 packaged X11 and seven actual isolated-geth Send checks, six clean live-log observations, fresh recovery and Go crash checks.",
+      "remaining": "Application diagnostic workaround; upstream Chromium cache preload table is unchanged. Full supported OS/display matrix and production acceptance remain NOT_RUN."
     }
   ]
 }

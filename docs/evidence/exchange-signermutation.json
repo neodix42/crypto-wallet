@@ -10,9 +10,9 @@
       "selector": "^TestExchangeTP043AuthorizationFailuresLockAndPersistence$/^wrong-password$",
       "failedTest": "TestExchangeTP043AuthorizationFailuresLockAndPersistence/wrong-password",
       "changedGuards": 1,
-      "overlaySourceSHA256": "5770e2ef3e7c90c0e9b484f498e5ffd3ccf177d4b694778b04ca65a6ae1d1b92",
+      "overlaySourceSHA256": "e0451f502d69f692213ad99281b984227935615618fa46d0a4af7fa3c27df382",
       "exit": 1,
-      "elapsedSeconds": 1.237,
+      "elapsedSeconds": 1.606,
       "passedTests": [],
       "failedTests": [
         "TestExchangeTP043AuthorizationFailuresLockAndPersistence",
@@ -32,9 +32,9 @@
       "selector": "^TestExchangeTP040TP060CredentialsAndCrashSafeSwap$",
       "failedTest": "TestExchangeTP040TP060CredentialsAndCrashSafeSwap",
       "changedGuards": 2,
-      "overlaySourceSHA256": "d9ca58003e92d788b25e7e5c3d908df99e90f87e812cb3c09b2a3fc28d0b8f01",
+      "overlaySourceSHA256": "74238976f9737497f5153e292bc5afe292bf42677973df06b709f81e477950b2",
       "exit": 1,
-      "elapsedSeconds": 1.318,
+      "elapsedSeconds": 1.733,
       "passedTests": [],
       "failedTests": [
         "TestExchangeTP040TP060CredentialsAndCrashSafeSwap"
@@ -53,9 +53,9 @@
       "selector": "^TestExchangeTP060FailedDurableSubmissionReturnsNoSignature$",
       "failedTest": "TestExchangeTP060FailedDurableSubmissionReturnsNoSignature",
       "changedGuards": 1,
-      "overlaySourceSHA256": "b20f994caeee94157179efd2ddd6404c56c5e32ac0e7183e0c384dc3e6df7714",
+      "overlaySourceSHA256": "da107f51b907076decf86b25b21ef8ac1b43c244c8c39f27e1656339e0345f03",
       "exit": 1,
-      "elapsedSeconds": 1.158,
+      "elapsedSeconds": 1.64,
       "passedTests": [],
       "failedTests": [
         "TestExchangeTP060FailedDurableSubmissionReturnsNoSignature"
@@ -74,9 +74,9 @@
       "selector": "^TestExchangeTP042CurrentOwnedWithdrawalDescriptorMustStillMatch$",
       "failedTest": "TestExchangeTP042CurrentOwnedWithdrawalDescriptorMustStillMatch",
       "changedGuards": 1,
-      "overlaySourceSHA256": "849f8fb194d056662396db16dbeb66dee0b094224bc45e198ef25a00049c4f84",
+      "overlaySourceSHA256": "671888baceb6673e2fedde17ba0e67db02ab727323ebf9273350ff0f13d4d6c8",
       "exit": 1,
-      "elapsedSeconds": 1.179,
+      "elapsedSeconds": 1.793,
       "passedTests": [],
       "failedTests": [
         "TestExchangeTP042CurrentOwnedWithdrawalDescriptorMustStillMatch"
@@ -97,7 +97,7 @@
       "changedGuards": 1,
       "overlaySourceSHA256": "c91d80f030a26cba93805fc734f906d3522343f4d0009013647ee88e17740855",
       "exit": 1,
-      "elapsedSeconds": 1.318,
+      "elapsedSeconds": 1.741,
       "passedTests": [],
       "failedTests": [
         "TestExchangeTP060DefinitiveRejectionReleasesOnlyDocumentedFirstPostFailures"
@@ -254,7 +254,7 @@
     "internal/signer/engine_test.go": "d20adba59cfb11f4f57b2b1416fc46d8e38ccc012c74690b1ef19099dee8929e",
     "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
     "internal/signer/errors.go": "d069a5602d44bd2b50cf52c4498145918bb798050a5346bd44277d737fa50c81",
-    "internal/signer/exchange.go": "36401887676653c8b1a271e49ea939c6b5b27d8e670da19527516256dfdbf36b",
+    "internal/signer/exchange.go": "a06be7b1aedd6c0130bc8a6e00f3367acd2fa2828042f365445e71fea2ce7530",
     "internal/signer/exchange_beneficiary.go": "1d5827f7ea7cf2a29ba9a3faaad8d8537154a65958123ca220ca60af932f9743",
     "internal/signer/exchange_beneficiary_test.go": "6041ee748287b69dd010e1c47c1b2a341ef35c829914542c2446d87831b7c591",
     "internal/signer/exchange_test.go": "b33f590cba5b5263c781d32e1b1b626b822391a109a91817e2ad17b7c96b5f85",
@@ -302,7 +302,7 @@
   "goVersion": "go version go1.27.3 linux/amd64",
   "baseline": {
     "exit": 0,
-    "elapsedSeconds": 8.454,
+    "elapsedSeconds": 8.158,
     "passedTests": [
       "TestExchangeTP040TP060CredentialsAndCrashSafeSwap",
       "TestExchangeTP042CurrentOwnedWithdrawalDescriptorMustStillMatch",
@@ -467,7 +467,7 @@
     "internal/signer/engine_test.go": "d20adba59cfb11f4f57b2b1416fc46d8e38ccc012c74690b1ef19099dee8929e",
     "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
     "internal/signer/errors.go": "d069a5602d44bd2b50cf52c4498145918bb798050a5346bd44277d737fa50c81",
-    "internal/signer/exchange.go": "36401887676653c8b1a271e49ea939c6b5b27d8e670da19527516256dfdbf36b",
+    "internal/signer/exchange.go": "a06be7b1aedd6c0130bc8a6e00f3367acd2fa2828042f365445e71fea2ce7530",
     "internal/signer/exchange_beneficiary.go": "1d5827f7ea7cf2a29ba9a3faaad8d8537154a65958123ca220ca60af932f9743",
     "internal/signer/exchange_beneficiary_test.go": "6041ee748287b69dd010e1c47c1b2a341ef35c829914542c2446d87831b7c591",
     "internal/signer/exchange_test.go": "b33f590cba5b5263c781d32e1b1b626b822391a109a91817e2ad17b7c96b5f85",
@@ -513,5 +513,5 @@
     "tests/stress/stress_test.go": "a7f9b112affb4fe4d8eaf7113b0eac8b7afac2a882c1de86b40c48fa9e867356"
   },
   "sourceStable": true,
-  "elapsedSeconds": 14.73
+  "elapsedSeconds": 16.732
 }

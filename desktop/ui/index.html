@@ -9,12 +9,11 @@
 <header>
   <div><strong>LocalWallet</strong><small>Encrypted on this device</small><small id="version">Version loading…</small></div>
   <span id="profile" class="profile-badge" data-environment="unknown">Checking network profile…</span>
-  <div class="header-actions"><button id="lock" disabled>Lock wallet</button><button id="settings" aria-haspopup="dialog" aria-controls="settingsdialog" aria-expanded="false">⚙ Settings</button></div>
+  <div class="header-actions"><button id="lock" disabled>Lock wallet</button></div>
 </header>
 <main>
   <section class="workspace">
-    <p id="message" role="status">Checking the local wallet…</p>
-    <div id="operationerror" class="operation-error" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
+    <div id="viewtabs" class="viewtabs" role="tablist" aria-label="Wallet navigation"></div>
     <div id="onboarding" class="panel onboarding">
       <p class="eyebrow">Your keys stay on this device</p>
       <h1 id="onboardtitle">Checking your local wallet</h1><p id="onboarddescription">Reading the local vault status.</p>
@@ -26,7 +25,6 @@
     <div id="walletcontent" hidden>
       <div class="overview-heading"><div><h1>Your wallets</h1><p>One shared root. Separate wallets for each network.</p></div><span id="recoverystatus">Recovery phrase setup required</span></div>
       <div id="recoverycallout" class="recovery-callout" role="status" hidden><div><strong>Write down your recovery phrase</strong><p>Finish recording your phrase in the recovery dialog, then confirm the requested words to enable receiving and sending.</p></div><button id="recoverycontinue">Finish recovery phrase setup</button></div>
-      <div id="viewtabs" class="viewtabs" role="tablist" aria-label="Accounts and open wallets"></div>
       <div id="accountoverview" role="tabpanel">
       <button id="refreshbalances">Refresh balances</button><p id="overviewbalancestatus">Balances are queried once per visible wallet. Refresh explicitly for new network data.</p>
       <label><input id="showhidden" type="checkbox"> Show hidden accounts</label>
@@ -57,24 +55,26 @@
 
       </div>
       <div id="exchangepage" role="tabpanel" hidden>
-        <div class="wallet-heading"><div><h1 id="exchangetitle" tabindex="-1">Exchange</h1><p>Deposit to Bybit, trade a spot USDT pair, then withdraw to your wallet.</p></div><div class="actions"><button id="exchangeconnect">Connect Bybit API key</button><button id="exchangedisconnect" hidden>Disconnect</button></div></div>
-        <label>Bybit API region <select id="exchangeendpoint"><option value="api.bybit.com">Global — api.bybit.com</option><option value="api.bybit.ae">UAE — api.bybit.ae</option><option value="api.bybit.eu">EU — api.bybit.eu</option><option value="api.bybit.tr">Türkiye — api.bybit.tr</option><option value="api.bybit.kz">Kazakhstan — api.bybit.kz</option></select></label>
+        <div class="wallet-heading"><div><h1 id="exchangetitle" tabindex="-1">Exchange</h1><p>Deposit to Bybit, trade a spot USDT pair, then withdraw to your wallet.</p></div><div class="actions"><button id="exchangesettings">Exchange settings</button></div></div>
         <p id="exchangeconnection" role="status">Bybit is disconnected.</p>
         <p>Assets deposited to Bybit are held by Bybit. Each deposit, spot trade and withdrawal requires its own confirmation. Exchange fees, trading limits and network availability apply.</p>
-        <div class="panel exchange-selection"><label>Wallet and network <select id="exchangeaccount"></select></label><label>Wallet asset <select id="exchangeasset"></select></label><p id="exchangeroute">Select a wallet asset and refresh its market.</p><button id="exchangequote">Refresh market &amp; price</button><pre id="exchangeprice">Price unknown — no market query completed.</pre></div>
+        <div class="panel exchange-selection"><label>Wallet and network <select id="exchangeaccount"></select></label><label>Wallet asset <select id="exchangeasset"></select></label><div class="asset-identity"><span>Your wallet address</span><code id="exchangeaddress"></code><p id="exchangeassetinfo"></p></div><p id="exchangeroute">Select a wallet asset and refresh its market.</p><button id="exchangequote">Refresh market &amp; price</button><pre id="exchangeprice">Price unknown — no market query completed.</pre></div>
         <div class="exchange-actions">
           <div class="panel"><h2>1. Deposit</h2><p>Send the selected asset from this wallet to its verified Bybit deposit network. Review the destination and network fee in the wallet dialog.</p><label>Deposit amount <input id="exchangedepositamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><button id="exchangedeposit" class="primary" disabled>Deposit</button></div>
           <div class="panel"><h2>2. Swap</h2><label>Spot direction <select id="exchangeside"><option value="Sell">Sell wallet asset for USDT</option><option value="Buy">Buy wallet asset with USDT</option></select></label><label><span id="exchangeswapunit">Amount of wallet asset to sell</span><input id="exchangeswapamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><label>Maximum price slippage (%, 0.01–1, up to 2 decimals) <input id="exchangeslippage" inputmode="decimal" autocomplete="off" value="0.5"></label><button id="exchangeswap" class="primary" disabled>Swap</button></div>
-          <div class="panel"><h2>3. Withdraw</h2><p>Withdraw from Bybit to your selected wallet’s verified receive address on the exact network.</p><label>Destination wallet <select id="exchangewithdrawaccount"></select></label><label>Withdrawal asset <select id="exchangewithdrawasset"></select></label><button id="exchangewithdrawquote">Check withdrawal network &amp; fee</button><p id="exchangewithdrawroute">Select a destination and check its withdrawal network.</p><label>Withdrawal amount <input id="exchangewithdrawamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><button id="exchangewithdraw" class="primary" disabled>Withdraw</button></div>
+          <div class="panel"><h2>3. Withdraw</h2><p>Withdraw from Bybit to your selected wallet’s verified receive address on the exact network.</p><label>Destination wallet <select id="exchangewithdrawaccount"></select></label><label>Withdrawal asset <select id="exchangewithdrawasset"></select></label><div class="asset-identity"><span>Withdrawal destination wallet address</span><code id="exchangewithdrawaddress"></code><p id="exchangewithdrawassetinfo"></p></div><button id="exchangewithdrawquote">Check withdrawal network &amp; fee</button><p id="exchangewithdrawroute">Select a destination and check its withdrawal network.</p><label>Withdrawal amount <input id="exchangewithdrawamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><button id="exchangewithdraw" class="primary" disabled>Withdraw</button></div>
         </div>
         <div class="panel"><div class="settings-heading"><h2>Bybit balances and recent operations</h2><button id="exchangerefresh">Refresh exchange state</button></div><pre id="exchangebalances">Balances unknown — connect and refresh Bybit.</pre><p id="exchangeresult" role="status">No exchange action requested.</p><pre id="exchangedetails" aria-label="Public exchange result details" hidden></pre><div id="exchangeoperations"></div><p>Accepted requests can remain pending or unknown. Reconcile the original operation before making another request. Select an explicitly supported wallet network for withdrawals; matching coin names do not identify the network.</p></div>
       </div>
     </div>
-  </section>
-</main>
-<div id="settingsdialog" class="modal-backdrop" hidden>
-  <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingstitle" tabindex="-1">
-    <div class="settings-heading"><h2 id="settingstitle">Wallet settings</h2><button id="closesettings" aria-label="Close settings">Close</button></div>
+<div id="settingspage" class="panel" role="tabpanel" aria-labelledby="settings" hidden>
+    <div class="settings-heading"><h1 id="settingstitle" tabindex="-1">Settings</h1></div>
+    <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+      <button id="settingswallettab" role="tab" aria-selected="true" aria-controls="settingswalletpanel">Wallet</button>
+      <button id="settingsexchangetab" role="tab" aria-selected="false" aria-controls="settingsexchangepanel" tabindex="-1">Exchange</button>
+      <button id="settingsjournaltab" role="tab" aria-selected="false" aria-controls="settingsjournalpanel" tabindex="-1">Journal</button>
+    </div>
+    <div id="settingswalletpanel" role="tabpanel" aria-labelledby="settingswallettab">
     <button id="unlock" hidden>Unlock</button>
     <div id="emptyactions" hidden>
       <details><summary>Other setup options</summary>
@@ -91,16 +91,34 @@
         <label>Last index (inclusive) <input id="recoveryend" value="1" type="number" min="0" max="999999"></label>
         <button id="discoveraccounts">Recover this index range</button>
       </details>
+    </div>
+    <hr><p>Passwords and recovery phrases use dedicated wallet dialogs. Keep your recovery phrase offline and private.</p>
+    <p>Keep your written recovery phrase offline. It recreates canonical accounts; named or rotated account associations and historical discovery state may require additional recovery steps. The app password protects local storage and does not change your addresses.</p>
+    </div>
+    <div id="settingsexchangepanel" role="tabpanel" aria-labelledby="settingsexchangetab" hidden>
+      <h3>Bybit connection</h3>
+      <p>Choose the region matching your Bybit Unified Trading Account. Enter your API key and secret only in the separate masked wallet dialog.</p>
+      <label>Bybit API region <select id="exchangeendpoint"><option value="api.bybit.com">Global — api.bybit.com</option><option value="api.bybit.ae">UAE — api.bybit.ae</option><option value="api.bybit.eu">EU — api.bybit.eu</option><option value="api.bybit.tr">Türkiye — api.bybit.tr</option><option value="api.bybit.kz">Kazakhstan — api.bybit.kz</option></select></label>
+      <div class="actions"><button id="exchangeconnect">Connect Bybit API key</button><button id="exchangedisconnect" hidden>Disconnect</button><button id="exchangesettingsrefresh">Refresh connection</button></div>
+      <p id="exchangesettingsconnection" role="status">Bybit is disconnected.</p>
+      <p>Credentials are stored in your encrypted wallet. Configure the required API permissions, IP restrictions and withdrawal whitelist in Bybit. Deposit, Swap and Withdraw remain in the main Exchange tab.</p>
+    </div>
+    <div id="settingsjournalpanel" role="tabpanel" aria-labelledby="settingsjournaltab" hidden>
+      <p id="journallocked" hidden>Unlock your wallet to inspect the local payment journal.</p>
       <div id="journalpanel" class="panel"><h2>Local payment journal</h2>
         <label>Wallet <select id="journalaccount"></select></label><label>Asset <select id="journalasset"></select></label><p id="journalcontext">Choose a wallet to inspect its payments.</p>
         <button id="history">Refresh journal</button><button id="historymore" hidden>Load older payments</button><p id="historystatus" role="status"></p><button id="chainhistory">Refresh chain history</button><button id="chainhistorymore" hidden>Load older history</button><p id="chainhistorystatus" role="status"></p><pre id="journalresult">No journal action requested.</pre><pre id="chainhistoryresult">History has not been queried.</pre>
         <p>Editing a prepared payment leaves its reservation in the journal. Cancel the unsigned preparation before preparing revised details. Submission, execution and finality are separate. A timeout requires reconciliation of the original identity. Full historical chain discovery remains a release gate.</p><div id="operations"></div>
       </div>
     </div>
-    <hr><p>Passwords and recovery phrases use dedicated wallet dialogs. Keep your recovery phrase offline and private.</p>
-    <p>Keep your written recovery phrase offline. It recreates canonical accounts; named or rotated account associations and historical discovery state may require additional recovery steps. The app password protects local storage and does not change your addresses.</p>
-  </section>
 </div>
+  </section>
+</main>
+<aside id="notifications" class="notifications" aria-label="Wallet notifications" hidden>
+  <button id="dismissnotification" aria-label="Dismiss notification">Dismiss notification</button>
+  <p id="message" role="status" aria-live="polite">Checking the local wallet…</p>
+  <div id="operationerror" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
+</aside>
 <div id="receiverecoverydialog" class="modal-backdrop" hidden>
   <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="receiverecoverytitle" tabindex="-1">
     <div class="settings-heading"><h2 id="receiverecoverytitle">Finish recovery phrase setup</h2><button id="closereceiverecovery">Cancel</button></div>

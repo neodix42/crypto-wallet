@@ -1,0 +1,177 @@
+PASS short-password-feedback
+PASS password-mismatch-feedback
+PASS Password setup generates and encrypts a random phrase; incorrect recorded words leave setup pending
+PASS Pending recovery offers an actionable Send form without enabling payment preparation
+PASS Pending Receive guide cancels without opening an unconfirmed address workflow
+PASS Electron password reauthentication and correct recorded words enable the original wallet receive QR without a file backup
+PASS Actual packaged app restores its generated wallet in an empty profile using only app password and recorded phrase
+PASS invalid-recovery-phrase-feedback
+PASS Known phrase restoration reproduces the independently generated public address without backup files
+PASS Wallet table copy icon invokes dialog verification and copies the full independent public address
+PASS Overview table displays its native balance column and an exact ETH quantity or explicit unknown state
+PASS Local payment journal exists only in Settings with explicit wallet and asset context
+PASS Installed Exchange tab remains available after account navigation and middle-click
+PASS Disconnected installed Exchange has visibly disabled Deposit, Swap and Withdraw buttons that perform no action
+PASS Installed Settings Exchange owns Bybit region and Connect; isolated credential cancellation preserves the disconnected vault
+PASS Electron Receive displays independently decoded QR pixels and copies the exact address
+PASS Confirmed recovery enables Send form without any encrypted-backup prompt
+PASS Middle-click closes wallet tab and returns to account table
+PASS Restart requires dialog unlock and preserves confirmed recovery and wallet address
+PASS Explicit testnet remains isolated from the restored mainnet profile
+PASS Adding deterministic account preserves phrase confirmation and creates its own account tab
+PASS Captured logs and persisted profile files contain no tested secret canaries
+PASS Electron validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors
+{
+  "status": "PASS",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing, disconnected Exchange controls, isolated Connect cancellation and validation feedback; disposable generated and public fixture roots only",
+  "steps": [
+    {
+      "name": "short-password-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "password-mismatch-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Password setup generates and encrypts a random phrase; incorrect recorded words leave setup pending",
+      "status": "PASS"
+    },
+    {
+      "name": "Pending recovery offers an actionable Send form without enabling payment preparation",
+      "status": "PASS"
+    },
+    {
+      "name": "Pending Receive guide cancels without opening an unconfirmed address workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "Electron password reauthentication and correct recorded words enable the original wallet receive QR without a file backup",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual packaged app restores its generated wallet in an empty profile using only app password and recorded phrase",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid-recovery-phrase-feedback",
+      "status": "PASS"
+    },
+    {
+      "name": "Known phrase restoration reproduces the independently generated public address without backup files",
+      "status": "PASS"
+    },
+    {
+      "name": "Wallet table copy icon invokes dialog verification and copies the full independent public address",
+      "status": "PASS"
+    },
+    {
+      "name": "Overview table displays its native balance column and an exact ETH quantity or explicit unknown state",
+      "status": "PASS"
+    },
+    {
+      "name": "Local payment journal exists only in Settings with explicit wallet and asset context",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed Exchange tab remains available after account navigation and middle-click",
+      "status": "PASS"
+    },
+    {
+      "name": "Disconnected installed Exchange has visibly disabled Deposit, Swap and Withdraw buttons that perform no action",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed Settings Exchange owns Bybit region and Connect; isolated credential cancellation preserves the disconnected vault",
+      "status": "PASS"
+    },
+    {
+      "name": "Electron Receive displays independently decoded QR pixels and copies the exact address",
+      "status": "PASS"
+    },
+    {
+      "name": "Confirmed recovery enables Send form without any encrypted-backup prompt",
+      "status": "PASS"
+    },
+    {
+      "name": "Middle-click closes wallet tab and returns to account table",
+      "status": "PASS"
+    },
+    {
+      "name": "Restart requires dialog unlock and preserves confirmed recovery and wallet address",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit testnet remains isolated from the restored mainnet profile",
+      "status": "PASS"
+    },
+    {
+      "name": "Adding deterministic account preserves phrase confirmation and creates its own account tab",
+      "status": "PASS"
+    },
+    {
+      "name": "Captured logs and persisted profile files contain no tested secret canaries",
+      "status": "PASS"
+    },
+    {
+      "name": "Electron validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "clean Ubuntu24.04 desktop",
+    "Wayland full wallet workflows",
+    "OS suspend/session lock",
+    "send from installed package",
+    "upgrade/uninstall recovery matrix",
+    "live Bybit authentication, deposits, spot fills and withdrawals"
+  ],
+  "environment": "mainnet",
+  "producerSHA256": "b6b0ce9f3ae15c755602acbabf0186802714515c85d294fde79f776b591e53c2",
+  "sourceStable": true,
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+      "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+      "wallet-signer": "88e5ea5f581246f54b42381ed801e7f95379ed644d6273ce6de09215ab6033c5"
+    },
+    "asarSHA256": "4f86bca38933116de464542c67a35997bc8a8a1297aa3de141364a7b8d445153"
+  },
+  "nativeBalanceObservation": {
+    "status": "PASS",
+    "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
+    "publicText": "0 ETH - provider-observed - 0x9e3a07724c4340b1 162a21 149\u00a2869e7ecee2831 fe 6e42bccce9d677ba0990ecbf"
+  },
+  "exchangeConnectionDrill": {
+    "status": "PASS",
+    "scope": "Real isolated app-password and empty masked API-input dialogs cancelled through XTest; no API credentials entered, custody approved or live exchange acceptance claimed"
+  },
+  "liveLogChecks": [
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    },
+    {
+      "mesaLoaderError": false,
+      "ordinaryIPCStackTrace": false
+    }
+  ],
+  "recoveryMethod": "Electron recorded-word confirmation and phrase import; no encrypted backup API or file needed"
+}

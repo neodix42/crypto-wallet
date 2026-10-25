@@ -148,7 +148,7 @@
     "internal/signer/engine_test.go": "d20adba59cfb11f4f57b2b1416fc46d8e38ccc012c74690b1ef19099dee8929e",
     "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
     "internal/signer/errors.go": "d069a5602d44bd2b50cf52c4498145918bb798050a5346bd44277d737fa50c81",
-    "internal/signer/exchange.go": "36401887676653c8b1a271e49ea939c6b5b27d8e670da19527516256dfdbf36b",
+    "internal/signer/exchange.go": "a06be7b1aedd6c0130bc8a6e00f3367acd2fa2828042f365445e71fea2ce7530",
     "internal/signer/exchange_beneficiary.go": "1d5827f7ea7cf2a29ba9a3faaad8d8537154a65958123ca220ca60af932f9743",
     "internal/signer/exchange_beneficiary_test.go": "6041ee748287b69dd010e1c47c1b2a341ef35c829914542c2446d87831b7c591",
     "internal/signer/exchange_test.go": "b33f590cba5b5263c781d32e1b1b626b822391a109a91817e2ad17b7c96b5f85",
@@ -201,7 +201,7 @@
       "output": "reports/fuzz-uiprompt-FuzzPromptProtocol.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.429
+      "seconds": 4.439
     },
     {
       "package": "vault",
@@ -210,7 +210,7 @@
       "output": "reports/fuzz-vault-FuzzTP012Envelope.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 3.912
+      "seconds": 3.734
     },
     {
       "package": "derivation",
@@ -219,7 +219,7 @@
       "output": "reports/fuzz-derivation-FuzzTP012Mnemonic.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.739
+      "seconds": 4.537
     },
     {
       "package": "ipc",
@@ -228,7 +228,7 @@
       "output": "reports/fuzz-ipc-FuzzTP012IPC.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 3.686
+      "seconds": 3.536
     },
     {
       "package": "strictjson",
@@ -237,7 +237,7 @@
       "output": "reports/fuzz-strictjson-FuzzTP012JSON.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.573
+      "seconds": 4.539
     },
     {
       "package": "amount",
@@ -246,7 +246,7 @@
       "output": "reports/fuzz-amount-FuzzTP012Amount.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 3.492
+      "seconds": 3.478
     },
     {
       "package": "qr",
@@ -255,7 +255,7 @@
       "output": "reports/fuzz-qr-FuzzTP012QR.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 3.698
+      "seconds": 3.677
     },
     {
       "package": "chains/chainutil",
@@ -264,7 +264,7 @@
       "output": "reports/fuzz-chains-chainutil-FuzzJSON.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.395
+      "seconds": 4.985
     },
     {
       "package": "chains/evm",
@@ -273,7 +273,7 @@
       "output": "reports/fuzz-chains-evm-FuzzTP012AddressAndPlan.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.58
+      "seconds": 5.785
     },
     {
       "package": "chains/hypercore",
@@ -282,7 +282,7 @@
       "output": "reports/fuzz-chains-hypercore-FuzzTP012CoreAction.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.635
+      "seconds": 4.376
     },
     {
       "package": "chains/near",
@@ -291,7 +291,7 @@
       "output": "reports/fuzz-chains-near-FuzzAddress.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 3.983
+      "seconds": 3.781
     },
     {
       "package": "chains/aptos",
@@ -300,7 +300,7 @@
       "output": "reports/fuzz-chains-aptos-FuzzAddress.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.132
+      "seconds": 3.775
     },
     {
       "package": "chains/decred",
@@ -309,7 +309,7 @@
       "output": "reports/fuzz-chains-decred-FuzzAddressesScriptsOutpoints.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.182
+      "seconds": 4.777
     },
     {
       "package": "chains/ton",
@@ -318,7 +318,7 @@
       "output": "reports/fuzz-chains-ton-FuzzAddressAndBOC.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.981
+      "seconds": 4.784
     },
     {
       "package": "exchange/bybit",
@@ -327,7 +327,7 @@
       "output": "reports/fuzz-exchange-bybit-FuzzBybitAuthRequest.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.78
+      "seconds": 4.693
     },
     {
       "package": "exchange/bybit",
@@ -336,7 +336,7 @@
       "output": "reports/fuzz-exchange-bybit-FuzzBybitExecutionExtraFees.log",
       "exit": 0,
       "fuzzExecuted": true,
-      "seconds": 4.885
+      "seconds": 4.66
     }
   ],
   "sourceStable": true

@@ -16,7 +16,7 @@ vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
 phrase_spec=importlib.util.spec_from_file_location('test_phrase',root/'tests/e2e/phrase.py');phrase_ui=importlib.util.module_from_spec(phrase_spec);phrase_spec.loader.exec_module(phrase_ui)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, Settings journal, native balances, receive QR/copy, tab closing, disconnected Exchange controls, isolated Connect cancellation and validation feedback; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals']}
 report['environment']=selected_profile
 report['producerSHA256']=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()
 report.update(status='RUNNING',sourceStable=False)
@@ -103,6 +103,31 @@ def clickprimary(word,last=False):
  if matches:
   a=matches[-1] if last else matches[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
  raise RuntimeError('Public primary control unavailable: '+word)
+def publicphrasebounds(phrase):
+ # Public pixels are the oracle: no DOM, accessibility internals, debugging
+ # transport or production renderer instrumentation is used by this drill.
+ words=phrase.lower().split();rows=textboxes();matches=[]
+ for i,a in enumerate(rows):
+  segment=rows[i:i+len(words)]
+  if len(segment)==len(words) and [b[11].lower().strip('.,:') for b in segment]==words and all(b[1:5]==a[1:5] for b in segment):
+   left=min(int(b[6]) for b in segment);top=min(int(b[7]) for b in segment)
+   right=max(int(b[6])+int(b[8]) for b in segment);bottom=max(int(b[7])+int(b[9]) for b in segment)
+   matches.append((left,top,right,bottom))
+ if not matches:raise RuntimeError('Public layout anchor unavailable: '+phrase)
+ return min(matches,key=lambda value:(value[1],value[0]))
+def dismissnotification():
+ if 'dismiss notification' in ' '.join(a[11] for a in textboxes()).lower():
+  clickphrase('Dismiss notification');time.sleep(.2)
+def notificationlayout(anchor,before):
+ # A visible error previously inserted a block above the page. Require the
+ # same public heading rectangle both while feedback is shown and after it is
+ # dismissed. This measures the installed layout rather than reading CSS.
+ if 'dismiss notification' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Floating feedback has no visible dismiss control')
+ during=publicphrasebounds(anchor)
+ if during!=before:raise RuntimeError('Feedback moved the public page anchor')
+ dismissnotification();after=publicphrasebounds(anchor)
+ if after!=before:raise RuntimeError('Dismissing feedback moved the public page anchor')
+ report.setdefault('notificationLayoutObservations',[]).append({'anchor':anchor,'before':before,'whileFeedbackVisible':during,'afterDismissal':after})
 def waitprompt(prefix):
  # One in-flight overview query can finish before the serial core handles a
  # dialog action. Its production deadline is 30 seconds; no wallet retry occurs.
@@ -133,7 +158,7 @@ def stopapp():
   # Capture diagnostics while the app is live. Forced test teardown can itself
   # produce Chromium service/GPU shutdown noise and is outside this assertion.
   logs[-1].flush();logs[-1].seek(0);live=logs[-1].read()
-  live_log_checks.append({'mesaLoaderError':'MESA-LOADER:' in live,'ordinaryIPCStackTrace':"Error occurred in handler for 'wallet:request'" in live})
+  live_log_checks.append({'mesaLoaderError':'MESA-LOADER:' in live,'ordinaryIPCStackTrace':"Error occurred in handler for 'wallet:request'" in live,'knownX11AtomDiagnostic':bool(re.search(r'\] Add (?:_NET_WM_STATE_MODAL|application/vnd\.portal\.filetransfer|application/vnd\.portal\.files) to kAtomsToCache(?:\n|$)',live))})
   os.killpg(app.pid,signal.SIGTERM)
   try:app.wait(timeout=10)
   except subprocess.TimeoutExpired:os.killpg(app.pid,signal.SIGKILL);app.wait()
@@ -176,18 +201,36 @@ def openfirstwallet():
  overview();clickphrase('Ethereum');time.sleep(.5)
  until(lambda:'Balance' in ' '.join(a[11] for a in textboxes()))
 def walletmenu(phrase):
- desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
- clickphrase('Settings');time.sleep(.3)
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
- # The settings panel is right-aligned and opaque; exclude matching controls
- # dimmed behind it (for example the overview backup callout).
- clickphrase(phrase,region=(x+w-500,y+24,x+w,y+h))
+ settingssection('Wallet');clickphrase(phrase)
 def setupmenu(phrase):
- desktop.focus(desktop.wait('LocalWallet')[0]);desktop.key('Home',ctrl=True);time.sleep(.2)
- clickphrase('Settings');time.sleep(.3)
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0]);region=(x+w-500,y+24,x+w,y+h)
- if phrase.lower() not in ' '.join(a[11] for a in textboxes(region)).lower():clickphrase('Other setup options',region=region)
- clickphrase(phrase,region=region)
+ settingssection('Wallet')
+ if phrase.lower() not in ' '.join(a[11] for a in textboxes()).lower():clickphrase('Other setup options')
+ clickphrase(phrase)
+def settingstab(button=1):
+ desktop.focus(desktop.wait('LocalWallet')[0])
+ # The middle-click persistence check is already at the top. Do not send
+ # Home while the Journal tab has focus: tab-list keyboard navigation would
+ # intentionally select its first section before this persistence assertion.
+ if button==1:desktop.key('Home',ctrl=True);time.sleep(.2)
+ rows=textboxes()
+ settings=[a for a in rows if a[11].lower().strip('.,:')=='settings']
+ exchange=[a for a in rows if a[11].lower().strip('.,:')=='exchange']
+ if not settings or not exchange:raise RuntimeError('Permanent Settings/Exchange navigation is unavailable')
+ tab=min(settings,key=lambda a:(int(a[7]),int(a[6])));previous=min(exchange,key=lambda a:(int(a[7]),int(a[6])))
+ if int(tab[6])<=int(previous[6]) or abs(int(tab[7])-int(previous[7]))>12:raise RuntimeError('Settings is not immediately to the right of Exchange in the top tab row')
+ # Only the public tab row must contain these labels between the two tabs.
+ between=[a[11].lower().strip('.,:') for a in rows if int(previous[6])+int(previous[8])<int(a[6])<int(tab[6]) and abs(int(a[7])-int(tab[7]))<12]
+ if between:raise RuntimeError('Another top-level tab appears between Exchange and Settings')
+ desktop.click(int(tab[6])+int(tab[8])//2,int(tab[7])+int(tab[9])//2,button=button);time.sleep(.3)
+def settingssection(section):
+ settingstab();rows=textboxes()
+ # The settings section tabs follow the permanent navigation. Select the first
+ # exact caption below that top row, never an asset/journal field or heading.
+ top=min(int(a[7]) for a in rows if a[11].lower().strip('.,:')=='settings')
+ matches=[a for a in rows if a[11].lower().strip('.,:')==section.lower() and int(a[7])>top+25]
+ if not matches:raise RuntimeError('Settings section unavailable: '+section)
+ tab=min(matches,key=lambda a:(int(a[7]),int(a[6])))
+ desktop.click(int(tab[6])+int(tab[8])//2,int(tab[7])+int(tab[9])//2);time.sleep(.3)
 def copyfirstrow():
  overview()
  # Click the first table row's far-right copy control using its network label
@@ -226,12 +269,20 @@ def settingsjournal():
  for attempt in range(4):
   if 'Local payment journal' in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Payment journal remained in the wallet page')
   desktop.key('Page_Down');time.sleep(.15)
- walletmenu('Local payment journal')
+ settingssection('Wallet')
+ if 'Local payment journal' in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Payment journal remained in Settings Wallet')
+ settingssection('Journal')
  words=' '.join(a[11] for a in textboxes())
- if 'Refresh journal' not in words or 'Ethereum' not in words or 'Wallet' not in words:raise RuntimeError('Settings journal lacks its explicit wallet context or controls')
+ if 'Local payment journal' not in words or 'Refresh journal' not in words or 'Ethereum' not in words or 'Wallet' not in words:raise RuntimeError('Settings Journal tab lacks its explicit wallet context or controls')
+ if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Settings navigation opened another application window')
  desktop.screenshot(reports/'packaged-settings-journal.png')
  desktop.key('Escape');time.sleep(.3)
- passed('Local payment journal exists only in Settings with explicit wallet and asset context')
+ if 'Local payment journal' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Escape dismissed the main Settings page')
+ settingstab(button=2)
+ if 'Local payment journal' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Middle click removed the permanent Settings tab')
+ overview()
+ if 'Local payment journal' in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Settings Journal remained visible in the account page')
+ passed('Settings is a permanent main-window tab immediately after Exchange; Journal owns payment history and survives Escape/middle-click')
 def exchangetab(button=1):
  # Select the topmost public Exchange label, which is the permanent tab rather
  # than the page heading. No DOM, accessibility internals or debugger is used.
@@ -269,15 +320,67 @@ def exchangedisabledcontrols():
    return
   desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('Disabled Deposit, Swap and Withdraw controls could not be verified from public pixels')
+def exchangeassetidentity(expected):
+ if selected_profile!='mainnet':return
+ desktop.key('Home',ctrl=True);time.sleep(.2)
+ clickphrase('Wallet asset')
+ # Ethereum's actual registry lists ETH then its pinned USDT token. Native
+ # keyboard selection exercises the real select control without a provider
+ # query, credentials, DOM inspection or synthetic renderer event injection.
+ desktop.key('Home');desktop.key('Down');desktop.key('Escape');time.sleep(.3)
+ dismissnotification()
+ rows=textboxes();text=' '.join(a[11] for a in rows)
+ if 'your wallet address' not in text.lower() or 'token contract' not in text.lower():raise RuntimeError('Exchange does not distinguish the owned receive address from token contract metadata')
+ def publichex(label,below):
+  # Whole-document OCR can read hexadecimal 0 as O at this public 12px size.
+  # Locate its line independently, then decode only its actual pixels using
+  # a hex alphabet; never substitute characters to force the expected value.
+  left,top,right,bottom=publicphrasebounds(label)
+  if below:
+   matches=[a for a in rows if bottom<int(a[7])<bottom+40 and left-5<=int(a[6])<left+700]
+   if not matches:raise RuntimeError('Public address line is unavailable')
+   first=min(int(a[7]) for a in matches);matches=[a for a in matches if abs(int(a[7])-first)<4]
+  else:
+   matches=[a for a in rows if re.match(r'[0o]x',a[11].lower()) and len(a[11])>=20 and abs(int(a[7])-top)<12 and int(a[6])>=right]
+   if len(matches)!=1:raise RuntimeError('Public contract line is ambiguous')
+  box=(min(int(a[6]) for a in matches)-5,min(int(a[7]) for a in matches)-6,max(int(a[6])+int(a[8]) for a in matches)+5,max(int(a[7])+int(a[9]) for a in matches)+6)
+  picture=ImageOps.invert(Image.open(capture()).crop(box).convert('L'))
+  picture=picture.resize((picture.width*4,picture.height*4),Image.Resampling.LANCZOS)
+  path=reports/('packaged-exchange-'+('address' if below else 'contract')+'-ocr.png');picture.save(path)
+  value=subprocess.check_output(['tesseract',str(path),'stdout','--psm','7','-c','tessedit_char_whitelist=0123456789abcdefABCDEFx'],stderr=subprocess.DEVNULL,text=True)
+  return ''.join(value.split())
+ address=publichex('Your wallet address',True)
+ contract='0xdAC17F958D2ee523a2206206994597C13D831ec7'
+ if address.lower()!=expected.lower():raise RuntimeError('Public-pixel OCR could not verify the exact independently known Exchange receive address')
+ if publichex('Token contract',False).lower()!=contract.lower():raise RuntimeError('Public-pixel OCR could not verify the exact pinned USDT token contract')
+ # The selected option itself must describe the asset, while contract metadata
+ # appears separately. A raw internal asset ID is not a receiving address.
+ if 'ethereum-mainnet:erc20:' in text.lower():raise RuntimeError('Exchange exposes its raw token asset ID as an asset name')
+ desktop.screenshot(reports/'packaged-exchange-usdt-identity.png')
+ report['exchangeAssetIdentity']={'status':'PASS','scope':'Public screenshot OCR contains the complete independently verified owned Ethereum receive address and separate exact canonical USDT contract after native keyboard selection; no live Bybit query','walletAddress':expected,'tokenContract':contract}
+ passed('Installed Exchange USDT selection separates its exact token contract from the independently verified owned Ethereum receive address')
 def exchangedisconnected(profile):
  exchangetab()
  until(lambda:'bybit is disconnected' in ' '.join(a[11] for a in textboxes()).lower(),45)
+ exchangeassetidentity('0x9858EfFD232B4033E47d90003D41EC34EcaEda94')
  overview();exchangetab();exchangetab(button=2)
  if 'bybit is disconnected' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Middle click removed the permanent Exchange tab')
  passed('Installed Exchange tab remains available after account navigation and middle-click')
  exchangedisabledcontrols()
  passed('Disconnected installed Exchange has visibly disabled Deposit, Swap and Withdraw buttons that perform no action')
  if selected_profile!='mainnet':return
+ words=' '.join(a[11] for a in textboxes()).lower()
+ if 'connect bybit api key' in words or 'bybit api region' in words:raise RuntimeError('Bybit connection setup remains on the trading page')
+ desktop.key('Home',ctrl=True);time.sleep(.2)
+ x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ navtop=min(int(a[7]) for a in textboxes() if a[11].lower().strip('.,:')=='exchange')
+ # The adjacent permanent tabs themselves read "Exchange Settings". Scope the
+ # shortcut to page content so it cannot be mistaken for those two controls.
+ clickphrase('Exchange settings',region=(x,navtop+40,x+w,y+h));time.sleep(.3)
+ until(lambda:'bybit api region' in ' '.join(a[11] for a in textboxes()).lower(),20)
+ if 'bybit connection' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Settings Exchange tab did not display Bybit setup')
+ if 'local payment journal' in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Journal remained on the Exchange settings page')
+ connection_anchor=publicphrasebounds('Bybit connection')
  before=hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()
  # Cancel the password step first; then authenticate using only the existing
  # synthetic app password and cancel empty API input. Never enter an API key,
@@ -294,9 +397,14 @@ def exchangedisconnected(profile):
   until(lambda:not phrase_ui.secret_window(desktop),20)
   if any(title.startswith(('Wallet request failed','LocalWallet — Wallet request failed')) for _,title in desktop.windows()):desktop.accept('Wallet request failed')
   until(lambda:'bybit is disconnected' in ' '.join(a[11] for a in textboxes()).lower(),20)
+  until(lambda:'request cancelled' in ' '.join(a[11] for a in textboxes()).lower(),20)
+  notificationlayout('Bybit connection',connection_anchor)
  if hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()!=before:raise RuntimeError('Cancelled Bybit connection changed encrypted wallet state')
  report['exchangeConnectionDrill']={'status':'PASS','scope':'Real isolated app-password and empty masked API-input dialogs cancelled through XTest; no API credentials entered, custody approved or live exchange acceptance claimed'}
- passed('Installed Bybit Connect uses isolated credential dialogs and both cancellation boundaries preserve the disconnected vault')
+ passed('Installed Settings Exchange owns Bybit region and Connect; isolated credential cancellation preserves the disconnected vault')
+ passed('Installed cancellation feedback floats without moving the Exchange settings heading and can be dismissed')
+ desktop.key('Escape');time.sleep(.3)
+ if 'bybit connection' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Escape dismissed main-page Exchange settings')
  overview()
 def filechoice(prefix,path):
  waitprompt(prefix);desktop.fit(desktop.wait(prefix)[0]);desktop.key('l',ctrl=True);desktop.key('a',ctrl=True);desktop.type(str(path))
@@ -352,9 +460,12 @@ try:
   generated=folder/'generated';launch(generated,env)
   if any(t.startswith(('Create local wallet','Unlock local wallet')) for _,t in desktop.windows()):raise RuntimeError('First launch opened a credential window without a user action')
   desktop.screenshot(reports/'packaged-first-run.png')
+  onboarding_anchor=publicphrasebounds('Create your app password')
   clickline('Create app password');waitprompt('Create local wallet')
   desktop.inputs('Create local wallet',['bad','bad']);desktop.accept('Create local wallet')
   expectfailure('UTF-8 bytes','Use an app password','short-password-feedback',persist=True)
+  notificationlayout('Create your app password',onboarding_anchor)
+  passed('Installed error feedback remains readable across polling without moving onboarding and dismisses independently')
   if (generated/vault_relative).exists():raise RuntimeError('Short password created a vault')
   clickline('Create app password');waitprompt('Create local wallet')
   desktop.inputs('Create local wallet',[password,'different-public-password-79326']);desktop.accept('Create local wallet')
@@ -432,6 +543,8 @@ try:
   report['liveLogChecks']=live_log_checks
   if any(row['mesaLoaderError'] or row['ordinaryIPCStackTrace'] for row in live_log_checks):raise RuntimeError('Live packaged workflow emitted a Mesa loader error or ordinary IPC handler stack trace')
   passed('Electron validation and phrase setup produce guidance without IPC handler stack traces or Mesa loader errors')
+  if any(row['knownX11AtomDiagnostic'] for row in live_log_checks):raise RuntimeError('Live packaged modal or clipboard workflow emitted a known Chromium atom-cache diagnostic')
+  passed('Installed modal and public clipboard workflows emit none of the three known Chromium X11 atom-cache diagnostics')
   report['recoveryMethod']='Electron recorded-word confirmation and phrase import; no encrypted backup API or file needed'
  if hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()!=report['producerSHA256']:raise RuntimeError('Packaged workflow producer changed during execution')
  report['status']='PASS';report['sourceStable']=True

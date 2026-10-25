@@ -1,0 +1,94 @@
+{
+  "status": "PASS",
+  "scope": "Bybit connection setup moved to Settings Exchange; public UI/context/focus and actual installed cancellation regression only",
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+      "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+      "wallet-signer": "88e5ea5f581246f54b42381ed801e7f95379ed644d6273ce6de09215ab6033c5"
+    },
+    "asarSHA256": "4f86bca38933116de464542c67a35997bc8a8a1297aa3de141364a7b8d445153",
+    "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c"
+  },
+  "sourceSHA256": {
+    "desktop/package-lock.json": "d39ad314765ac8af099d034d426733d66b3895ca1783f17128de3ff7d4db3040",
+    "desktop/package.json": "12e65389a8bc4dbfdc901106de0c5c4011376cd47d090b0a6a0a95aad0dee1d8",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "618b282ff83202e6dc80067a816a5ddea97270a0fcdafdc4a7d1f42c7895c172",
+    "desktop/src/preload.ts": "43745c871354619a1050596c861c08f78c6186c5ca918d5380210733d2c121b8",
+    "desktop/src/prompt-preload.ts": "2acc5b222e6c0382c4dd4bdf0a2180968582a08af4daa63a59e38a348b4f145c",
+    "desktop/src/prompts.ts": "5178a6a216943169b43d93f4836db8f02d3fc7b6a0d89c0f8fbb9189b59e3f25",
+    "desktop/src/validation.ts": "62cab0ca7c3eb4c6420fcd145851c0d71f816a8a42e953c38899220ca9196e61",
+    "desktop/tests/fixtures/networks-mainnet.json": "8ff436dbf4b9a7f4ddff35f493beb9c6d48b180476e544efa41cffd4f70aed8d",
+    "desktop/tests/fixtures/networks-testnet.json": "f26ca6ea0e0498baca4a7e41e4d3ba27f8ca360a715943b27499650defc55967",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/prompt-security.test.cjs": "bdac998278ad105c341aa676654da72e1ad41cec36f32d0b4292cc2e6345c60c",
+    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726",
+    "desktop/tests/runtime.test.cjs": "236decd3bcbb7b5715dac50ebb1e8bdd2c1adf7a0eb3329f15ee5d86abb000db",
+    "desktop/tests/security.test.cjs": "fd15e38224393cbafdf003f605e9fffe954475b765869f69163292bc7c3ed5ca",
+    "desktop/tsconfig.json": "85a9e919aef78351388430a8946cce0a654d1f6888914b25c1c6949d26b7f53b",
+    "desktop/ui/index.html": "53885d93885a84b480f2db628a9fd4c6634e5f2b57dd743ae9d7b62d7e78cf74",
+    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/renderer.js": "28e7bf24c3875336a4b90e4498bd698c5c89166fb7b710ff9a4c000929d87c1f",
+    "desktop/ui/style.css": "2796a9a3d0227d02051f0baf287f5978aef9a5bcb4d25d9c4752eee118d3f918",
+    "scripts/evidence_binding.py": "9baa7cb6088b519d221e2126c6ffe576a9db27cfd542d9463f75870110e73310",
+    "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a",
+    "scripts/packaged-recovery.py": "b6b0ce9f3ae15c755602acbabf0186802714515c85d294fde79f776b591e53c2"
+  },
+  "frontendTests": 129,
+  "frontendSkipped": 0,
+  "goSourceChanged": false,
+  "checks": [
+    {
+      "report": "frontend-coverage",
+      "status": "PASS",
+      "sha256": "c6354bd7fc8005b33179fe295e8ce6d69f001a02676cf2b11937ae197ed1eaa5"
+    },
+    {
+      "report": "artifact-security",
+      "status": "PASS",
+      "sha256": "3a211b32082738230e183b9ba0cb92589558177bace5499e719c789de118a329"
+    },
+    {
+      "report": "packaged-recovery",
+      "status": "PASS",
+      "sha256": "57ce61bca271f5ffd4fe2594056cd7b3c64899b7bf46b226ec4a4520738e3561"
+    },
+    {
+      "report": "packaged-send",
+      "status": "PASS",
+      "sha256": "dad092c5078fc4de2b2b0554ee30e54d0b5074b973a838ecbbf1fc38b99d05db"
+    },
+    {
+      "log": "exchange-settings-coverage.log",
+      "status": "PASS",
+      "sha256": "1625a18b3ff558a158e67e58a41e1fc46ed43ba93a4d0ee7ed6506fba396cb1c"
+    },
+    {
+      "log": "exchange-settings-install.log",
+      "status": "PASS",
+      "sha256": "b5d0b958e8e7ba4220c9bb0b9c0ea1c666a5bcec0b9c6799adc6304ef1197b36"
+    },
+    {
+      "log": "exchange-settings-packaged.log",
+      "status": "PASS",
+      "sha256": "9f715ee56eae9e77d67268709ff2ea717c6fe20ec2ee43c2c7f8f896eaaeeed6"
+    },
+    {
+      "log": "exchange-settings-send.log",
+      "status": "PASS",
+      "sha256": "f5a342e2793046afa0a4fbe90e756e63930009ba63c610db5d0575f10be50e1a"
+    },
+    {
+      "log": "exchange-settings-surface.log",
+      "status": "PASS",
+      "sha256": "3e9e0bceedd02966b169977388a5c6fa47a0d9540206a9eb33c6c8f69cb97d4d"
+    }
+  ],
+  "privateBybitAcceptance": "NOT_RUN",
+  "mainnetFundMovement": "NOT_RUN",
+  "completedAt": 1792921596
+}

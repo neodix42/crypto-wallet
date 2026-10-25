@@ -116,7 +116,7 @@ func (e *Engine) ConnectExchange(endpoint string) error {
 	if err = e.exchangePassword("Reauthenticate Bybit connection"); err != nil {
 		return err
 	}
-	in, err := e.UI.Input("Connect Bybit — API credentials", "System-generated HMAC API key (masked)", "API secret (masked; stored encrypted locally)")
+	in, err := e.UI.Input("Connect Bybit — enter your API key and matching API secret", "Bybit API key", "Bybit API secret")
 	if err != nil {
 		return err
 	}

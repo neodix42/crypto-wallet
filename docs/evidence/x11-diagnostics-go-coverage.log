@@ -1,0 +1,241 @@
+SKIP localwallet/internal/buildinfo
+SKIP localwallet/internal/model
+coverage: 0.2% of statements in ./...
+coverage: 0.5% of statements in ./...
+coverage: 1.3% of statements in ./...
+coverage: 0.9% of statements in ./...
+ok  	localwallet/internal/journal	0.035s	coverage: 0.2% of statements in ./...
+PASS localwallet/internal/journal
+ok  	localwallet/internal/amount	0.039s	coverage: 0.5% of statements in ./...
+PASS localwallet/internal/amount
+ok  	localwallet/internal/ipc	0.053s	coverage: 0.9% of statements in ./...
+PASS localwallet/internal/ipc
+coverage: 0.2% of statements in ./...
+ok  	localwallet/internal/secureui	0.067s	coverage: 0.2% of statements in ./...
+PASS localwallet/internal/secureui
+ok  	localwallet/internal/exchange	0.084s	coverage: 1.3% of statements in ./...
+PASS localwallet/internal/exchange
+coverage: 6.4% of statements in ./...
+coverage: 2.2% of statements in ./...
+ok  	localwallet/internal/exchange/bybit	0.105s	coverage: 6.4% of statements in ./...
+PASS localwallet/internal/exchange/bybit
+ok  	localwallet/internal/uiprompt	0.099s	coverage: 2.2% of statements in ./...
+PASS localwallet/internal/uiprompt
+coverage: 0.9% of statements in ./...
+coverage: 1.1% of statements in ./...
+ok  	localwallet/internal/derivation	0.142s	coverage: 0.9% of statements in ./...
+PASS localwallet/internal/derivation
+ok  	localwallet/internal/chains/chainutil	0.148s	coverage: 1.1% of statements in ./...
+PASS localwallet/internal/chains/chainutil
+coverage: 0.5% of statements in ./...
+ok  	localwallet/internal/strictjson	0.229s	coverage: 0.5% of statements in ./...
+PASS localwallet/internal/strictjson
+	localwallet/tests/oracles/decred		coverage: 0.0% of statements
+	localwallet/internal/chains		coverage: 0.0% of statements
+coverage: 0.3% of statements in ./...
+ok  	localwallet/internal/qr	0.400s	coverage: 0.3% of statements in ./...
+PASS localwallet/internal/qr
+coverage: 0.1% of statements in ./...
+ok  	localwallet/internal/isolation	0.444s	coverage: 0.1% of statements in ./...
+PASS localwallet/internal/isolation
+coverage: 6.5% of statements in ./...
+ok  	localwallet/internal/chains/aptos	0.505s	coverage: 6.5% of statements in ./...
+PASS localwallet/internal/chains/aptos
+PASS localwallet/tests/oracles/decred
+PASS localwallet/internal/chains
+coverage: 5.9% of statements in ./...
+ok  	localwallet/internal/chains/near	0.741s	coverage: 5.9% of statements in ./...
+PASS localwallet/internal/chains/near
+coverage: 10.1% of statements in ./...
+ok  	localwallet/internal/chains/decred	3.289s	coverage: 10.1% of statements in ./...
+PASS localwallet/internal/chains/decred
+coverage: 9.5% of statements in ./...
+coverage: 3.4% of statements in ./...
+ok  	localwallet/internal/chains/ton	3.635s	coverage: 9.5% of statements in ./...
+PASS localwallet/internal/chains/ton
+ok  	localwallet/internal/supervisor	3.628s	coverage: 3.4% of statements in ./...
+PASS localwallet/internal/supervisor
+coverage: 9.0% of statements in ./...
+ok  	localwallet/internal/chains/hypercore	4.102s	coverage: 9.0% of statements in ./...
+PASS localwallet/internal/chains/hypercore
+coverage: 2.0% of statements in ./...
+ok  	localwallet/cmd/wallet-launcher	4.541s	coverage: 2.0% of statements in ./...
+PASS localwallet/cmd/wallet-launcher
+coverage: 9.7% of statements in ./...
+ok  	localwallet/internal/chains/evm	6.416s	coverage: 9.7% of statements in ./...
+PASS localwallet/internal/chains/evm
+coverage: 3.8% of statements in ./...
+ok  	localwallet/internal/vault	9.254s	coverage: 3.8% of statements in ./...
+PASS localwallet/internal/vault
+coverage: 22.3% of statements in ./...
+ok  	localwallet/cmd/wallet-core	14.339s	coverage: 22.3% of statements in ./...
+PASS localwallet/cmd/wallet-core
+coverage: 22.3% of statements in ./...
+ok  	localwallet/cmd/wallet-signer	29.088s	coverage: 22.3% of statements in ./...
+PASS localwallet/cmd/wallet-signer
+coverage: 16.7% of statements in ./...
+ok  	localwallet/tests/stress	48.322s	coverage: 16.7% of statements in ./...
+PASS localwallet/tests/stress
+coverage: 24.3% of statements in ./...
+ok  	localwallet/internal/signer	76.385s	coverage: 24.3% of statements in ./...
+PASS localwallet/internal/signer
+=== RUN   TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput
+--- PASS: TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput (0.17s)
+=== RUN   TestRealX11NativeKeyAndButtonActivity
+--- PASS: TestRealX11NativeKeyAndButtonActivity (3.80s)
+=== RUN   TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared
+--- PASS: TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared (0.01s)
+=== RUN   TestTP033RealNativeMaskedInput
+--- PASS: TestTP033RealNativeMaskedInput (0.20s)
+=== RUN   TestTP042RealNativeConfirmation
+--- PASS: TestTP042RealNativeConfirmation (0.20s)
+=== RUN   TestNativeRejectsMultibyteSecretOverByteLimit
+--- PASS: TestNativeRejectsMultibyteSecretOverByteLimit (0.10s)
+=== RUN   TestNativeFixedFailureNotice
+--- PASS: TestNativeFixedFailureNotice (0.10s)
+=== RUN   TestNativePublicReceiveAndScrollableApproval
+--- PASS: TestNativePublicReceiveAndScrollableApproval (0.21s)
+=== RUN   TestNativeReceiveCopyRequiresExplicitButtonAndExactAddress
+--- PASS: TestNativeReceiveCopyRequiresExplicitButtonAndExactAddress (0.61s)
+=== RUN   TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible
+    boundaries_automation_test.go:126: receive=650x680 display=1280x1024 mapped Copy address and Done inside window=true
+--- PASS: TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible (0.20s)
+=== RUN   TestNativeFileChooserCancelAndVerifiedSelection
+--- PASS: TestNativeFileChooserCancelAndVerifiedSelection (0.93s)
+=== RUN   TestNativeInitUnavailableDisplayFailsClosed
+--- PASS: TestNativeInitUnavailableDisplayFailsClosed (1.03s)
+=== RUN   TestNativePublicClipboardIsServedWhileIdleWithoutActivity
+--- PASS: TestNativePublicClipboardIsServedWhileIdleWithoutActivity (0.07s)
+=== RUN   TestRealX11NativeActivityBeyondFiveMinutes
+    long_activity_automation_test.go:20: NOT_RUN: explicit five-minute wall-clock native input campaign
+--- SKIP: TestRealX11NativeActivityBeyondFiveMinutes (0.00s)
+=== RUN   TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets
+    recovery_automation_test.go:52: words=12 mode=0 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=12 mode=1 phrase=650x600 challenge=0x0 cleared labels=1 entries=0
+    recovery_automation_test.go:52: words=12 mode=2 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=12 mode=3 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=12 mode=4 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=24 mode=0 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=24 mode=1 phrase=650x600 challenge=0x0 cleared labels=1 entries=0
+    recovery_automation_test.go:52: words=24 mode=2 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=24 mode=3 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+    recovery_automation_test.go:52: words=24 mode=4 phrase=650x600 challenge=650x480 cleared labels=1 entries=3
+--- PASS: TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets (2.22s)
+PASS
+coverage: 98.3% of statements
+ok  	localwallet/internal/secureui	10.869s	coverage: 98.3% of statements
+{
+  "status": "PASS",
+  "scope": "Real GTK input and private X11 XTest events; synthetic fixture values only",
+  "notRun": [
+    "Wayland native input",
+    "Five-minute wall-clock sustained typing",
+    "Clean installed desktop OS-lock/suspend matrix"
+  ],
+  "tests": [
+    {
+      "name": "TestNativeProgrammaticFillAndDialogTimersDoNotCountAsInput",
+      "status": "PASS",
+      "seconds": 0.17
+    },
+    {
+      "name": "TestRealX11NativeKeyAndButtonActivity",
+      "status": "PASS",
+      "seconds": 3.8
+    },
+    {
+      "name": "TestNativeActivityCallbackIsValueFreeRateLimitedAndCleared",
+      "status": "PASS",
+      "seconds": 0.01
+    },
+    {
+      "name": "TestTP033RealNativeMaskedInput",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
+      "name": "TestTP042RealNativeConfirmation",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
+      "name": "TestNativeRejectsMultibyteSecretOverByteLimit",
+      "status": "PASS",
+      "seconds": 0.1
+    },
+    {
+      "name": "TestNativeFixedFailureNotice",
+      "status": "PASS",
+      "seconds": 0.1
+    },
+    {
+      "name": "TestNativePublicReceiveAndScrollableApproval",
+      "status": "PASS",
+      "seconds": 0.21
+    },
+    {
+      "name": "TestNativeReceiveCopyRequiresExplicitButtonAndExactAddress",
+      "status": "PASS",
+      "seconds": 0.61
+    },
+    {
+      "name": "TestNativeReceiveLongGuidanceKeepsCopyAndDoneVisible",
+      "status": "PASS",
+      "seconds": 0.2
+    },
+    {
+      "name": "TestNativeFileChooserCancelAndVerifiedSelection",
+      "status": "PASS",
+      "seconds": 0.93
+    },
+    {
+      "name": "TestNativeInitUnavailableDisplayFailsClosed",
+      "status": "PASS",
+      "seconds": 1.03
+    },
+    {
+      "name": "TestNativePublicClipboardIsServedWhileIdleWithoutActivity",
+      "status": "PASS",
+      "seconds": 0.07
+    },
+    {
+      "name": "TestRealX11NativeActivityBeyondFiveMinutes",
+      "status": "SKIP",
+      "seconds": 0
+    },
+    {
+      "name": "TestNativeRecoveryRequiresRecordedWordsAndClearsWidgets",
+      "status": "PASS",
+      "seconds": 2.22
+    }
+  ],
+  "exit": 0,
+  "coverage": "total:\t\t\t\t\t\t\t\t(statements)\t\t\t98.3%",
+  "seconds": 11.405
+}
+PASS  96.84% >= 95% localwallet/cmd/wallet-core
+PASS  94.23% >= 90% localwallet/cmd/wallet-launcher
+PASS  97.37% >= 95% localwallet/cmd/wallet-signer
+PASS  95.74% >= 95% localwallet/internal/amount
+PASS 100.00% >= 95% localwallet/internal/chains
+PASS  96.59% >= 95% localwallet/internal/chains/aptos
+PASS  98.94% >= 95% localwallet/internal/chains/chainutil
+PASS  96.09% >= 95% localwallet/internal/chains/decred
+PASS  96.71% >= 95% localwallet/internal/chains/evm
+PASS  96.95% >= 95% localwallet/internal/chains/hypercore
+PASS  99.01% >= 95% localwallet/internal/chains/near
+PASS  96.26% >= 95% localwallet/internal/chains/ton
+PASS  97.37% >= 95% localwallet/internal/derivation
+PASS 100.00% >= 95% localwallet/internal/exchange
+PASS  99.54% >= 95% localwallet/internal/exchange/bybit
+PASS 100.00% >= 95% localwallet/internal/ipc
+PASS 100.00% >= 95% localwallet/internal/isolation
+PASS 100.00% >= 95% localwallet/internal/journal
+PASS  96.30% >= 95% localwallet/internal/qr
+PASS  98.61% >= 95% localwallet/internal/secureui
+PASS  96.75% >= 95% localwallet/internal/signer
+PASS  97.83% >= 95% localwallet/internal/strictjson
+PASS  96.72% >= 95% localwallet/internal/supervisor
+PASS  95.00% >= 95% localwallet/internal/uiprompt
+PASS  96.93% >= 95% localwallet/internal/vault
+Go/native coverage: FAIL 

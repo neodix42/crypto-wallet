@@ -14,9 +14,9 @@
     },
     {
       "package": "localwallet/cmd/wallet-launcher",
-      "statements": 93,
-      "covered": 87,
-      "percent": 93.55,
+      "statements": 156,
+      "covered": 147,
+      "percent": 94.23,
       "floor": 90,
       "status": "PASS"
     },
@@ -63,8 +63,8 @@
     {
       "package": "localwallet/internal/chains/decred",
       "statements": 819,
-      "covered": 790,
-      "percent": 96.46,
+      "covered": 787,
+      "percent": 96.09,
       "floor": 95,
       "status": "PASS"
     },

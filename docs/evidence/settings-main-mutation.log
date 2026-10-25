@@ -1,0 +1,6 @@
+Exchange mutation baseline: PASS
+exchange-app-password-reauthentication KILLED
+exchange-one-use-authorization-capability KILLED
+exchange-durable-submit-before-hmac-release KILLED
+exchange-current-owned-withdrawal-destination KILLED
+exchange-duplicate-response-cannot-release-reservation KILLED

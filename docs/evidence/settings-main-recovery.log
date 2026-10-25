@@ -1,0 +1,52 @@
+PASS Headless Go backend persists a random root and rejects wrong recorded words through typed Electron prompts
+PASS Password reauthentication and correct words enable all nine networks at indices0,1,127
+PASS Fresh independent installation restores all27 descriptors using only specified password and recorded phrase
+PASS Recovered installation starts locked and unlocks to the same wallets
+PASS Different local app password preserves every recovered wallet identity
+PASS Ordinary public-data IPC, persisted files and process logs contain no tested secret canaries
+{
+  "status": "PASS",
+  "scope": "Recover disposable Go-generated wallets through the Electron prompt protocol.\n\nThree independent installations, homes and processes share only the recorded\nphrase in test memory. This is a headless protocol integration; the separate\npackaged drill operates the actual Electron dialogs. No original vault, keyring,\nuser secret, secret screenshot, or mainnet payment is used.\n",
+  "steps": [
+    {
+      "name": "Headless Go backend persists a random root and rejects wrong recorded words through typed Electron prompts",
+      "status": "PASS"
+    },
+    {
+      "name": "Password reauthentication and correct words enable all nine networks at indices0,1,127",
+      "status": "PASS"
+    },
+    {
+      "name": "Fresh independent installation restores all27 descriptors using only specified password and recorded phrase",
+      "status": "PASS"
+    },
+    {
+      "name": "Recovered installation starts locked and unlocks to the same wallets",
+      "status": "PASS"
+    },
+    {
+      "name": "Different local app password preserves every recovered wallet identity",
+      "status": "PASS"
+    },
+    {
+      "name": "Ordinary public-data IPC, persisted files and process logs contain no tested secret canaries",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "Separate physical machines",
+    "Full supported OS/Wayland matrix",
+    "Funded transactions"
+  ],
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+      "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+      "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+    }
+  },
+  "walletsCompared": 27,
+  "walletDescriptorsSHA256": "e5f8fdbd95dbcf6ed09fc7015793ed9a601be67d9cd55b2283b21228f478f4b6",
+  "promptTransportException": "Transient recovery phrase to isolated Electron dialog; input-only passwords/phrase/challenge replies to Go. Never snapshots/logs/files/network."
+}

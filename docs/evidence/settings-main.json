@@ -1,0 +1,220 @@
+{
+  "status": "PASS",
+  "scope": "Main-window Settings with Wallet/Exchange/Journal, non-shifting dismissible floating notices, wallet-versus-EVM-contract/Core-token identity and clearer masked Bybit key+secret labels; local interface/recovery/security scopes only",
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+      "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+      "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+    },
+    "asarSHA256": "4b68184af8ec7a2d8f3f9b5ecb987fd739bb725ce5f337c4665f105195a69a96",
+    "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c"
+  },
+  "sourceSHA256": {
+    "desktop/package-lock.json": "d39ad314765ac8af099d034d426733d66b3895ca1783f17128de3ff7d4db3040",
+    "desktop/package.json": "12e65389a8bc4dbfdc901106de0c5c4011376cd47d090b0a6a0a95aad0dee1d8",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "618b282ff83202e6dc80067a816a5ddea97270a0fcdafdc4a7d1f42c7895c172",
+    "desktop/src/preload.ts": "43745c871354619a1050596c861c08f78c6186c5ca918d5380210733d2c121b8",
+    "desktop/src/prompt-preload.ts": "2acc5b222e6c0382c4dd4bdf0a2180968582a08af4daa63a59e38a348b4f145c",
+    "desktop/src/prompts.ts": "5178a6a216943169b43d93f4836db8f02d3fc7b6a0d89c0f8fbb9189b59e3f25",
+    "desktop/src/validation.ts": "62cab0ca7c3eb4c6420fcd145851c0d71f816a8a42e953c38899220ca9196e61",
+    "desktop/tests/fixtures/networks-mainnet.json": "8ff436dbf4b9a7f4ddff35f493beb9c6d48b180476e544efa41cffd4f70aed8d",
+    "desktop/tests/fixtures/networks-testnet.json": "f26ca6ea0e0498baca4a7e41e4d3ba27f8ca360a715943b27499650defc55967",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/prompt-security.test.cjs": "bdac998278ad105c341aa676654da72e1ad41cec36f32d0b4292cc2e6345c60c",
+    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726",
+    "desktop/tests/runtime.test.cjs": "615de14315abba9d1f2f8863545489ab2a83c263657fd619fdfcc790bb12517b",
+    "desktop/tests/security.test.cjs": "fd15e38224393cbafdf003f605e9fffe954475b765869f69163292bc7c3ed5ca",
+    "desktop/tsconfig.json": "85a9e919aef78351388430a8946cce0a654d1f6888914b25c1c6949d26b7f53b",
+    "desktop/ui/index.html": "d5a29ac3fdc3f8d2955d82ebecf601eeed2eca056129f338288a0a33b1263def",
+    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/renderer.js": "ec0f1f2333ac125fbdc004175f3b2500a2b697d52e4824ddd978857ebc88a5f6",
+    "desktop/ui/style.css": "b199426fa81dd19c8e1a088ab3ace82b50a635aec284fb21d8908912f10469a0",
+    "scripts/evidence_binding.py": "9baa7cb6088b519d221e2126c6ffe576a9db27cfd542d9463f75870110e73310",
+    "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a",
+    "scripts/packaged-recovery.py": "02712e960981e253f33b7e1b054c354e7d812516569fcd98e1d4015ff5d1ff65",
+    "internal/signer/exchange.go": "a06be7b1aedd6c0130bc8a6e00f3367acd2fa2828042f365445e71fea2ce7530"
+  },
+  "frontendTests": 132,
+  "frontendSkipped": 0,
+  "packagedUIChecks": 26,
+  "actualIsolatedGethSendChecks": 7,
+  "headlessRecoveryChecks": 6,
+  "ownedGoCrashChecks": 7,
+  "productionGoChange": "Credential prompt wording only; authentication and signing behavior unchanged",
+  "checks": [
+    {
+      "report": "frontend-coverage",
+      "status": "PASS",
+      "sha256": "fa04c349572b509df8003facd20bc9fea106914031141a1a6492f9a07e29abb7"
+    },
+    {
+      "report": "artifact-security",
+      "status": "PASS",
+      "sha256": "45697330b4d928c3b51624ba32c054777e72dbbe3768821369b4635a76b9ea80"
+    },
+    {
+      "report": "packaged-recovery",
+      "status": "PASS",
+      "sha256": "2384d2137c02d60a1efb2e1ed7f0df2934fca6cb33327e02db21932be1ef0fbb"
+    },
+    {
+      "report": "packaged-send",
+      "status": "PASS",
+      "sha256": "68946bee28634e8fd7f1693cf46bae0bc330af17d9c5a395a13061c57d334504"
+    },
+    {
+      "report": "phrase-recovery",
+      "status": "PASS",
+      "sha256": "c1905995a8b545977c07d196e390b8a1697eb236c45deaa751fbe42251427436"
+    },
+    {
+      "report": "crash-security",
+      "status": "PASS",
+      "sha256": "6562be09e6eedfa5075a8c1dc46a1762511ee626207dd06e01f36effed8c6944"
+    },
+    {
+      "report": "fuzz",
+      "status": "PASS",
+      "sha256": "932302af973607d1fd3b8c33ef518850c8aabf6713434e0f30e0ee090b14a066"
+    },
+    {
+      "report": "exchange-signermutation",
+      "status": "PASS",
+      "sha256": "49a7145ca9140c78b8b6299c1b6fb7e6eed8357b48cf103585429d73cd2518c6"
+    },
+    {
+      "log": "settings-main-coverage.log",
+      "status": "PASS",
+      "sha256": "6b03472a385322993fd5af6c639971ccef0c788c97ff74774cce76d913a2f737"
+    },
+    {
+      "log": "settings-main-install.log",
+      "status": "PASS",
+      "sha256": "71236a10874e63ab73088e70cff605648909910ec7d75ce17ab77b5f757839f1"
+    },
+    {
+      "log": "settings-main-packaged.log",
+      "status": "PASS",
+      "sha256": "0116be45aa3d3ca62cb45eec49a085e81792010e13a2ae24383785c580aa6fa2"
+    },
+    {
+      "log": "settings-main-send.log",
+      "status": "PASS",
+      "sha256": "add9b0ab846ca813d9d82489d5db462697a8533092ab8ff16e334ec04749fa6f"
+    },
+    {
+      "log": "settings-main-surface.log",
+      "status": "PASS",
+      "sha256": "ffe580144f412fbefff58bdbab062a2521fba7ced0a207c85c288e76e14b661e"
+    },
+    {
+      "log": "settings-main-recovery.log",
+      "status": "PASS",
+      "sha256": "cf58f00098f358d85f1c409652b730fc7378825cb41b6631be8c6247aecb75c9"
+    },
+    {
+      "log": "settings-main-crash.log",
+      "status": "PASS",
+      "sha256": "92c5e608ccd1aed434ba1db3d1ff00e6a5f71eff00c399aa85385f9599197003"
+    },
+    {
+      "log": "settings-main-fuzz.log",
+      "status": "PASS",
+      "sha256": "90a0d18093e938d52496f1594297a2c7c9af90e4f50b972a0081193717abc105"
+    },
+    {
+      "log": "settings-main-mutation.log",
+      "status": "PASS",
+      "sha256": "eccb652dee7d5946c9828c4667f984b6c3ec492e9c1424828f77c7efa052d59f"
+    },
+    {
+      "log": "settings-main-version.log",
+      "status": "PASS",
+      "sha256": "ef340dd79fe5335ae88b0c38058aa4f514c69104ba13cb117a3dab223001248a"
+    }
+  ],
+  "goPackageTests": "PASS",
+  "goCoverageFloors": "PASS",
+  "goCoverageAggregate": {
+    "status": "FAIL",
+    "reportSHA256": "f2c55890f61c5bd94796769fa9282dd219463c2fe9c51c28aa83ebbb52d51a3d",
+    "reason": "Required Decred simnet prerequisite is BLOCKED: pinned dcrd v1.10.9 absent. All package floors passed; no gate waived.",
+    "gates": [
+      {
+        "gate": "decred-simnet",
+        "status": "BLOCKED",
+        "reason": "Pinned dcrd v1.10.9 executable unavailable; install under .tools/dcrd or set WALLET_DCRD"
+      },
+      {
+        "gate": "ton-v5r1-emulator",
+        "status": "PASS",
+        "source": "@ton/sandbox 0.45.0"
+      },
+      {
+        "gate": "usdt-evm-execution",
+        "status": "PASS",
+        "source": "Pinned public USDT runtime; ethers 6.17.0 / Ganache 7.9.2"
+      }
+    ],
+    "explicitOptionalNotRun": 8
+  },
+  "priorPackagedAttempts": [
+    {
+      "name": "settings-main-packaged-attempt1",
+      "status": "FAIL",
+      "reason": "Exchange selected USDT receive address differs from independently verified Ethereum address",
+      "stepsPassed": 13,
+      "artifact": {
+        "version": "0.1.0",
+        "binaryManifest": {
+          "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+          "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+          "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+        },
+        "asarSHA256": "1781f0d3933288c9c6b8f691c7fc00543e9e547f21b22e57f95d4953bfc601ee"
+      },
+      "reportSHA256": "e133589b203f2ce93f8b6e2f02cf5587e9cdd5f4637b18593f1ab6adff9dad8f"
+    },
+    {
+      "name": "settings-main-packaged-attempt2-partial",
+      "status": "NOT_RUN",
+      "reason": "Coordinator-directed interruption before completion so a discovered HyperCore token-label bug can be fixed and a new runtime installed; partial passing steps do not establish complete packaged acceptance",
+      "stepsPassed": 7,
+      "artifact": {
+        "version": "0.1.0",
+        "binaryManifest": {
+          "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+          "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+          "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+        },
+        "asarSHA256": "1781f0d3933288c9c6b8f691c7fc00543e9e547f21b22e57f95d4953bfc601ee"
+      },
+      "reportSHA256": "76c76c59ed2bfdc1d03be3c77d46db8641f699eaf5d687cafc645efca46af704"
+    },
+    {
+      "name": "settings-main-packaged-attempt3",
+      "status": "FAIL",
+      "reason": "Timed out waiting for packaged workflow",
+      "stepsPassed": 16,
+      "artifact": {
+        "version": "0.1.0",
+        "binaryManifest": {
+          "wallet-core": "6aeabb0c5a443f193ce06bb9d69836b4544ee0cf2dc5a00021387ccb9b15f23d",
+          "wallet-launcher": "142def431c8a673898f1dd0f8ee344af39b5d048d215d6e3cd00103b9c4465c8",
+          "wallet-signer": "ac25d871f1f3d9b4c997d23c2c6d2f7b6cba4ca09e64b19a4f2c0e6ce0b79147"
+        },
+        "asarSHA256": "4b68184af8ec7a2d8f3f9b5ecb987fd739bb725ce5f337c4665f105195a69a96"
+      },
+      "reportSHA256": "c033675ce3becca22f681539a2a829b0af3580a7f5cd69b25b7a0fee0ce9db4e"
+    }
+  ],
+  "privateBybitAcceptance": "NOT_RUN",
+  "mainnetFundMovement": "NOT_RUN",
+  "fullOSAndIndependentReview": "NOT_RUN",
+  "completedAt": 1792926517
+}

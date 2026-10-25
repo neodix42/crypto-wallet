@@ -1,0 +1,1 @@
+PASS version 0.1.0 matches portable archive, Electron app.getVersion(), all source/packaged Go runtime versions and manifests
