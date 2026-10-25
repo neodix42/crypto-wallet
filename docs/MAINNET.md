@@ -36,7 +36,7 @@ For a canonical NEAR implicit account that has not been created on chain, the wa
 
 ## Decred trusted-node setup
 
-Decred has no public default RPC. Until configured, its overview row and wallet page say **Connection required — configure an authenticated TLS dcrd node. Balance unknown.** The interface skips balance RPC requests in that state. A configured endpoint is not proof of successful connectivity or a complete scan; failures still leave the balance unknown.
+Decred has no public default RPC. Until configured, its overview row and wallet page say **Connection required**, with authenticated-TLS setup and unknown-balance guidance on hover. The interface skips balance RPC requests in that state. A configured endpoint is not proof of successful connectivity or a complete scan; failures still leave the balance unknown.
 
 This adapter scans full blocks from an authenticated trusted `dcrd`; it does not independently verify consensus through SPV. No `dcrwallet`, recovery-phrase import into a node or second secret store is needed. Follow the official [node setup](https://docs.decred.org/wallets/cli/dcrd-setup/) and [RPC options](https://docs.decred.org/wallets/cli/dcrd-and-dcrwallet-cli-arguments/):
 

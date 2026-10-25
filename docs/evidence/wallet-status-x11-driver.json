@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "scope": "Actual owned private X11 driver regression only: scoped nonexistent-window attributes return absent, original function/handler restored, standalone invalid geometry remains fatal; no wallet or secrets involved",
+  "producerSHA256": "2e323de558a03c08044b8925a1598b125e558571070f52405b7f0c8b1588c34e",
+  "cases": {
+    "closed-query": {
+      "exitCode": 0,
+      "status": "PASS",
+      "transientClosedWindowQueries": 1,
+      "lookupReturn": 0,
+      "attributesRestored": true,
+      "priorHandlerRestored": true
+    },
+    "unexpected-error": {
+      "exitCode": 1,
+      "status": "FAIL",
+      "sourceStable": false,
+      "reason": "Unexpected native X11 driver error",
+      "x11Error": {
+        "code": 9,
+        "request": 14,
+        "minor": 0
+      }
+    }
+  },
+  "cleanup": {
+    "ownedDisplay": ":189",
+    "ownedXvfbPID": 1364675,
+    "xvfbExited": true,
+    "xvfbExitCode": 0,
+    "probeChildrenReaped": true
+  }
+}

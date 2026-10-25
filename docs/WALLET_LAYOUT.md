@@ -1,5 +1,7 @@
 # Wallet layout and verification
 
+This document records the earlier layout candidate. Current Settings uses main-window tabs; current notices use a fixed bottom status bar, full-width addresses and wallet asset buttons. See [WALLET_STATUS.md](WALLET_STATUS.md) for the latest behavior and candidate-specific evidence.
+
 All application dialogs now use Electron by explicit owner instruction. Go generates the recovery root, validates recorded words/restoration and transaction effects, encrypts storage and signs. The generated phrase, passwords and challenge inputs are confined to a separate temporary Electron prompt window and its private Go transport; the portfolio page never receives them. This expands the trusted surface beyond Go. It does not preserve the former claim that secrets never enter Electron. See [FRONTEND_SIGNER_TESTS.md](FRONTEND_SIGNER_TESTS.md) for the precise boundary and memory-clearing limits.
 
 First launch asks for an app password, shows the generated BIP39 phrase for recording and asks for selected words. Successful Go verification enables receiving/sending. Cancellation or wrong words preserve the same encrypted pending root. A fresh installation offers **Restore from recovery phrase** using a specified local password and any original optional BIP39 passphrase. Portable encrypted-backup creation, verification and file restoration remain removed.

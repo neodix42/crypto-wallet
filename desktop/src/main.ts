@@ -23,8 +23,9 @@ const monetaryMethods=new Set(['send','exchangeDeposit','exchangeSwap','exchange
 // stack logging. Core/session protocol failures still terminate the session.
 const operationErrors=new Set(['PASSWORD_POLICY','INPUT_TOO_LONG','PASSWORD_MISMATCH','INVALID_MNEMONIC','REQUEST_CANCELLED','REQUEST_FAILED_STATE_UNKNOWN']);
 function operationCode(value:unknown):string{return typeof value==='string'&&operationErrors.has(value)?value:'REQUEST_FAILED_STATE_UNKNOWN';}
-class OperationError extends Error{readonly code:string;constructor(value:unknown){const code=operationCode(value);super(code);this.code=code;}}
-type Pending={method:string,resolve:(x:unknown)=>void,reject:(e:Error)=>void,timer:NodeJS.Timeout|undefined,deadline:number,activityWindow:number,activityCount:number,promptIDs:Set<string>};
+type NoticeError='RECOVERY_WORDS_MISMATCH';
+class OperationError extends Error{readonly code:string;constructor(value:unknown,noticeError?:NoticeError){const original=operationCode(value);const code=original==='REQUEST_FAILED_STATE_UNKNOWN'&&noticeError?noticeError:original;super(code);this.code=code;}}
+type Pending={method:string,resolve:(x:unknown)=>void,reject:(e:Error)=>void,timer:NodeJS.Timeout|undefined,deadline:number,activityWindow:number,activityCount:number,promptIDs:Set<string>,noticeError?:NoticeError};
 const pending=new Map<string,Pending>();
 function renewDeadline(id:string,p:Pending):void{
  clearTimeout(p.timer);const generation=++p.deadline;
@@ -52,7 +53,7 @@ function startCore():void{
  if(createHash('sha256').update(fs.readFileSync(executable)).digest('hex')!==manifest['wallet-core'])throw new Error('Packaged core identity mismatch');
  if(process.env['LOCALWALLET_INHERITED_CORE']!=='1')throw new Error('Start with the packaged network-isolating launcher');
  core={stdin:fs.createWriteStream('',{fd:4,autoClose:true}),stdout:fs.createReadStream('',{fd:3,autoClose:true})};
- core.stdout.on('data',(chunk:string|Buffer)=>{buffered=Buffer.concat([buffered,typeof chunk==='string'?Buffer.from(chunk):chunk]);if(buffered.length>2097152){stop();return}while(buffered.length>=4){const length=buffered.readUInt32BE();if(length<1||length>1048576){stop();return}if(buffered.length<4+length)return;const b=buffered.subarray(4,4+length);buffered=buffered.subarray(4+length);try{const raw=b.toString();b.fill(0);const r=parseResponse(raw);if(r.version!==1||r.session!==sessionID||typeof r.id!=='string'){stop();return}const p=pending.get(r.id);if(!p){stop();return}if(r.method==='prompt'){if(Object.hasOwn(r,'error')||!nativeMethods.has(p.method))throw new Error('Invalid prompt operation');const prompt=validatePrompt(r.body);if(p.promptIDs.has(prompt.id)||p.promptIDs.size>=64||(prompt.kind==='copy'&&p.method!=='copyReceive')||(prompt.kind==='file'&&!['saveQR','scanQR'].includes(p.method))||(prompt.kind==='receive'&&!['receive','copyReceive','saveQR'].includes(p.method))||(prompt.kind==='recovery'&&!['create','confirmRecovery'].includes(p.method)))throw new Error('Invalid prompt binding');p.promptIDs.add(prompt.id);void showPrompt(r.id,prompt).catch(stop);continue}if(r.method==='activity'&&p.method!=='activity'){nativeActivity(r.id,p,r);continue}if(p.method!==r.method){stop();return}if(activePrompt?.requestID===r.id)finishPrompt(false);pending.delete(r.id);clearTimeout(p.timer);if(Object.hasOwn(r,'error'))p.reject(new OperationError(r.error));else p.resolve(r.body)}catch{stop();return}}});
+ core.stdout.on('data',(chunk:string|Buffer)=>{buffered=Buffer.concat([buffered,typeof chunk==='string'?Buffer.from(chunk):chunk]);if(buffered.length>2097152){stop();return}while(buffered.length>=4){const length=buffered.readUInt32BE();if(length<1||length>1048576){stop();return}if(buffered.length<4+length)return;const b=buffered.subarray(4,4+length);buffered=buffered.subarray(4+length);try{const raw=b.toString();b.fill(0);const r=parseResponse(raw);if(r.version!==1||r.session!==sessionID||typeof r.id!=='string'){stop();return}const p=pending.get(r.id);if(!p){stop();return}if(r.method==='prompt'){if(Object.hasOwn(r,'error')||!nativeMethods.has(p.method))throw new Error('Invalid prompt operation');const prompt=validatePrompt(r.body);if(p.promptIDs.has(prompt.id)||p.promptIDs.size>=64||(prompt.kind==='copy'&&p.method!=='copyReceive')||(prompt.kind==='file'&&!['saveQR','scanQR'].includes(p.method))||(prompt.kind==='receive'&&!['receive','copyReceive','saveQR'].includes(p.method))||(prompt.kind==='recovery'&&!['create','confirmRecovery'].includes(p.method)))throw new Error('Invalid prompt binding');p.promptIDs.add(prompt.id);void showPrompt(r.id,prompt).catch(stop);continue}if(r.method==='activity'&&p.method!=='activity'){nativeActivity(r.id,p,r);continue}if(p.method!==r.method){stop();return}if(activePrompt?.requestID===r.id)finishPrompt(false);pending.delete(r.id);clearTimeout(p.timer);if(Object.hasOwn(r,'error'))p.reject(new OperationError(r.error,p.noticeError));else if(p.noticeError)p.reject(new OperationError('REQUEST_FAILED_STATE_UNKNOWN',p.noticeError));else p.resolve(r.body)}catch{stop();return}}});
  core.stdin.on('error',stop);core.stdout.on('error',stop);core.stdout.on('end',stop);
 }
 type ActivePrompt={requestID:string,prompt:Prompt,window:BrowserWindow|undefined,ses:Electron.Session|undefined,delivered:boolean,activityAt:number};
@@ -87,6 +88,18 @@ function secureSession(partition:string,host:string,files:Record<string,string>)
 async function showPrompt(requestID:string,prompt:Prompt):Promise<void>{
  if(activePrompt||!win||win.webContents.isDestroyed()||!pending.has(requestID))throw new Error('Prompt unavailable');
  const active:ActivePrompt={requestID,prompt,window:undefined,ses:undefined,delivered:false,activityAt:0};activePrompt=active;
+ // Go notices carry no authorization. Dismiss their one-use ID with a negative
+ // reply, without a modal or forwarding prompt text. Notice ignores cancellation,
+ // and a negative reply cannot become affirmative approval. Final errors retain their
+ // fixed safe code; this exact reviewed recovery notice also reports a mismatch
+ // when Go returns the newly persisted, still-pending root without a final error.
+ // Inputs, phrase recording, receive details and confirmations still require
+ // their separate trusted windows and replies.
+ if(prompt.kind==='notice'){
+  const p=pending.get(requestID)!;
+  if(['create','confirmRecovery'].includes(p.method)&&prompt.title==='Recovery phrase not confirmed'&&prompt.summary==='The recorded words did not match. Record the complete phrase in order, then try again. Your wallet remains unavailable for payments until this is complete.')p.noticeError='RECOVERY_WORDS_MISMATCH';
+  promptReply(active,{promptId:prompt.id,accepted:false});finishPrompt(false);return;
+ }
  if(prompt.kind==='copy'){clipboard.writeText(prompt.address!);promptReply(active,{promptId:prompt.id,accepted:true});finishPrompt(false);return}
  if(prompt.kind==='file'){
   const title=prompt.title;const result=prompt.save?await dialog.showSaveDialog(win,{title}):await dialog.showOpenDialog(win,{title,properties:['openFile']});

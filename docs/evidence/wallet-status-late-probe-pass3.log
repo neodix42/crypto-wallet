@@ -1,0 +1,71 @@
+/tmp/wallet-status-late-probe.py:216: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+  colors=picture.crop(box).getdata()
+PASS Wallet page always shows the complete receive address and working copy icon without visible provider-observed metadata or an asset dropdown
+PASS Real asset buttons select USDT and restore ETH, update the wallet tab and explain whole-asset amount units
+/tmp/wallet-status-late-probe.py:216: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+  colors=picture.crop(box).getdata()
+PASS Send uses Amount and explicit 1 = 1 ETH guidance, with no Scan local QR image control
+{
+  "status": "PASS",
+  "scope": "Targeted public late-UI helper diagnostic only: fresh public fixture import, persistent receive copy, ETH/USDT buttons/navigation, whole-asset amounts and Send form. This is not the complete packaged recovery campaign.",
+  "steps": [
+    {
+      "name": "Wallet page always shows the complete receive address and working copy icon without visible provider-observed metadata or an asset dropdown",
+      "status": "PASS"
+    },
+    {
+      "name": "Real asset buttons select USDT and restore ETH, update the wallet tab and explain whole-asset amount units",
+      "status": "PASS"
+    },
+    {
+      "name": "Send uses Amount and explicit 1 = 1 ETH guidance, with no Scan local QR image control",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "clean Ubuntu24.04 desktop",
+    "Wayland full wallet workflows",
+    "OS suspend/session lock",
+    "send from installed package",
+    "upgrade/uninstall recovery matrix",
+    "live Bybit authentication, deposits, spot fills and withdrawals",
+    "authenticated live Decred mainnet balance/discovery",
+    "Earlier onboarding/password errors, wrong-word confirmation, generated phrase recovery, DCR/settings/exchange cancellation, restart/profile/canary cases NOT_RUN in this targeted diagnostic"
+  ],
+  "environment": "mainnet",
+  "producerSHA256": "cb2eee9d6a96e3ab21c70f94082ab46dcdc15a09137365f3a55460ce44f17b7a",
+  "phraseHelperSHA256": "9b8d81c80fdb50985767671267952ff33360b26907e2898ddac59c6b436d63c6",
+  "sourceStable": true,
+  "canonicalProducerSHA256": "aab64f36e54994c5e279e7828bb68287c4a6241d146199d230e2144e71851e3b",
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
+      "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
+      "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
+    },
+    "asarSHA256": "03a3215f05b3f1f02ebbdbc717e4752a67f8a30a232117ee68951ac3caa8814e"
+  },
+  "headingOutlineObservations": [
+    {
+      "heading": "Ethereum",
+      "publicBounds": [
+        80,
+        500,
+        189,
+        518
+      ],
+      "greenOutlinePixels": 0
+    },
+    {
+      "heading": "Send payment",
+      "publicBounds": [
+        101,
+        440,
+        229,
+        458
+      ],
+      "greenOutlinePixels": 0
+    }
+  ]
+}

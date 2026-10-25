@@ -35,19 +35,21 @@
       <div id="walletpage" role="tabpanel" hidden>
       <div class="wallet-heading"><div><h1 id="wallettitle" tabindex="-1">Network wallet</h1><p id="walletsubtitle"></p></div><div class="actions"><button id="sendview" class="primary">Send</button><button id="receive" class="primary">Receive</button></div></div>
       <p id="walletrecoverynotice" class="recovery-callout" hidden>Finish recording your recovery phrase before receiving funds or preparing a payment. Send and Receive explain the next step.</p>
-      <div class="panel"><h2>Balance &amp; receive address</h2>
-        <label>Asset <select id="asset"></select></label><p id="address"></p>
-        <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p><p id="connectionstatus"></p>
+      <div id="walletassetpanel" class="panel" role="tabpanel" aria-label="Selected wallet asset"><h2>Balance &amp; receive address</h2>
+        <div id="walletassets" class="wallet-assets" role="tablist" aria-label="Assets in this network wallet"></div>
+        <select id="asset" hidden aria-hidden="true" tabindex="-1"></select><p id="address" hidden></p>
+        <div class="wallet-receive"><span>Receive address</span><div class="addressrow"><code id="walletaddress" class="walletaddress"></code><button id="copywalletaddress" class="copyaddress" title="Copy verified address" aria-label="Copy verified receive address"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"></rect><rect x="3" y="3" width="13" height="13" rx="2"></rect></svg></button></div></div>
+        <pre id="balance">Balance unknown — no query completed.</pre><p id="gasbalance" hidden></p>
         <div class="actions"><button id="refresh">Refresh balance</button><button id="copy">Copy verified address</button><button id="saveqr">Save verified QR</button><button id="configure">Configure trusted RPC</button><button id="hideaccount">Hide selected</button></div>
         <p id="decrednote" hidden>Decred requires a synchronized dcrd node on the selected network, with authenticated TLS RPC and a certificate trusted by this system. Use Configure trusted RPC to enter its HTTPS endpoint and RPC username/password in the wallet dialog. Network details sets the wallet birthday, address range and block scan budget; an incomplete scan leaves balance unknown. This is trusted-node synchronization. Spendable balance excludes immature outputs; query bounded chain history for maturity details.</p>
         <p>Choose this exact network at the sender. A plain address QR does not identify an EVM network. Hiding an account preserves its derivation index and recovery data.</p>
       </div>
-      <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div><button id="scan">Scan local QR image</button>
+      <div id="sendpanel" class="panel" hidden><div class="settings-heading"><h2 id="sendheading" tabindex="-1">Send payment</h2><button id="closesend">Close send form</button></div>
         <div id="sendrecoverynotice" class="recovery-callout" hidden><p>Record your recovery phrase and confirm the requested words before preparing this payment. Your recipient and amount stay in this form.</p><button id="sendrecovery">Finish recovery phrase setup</button></div>
-        <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Exact decimal amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
+        <label>Full recipient <input id="recipient" autocomplete="off" spellcheck="false"></label><label>Amount <input id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-describedby="amountunit"><small id="amountunit">Enter the amount in the selected asset.</small></label><label>Memo / comment (where supported) <input id="memo" maxlength="512"></label>
         <div class="actions"><button id="max">Prepare maximum with fee reserve</button><button id="prepare">Prepare &amp; reserve payment</button><button id="send" disabled>Review & confirm payment</button></div><pre id="preview">No payment prepared.</pre>
       </div>
-      <details><summary>Network details &amp; public diagnostics</summary>
+      <details><summary>Network details &amp; public diagnostics</summary><p id="connectionstatus"></p>
         <div id="associationcontrols" hidden><label>Named or rotated account address <input id="associateaddress" autocomplete="off" spellcheck="false"></label><button id="associate">Associate named / rotated account</button></div>
         <div id="dcrdiscoverycontrols" hidden>
         <label>Birthday block height <input id="birthday" type="number" min="0" value="0"></label><label>Address gap <input id="gap" type="number" min="1" max="100" value="20"></label><label>Address limit per branch <input id="limit" type="number" min="20" max="10000" value="1000"></label><label>Maximum blocks per scan (0 uses the default) <input id="blockbudget" type="number" min="0" max="2000000" value="10000"></label><button id="discovery">Confirm bounded discovery settings</button></div><pre id="diagnostics">Locked</pre>
@@ -57,7 +59,7 @@
       <div id="exchangepage" role="tabpanel" hidden>
         <div class="wallet-heading"><div><h1 id="exchangetitle" tabindex="-1">Exchange</h1><p>Deposit to Bybit, trade a spot USDT pair, then withdraw to your wallet.</p></div><div class="actions"><button id="exchangesettings">Exchange settings</button></div></div>
         <p id="exchangeconnection" role="status">Bybit is disconnected.</p>
-        <p>Assets deposited to Bybit are held by Bybit. Each deposit, spot trade and withdrawal requires its own confirmation. Exchange fees, trading limits and network availability apply.</p>
+        <p>Bybit holds deposited assets. Review and approve each deposit, trade and withdrawal in this wallet using your app password. The wallet then submits the authorized request. Transfers between Bybit accounts require a separate approval.</p>
         <div class="panel exchange-selection"><label>Wallet and network <select id="exchangeaccount"></select></label><label>Wallet asset <select id="exchangeasset"></select></label><div class="asset-identity"><span>Your wallet address</span><code id="exchangeaddress"></code><p id="exchangeassetinfo"></p></div><p id="exchangeroute">Select a wallet asset and refresh its market.</p><button id="exchangequote">Refresh market &amp; price</button><pre id="exchangeprice">Price unknown — no market query completed.</pre></div>
         <div class="exchange-actions">
           <div class="panel"><h2>1. Deposit</h2><p>Send the selected asset from this wallet to its verified Bybit deposit network. Review the destination and network fee in the wallet dialog.</p><label>Deposit amount <input id="exchangedepositamount" inputmode="decimal" autocomplete="off" placeholder="0.00"></label><button id="exchangedeposit" class="primary" disabled>Deposit</button></div>
@@ -114,17 +116,18 @@
 </div>
   </section>
 </main>
-<aside id="notifications" class="notifications" aria-label="Wallet notifications" hidden>
-  <button id="dismissnotification" aria-label="Dismiss notification">Dismiss notification</button>
-  <p id="message" role="status" aria-live="polite">Checking the local wallet…</p>
-  <div id="operationerror" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
-</aside>
-<div id="receiverecoverydialog" class="modal-backdrop" hidden>
-  <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="receiverecoverytitle" tabindex="-1">
-    <div class="settings-heading"><h2 id="receiverecoverytitle">Finish recovery phrase setup</h2><button id="closereceiverecovery">Cancel</button></div>
-    <p id="receiverecoverycontext"></p><p>Write down your recovery phrase in the recovery dialog and confirm the requested words. Once complete, this wallet’s verified address and QR code will open. Keep the phrase offline and never share it.</p>
-    <button id="receiverecovery" class="primary">Finish recovery phrase setup</button>
-  </section>
-</div>
+<footer id="statusbar" class="statusbar" aria-label="Wallet status">
+  <span class="statusbar-label">Status</span>
+  <aside id="notifications" class="notifications" aria-label="Wallet notifications">
+    <div class="notification-content"><p id="message" role="status" aria-live="polite">Checking the local wallet…</p><div id="operationerror" role="alert" aria-live="assertive" tabindex="-1" hidden></div></div>
+    <button id="dismissnotification" aria-label="Dismiss notification">Dismiss</button>
+  </aside>
+  <div id="receiverecoverydialog" class="statusbar-recovery" hidden>
+    <section role="region" aria-labelledby="receiverecoverytitle" tabindex="-1">
+      <div class="statusbar-recovery-text"><strong id="receiverecoverytitle">Finish recovery phrase setup</strong><p id="receiverecoverycontext"></p><p>Record your phrase privately in the recovery dialog and confirm its words to open this wallet’s verified address and QR.</p></div>
+      <button id="receiverecovery">Finish recovery phrase setup</button><button id="closereceiverecovery">Cancel</button>
+    </section>
+  </div>
+</footer>
 
 </body></html>

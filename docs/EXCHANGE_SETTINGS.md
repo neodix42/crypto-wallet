@@ -1,5 +1,7 @@
 # Settings and Exchange interface — 2026-10-25
 
+The later [wallet/status interface update](WALLET_STATUS.md) moves the floating notices described by this candidate into the reserved bottom status bar and clarifies local approvals. This document's measured counts and artifact bindings remain historical.
+
 Select **Settings**, immediately to the right of **Exchange** in the main tab bar. Settings opens in the main window and contains three tabs:
 
 | Tab | Contents |

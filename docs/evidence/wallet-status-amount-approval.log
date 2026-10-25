@@ -1,0 +1,32 @@
+=== RUN   TestTP052ExactAmounts
+--- PASS: TestTP052ExactAmounts (0.00s)
+PASS
+ok  	localwallet/internal/amount	0.003s
+=== RUN   TestExchangeFundingMovesOnlyMissingAmountAndApprovesEachEconomicOperation
+--- PASS: TestExchangeFundingMovesOnlyMissingAmountAndApprovesEachEconomicOperation (0.04s)
+=== RUN   TestTP052PrepareUsesAtomicPrecisionAndState
+--- PASS: TestTP052PrepareUsesAtomicPrecisionAndState (0.03s)
+PASS
+ok  	localwallet/cmd/wallet-core	0.074s
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/cancel
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/wrong-password
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/missing-password
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/lock-confirm
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/lock-password
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/expired
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/mutated
+=== RUN   TestExchangeTP043AuthorizationFailuresLockAndPersistence/persist
+--- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence (2.79s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/cancel (0.45s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/wrong-password (0.38s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/missing-password (0.39s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/lock-confirm (0.32s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/lock-password (0.29s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/expired (0.33s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/mutated (0.31s)
+    --- PASS: TestExchangeTP043AuthorizationFailuresLockAndPersistence/persist (0.31s)
+=== RUN   TestExchangeTP042ApprovalInterpretsTheExactCanonicalOperation
+--- PASS: TestExchangeTP042ApprovalInterpretsTheExactCanonicalOperation (0.32s)
+PASS
+ok  	localwallet/internal/signer	3.127s

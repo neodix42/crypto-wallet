@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "0af0024acbea5458e4506372c02ad9fd9f9f6be8",
+  "sourceCommit": "9ae4353ce6e4fdc546857e6d3e1627da72545db9",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "4f2bc0d8a1a0ff194ebd1d388054fda7d0397ecbba26065ffb0e639ef9763490",
+  "sha256": "42e68e0d02513f00e0438753b38e27683737180663d54fd3317978078a427d2e",
   "binaryManifest": {
-    "wallet-core": "7800ef19547a217a4edc91c8126086757b451980c2179c883869fc1c0df14f2f",
-    "wallet-launcher": "799fab84ac4cdfe1a685517cee6c058acb8f50b3a872195805e295cf5e118b5c",
-    "wallet-signer": "617b6e0f10215a30ccb0bf93d25da9cf5585e981ff2f4f12ba47ecebac442893"
+    "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
+    "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
+    "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -28,7 +28,7 @@
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "40f1744e2af2dedaeeef046244ecd5436c98260da957fa5ce10f08a5c1bc89f5"
+      "sha256": "43a83ec4dae85c3e01713b86f54eda98ccb83315a874c8bf5293c5652781bf4a"
     },
     {
       "report": "mutation",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "4b0b648064a0435dc4826f09b695509826ef9d2357c2abe68d02462c7beaee0f"
+      "sha256": "6df75fc613d1d4e58ec70cb1a2657c2f70723b36a66a72107de036cd313314a6"
     },
     {
       "report": "display-startup",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "d388d93abe0fec6c6b468fbf56b62f35b084e3ded0d381aee338ee6c93959f2a"
+      "sha256": "444267f129797b835ab345f77fa751b7af9b518d4511691e3f3e19a89a5276f0"
     },
     {
       "report": "phrase-onboarding",
@@ -232,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "4fb65b389739553633920058842e0129f1a0a6a732817d8be0595a761304a982"
+      "sha256": "a59a8ac30e160c8841ecbd37c5545b1f74d41fdea38480e2c7d39b4ad327961b"
     },
     {
       "report": "hypercore-pagination",
@@ -262,13 +262,13 @@
       "report": "crash-security",
       "status": "PASS",
       "file": "crash-security.json",
-      "sha256": "31cc6d43742d3f183ee2cc7a26203fb0f021b519cc7c03ad87a92ee013fa3ca9"
+      "sha256": "f3bd47a7d49457672de6cb4a8c8a6b5a733632002712f6492d6c4c01542dbb05"
     },
     {
       "report": "packaged-send",
       "status": "PASS",
       "file": "packaged-send.json",
-      "sha256": "2bbc379b3d6b0f222fdb0ae54c456ba9c8db43a5c5e4002ab75e1e5fd3090caf"
+      "sha256": "5c8c5f0ca17eac8821ff1c9866d412bdf561c7c8c9520f9634ec73da0e382b17"
     },
     {
       "report": "fuzz-long",
@@ -355,6 +355,18 @@
       "sha256": "ff6edaf56119a88b91af12424d57acf9a6bf689de27c76dd05721428c8f7ee62"
     },
     {
+      "report": "wallet-status",
+      "status": "PASS",
+      "file": "wallet-status.json",
+      "sha256": "c6b5d2f862da90c1b50baab004f1559d0141cbe39fc006374ed9223d636518e7"
+    },
+    {
+      "report": "wallet-status-x11-driver",
+      "status": "PASS",
+      "file": "wallet-status-x11-driver.json",
+      "sha256": "6c0acd314d91811f85ba39e34396fa6cfc0739baa50cafebc8fa80c432933f73"
+    },
+    {
       "report": "pre-exchange-soak",
       "status": "NOT_RUN",
       "file": "pre-exchange-soak.json",
@@ -365,6 +377,108 @@
       "status": "NOT_RUN",
       "file": "pre-exchange-nondecred-soak-run.json",
       "sha256": "63de1539608d6286cbc48958506ec10c0a4c55bb429815be0a7009e57d5fa75b"
+    },
+    {
+      "report": "wallet-status-packaged-attempt1",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt1.json",
+      "sha256": "01a4b0f57bc396d692311873783cbf11fee351afc7feb94829046e58ae8a2893"
+    },
+    {
+      "report": "wallet-status-packaged-attempt10",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt10.json",
+      "sha256": "300f3f5a64fa10777483cf1ca4c43b844ead0cf0ad9f8e5b2b8cc20c0afbe39a"
+    },
+    {
+      "report": "wallet-status-packaged-attempt11",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt11.json",
+      "sha256": "c30bf8bf5aedbde424aaa08947a12d8abb044997940adb4ad26fe0c2bd05a904"
+    },
+    {
+      "report": "wallet-status-packaged-attempt12",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt12.json",
+      "sha256": "cb183f07381ac9a91df52106dacd778067fe43924e59d2bdba8e63adb05e09b1"
+    },
+    {
+      "report": "wallet-status-packaged-attempt13",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt13.json",
+      "sha256": "09a188c7518dc116961effc28f4d0a03d9d34e0dedc241fe00742750ac0063e8"
+    },
+    {
+      "report": "wallet-status-packaged-attempt2",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt2.json",
+      "sha256": "5ad5710e2c85ee3af86eb3615b1a79720cd2d56e13ed9648c2e13bb087ef84c7"
+    },
+    {
+      "report": "wallet-status-packaged-attempt3",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt3.json",
+      "sha256": "11dae18c6867463b2fec763f6384983c4ca2912527c7ad90ed6d0af1f98846b2"
+    },
+    {
+      "report": "wallet-status-packaged-attempt4",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt4.json",
+      "sha256": "20b72b33f236bd8be8039bc65ab0fbb46ac6f6303a66480dffc3c609c04aa669"
+    },
+    {
+      "report": "wallet-status-packaged-attempt5",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt5.json",
+      "sha256": "fac35fe72d568f0d953db68cad6edb9b1dacc3d6ada930a176afdbdc9fb44a8e"
+    },
+    {
+      "report": "wallet-status-packaged-attempt6",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt6.json",
+      "sha256": "93e9ebc0314a608ed724d2a044464579d071ea8e381e734196b9b67f60ce76d7"
+    },
+    {
+      "report": "wallet-status-packaged-attempt7",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt7.json",
+      "sha256": "3cdfb324f8a1764c74da5d987eb0f81ef70f958e652f1d4b680d53bdde7bcd2f"
+    },
+    {
+      "report": "wallet-status-packaged-attempt8",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt8.json",
+      "sha256": "86cbf421a70d93482608ffad3477708565fea83b648b23aaecee428c11cb2aa6"
+    },
+    {
+      "report": "wallet-status-packaged-attempt9",
+      "status": "FAIL",
+      "file": "wallet-status-packaged-attempt9.json",
+      "sha256": "b735f21c4c6a640aad97e27d659032e53e0099675780d08301924c367454faf7"
+    },
+    {
+      "report": "wallet-status-late-probe",
+      "status": "PASS",
+      "file": "wallet-status-late-probe.json",
+      "sha256": "e871c070c9e66647bdcdb962e7fdc52d26efa7ed81620d893ad6909593112499"
+    },
+    {
+      "report": "wallet-status-late-probe-attempt1",
+      "status": "FAIL",
+      "file": "wallet-status-late-probe-attempt1.json",
+      "sha256": "d896a7912451d01136ec6129745d91139228e17f8f2651397404e4636766acde"
+    },
+    {
+      "report": "wallet-status-late-probe-attempt2",
+      "status": "FAIL",
+      "file": "wallet-status-late-probe-attempt2.json",
+      "sha256": "5d454f45f31958f12632c90812a68ff325694921b0a731f5e83e1524c587abb1"
+    },
+    {
+      "report": "wallet-status-late-probe-pass3",
+      "status": "PASS",
+      "file": "wallet-status-late-probe-pass3.json",
+      "sha256": "bcc2ac4ad9ac13b48ac96045e9808fff1c022c1fe65a12916d7aa4f4ac6a7a3b"
     }
   ],
   "node": "v24.19.0",

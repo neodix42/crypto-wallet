@@ -59,7 +59,8 @@ def record(desktop,expected=None,wrong=False):
  desktop.wait('Confirm recovery phrase',15)
  words=phrase.split();values=['incorrect']*3 if wrong else [words[i].decode('ascii') for i in (1,5,11)]
  desktop.inputs('Confirm recovery phrase',values);desktop.accept('Confirm recovery phrase')
- if wrong:
-  desktop.wait('Recovery phrase not confirmed',15);desktop.accept('Recovery phrase not confirmed')
+ # A wrong challenge is reported by the ordinary fixed bottom status bar.
+ # The caller verifies its safe public message after the private input closes;
+ # no information-only modal is opened or automatically accepted here.
  time.sleep(.3)
  return phrase

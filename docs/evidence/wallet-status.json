@@ -1,0 +1,867 @@
+{
+  "status": "PASS",
+  "scope": "Wallet presentation, fixed bottom status feedback and informational-notice routing only; explicit isolated approval/secret/Receive windows preserved",
+  "artifact": {
+    "version": "0.1.0",
+    "binaryManifest": {
+      "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
+      "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
+      "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
+    },
+    "asarSHA256": "03a3215f05b3f1f02ebbdbc717e4752a67f8a30a232117ee68951ac3caa8814e",
+    "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c"
+  },
+  "installedRuntime": "wallet-runtime/app-f43f90297d794560a20a20a0d4868a7a",
+  "sourceSHA256": {
+    "desktop/package-lock.json": "d39ad314765ac8af099d034d426733d66b3895ca1783f17128de3ff7d4db3040",
+    "desktop/package.json": "12e65389a8bc4dbfdc901106de0c5c4011376cd47d090b0a6a0a95aad0dee1d8",
+    "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
+    "desktop/src/main.ts": "e0798b32a62c69585e1504e757854ae99970794aba26180a1c7c261fb602874a",
+    "desktop/src/preload.ts": "31d9276da4e9a9d87b916ec9e58aab3f30a7579485d42d4e55cf88ae9d13b82a",
+    "desktop/src/prompt-preload.ts": "2acc5b222e6c0382c4dd4bdf0a2180968582a08af4daa63a59e38a348b4f145c",
+    "desktop/src/prompts.ts": "5178a6a216943169b43d93f4836db8f02d3fc7b6a0d89c0f8fbb9189b59e3f25",
+    "desktop/src/validation.ts": "62cab0ca7c3eb4c6420fcd145851c0d71f816a8a42e953c38899220ca9196e61",
+    "desktop/tests/fixtures/networks-mainnet.json": "ac67c4b7fc20945712b0370989e669310a072271db3a5ddc4a605e42a5d33859",
+    "desktop/tests/fixtures/networks-testnet.json": "62d769163226d2fb59a2c6a9edccad9c7f22f161e2850163bbcf70923617f82b",
+    "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
+    "desktop/tests/prompt-security.test.cjs": "bdac998278ad105c341aa676654da72e1ad41cec36f32d0b4292cc2e6345c60c",
+    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726",
+    "desktop/tests/runtime.test.cjs": "813802e573a64e694ca0bcf2a317fbb18884ea7fbf4531b34182042da1e2940f",
+    "desktop/tests/security.test.cjs": "34b80d45801f7a6f24361d42a880f87047fd12077c4a350ecc76927be59bb00e",
+    "desktop/tsconfig.json": "85a9e919aef78351388430a8946cce0a654d1f6888914b25c1c6949d26b7f53b",
+    "desktop/ui/index.html": "5a8ed9146cfd27ff58e263c9b5353482343c604cff8c132006a15d18bd559fb3",
+    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
+    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
+    "desktop/ui/renderer.js": "422cca163e5c4950ed0042cccbd6d55aba60cf0aae77cae10605229ba86a44a5",
+    "desktop/ui/style.css": "17f85b266b227b2deaf63bdbcf31de921f583c6a999e03c674524960739ce9c5",
+    "scripts/evidence_binding.py": "9baa7cb6088b519d221e2126c6ffe576a9db27cfd542d9463f75870110e73310",
+    "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a",
+    "scripts/packaged-recovery.py": "2e323de558a03c08044b8925a1598b125e558571070f52405b7f0c8b1588c34e",
+    "scripts/record-evidence.py": "ac04e4f0ae02e2cb610f267eb7a1cf6c3f3a241acfb12a1dc74d8f3bb8fc3dd8",
+    "tests/e2e/phrase.py": "9b8d81c80fdb50985767671267952ff33360b26907e2898ddac59c6b436d63c6",
+    "tests/e2e/x11.py": "6095988878081eeb5fab7edb871b9b0618ba9c671e4d72d838a3f613a2f33ed1"
+  },
+  "checks": [
+    {
+      "report": "frontend-coverage",
+      "status": "PASS",
+      "sha256": "43a83ec4dae85c3e01713b86f54eda98ccb83315a874c8bf5293c5652781bf4a"
+    },
+    {
+      "report": "artifact-security",
+      "status": "PASS",
+      "sha256": "a59a8ac30e160c8841ecbd37c5545b1f74d41fdea38480e2c7d39b4ad327961b"
+    },
+    {
+      "report": "packaged-recovery",
+      "status": "PASS",
+      "sha256": "6df75fc613d1d4e58ec70cb1a2657c2f70723b36a66a72107de036cd313314a6"
+    },
+    {
+      "report": "packaged-send",
+      "status": "PASS",
+      "sha256": "5c8c5f0ca17eac8821ff1c9866d412bdf561c7c8c9520f9634ec73da0e382b17"
+    },
+    {
+      "report": "phrase-recovery",
+      "status": "PASS",
+      "sha256": "444267f129797b835ab345f77fa751b7af9b518d4511691e3f3e19a89a5276f0"
+    },
+    {
+      "report": "crash-security",
+      "status": "PASS",
+      "sha256": "f3bd47a7d49457672de6cb4a8c8a6b5a733632002712f6492d6c4c01542dbb05"
+    },
+    {
+      "log": "wallet-status-components-first.log",
+      "status": "FAIL",
+      "sha256": "549f480286f6b36aaab84721569251ba0f7911664123b67cb4b73d0ce80f556b"
+    },
+    {
+      "log": "wallet-status-components.log",
+      "status": "PASS",
+      "sha256": "2f6d48aa3f28cdd02d6da70358882e6197e31e308f9121f1d51aa5824fcfc139"
+    },
+    {
+      "log": "wallet-status-coverage-before-notice.log",
+      "status": "PASS",
+      "sha256": "e5f0a174967c593efbeeb6ca82dd1970ddc38dfe75a91fabbce7b3759580c171"
+    },
+    {
+      "log": "wallet-status-coverage-before-attribution.log",
+      "status": "PASS",
+      "sha256": "efbf66ce21f2011828c0c214c686ea55c24d6f43e1c50c7885388be618e4df45"
+    },
+    {
+      "log": "wallet-status-coverage-before-pending-fix.log",
+      "status": "PASS",
+      "sha256": "3ef5d9bcd60af47f4fa06bd83441e46952033b791318c680643334637146369b"
+    },
+    {
+      "log": "wallet-status-coverage-first-pending-fix.log",
+      "status": "FAIL",
+      "sha256": "f47b0967f2b1b4823e6e348709059d624d1f037300347aeb9447970e5a685ad4"
+    },
+    {
+      "log": "wallet-status-frontend-coverage.log",
+      "status": "PASS",
+      "sha256": "ab13cba5cf5b9d4b8d5f5c8f74fbc702ba507e80fd0de5bed55b4305c745609e"
+    },
+    {
+      "log": "wallet-status-amount-approval.log",
+      "status": "PASS",
+      "sha256": "e9be0fe42ce9799de7d04cdf1d43f791fd5043baf4f91fa045c6eae71c7c9ad1"
+    },
+    {
+      "log": "wallet-status-install.log",
+      "status": "PASS",
+      "sha256": "472e159293e390cad0a9023c8bef275946fbd6b27a463db5d3518127f6d9f2ae"
+    },
+    {
+      "log": "wallet-status-packaged-attempt1.log",
+      "status": "FAIL",
+      "sha256": "e97c0abbe98a70c17c11dab63b40d7976ca0d3ce7a778e4752f951bdbd72af1c"
+    },
+    {
+      "log": "wallet-status-packaged-attempt2.log",
+      "status": "FAIL",
+      "sha256": "8629a4847bad818bb040be851fe9434e687ba05114d7d61e150f39f4f5058ac7"
+    },
+    {
+      "log": "wallet-status-packaged-attempt3.log",
+      "status": "FAIL",
+      "sha256": "ea47715719d9deefaad4100f6b4e1b6467f79c5e51f24298422e3443c3c64f04"
+    },
+    {
+      "log": "wallet-status-packaged.log",
+      "status": "PASS",
+      "sha256": "23566a0e4d0d80294e81808d9b8dcf38254120bf6f42a60e9660774bd9a59bd6"
+    },
+    {
+      "log": "wallet-status-packaged-send.log",
+      "status": "PASS",
+      "sha256": "6a3234ed618a503574a80a35ee5284b6841b50119340dcd43791af510ff43831"
+    },
+    {
+      "log": "wallet-status-recovery.log",
+      "status": "PASS",
+      "sha256": "f08ea54d31de006445a70159f939e4fc70fda8662408ae7aa8174e45429211ce"
+    },
+    {
+      "log": "wallet-status-crash.log",
+      "status": "PASS",
+      "sha256": "8b3e59e28dbd0438d7fbb7e20f56c0ca9ecfb0a1fe253116ab6dfa8fae3e12d5"
+    },
+    {
+      "log": "wallet-status-version.log",
+      "status": "PASS",
+      "sha256": "ef340dd79fe5335ae88b0c38058aa4f514c69104ba13cb117a3dab223001248a"
+    },
+    {
+      "log": "wallet-status-production-gate.log",
+      "status": "FAIL",
+      "sha256": "e93ff9af77bf01194beaf81471bb85efd0241010738ade65f8cbe97f38cc386d"
+    },
+    {
+      "log": "wallet-status-packaged-attempt10.log",
+      "status": "FAIL",
+      "sha256": "0ead59e29b96096ce86f109ee10d5a54292f17ab684ef412e1db2ff259da66fe"
+    },
+    {
+      "log": "wallet-status-packaged-attempt11.log",
+      "status": "FAIL",
+      "sha256": "1559c44d2fbdef55f9d224c442c63b214e4e9bb907558068d272d73ac7e5e3d3"
+    },
+    {
+      "log": "wallet-status-packaged-attempt12.log",
+      "status": "FAIL",
+      "sha256": "99347e03cdb570211c74e37c825bd3947aa7b2ee09e6444e461bcf9eda96b909"
+    },
+    {
+      "log": "wallet-status-packaged-attempt13.log",
+      "status": "FAIL",
+      "sha256": "53fd4a723625755c52fd7620424097845c33a198c48d70e4673fb4286aa20a66"
+    },
+    {
+      "log": "wallet-status-packaged-attempt4.log",
+      "status": "FAIL",
+      "sha256": "72ed40d3cab81d0e1fbbdf8af8c7682706437df6ff5030b1d06a3bff461131d4"
+    },
+    {
+      "log": "wallet-status-packaged-attempt5.log",
+      "status": "FAIL",
+      "sha256": "072185aca46ead252243debcf720059bc53142a081f067dfdb38e88150b80c10"
+    },
+    {
+      "log": "wallet-status-packaged-attempt6.log",
+      "status": "FAIL",
+      "sha256": "a9ef73308925063796944a4c17a20837753da4bb5240ceb8b5d561fe76c6ed7e"
+    },
+    {
+      "log": "wallet-status-packaged-attempt7.log",
+      "status": "FAIL",
+      "sha256": "26a6dc891886fdb4e4c219370c129e3a495e78bcc0c16c9e6cc375a873e9b352"
+    },
+    {
+      "log": "wallet-status-packaged-attempt8.log",
+      "status": "FAIL",
+      "sha256": "a4752385daf7a022ee5292c7d79ebefb20d0ed838c184de924c8360661ca1db6"
+    },
+    {
+      "log": "wallet-status-packaged-attempt9.log",
+      "status": "FAIL",
+      "sha256": "6c62ef5a781770574ca4562d00d1a6341046707da8af8a79d0bad3b8fde90f08"
+    }
+  ],
+  "commands": {
+    "frontend": "./scripts/with-toolchain.sh python3 scripts/frontend-coverage.py",
+    "amountAndApproval": "./scripts/with-go.sh go test ./internal/amount ./cmd/wallet-core ./internal/signer -run '^(TestTP052ExactAmounts|TestTP052PrepareUsesAtomicPrecisionAndState|TestExchangeFundingMovesOnlyMissingAmountAndApprovesEachEconomicOperation|TestExchangeTP043AuthorizationFailuresLockAndPersistence|TestExchangeTP042ApprovalInterpretsTheExactCanonicalOperation)$' -count=1 -v",
+    "install": "make install",
+    "packagedRecovery": "./scripts/with-toolchain.sh python3 scripts/packaged-recovery.py",
+    "packagedSend": "./scripts/with-toolchain.sh python3 scripts/packaged-send.py",
+    "recovery": "./scripts/with-go.sh python3 scripts/phrase-recovery.py",
+    "crash": "./scripts/with-go.sh python3 scripts/crash-security.py",
+    "version": "./scripts/with-toolchain.sh python3 scripts/verify-version.py",
+    "productionGate": "make verify-release"
+  },
+  "desktopTests": 148,
+  "desktopSkippedTests": 0,
+  "frontendCoverage": [
+    {
+      "file": "app/codec.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/main.js",
+      "statements": 100,
+      "branches": 98.47,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/preload.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/prompt-preload.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/prompts.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "app/validation.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "ui/prompt.js",
+      "statements": 100,
+      "branches": 100,
+      "floors": {
+        "statements": 95,
+        "branches": 90
+      },
+      "status": "PASS"
+    },
+    {
+      "file": "ui/renderer.js",
+      "statements": 100,
+      "branches": 98.26,
+      "floors": {
+        "statements": 90,
+        "branches": 85
+      },
+      "status": "PASS"
+    }
+  ],
+  "noticeBoundaryRegressionGroups": 6,
+  "noticePolicy": "Validated notices receive a negative one-use dismissal, never an affirmative approval. Raw title/summary stay private; only an exact reviewed method/title/summary maps to fixed recovery guidance. Core cannot inject that frontend-only code. Pending success after wrong words is an error and refreshes the existing wallet.",
+  "assets": "All nine mainnet networks and twelve asset identities retained; per-wallet asset buttons and selected-asset title replace visible wallet dropdown. New views default native; exact human decimal strings reach unchanged Go conversion.",
+  "statusbarHeightPixels": 88,
+  "packagedUIChecks": 34,
+  "isolatedActualGethSendChecks": 7,
+  "headlessRecoveryChecks": 6,
+  "ownedGoCrashChecks": 7,
+  "packagedObservations": {
+    "notificationLayoutObservations": [
+      {
+        "anchor": "Create your app password",
+        "before": [
+          311,
+          486,
+          698,
+          516
+        ],
+        "whileFeedbackVisible": [
+          311,
+          486,
+          698,
+          516
+        ],
+        "afterDismissal": [
+          311,
+          486,
+          698,
+          516
+        ],
+        "fixedStatusbarBounds": [
+          50,
+          849,
+          1230,
+          937
+        ]
+      },
+      {
+        "anchor": "Bybit connection",
+        "before": [
+          104,
+          522,
+          250,
+          540
+        ],
+        "whileFeedbackVisible": [
+          104,
+          522,
+          250,
+          540
+        ],
+        "afterDismissal": [
+          104,
+          522,
+          250,
+          540
+        ],
+        "fixedStatusbarBounds": [
+          50,
+          849,
+          1230,
+          937
+        ]
+      },
+      {
+        "anchor": "Bybit connection",
+        "before": [
+          104,
+          522,
+          250,
+          540
+        ],
+        "whileFeedbackVisible": [
+          104,
+          522,
+          250,
+          540
+        ],
+        "afterDismissal": [
+          104,
+          522,
+          250,
+          540
+        ],
+        "fixedStatusbarBounds": [
+          50,
+          849,
+          1230,
+          937
+        ]
+      }
+    ],
+    "headingOutlineObservations": [
+      {
+        "heading": "Settings",
+        "publicBounds": [
+          104,
+          407,
+          197,
+          430
+        ],
+        "greenOutlinePixels": 0
+      },
+      {
+        "heading": "Exchange",
+        "publicBounds": [
+          80,
+          496,
+          187,
+          520
+        ],
+        "greenOutlinePixels": 0
+      },
+      {
+        "heading": "Ethereum",
+        "publicBounds": [
+          80,
+          500,
+          189,
+          518
+        ],
+        "greenOutlinePixels": 0
+      },
+      {
+        "heading": "Send payment",
+        "publicBounds": [
+          101,
+          440,
+          229,
+          458
+        ],
+        "greenOutlinePixels": 0
+      }
+    ],
+    "nativeBalanceObservation": {
+      "status": "PASS",
+      "scope": "Installed Ethereum native balance is only an exact whole-asset decimal value; provider observation is hidden until hover",
+      "publicText": "0",
+      "hoverMetadata": "PASS: provider-observed appears only after a real pointer hover"
+    },
+    "decredConnectionObservations": {
+      "overview": {
+        "status": "PASS",
+        "publicBalanceText": "connection required",
+        "hoverMetadata": "Authenticated TLS dcrd node and unknown balance guidance independently observed on actual hover"
+      },
+      "configuredNodeBalance": "NOT_RUN: no authenticated trusted-TLS Decred mainnet node supplied",
+      "wallet": {
+        "status": "PASS",
+        "scope": "Compact balance connection guidance visible; Configure trusted RPC and certificate/credential/discovery requirements verified from installed public pixels"
+      }
+    }
+  },
+  "failedPackagedAttempts": [
+    {
+      "report": "wallet-status-packaged-attempt1.json",
+      "status": "FAIL",
+      "sha256": "01a4b0f57bc396d692311873783cbf11fee351afc7feb94829046e58ae8a2893",
+      "reason": "Timed out waiting for packaged workflow",
+      "passingStepsBeforeFailure": 3
+    },
+    {
+      "report": "wallet-status-packaged-attempt10.json",
+      "status": "FAIL",
+      "sha256": "300f3f5a64fa10777483cf1ca4c43b844ead0cf0ad9f8e5b2b8cc20c0afbe39a",
+      "reason": "Wallet page does not display one unambiguous persistent receive address",
+      "passingStepsBeforeFailure": 21
+    },
+    {
+      "report": "wallet-status-packaged-attempt11.json",
+      "status": "FAIL",
+      "sha256": "c30bf8bf5aedbde424aaa08947a12d8abb044997940adb4ad26fe0c2bd05a904",
+      "reason": "Public UI control unavailable: USDT",
+      "passingStepsBeforeFailure": 22
+    },
+    {
+      "report": "wallet-status-packaged-attempt12.json",
+      "status": "FAIL",
+      "sha256": "cb183f07381ac9a91df52106dacd778067fe43924e59d2bdba8e63adb05e09b1",
+      "reason": "Native ETH button is unavailable in the labelled wallet asset strip",
+      "passingStepsBeforeFailure": 22
+    },
+    {
+      "report": "wallet-status-packaged-attempt13.json",
+      "status": "FAIL",
+      "sha256": "09a188c7518dc116961effc28f4d0a03d9d34e0dedc241fe00742750ac0063e8",
+      "reason": "Public UI phrase unavailable: Unlock wallet",
+      "passingStepsBeforeFailure": 28
+    },
+    {
+      "report": "wallet-status-packaged-attempt2.json",
+      "status": "FAIL",
+      "sha256": "5ad5710e2c85ee3af86eb3615b1a79720cd2d56e13ed9648c2e13bb087ef84c7",
+      "reason": "Complete single-line Ethereum table address is clipped or differs from the independent vector",
+      "passingStepsBeforeFailure": 10
+    },
+    {
+      "report": "wallet-status-packaged-attempt3.json",
+      "status": "FAIL",
+      "sha256": "11dae18c6867463b2fec763f6384983c4ca2912527c7ad90ed6d0af1f98846b2",
+      "reason": "Complete single-line Ethereum table address is clipped or differs from the independent vector",
+      "passingStepsBeforeFailure": 10
+    },
+    {
+      "report": "wallet-status-packaged-attempt4.json",
+      "status": "FAIL",
+      "sha256": "20b72b33f236bd8be8039bc65ab0fbb46ac6f6303a66480dffc3c609c04aa669",
+      "reason": "First wallet row lacks a numeric-only native amount or explicit unavailable state: ft)",
+      "passingStepsBeforeFailure": 11
+    },
+    {
+      "report": "wallet-status-packaged-attempt5.json",
+      "status": "FAIL",
+      "sha256": "fac35fe72d568f0d953db68cad6edb9b1dacc3d6ada930a176afdbdc9fb44a8e",
+      "reason": "Opened unconfigured Decred wallet lost its compact balance/connection guidance",
+      "passingStepsBeforeFailure": 14
+    },
+    {
+      "report": "wallet-status-packaged-attempt6.json",
+      "status": "FAIL",
+      "sha256": "93e9ebc0314a608ed724d2a044464579d071ea8e381e734196b9b67f60ce76d7",
+      "reason": "Driver aborted before any workflow checks: native X11 BadWindow during transient window attribute enumeration; no product failure inferred",
+      "passingStepsBeforeFailure": 0
+    },
+    {
+      "report": "wallet-status-packaged-attempt7.json",
+      "status": "FAIL",
+      "sha256": "3cdfb324f8a1764c74da5d987eb0f81ef70f958e652f1d4b680d53bdde7bcd2f",
+      "reason": "Public hexadecimal address line is unavailable",
+      "passingStepsBeforeFailure": 12
+    },
+    {
+      "report": "wallet-status-packaged-attempt8.json",
+      "status": "FAIL",
+      "sha256": "86cbf421a70d93482608ffad3477708565fea83b648b23aaecee428c11cb2aa6",
+      "reason": "Page heading retained the green focus rectangle: Exchange",
+      "passingStepsBeforeFailure": 16
+    },
+    {
+      "report": "wallet-status-packaged-attempt9.json",
+      "status": "FAIL",
+      "sha256": "b735f21c4c6a640aad97e27d659032e53e0099675780d08301924c367454faf7",
+      "reason": "Exchange does not distinguish the owned receive address from token contract metadata",
+      "passingStepsBeforeFailure": 16
+    }
+  ],
+  "historicalHelperProducerAvailability": {
+    "wallet-status-late-probe-attempt1": "UNAVAILABLE: exact scratch producer overwritten before archival; failed diagnostic only",
+    "wallet-status-late-probe-attempt2": "UNAVAILABLE: exact scratch producer overwritten before archival; failed diagnostic only"
+  },
+  "helperProbeReports": [
+    {
+      "report": "wallet-status-late-probe-attempt1.json",
+      "status": "FAIL",
+      "sha256": "d896a7912451d01136ec6129745d91139228e17f8f2651397404e4636766acde",
+      "scope": "Late public-UI helper probe only; earlier full-campaign cases NOT_RUN and never substituted for the full 34-check run"
+    },
+    {
+      "report": "wallet-status-late-probe-attempt2.json",
+      "status": "FAIL",
+      "sha256": "5d454f45f31958f12632c90812a68ff325694921b0a731f5e83e1524c587abb1",
+      "scope": "Late public-UI helper probe only; earlier full-campaign cases NOT_RUN and never substituted for the full 34-check run"
+    },
+    {
+      "report": "wallet-status-late-probe-pass3.json",
+      "status": "PASS",
+      "sha256": "bcc2ac4ad9ac13b48ac96045e9808fff1c022c1fe65a12916d7aa4f4ac6a7a3b",
+      "scope": "Late public-UI helper probe only; earlier full-campaign cases NOT_RUN and never substituted for the full 34-check run"
+    },
+    {
+      "report": "wallet-status-late-probe.json",
+      "status": "PASS",
+      "sha256": "e871c070c9e66647bdcdb962e7fdc52d26efa7ed81620d893ad6909593112499",
+      "scope": "Late public-UI helper probe only; earlier full-campaign cases NOT_RUN and never substituted for the full 34-check run"
+    }
+  ],
+  "x11Driver": {
+    "status": "PASS",
+    "sha256": "6c0acd314d91811f85ba39e34396fa6cfc0739baa50cafebc8fa80c432933f73",
+    "scope": "Actual owned private X11 driver regression only: scoped nonexistent-window attributes return absent, original function/handler restored, standalone invalid geometry remains fatal; no wallet or secrets involved",
+    "negativeProbe": "Expected native failure/nonzero exit is required; nested FAIL is successful rejection evidence, not a passing production run."
+  },
+  "focusedGoAmountApprovalTests": "PASS: five named tests across three packages",
+  "unchangedGoEvidence": {
+    "sourceSHA256": {
+      "cmd/wallet-core/exchange.go": "001aba57d71915e8c14db212224a269533d6da6dee750b4024ce5e1e2a848855",
+      "cmd/wallet-core/exchange_overflow_test.go": "246535fe651ea0b88a955dcb61051e399f84ae2d3428208f1933f6e218ae129c",
+      "cmd/wallet-core/exchange_test.go": "ea3463a5f393da852a436ecfe934dd1821db899b4b29433f5ce42ac9c29b5f22",
+      "cmd/wallet-core/history.go": "27e9521a50e894e82c74ac522f63043cef384dbdb66dded9c5fa8560ff3629a1",
+      "cmd/wallet-core/history_test.go": "9cf7cd58adb8ad7bd00e389bd6ffdf7919d55aadb9d8f1f8bf319ee06f5732af",
+      "cmd/wallet-core/main.go": "cda00406798dff378681f362134fb2cd027a7d1154db0f382df44bf9b435610e",
+      "cmd/wallet-core/main_test.go": "a823862b0fd1934485087e95d0a7cc3226b333ed801658b64fe0ef1be16d668e",
+      "cmd/wallet-core/mainnet_profile_test.go": "a0feb7bf37fc82b5c41cb26d32c8e5ee2fc68ea0596c6231fb037b3e56f60142",
+      "cmd/wallet-core/memory_test.go": "2f5a7619fa1a5a97d5fa1b89cc437dcc786710a6a52f06d46a1d5748fd611afd",
+      "cmd/wallet-core/presence_test.go": "13959906b1d8d85497a260fa15608a99f2a6a38a16c5b50ab09a5f22fef512b1",
+      "cmd/wallet-core/prompt_test.go": "cc273baf04c1f900c4dd05eff811da8dfd28c839e417ea7e8d69ab766c7a4ff1",
+      "cmd/wallet-core/public_pages.go": "8bc61418c4053d69e2cedba71cd32ed1b273697432c15393c27f40b6b72bcedf",
+      "cmd/wallet-core/public_pages_test.go": "65c9897fb4e7d46495308d671be0f2a080d018f35ab2fe6a7bc0cb3aac4abe6d",
+      "cmd/wallet-core/session_test.go": "a3c005a8b81645ac057f8f750274c89fee7dd2860cab3f724e54716d71279cee",
+      "cmd/wallet-core/version_test.go": "73a3c98970dca9b8c62c8baaaf56c78c1b0c201ad115850efe5a9dce1b0cf34d",
+      "cmd/wallet-launcher/bootstrap_test.go": "5bba56800388ad6c00680edbb0b30bcda44c6938deaddda714851c08c543d953",
+      "cmd/wallet-launcher/main.go": "1c0c84ebd94bc56eba2675c270a9d76888ecb71573846f4ae35f7b59322277a1",
+      "cmd/wallet-launcher/main_test.go": "a4aaef72d15e8b8f927f0b6756f78e10db90e6bfc417d996e6a30951c94a532d",
+      "cmd/wallet-launcher/pdeath_test.go": "3e0325c5d8613e8c286cebee3e24b9494947eca71b0b2cf40f5b37ce4955deff",
+      "cmd/wallet-launcher/stderr_filter.go": "21dc24056d6f6bc9d8571e95f4e3c160696522b6c2e372d6c5d8e14eb586c92f",
+      "cmd/wallet-launcher/stderr_filter_test.go": "516b6bdd0f20f58a0c6cd07521457862ed5235103b25e7b36e5932d0a83e3c6c",
+      "cmd/wallet-launcher/stderr_process.go": "3f639eb55f79945797139a3b571df1dce00cd4de1c594b23e361874f208ba843",
+      "cmd/wallet-launcher/stderr_process_test.go": "ab26f73f1c7329400b6c0bd99ae6ddc7578f7671c438bf6eb915705fe7ca1fce",
+      "cmd/wallet-launcher/version_test.go": "6d334314c87ba140b8b6c5580a449e1cb36f9005fa59c54a16ac9b1bda8ac3e1",
+      "cmd/wallet-signer/errors.go": "8650aa371cfddf1e66fa2c26ded771bfee3b12c901257904b1effbd13da78185",
+      "cmd/wallet-signer/errors_test.go": "748f54b51fc532a50800bd691a583ce38395b9bcd07d4d3aed592824513945e1",
+      "cmd/wallet-signer/exchange.go": "a59231fdae18caa21208c22f8cc5162085b8c83521310129413206dbec122822",
+      "cmd/wallet-signer/exchange_test.go": "2f6b90e8cac938abf88f2fcb8ce14c0b72153720b8596913c7af14005bcacae1",
+      "cmd/wallet-signer/main.go": "351b94d7decc66d91de4fcc65e9b593a0c41156830d66d0eff5d7c3528c44241",
+      "cmd/wallet-signer/main_test.go": "3fb3d3138078e1df9a173dcb7f741e99ed99ab68a85cc0bf0309d58be1a3d564",
+      "cmd/wallet-signer/prompt_test.go": "a2d3c7a0feb0bd5f64efbf47b25d2349201f7a5d24e85206208e48c9df70a249",
+      "cmd/wallet-signer/public_pages_test.go": "128e83e6adad15eb4b6618413d65e7f774512303e7c6691c0f12998a3ef2f0ce",
+      "cmd/wallet-signer/version_test.go": "79754fe236875d176c6bc6b56de935dc23a2f40e6f1fe348a4b23aded49c38a0",
+      "go.mod": "66139c41fc8f6ffa10da02609f6efcaaf480691669e0f62327a1c91342abdb7b",
+      "go.sum": "0d1121b965162a4493b5ba7ed5dd430b43f177e051792ef7bf8e1a1dec75b204",
+      "internal/amount/amount.go": "1dc0c1084827aee26b9e95c820397b65f4db6daeaa3d31e0a105858038607636",
+      "internal/amount/amount_test.go": "a09599ddc8e814dd6f6871c5db59e53e3e9a3577566f7f09f68fe848e198c0cc",
+      "internal/buildinfo/version.go": "925bf6244a300a7bd9382980df899150289e5ff3b1e58f02b34c303c89ff2883",
+      "internal/chains/aptos/adversarial_test.go": "d0c43092a77ce46260814685361d965b03b508350a9984201af8ceeb450fbcf1",
+      "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
+      "internal/chains/aptos/aptos_test.go": "45b5e50d768f85581e2604c89a58c5ec1b29c356d127945918205727968da091",
+      "internal/chains/aptos/history.go": "ab4074949c3a5edf577705951ce35ba6fa24038f016ea15c90a9a054ec7c141d",
+      "internal/chains/aptos/history_test.go": "f49c33f2028377a1fdff2f2a028bd107c348c4149327741a246d7b8050636cee",
+      "internal/chains/chainutil/util.go": "0336be3e7a95c619f02524209501a66838bf7416795b26dac923df2c498ab88a",
+      "internal/chains/chainutil/util_test.go": "88e5c64cbaa34afba3c3eb0bd2118af314ca76b04cfa784d34d603179e504598",
+      "internal/chains/decred/adverse_test.go": "41c9a3840833675315f1ffd249e0bf8ba69393edecf58e458bba4eff80d53dfe",
+      "internal/chains/decred/codec_hazards_test.go": "1eec4b5f515bd91717b25d3aa3b3099d2cec7d61062fcfb96fd8216a4e2800fd",
+      "internal/chains/decred/decred.go": "da7ca49a095ad6fe251b11a3915001f1a9ff34b62b0af5951d608f7015db267c",
+      "internal/chains/decred/decred_test.go": "b734d9443caf7bf30129d90038bf43fd8d66e5ab8d18a01b24fc1009a06fc0da",
+      "internal/chains/decred/discovery_budget_test.go": "af2c1045d80decf57dfd1f1b3307ba22bbe0ae2543bf3beb989a29fcbc5476f3",
+      "internal/chains/decred/mainnet_metadata_test.go": "f6b7d98db72c343b943aff775808c21f1352cbd047776dd455a1fff801966ac2",
+      "internal/chains/decred/maturity_test.go": "c69bc1990993b30b8f508891d4e712e4572009fe5598a3c244df22d910c2d409",
+      "internal/chains/decred/node_hazards_test.go": "0372da995ff27ef4b577dad494a69a4484c57401760b62708c1d2209b9e3d872",
+      "internal/chains/decred/public_report.go": "2c9fd7004503390ef346d375c0fe0a8a1a7d039f084eb199e535a18d02cd4f1e",
+      "internal/chains/decred/public_report_test.go": "9685d11021b6553280079afbb8e75492d4e389b428b2a0d2484f80e234839063",
+      "internal/chains/decred/sync.go": "9988e85c8256ac9cbe468de276a58926d8dbff8c4394c896c951c8f291823aa5",
+      "internal/chains/decred/wire_bounds.go": "4d0625f72e887404b82bc94ed7286565555df012021798663beb3e1f43089fd3",
+      "internal/chains/decred/wire_bounds_test.go": "da8a37525e9707535dbc13798c373872da7dc0f01f74c9ad9fbfdb05fec14cb9",
+      "internal/chains/evm/adapter.go": "157a9b72ed56823149b5ae44b23b02bc97018f67aa4ec8f17c78c7a70fe9bdc3",
+      "internal/chains/evm/adapter_test.go": "e88c011a2a519c4d100d6246131295b196d9d73e880194c2cadd2c74322af8b4",
+      "internal/chains/evm/adversarial_test.go": "dfb972780faf2e7f542eae6af4908d84c71dd4abe267165442aed1b4fa842784",
+      "internal/chains/evm/history.go": "8a7ed5bf24b36425912a3172673455758ea109e0dcc267a6f6fd939310869fca",
+      "internal/chains/evm/history_test.go": "3507c63e8f6c7761779494a7aa952184629b8750c1edaa79e59de609ba22fb71",
+      "internal/chains/evm/integration_test.go": "db96c9bbf31c99457422507a15fbccbe1cdbd9562cc77b42d37c531559d6a863",
+      "internal/chains/evm/keys.go": "1083e6b7f3ba3ae783db1e244f5be8a35a87072ab485d682568cf8d421b7153e",
+      "internal/chains/evm/keys_test.go": "e867953114999db3f99300763c47e5a990d7e87114a1d9fa1514dc09513d9299",
+      "internal/chains/evm/registry.go": "e39f4508d9bf3aa9efff835e6edc008998af6a5a8239debc96fdd979111fd62f",
+      "internal/chains/evm/rpc.go": "4f6bacd119a3cd6371f8a2f5b46baf4746e2a97ff700e4f4396c6f2cd6e9882d",
+      "internal/chains/evm/usdt_test.go": "126e06df4f7c4d8540d7429750828a3c23d6dcd8fd43b685f83e1091b28078ec",
+      "internal/chains/hypercore/activation_test.go": "e01addafde1b633243b1ad01ed6536b751ea5f7ee0a8ab31982ed693657ec605",
+      "internal/chains/hypercore/adapter.go": "07953904ef1e6854afb304acb0e8a589fab8053c36475fc637878ee5a7b7eeaf",
+      "internal/chains/hypercore/adapter_test.go": "d3f82a71d944ee7d1e152ce969d12efe4234dba0cd10ee86ae836f64217cdfb3",
+      "internal/chains/hypercore/adversarial_test.go": "ae90747ae383562fad5999fbf92a2e39444fe6ffb03d401945a8d1964134541a",
+      "internal/chains/hypercore/history.go": "3740d848498dfd337e7f5dfcbed038883cc40086826beed9b430b32a25c0aa2c",
+      "internal/chains/hypercore/history_test.go": "69e473f6d1042755453062afa21f2c48369f65abf0482cc69c730e55e57e7ea5",
+      "internal/chains/hypercore/keys.go": "fe30d0b9766c669de05d878fac3626ad85e7ea06ee81e5288a2f4d2907bc3c71",
+      "internal/chains/hypercore/keys_test.go": "1b9ba974ec7dfe1a13da44e193c25bd8f916d402514c608a03aac5617d8bfd8b",
+      "internal/chains/hypercore/pagination.go": "682950892a05a01849bddd3b1a0e6c5f8e30958bd76ecfd621938ee2bcba8e78",
+      "internal/chains/hypercore/pagination_test.go": "82a15d595d1966dbb69f6a98516f045181c6a8c88b9d040729678973c2f365fa",
+      "internal/chains/near/adversarial_test.go": "1b16a9617cc596d831bd73b452a1ff6e5ae41e669cf47e51f7f9a38e23d8f512",
+      "internal/chains/near/balance.go": "20e2fa935c0451669f0e7022a687cd0828c5b3ab0199fcd0f580a28634581b1b",
+      "internal/chains/near/balance_test.go": "34401ea5f987f6382f932eb1ca8531774675b98a93cda45256a07f47db325fff",
+      "internal/chains/near/history.go": "f3048c0fa60915d1519d0582893a112d6914bbf2da38aea151e0b78bd8f9f00e",
+      "internal/chains/near/history_test.go": "ec99c766cfca01e5fcdaa38ca1d287807576bb757406decba0de33f95b7508eb",
+      "internal/chains/near/near.go": "130338ac7e41d4d903f49cc567de91ccc67e67b2ef52fa1cb080c7397c283c43",
+      "internal/chains/near/near_test.go": "99efd7dd062571a0ff1663d1fa4d5fad6d5bff401926f150becc2979a7a21443",
+      "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
+      "internal/chains/ton/adverse_test.go": "f2940bd56f98be4c730a997c8f657585e468dec2012e5c9065efb48b1fea4a5f",
+      "internal/chains/ton/archival.go": "07e433acaf341e5a06462ea405b56d9584d9f76bec1ce3de58fd593a9e9c3feb",
+      "internal/chains/ton/archival_test.go": "697f88ec0398ee0fe1e1a1cb4c716a73959cf382b6a0bab33e4aab807097f0bf",
+      "internal/chains/ton/archive_hazards_test.go": "eeb961f7bba8e440b6c4054b44d3bb0a6d66c068b176a738af3d50125bb8922e",
+      "internal/chains/ton/history.go": "54fe27fc1aa0301773c6b47770c43ea62d2b1079727c1a7528f64f2a325626e8",
+      "internal/chains/ton/history_test.go": "b5f35d08f02c624f1b8564d4bb6e663836029c078778e79e1edddd466febd284",
+      "internal/chains/ton/network.go": "6de94db4f6c10a1da7398d494e4e01dee634cf72abc42e60077373419e799ecb",
+      "internal/chains/ton/network_hazards_test.go": "4fdf4da4c2c6d4cbb75d3c49b211c4a93370dcd3edbc1b2e41d5fe69a7b34695",
+      "internal/chains/ton/pacing.go": "f3cf4a9eef8222bb708897a74ef367386e55082889ab2992d66d2fd3a842be1d",
+      "internal/chains/ton/pacing_test.go": "deb6fe77368f40df84bb18f3bf292de4099b99cc158a66deb66c019cfca6f6ff",
+      "internal/chains/ton/receipts_test.go": "11c9ef2edb6e72ea11ff50df3d3ff1e29fb8e221083297583a0220cdfec9f441",
+      "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed",
+      "internal/chains/ton/ton_test.go": "363360142b762397a53aa3c8fd2e8ab6f052840739dd0aad8c7fe2ef1f1add1d",
+      "internal/derivation/derivation.go": "23ffa394be093455096a4a7a4d671574c206b11deda9ca07052ec73f44a59293",
+      "internal/derivation/derivation_test.go": "ba2a749933fcea40577988f1f6107280899a700ce3928d76e7370fc5c03e7cd5",
+      "internal/derivation/oracle_test.go": "6c40b65ae297c74eb80c43ef3bc08a12ab876cbd50647ec7420f071d7208512b",
+      "internal/derivation/phrase_test.go": "dbd93bb1d59bf7627c407a7dd34baf7f1f93c4e32e9fb564f3f8c905070366b3",
+      "internal/exchange/bybit/beneficiary.go": "1e7f42e2cb3d9333fdbf70880474fe80bb7630207ed847ab4adbec0dcbfc05eb",
+      "internal/exchange/bybit/beneficiary_test.go": "dc3515e4a3bee57cf1a2b9bcf008661bb0570335a354c3c1b77085bdc9207b80",
+      "internal/exchange/bybit/client.go": "d77a2c11fbf037fdd962aff81e9f92fdabdfcc83e6f44316b9a38cb6a6ffe68c",
+      "internal/exchange/bybit/client_test.go": "63589ba3cfa407b8d345f9a77e3973a3a9116694db16030ee5b139130036dc3d",
+      "internal/exchange/bybit/fees.go": "05e3331bd6b8f2f11afaab96aaa816b5d32d7a7f145e8bdd60405e577b423a99",
+      "internal/exchange/bybit/fees_test.go": "a889f0bc4e2a0b303183b1e01f01c644bd775e819b8b127ac0f093fca2582e22",
+      "internal/exchange/bybit/types.go": "e4763e601e11b650ba420560f1537cfdb7f95e7b5f4f4de44cf97ae47e844072",
+      "internal/exchange/bybit/validation.go": "85cec1f41704b9e82f58a732af78f644e2062b677ef1cfa96bdcb49c1c4da17d",
+      "internal/exchange/bybit/validation_test.go": "0a75d0203b0f7902228be5f62c586532dfdfb8c18a3a083318b9748a98690c75",
+      "internal/exchange/routes.go": "d076a1d4d2a94cb4bf0de5dab653aebadee281fb605cf0c39b2d46067784a3b2",
+      "internal/exchange/routes_test.go": "e857aca5056018ea202fcca588cdaa024fcbaf6fe88458ae38115688b421b719",
+      "internal/ipc/errors.go": "a1ee54d0a2c5120413211b40a607770e75b2500d46d87c96794ac8bd85303d45",
+      "internal/ipc/errors_test.go": "fdbe8392492ca15735912f68d31a30d10be65e892f36c43ec06a1e6be4928b9d",
+      "internal/ipc/frame.go": "708eae48599c80425332aabb2a2cc2f641427fa50dbf167e254aefb3a39b2d63",
+      "internal/ipc/frame_test.go": "70c998c75025da7668d9a1700f619bd64f7b7107dbc592a45c9f56cb7c5bba61",
+      "internal/isolation/isolation_linux.go": "8a43ed6f5e5339b8900f36aa7741eea559cb9deae66b001b4143e6e127423082",
+      "internal/isolation/isolation_test.go": "225a9e6ac19ee2e5174e299ecd6671a51fee4470b2babd8deb7e975adc4a52aa",
+      "internal/isolation/memory_test.go": "1de578525d2fcb5be014b41aacd14de97ac93195ab1c5977b2a0d1e3d520ec72",
+      "internal/isolation/selfcheck_linux_amd64_test.go": "7c442dfd072756d54783f3129cec2c5ac8a18fbdbd3668609468290d4916ad21",
+      "internal/journal/journal.go": "b054624918cf87f3da8e671b0c0b9d41f122698ad983edc384ed2fb99fa01224",
+      "internal/journal/journal_test.go": "3561ae6a5044c7852b67112f275ae698aefdf2a353d4cd2dc0f7135e0fef9dc6",
+      "internal/model/model.go": "1a2ab6cd483b0c4be71b070ca35a023ce1f4fa64b9d7d051c77b45a8e928d606",
+      "internal/qr/boundaries_test.go": "923362b654d950c2b476ddcb08206c55c1dd27df2f5b5d1ab49222512fa83fd8",
+      "internal/qr/qr.go": "1f78ea230e131cb7ad96d4f30d5cd3f8b72b97394e66e8bff9d528978ffa30b8",
+      "internal/qr/qr_test.go": "11426badc75c3bd7e234558bbad7e5bd99f0a70889c2e3af2c68b5fa6a3e6339",
+      "internal/secureui/activity.go": "66b9cccb7ad1ac7ed81cb3622ff9ec1eb66b7dd5707a007c3ccb325a7daf59e2",
+      "internal/secureui/activity_automation_test.go": "f7542af773d2f5286aca13645559d38f2a74432db1a40f6a362bd61352fbc9b9",
+      "internal/secureui/activity_test.go": "eaac5dd12fafcfa1c9b0b8b47455114b46e7033be34f2fec3c18a84c921c7ac2",
+      "internal/secureui/automation.go": "d6c2e4ae3f09b9a972fd962ec2cde44c40f5d93a677cf6f81966370b899cbd55",
+      "internal/secureui/automation_test.go": "0b89d5bab99dd703149ed9804b1491f24c06466c446a42fbf23bdf299d9732dd",
+      "internal/secureui/boundaries_automation_test.go": "2731f0899eed1bdf4bafeb7c24ec946ce57d4ea43e983414055080392db25000",
+      "internal/secureui/long_activity_automation_test.go": "8a3eac6c0a50f20fe455969525b12343336aaa621721c496efa5e81003f20b24",
+      "internal/secureui/native.go": "53ab969bf1e3ca1831e393e5df261a4fda55196fa1cc31cd3d3870279339a377",
+      "internal/secureui/recovery_automation.go": "4c370247e5118bc2b23bb9db57381c290ab8285e5ff3b5ffb1bf128b8126a8fe",
+      "internal/secureui/recovery_automation_test.go": "12c50d8ac45e3df947f4bc329a1236b669ad02c0846e48e93792e0a6daafa88d",
+      "internal/secureui/ui.go": "b4c10c493704ea3327a689408ee511220f77825f745599176792ab5c8b09a4ad",
+      "internal/signer/accounts_test.go": "a31684cd038c08af30e190948dbce1919115b1fa7ef2543a9aa60d76fb1ef4d0",
+      "internal/signer/adversarial_test.go": "65e8f60ad73de1f73e215b57ee37e6db01b6d1f7489bc7f2c1fa5b8666d5b338",
+      "internal/signer/cancel_review_test.go": "b29af0fb678eeb194b88e2a1417523b9cc79039725a54819dc6827fc4c858fdc",
+      "internal/signer/engine.go": "08c4f30a8114129c3baf9eacdb031d9506107f27b6fc0e29d12e32fc79d5b463",
+      "internal/signer/engine_public.go": "3ffa58b61f822c52de2f3e4604f471a10726851bad30c58686f0dc399471822b",
+      "internal/signer/engine_public_test.go": "634bb75a375d2ea4c7a0788255293a3352b8e39a47bce4b6f74a450eaab61bdb",
+      "internal/signer/engine_test.go": "d20adba59cfb11f4f57b2b1416fc46d8e38ccc012c74690b1ef19099dee8929e",
+      "internal/signer/environment_review_test.go": "e18cc84bffb0c6c145c5f55d12b6fc03a5a532993f699e5df65bb82b330ddfae",
+      "internal/signer/errors.go": "d069a5602d44bd2b50cf52c4498145918bb798050a5346bd44277d737fa50c81",
+      "internal/signer/exchange.go": "a06be7b1aedd6c0130bc8a6e00f3367acd2fa2828042f365445e71fea2ce7530",
+      "internal/signer/exchange_beneficiary.go": "1d5827f7ea7cf2a29ba9a3faaad8d8537154a65958123ca220ca60af932f9743",
+      "internal/signer/exchange_beneficiary_test.go": "6041ee748287b69dd010e1c47c1b2a341ef35c829914542c2446d87831b7c591",
+      "internal/signer/exchange_test.go": "b33f590cba5b5263c781d32e1b1b626b822391a109a91817e2ad17b7c96b5f85",
+      "internal/signer/feedback_test.go": "4852944d94bdaa3235e22b121b59cc35f8b5c6d386c71bc2ddcc03f66733b557",
+      "internal/signer/legacy_file_recovery_test.go": "27109da09d7d253c329fc307a8ce488882bec913f28e4d948a2661192b5710cc",
+      "internal/signer/mainnet_authorization_test.go": "c9d10e22f2df28da36da487befa5dbde2d6e2de514d4cdc56604decaa1f8ee73",
+      "internal/signer/mainnet_profile_test.go": "a55af96d5525d2a6448941b275e2f138acd816cf764126c019e808934672c8ba",
+      "internal/signer/maturity_notice_test.go": "05f0d0d67c13fd3547bcc9cdbe05bfcfabb6124618412869e1c96fe1e81f4ae2",
+      "internal/signer/phrase_recovery_test.go": "06fe7241689de1a9e4ce449f7131f0e6d0b42d3311de567053f4d33f0c03b42e",
+      "internal/signer/presence_test.go": "3fcf3627bfda4bf5f96d8221810a5e340c2f74db0e89df74735d59ab3ac3aa0b",
+      "internal/signer/receive_copy_test.go": "28cfaa23eb50cdd5f13c169f62be9c5868c55e390eb5b92e31fc100a3dcdf4db",
+      "internal/signer/receive_guidance_review_test.go": "1b1bd598832f04152c3f6c6cd17c30fbc49118ba1abd13730ad86fa3d43da129",
+      "internal/signer/review_test.go": "c3c0bb6c0930080696efafe5ac29ca79928601abd9b2e1967b3d7cb46c0e2904",
+      "internal/strictjson/json.go": "d9d83b5ab8ae5d76f5282f92060ce20a8b68c79683b741c2cd279237a1dfd86f",
+      "internal/strictjson/json_test.go": "12126ea404e59efebf765dab4cdaafe90d8f06417d38d6779d49d6a1d8790c7c",
+      "internal/strictjson/text.go": "6d48cbb333ccc9d3070fc3a2123f9c986be877ffea02270283412338710bfaf3",
+      "internal/strictjson/text_test.go": "bcbe2cee55c9385ee0b51b40dd1d6da684ed016ee7d8f80184c2c3213d486545",
+      "internal/supervisor/child.go": "ad3ec120aadc1ef0d83a9e6a32cbe1a94c626a67c1f339cf2be2a0b2b05e84a7",
+      "internal/supervisor/child_test.go": "87b3b89e62a0f9688b53b7a48ef926a9abc68d3cb7eb29e11ef484023438c89e",
+      "internal/supervisor/parentdeath_test.go": "a06c141276530216b5169d1b6a17d5608a8ee3a30f13d88a5760e069f7dad02d",
+      "internal/supervisor/prompt_test.go": "416e69c5d2b5c50cd230ca1122461ae72f211dd0b4934b462bb6fdcf5347eab2",
+      "internal/supervisor/thread_owner_test.go": "8a2a116ad20395820a84d4a58d2f732dae8cb2c60c3a3abaf2a3bbc177b541d4",
+      "internal/uiprompt/prompt.go": "aca10866d2bfdcdfa2bf0fa8cb283c5610f97e2a4893f4a806020e76646457d9",
+      "internal/uiprompt/prompt_test.go": "9b1eb89749bf0a7767a509515a1bacd1ed8daa6da7efab7bc47977e68c76fa5a",
+      "internal/vault/adversarial_test.go": "b287662647df57f629c8499b7af8bd50dac7ce111d7170bd6fc5af6fdcff2b6a",
+      "internal/vault/backup.go": "858ad8d50207a11370337e8cf30df878bf027cb5c916a86b4c05feaac0449ee5",
+      "internal/vault/backup_test.go": "b20191ed5308635f064b11f092252a2f47bd6f7b3fb2f07bce208e2f840c753a",
+      "internal/vault/data.go": "77574ea092f891a8a149331239696acd16f897339ef9ec9814ae083b5186e590",
+      "internal/vault/envelope.go": "eef6fa8db52bca76841f52c1f11359c83377ceba88925c9c505a88e5ccf991b5",
+      "internal/vault/exchange.go": "63c3e02ea590d2697dc3a79f1e8ccce10d76c72db43f21359086616eb35dbd47",
+      "internal/vault/exchange_test.go": "4e5d79b726570219d1ded81a2169ef0b0ae43f8bc3ca0a31abbf652724b6d1a6",
+      "internal/vault/files.go": "911698b1cce8a0df649cd718000e3329d19ce7c835bc48321cf899fda974e340",
+      "internal/vault/presence_test.go": "953d094c3883374468578c31241182378cf367cd630985acc74ee96276fcfe55",
+      "internal/vault/vault_test.go": "f0132242b67ce48366faea4be73b0133e18fe6df1a012b842b369533e322c71b",
+      "tests/oracles/decred/main.go": "f4c6779b99e714fc36ae801587e69621bfed3b9e3f346152f32c4eee3c39dafd",
+      "tests/stress/lifecycle_test.go": "266ec0ea0ed1ca7a3c80f58d7cc022f9b9ef5ae9e2cb73278895cd4a328a37b6",
+      "tests/stress/nodes_test.go": "e700a22cecd3bb7d23056f22c6002628a21a02f4409d8bd39d7f476662dc6e35",
+      "tests/stress/race_disabled_test.go": "468f30ebb556214e987f1b4cde5c0aad5730fa83e374b3aca6462e84b8a09d23",
+      "tests/stress/race_enabled_test.go": "4a3d2aa21cc702d918084871b056ded41619ceb8bb1b55fbeaf3739113d73142",
+      "tests/stress/resources_test.go": "b3c010c19c99d41e7d384070f7cf2b1e6a9d77d47ba26557935c5c23d76ebb22",
+      "tests/stress/scheduling_test.go": "b79df83a936ae5793246c56a8b407eebcd6c83087e48e074d1b351fdf177bc4c",
+      "tests/stress/stress_test.go": "a7f9b112affb4fe4d8eaf7113b0eac8b7afac2a882c1de86b40c48fa9e867356"
+    },
+    "aggregateStatus": "FAIL",
+    "reportSHA256": "28c57da900a907061408abd8af3f1e42b2b90f0a1122d8c4b1bdf7584682cf5d",
+    "packageTests": "PASS",
+    "coverageFloors": "PASS",
+    "gates": [
+      {
+        "gate": "decred-simnet",
+        "status": "BLOCKED",
+        "reason": "Pinned dcrd v1.10.9 executable unavailable; install under .tools/dcrd or set WALLET_DCRD"
+      },
+      {
+        "gate": "ton-v5r1-emulator",
+        "status": "PASS",
+        "source": "@ton/sandbox 0.45.0"
+      },
+      {
+        "gate": "usdt-evm-execution",
+        "status": "PASS",
+        "source": "Pinned public USDT runtime; ethers 6.17.0 / Ganache 7.9.2"
+      }
+    ],
+    "explicitAggregateSkips": 9,
+    "reuse": "Entire 192-file source/test/module snapshot exactly unchanged. Full Go coverage, native, TON emulator and USDT campaigns were not rerun wholesale for this frontend-only change. Aggregate remains FAIL: required pinned dcrd unavailable."
+  },
+  "attempts": [
+    {
+      "status": "FAIL",
+      "log": "wallet-status-components-first.log",
+      "reason": "Two new tests incorrectly expected Locked text for an address that is deliberately cleared on lock; corrected to assert empty text and removed tooltip."
+    },
+    {
+      "status": "PASS",
+      "log": "wallet-status-coverage-before-notice.log",
+      "scope": "Earlier 141-test source before informational-notice routing; historical only."
+    },
+    {
+      "status": "PASS",
+      "log": "wallet-status-coverage-before-attribution.log",
+      "scope": "147 tests and unchanged floors passed, main measured97.98% statements because new VM test execution omitted canonical filenames; filename attribution corrected without changing floors."
+    },
+    {
+      "status": "PASS",
+      "log": "wallet-status-coverage-before-pending-fix.log",
+      "scope": "147-test source before actual packaged pending-root regression; does not establish final-candidate correctness."
+    },
+    {
+      "status": "FAIL",
+      "report": "wallet-status-packaged-attempt1.json",
+      "sha256": "01a4b0f57bc396d692311873783cbf11fee351afc7feb94829046e58ae8a2893",
+      "reason": "Real Go wrong-word setup can successfully persist a pending root; initial notice routing incorrectly displayed completion. Fixed main final-success handling and renderer pending-root refresh, with new positive/negative regressions."
+    },
+    {
+      "status": "FAIL",
+      "log": "wallet-status-coverage-first-pending-fix.log",
+      "reason": "Old shared error test assumed one IPC call; exact mismatch now requires accounts/networks refresh. Updated to require those precise calls and retain one call for all other categories."
+    },
+    {
+      "status": "FAIL",
+      "report": "wallet-status-packaged-attempt2.json",
+      "sha256": "5ad5710e2c85ee3af86eb3615b1a79720cd2d56e13ed9648c2e13bb087ef84c7",
+      "reason": "Public-pixel OCR split a fully displayed Ethereum address into tokens; driver corrected to compare the complete independent address without changing production code or dropping assertions."
+    },
+    {
+      "status": "FAIL",
+      "report": "wallet-status-packaged-attempt3.json",
+      "sha256": "11dae18c6867463b2fec763f6384983c4ca2912527c7ad90ed6d0af1f98846b2",
+      "reason": "OCR grouping included copy-icon text and omitted a one-character address fragment; refined pixel-region grouping retains exact full-address equality, with no production change."
+    }
+  ],
+  "livePrivateBybitAcceptance": "NOT_RUN",
+  "mainnetFundMovement": "NOT_RUN",
+  "liveDecredMainnetBalance": "NOT_RUN",
+  "fullUbuntuWaylandLifecycleMatrix": "NOT_RUN",
+  "allChain24HourSoak": "NOT_RUN",
+  "independentReview": "NOT_RUN",
+  "productionReadiness": "INCOMPLETE",
+  "completedAt": 1792947939
+}

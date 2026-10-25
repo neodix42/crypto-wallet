@@ -1,5 +1,7 @@
 # NEAR and Decred balance connectivity
 
+The balance-adapter evidence below describes the 2026-10-25 balance candidate. The later [status-bar and wallet presentation update](WALLET_STATUS.md) keeps the backend checks and moves observation metadata into tooltips; current frontend/artifact evidence is recorded separately.
+
 The same former generic error concealed different conditions: NEAR can report that a freshly derived implicit account does not exist on chain, while Decred requires a configured authenticated node and an explicit complete discovery range. A failure never establishes a zero balance.
 
 ## NEAR: an uncreated implicit account
@@ -14,7 +16,7 @@ The default remains `https://rpc.mainnet.near.org`. This fix does not rewrite sa
 
 ## Decred: configure a trusted node and discovery range
 
-An unconfigured Decred wallet now displays **Connection required — configure an authenticated TLS dcrd node. Balance unknown.** in both the account overview and wallet page, and skips the unavailable balance RPC. Once configured, a failed query remains unavailable; configuring a URL does not establish a balance.
+An unconfigured Decred wallet displays **Connection required** in both the account overview and wallet page, with **configure an authenticated TLS dcrd node; balance unknown** guidance on hover, and skips the unavailable balance RPC. Once configured, a failed query remains unavailable; configuring a URL does not establish a balance.
 
 Follow the [complete setup steps](MAINNET.md#decred-trusted-node-setup): use a synchronized mainnet `dcrd` on HTTPS, normally port **9109**, with HTTP Basic username/password credentials and a matching OS-trusted TLS certificate. Limited RPC credentials suffice for balance. A stock node's self-signed certificate needs deliberately verified trust configuration; this wallet has no custom-CA picker or skip-verification option. Enter credentials only in **Configure trusted RPC**. Neither `dcrwallet` nor importing wallet secrets into the node is required. Official references: [node setup](https://docs.decred.org/wallets/cli/dcrd-setup/), [RPC options](https://docs.decred.org/wallets/cli/dcrd-and-dcrwallet-cli-arguments/) and [limited RPC methods](https://github.com/decred/dcrd/blob/master/docs/json_rpc_api.mediawiki).
 

@@ -9,8 +9,9 @@ let exchangeOpen = false, exchangeEpoch = 0, exchangeQuoteEpoch = 0, exchangeWit
 let exchangeBusy = false, exchangeConnected = false, exchangeMarket, exchangeWithdrawal, exchangeOperations = [];
 let settingsOpen = false, settingsSection = 'wallet', notificationReturnFocus;
 const rowBalances = new Map(), balanceQueue = [];
+const walletAssets = new Map();
 const decredConnectionRequired = 'Connection required — configure an authenticated TLS dcrd node. Balance unknown.';
-const nativeResultMethods = new Set(['send', 'scanQR']);
+const nativeResultMethods = new Set(['send']);
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
 function showStatus(message) {
   show('message', message); $('message').hidden = false; $('notifications').hidden = false;
@@ -32,6 +33,7 @@ const operationErrors = Object.freeze({
   INPUT_TOO_LONG: 'An input exceeds 4,096 UTF-8 bytes. Shorten it in the wallet dialog.',
   PASSWORD_MISMATCH: 'The passwords did not match. Enter the same app password in both password fields and try again.',
   INVALID_MNEMONIC: 'Enter a valid English BIP39 recovery phrase (12, 15, 18, 21 or 24 words) in the wallet dialog. A new wallet generates its phrase automatically.',
+  RECOVERY_WORDS_MISMATCH: 'The recorded recovery words did not match. Record the complete phrase in order, then try again. Your wallet remains unavailable for payments until this is complete.',
   REQUEST_CANCELLED: 'Request cancelled. Check the wallet state before retrying.',
   REQUEST_FAILED_STATE_UNKNOWN: 'Request failed or is unavailable. Balance is unknown until verified; reconcile any pending payment before retrying.'
 });
@@ -67,6 +69,7 @@ function clearLocked() {
   const retainError = vaultMode !== 'ready' && !$('operationerror').hidden;
   viewEpoch++; sessionEpoch++; journalEpoch++; resetChainHistory(); resetJournalPages();
   rowBalances.clear(); balanceQueue.length = 0; closeReceiveRecovery();
+  walletAssets.clear();
   if (!retainError) clearOperationError();
   if (vaultMode === 'ready') vaultMode = 'present';
   accounts = []; networks = []; operations = []; balances = []; walletTabs = []; activeWalletID = ''; activeIndex = 0; prepared = undefined;
@@ -75,7 +78,9 @@ function clearLocked() {
   $('journalaccount').replaceChildren(); $('journalasset').replaceChildren();
   settingsOpen = false; settingsSection = 'wallet';
   $('walletpage').hidden = true; $('accountoverview').hidden = false; $('sendpanel').hidden = true;
-  for (const id of ['wallettitle', 'walletsubtitle', 'gasbalance', 'connectionstatus']) show(id, '');
+  for (const id of ['wallettitle', 'walletsubtitle', 'walletaddress', 'amountunit', 'gasbalance', 'connectionstatus']) show(id, '');
+  $('walletassets').replaceChildren(); $('copywalletaddress').disabled = true;
+  for (const id of ['walletaddress', 'balance', 'gasbalance']) $(id).removeAttribute('title');
   $('address').removeAttribute('title');
   $('recoverycallout').hidden = true; show('recoverystatus', 'Locked');
   $('send').disabled = true;
@@ -161,7 +166,7 @@ function openExchange() {
   leaveSettings();
   exchangeOpen = true; exchangeEpoch++; activeWalletID = '';
   if ($('exchangeresult').textContent === 'Locked') show('exchangeresult', 'No exchange action requested.');
-  select(); renderTabs(); renderView(); $('exchangetitle').focus(); renderExchangeControls();
+  select(); renderTabs(); renderView(); focusActiveTab(); renderExchangeControls();
   return run(refreshExchangeState, true);
 }
 function exchangeSelection(withdrawal = false) {
@@ -346,6 +351,7 @@ function closeWallet(id) {
   if (!walletTabs.includes(id)) return;
   const restoreFocus = activeWalletID === id || $('viewtabs').contains(document.activeElement);
   walletTabs = walletTabs.filter(item => item !== id);
+  walletAssets.delete(id);
   if (activeWalletID === id) {
     activeWalletID = '';
     const first = visibleAccounts().find(account => account.index === activeIndex);
@@ -389,17 +395,19 @@ function renderTabs() {
       leaveSettings(); leaveExchange();
       activeWalletID = ''; activeIndex = index;
       const first = visible.find(account => account.index === index); $('account').value = first.id;
-      select(); renderAccountGroups(); renderTabs(); renderView();
+      select(); renderAccountGroups(); renderTabs(); renderView(); focusActiveTab();
     });
   }
   for (const id of walletTabs) {
     const account = visible.find(account => account.id === id), network = networks.find(network => network.id === account.network);
-    tab(`${network?.name || account.network} · ${accountName(account.index)}`, !settingsOpen && !exchangeOpen && activeWalletID === id, 'walletpage', () => openWallet(id), id);
+    const asset = network?.assets.find(asset => asset.id === walletAssets.get(id)) || nativeAsset(network) || network?.assets[0];
+    tab(`${network?.name || account.network}${asset ? ' · ' + asset.symbol : ''} · ${accountName(account.index)}`, !settingsOpen && !exchangeOpen && activeWalletID === id, 'walletpage', () => openWallet(id), id);
   }
   const exchange = tab('Exchange', exchangeOpen, 'exchangepage', openExchange);
   exchange.id = 'exchangetab'; exchange.disabled = vaultMode !== 'ready';
   tab('Settings', settingsOpen, 'settingspage', () => openSettings()).id = 'settings';
 }
+function focusActiveTab() { $('viewtabs').querySelector('[aria-selected="true"]')?.focus(); }
 function copyIcon() {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
@@ -463,8 +471,9 @@ function needsDecredConnection(network) { return network?.family === 'decred' &&
 function renderRowBalance(cell, account) {
   const network = networks.find(network => network.id === account.network), asset = nativeAsset(network), entry = rowBalances.get(account.id);
   const matches = entry?.value.filter(balance => balance?.asset === asset?.id) || [];
-  cell.textContent = needsDecredConnection(network) ? decredConnectionRequired : !asset ? 'Balance unknown — asset unavailable.' : entry?.scope !== balanceScope(account) || entry.status === 'loading' ? `Loading ${asset.symbol}…` : entry.status === 'failed' ? `${asset.symbol} unavailable — connection query failed.` : balanceText(asset, matches.length === 1 ? matches[0] : undefined);
-  cell.title = `${cell.textContent} · ${network?.trust || 'Provider verification required.'}`;
+  const observation = needsDecredConnection(network) ? decredConnectionRequired : !asset ? 'Balance unknown — asset unavailable.' : entry?.scope !== balanceScope(account) || entry.status === 'loading' ? `Loading ${asset.symbol}…` : entry.status === 'failed' ? `${asset.symbol} unavailable — connection query failed.` : balanceText(asset, matches.length === 1 ? matches[0] : undefined);
+  cell.title = `${observation} · ${network?.trust || 'Provider verification required.'}`;
+  cell.textContent = needsDecredConnection(network) ? 'Connection required' : !asset ? 'Unknown' : entry?.scope !== balanceScope(account) || entry.status === 'loading' ? 'Loading…' : entry.status === 'failed' ? 'Unavailable' : balanceAmount(asset, matches.length === 1 ? matches[0] : undefined) ?? 'Unknown';
 }
 function updateRowBalance(account) {
   for (const cell of $('accountgroups').querySelectorAll('.walletbalance')) if (cell.dataset.accountId === account.id) renderRowBalance(cell, account);
@@ -509,7 +518,7 @@ function openWallet(id) {
   leaveSettings(); leaveExchange();
   activeWalletID = id; activeIndex = account.index; $('account').value = id;
   if (!walletTabs.includes(id)) walletTabs.push(id);
-  select(); renderTabs(); renderView(); $('wallettitle').focus();
+  select(); renderTabs(); renderView(); focusActiveTab();
   return run(async () => { await Promise.all([loadBalance(), history()]); }, true);
 }
 async function readAccountPages() {
@@ -550,7 +559,7 @@ async function refresh(queryActive = true) {
   vaultMode = 'ready'; recoveryRequired = state.recoveryConfirmed !== true; renderGate();
   $('walletrecoverynotice').hidden = !recoveryRequired;
   $('receive').disabled = false; $('sendview').disabled = false;
-  for (const id of ['copy', 'saveqr', 'prepare', 'max']) $(id).disabled = recoveryRequired;
+  for (const id of ['copy', 'copywalletaddress', 'saveqr', 'prepare', 'max']) $(id).disabled = recoveryRequired;
   $('sendrecoverynotice').hidden = !recoveryRequired;
   $('recoverycallout').hidden = !recoveryRequired; $('recoverysettings').hidden = !recoveryRequired;
   show('recoverystatus', recoveryRequired ? 'Recovery phrase setup required' : 'Recovery phrase recorded');
@@ -566,8 +575,9 @@ function select() {
   $('asset').replaceChildren();
   show('address', account ? account.address : 'Locked or no account');
   $('address').title = account?.address || '';
+  renderWalletAddress(account);
   balances = []; operations = [];
-  show('balance', 'Balance unknown — query required.'); $('gasbalance').hidden = true;
+  show('balance', 'Balance unknown — query required.'); $('balance').removeAttribute('title'); $('gasbalance').hidden = true;
   show('preview', 'No payment prepared.');
   show('chainhistoryresult', 'History has not been queried.'); $('operations').replaceChildren();
   for (const id of ['recipient', 'amount', 'memo', 'associateaddress']) $(id).value = '';
@@ -577,7 +587,7 @@ function select() {
   show('wallettitle', network?.name || account?.network || 'Network wallet');
   show('walletsubtitle', account ? `${accountName(account.index)} · ${account.network}` : 'No account selected');
   show('connectionstatus', needsDecredConnection(network) ? decredConnectionRequired : network ? `${network.rpc ? 'RPC: ' + network.rpc + ' · ' : ''}${network.trust || 'Provider verification required.'}` : 'Connection details unavailable.');
-  if (needsDecredConnection(network)) show('balance', decredConnectionRequired);
+  if (needsDecredConnection(network)) { show('balance', 'Connection required'); $('balance').title = decredConnectionRequired; }
   loadDiscovery(network?.family === 'decred' ? account : null);
   $('decrednote').hidden = network?.family !== 'decred'; $('dcrdiscoverycontrols').hidden = network?.family !== 'decred';
   $('associationcontrols').hidden = !['near', 'aptos'].includes(network?.family);
@@ -587,7 +597,40 @@ function select() {
     const option = document.createElement('option');
     option.value = asset.id; option.textContent = assetLabel(asset, network); $('asset').append(option);
   }
+  const remembered = walletAssets.get(account?.id), selected = network?.assets.find(asset => asset.id === remembered) || nativeAsset(network) || network?.assets[0];
+  if (selected) { $('asset').value = selected.id; walletAssets.set(account.id, selected.id); }
+  renderWalletAssets();
   populateJournal(account?.id, $('asset').value);
+}
+function renderWalletAddress(account) {
+  show('walletaddress', account?.address || ''); $('walletaddress').title = account?.address || '';
+  $('copywalletaddress').disabled = !account || recoveryRequired;
+}
+function renderWalletAssets() {
+  const account = current(), network = networks.find(network => network.id === account?.network), assets = network?.assets || [];
+  $('walletassets').replaceChildren(); $('walletassets').hidden = assets.length < 2;
+  const asset = assets.find(item => item.id === $('asset').value);
+  if (asset) walletAssets.set(account.id, asset.id);
+  show('wallettitle', `${network?.name || account?.network || 'Network wallet'}${asset ? ' · ' + asset.symbol : ''}`);
+  show('amountunit', asset ? `1 = 1 ${asset.symbol}` : 'Choose a wallet asset.');
+  for (const item of assets) {
+    const button = document.createElement('button');
+    button.textContent = item.symbol; button.dataset.assetId = item.id; button.title = `${assetLabel(item, network)} · ${item.id}`;
+    button.setAttribute('role', 'tab'); button.setAttribute('aria-selected', String(item.id === asset?.id)); button.setAttribute('aria-controls', 'walletassetpanel'); button.tabIndex = item.id === asset?.id ? 0 : -1;
+    button.onclick = () => changeWalletAsset(item.id);
+    button.onkeydown = event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const index = assets.indexOf(item), next = event.key === 'Home' ? 0 : event.key === 'End' ? assets.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : assets.length - 1)) % assets.length;
+      changeWalletAsset(assets[next].id);
+    };
+    $('walletassets').append(button);
+  }
+}
+function changeWalletAsset(id) {
+  if (!activeWalletID || $('asset').value === id) return;
+  $('asset').value = id; $('asset').dispatchEvent(new Event('input'));
+  [...$('walletassets').children].find(button => button.dataset.assetId === id)?.focus();
 }
 function loadDiscovery(account) {
   const parameters = account?.parameters;
@@ -601,30 +644,40 @@ function loadDiscovery(account) {
     $(id).value = Number.isInteger(value) && value >= minimum && value <= maximum ? String(value) : String(fallback);
   }
 }
-function balanceText(asset, balance) {
-  if (!balance || typeof balance.atomic !== 'string' || !/^(0|[1-9][0-9]*)$/.test(balance.atomic) || typeof balance.state !== 'string' || !balance.state || /unknown|unavailable|synchroniz|stale|pending|error|failed|incomplete/i.test(balance.state) || typeof balance.at !== 'string' || !balance.at) return 'Balance unknown — no complete network observation.';
+function balanceAmount(asset, balance) {
+  if (!balance || typeof balance.atomic !== 'string' || !/^(0|[1-9][0-9]*)$/.test(balance.atomic) || typeof balance.state !== 'string' || !balance.state || /unknown|unavailable|synchroniz|stale|pending|error|failed|incomplete/i.test(balance.state) || typeof balance.at !== 'string' || !balance.at) return undefined;
   const padded = balance.atomic.padStart(asset.decimals + 1, '0');
   const value = asset.decimals ? padded.slice(0, -asset.decimals) + '.' + padded.slice(-asset.decimals) : padded;
+  return value.replace(/(\.[0-9]*?)0+$/, '$1').replace(/\.$/, '');
+}
+function balanceText(asset, balance) {
+  const value = balanceAmount(asset, balance);
+  if (value === undefined) return 'Balance unknown — no complete network observation.';
   const state = balance.state === 'NOT_CREATED (final state)' ? 'Account not created (final state) — receive NEAR to activate' : balance.state;
-  return `${value.replace(/(\.[0-9]*?)0+$/, '$1').replace(/\.$/, '')} ${asset.symbol} · ${state} · ${balance.at}`;
+  return `${value} ${asset.symbol} · ${state} · ${balance.at}`;
 }
 function renderBalance() {
   const network = networks.find(network => network.id === current()?.network), asset = network?.assets.find(asset => asset.id === $('asset').value);
-  if (needsDecredConnection(network)) { show('balance', decredConnectionRequired); $('gasbalance').hidden = true; return; }
-  show('balance', asset ? balanceText(asset, balances.find(balance => balance.asset === asset.id)) : 'Balance unknown — no asset selected.');
+  if (needsDecredConnection(network)) { show('balance', 'Connection required'); $('balance').title = decredConnectionRequired; $('gasbalance').hidden = true; return; }
+  const balance = balances.find(balance => balance.asset === asset?.id), value = asset && balanceAmount(asset, balance);
+  show('balance', value === undefined ? 'Balance unknown — no complete network observation.' : `${value} ${asset.symbol}`);
+  $('balance').title = asset ? balanceText(asset, balance) : 'Balance unknown — no asset selected.';
   const gas = network?.assets.find(item => item.id.endsWith(':native'));
   $('gasbalance').hidden = !asset?.contract || !gas;
-  if (asset?.contract && gas) show('gasbalance', `Gas balance: ${balanceText(gas, balances.find(balance => balance.asset === gas.id))}`);
+  if (asset?.contract && gas) {
+    const balance = balances.find(balance => balance.asset === gas.id), value = balanceAmount(gas, balance);
+    show('gasbalance', value === undefined ? 'Gas balance unknown' : `Gas balance: ${value} ${gas.symbol}`); $('gasbalance').title = balanceText(gas, balance);
+  }
 }
 async function loadBalance() {
   const epoch = viewEpoch, session = sessionEpoch, account = current();
   if (needsDecredConnection(networks.find(network => network.id === account?.network))) {
     balances = []; rowBalances.delete(account.id); updateRowBalance(account);
-    show('balance', decredConnectionRequired); $('gasbalance').hidden = true; return;
+    show('balance', 'Connection required'); $('balance').title = decredConnectionRequired; $('gasbalance').hidden = true; return;
   }
   const entry = account && { scope: balanceScope(account), status: 'loading', value: [] };
   if (entry) rowBalances.set(account.id, entry);
-  balances = []; show('balance', 'Balance unknown — querying the selected network…'); $('gasbalance').hidden = true;
+  balances = []; show('balance', 'Balance unknown — querying the selected network…'); $('balance').removeAttribute('title'); $('gasbalance').hidden = true;
   try {
     const value = await window.wallet.balances({ accountId: account?.id || '' }), rows = Array.isArray(value) ? value : [];
     const fresh = accounts.find(item => item.id === account?.id);
@@ -738,7 +791,7 @@ function openSettings(section = 'wallet') {
   closeReceiveRecovery();
   leaveExchange(); settingsOpen = true; viewEpoch++;
   prepared = undefined; $('send').disabled = true; $('sendpanel').hidden = true;
-  renderTabs(); renderView(); $('settingstitle').focus();
+  renderTabs(); renderView(); focusActiveTab();
   return selectSettingsTab(section);
 }
 const settingsSections = ['wallet', 'exchange', 'journal'];
@@ -764,7 +817,18 @@ for (const [id, method, body] of credentialActions) $(id).onclick = async () => 
   closeSettings();
   credentialPending = true;
   for (const [button] of credentialActions) $(button).disabled = true;
-  try { await run(async () => { const epoch = sessionEpoch; await window.wallet[method](body); if (epoch === sessionEpoch) await refresh(); }); }
+  try { await run(async () => {
+    const epoch = sessionEpoch;
+    try { await window.wallet[method](body); }
+    catch (error) {
+      // Go may have durably created a pending root before a wrong-word
+      // challenge. Show that existing wallet before reporting the fixed error;
+      // never offer replacement creation or mistake this for completed setup.
+      if (error?.message === 'RECOVERY_WORDS_MISMATCH' && epoch === sessionEpoch) await refresh(false);
+      throw error;
+    }
+    if (epoch === sessionEpoch) await refresh();
+  }); }
   finally { credentialPending = false; for (const [button] of credentialActions) $(button).disabled = false; void drainBalanceQueue(); }
 };
 $('onboardretry').onclick = () => run(refresh);
@@ -783,7 +847,7 @@ async function receiveWallet(id) {
   // Decred receive index must still refresh the overview after a tab switch.
   if (epoch !== sessionEpoch || !value.account || value.account.id !== id || !accounts.some(account => account.id === id)) return;
   accounts = accounts.map(account => account.id === id ? value.account : account); renderAccountGroups();
-  if (current()?.id === id) { show('address', value.account.address); $('address').title = value.account.address; show('diagnostics', { account: value.account, network: networks.find(network => network.id === value.account.network) }); }
+  if (current()?.id === id) { show('address', value.account.address); $('address').title = value.account.address; renderWalletAddress(value.account); show('diagnostics', { account: value.account, network: networks.find(network => network.id === value.account.network) }); }
   });
 }
 async function nativeAction(action) {
@@ -794,25 +858,20 @@ async function nativeAction(action) {
 function closeReceiveRecovery() {
   const wasOpen = !$('receiverecoverydialog').hidden;
   receiveIntent = undefined; $('receiverecoverydialog').hidden = true;
-  if (wasOpen) { document.querySelector('header').inert = false; document.querySelector('main').inert = false; $('receive').focus(); }
+  if (wasOpen) $('receive').focus();
 }
 $('receive').onclick = () => {
   if (recoveryRequired) {
     closeSettings(); receiveIntent = { id: current()?.id || '', view: viewEpoch, session: sessionEpoch };
     show('receiverecoverycontext', `${$('wallettitle').textContent} · ${accountName(activeIndex)}`);
-    $('receiverecoverydialog').hidden = false; document.querySelector('header').inert = true; document.querySelector('main').inert = true; $('receiverecovery').focus();
+    $('receiverecoverydialog').hidden = false; $('receiverecovery').focus();
     return;
   }
   return run(() => receiveWallet(current()?.id || ''), true);
 };
 $('closereceiverecovery').onclick = () => { closeReceiveRecovery(); void drainBalanceQueue(); };
-$('receiverecoverydialog').onclick = event => { if (event.target === $('receiverecoverydialog')) $('closereceiverecovery').click(); };
 $('receiverecoverydialog').onkeydown = event => {
-  if (event.key === 'Escape') { event.preventDefault(); $('closereceiverecovery').click(); return; }
-  if (event.key !== 'Tab') return;
-  const first = $('closereceiverecovery'), last = $('receiverecovery');
-  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  if (event.key === 'Escape') { event.preventDefault(); $('closereceiverecovery').click(); }
 };
 async function recoveryForWorkflow(receive = false) {
   if (credentialPending || vaultMode !== 'ready' || !recoveryRequired) return;
@@ -829,13 +888,13 @@ async function recoveryForWorkflow(receive = false) {
       await refresh(false);
       if (!unchanged || viewEpoch !== intent.view + 1 || intent.session !== sessionEpoch || activeWalletID !== intent.id || vaultMode !== 'ready') return;
       if (receive && !recoveryRequired) await receiveWallet(intent.id);
-      else if (!receive && sendOpen) { $('sendpanel').hidden = false; if ([...$('asset').options].some(option => option.value === assetID)) $('asset').value = assetID; renderBalance(); populateJournal(intent.id, assetID); ['recipient', 'amount', 'memo'].forEach((id, index) => { $(id).value = draft[index]; }); $('sendheading').focus(); }
+      else if (!receive && sendOpen) { $('sendpanel').hidden = false; if ([...$('asset').options].some(option => option.value === assetID)) $('asset').value = assetID; renderWalletAssets(); renderTabs(); renderBalance(); populateJournal(intent.id, assetID); ['recipient', 'amount', 'memo'].forEach((id, index) => { $(id).value = draft[index]; }); $('recipient').focus(); }
     });
   } finally { credentialPending = false; $('sendrecovery').disabled = false; $('receiverecovery').disabled = false; void drainBalanceQueue(); }
 }
 $('receiverecovery').onclick = () => recoveryForWorkflow(true);
 $('sendrecovery').onclick = () => recoveryForWorkflow();
-$('sendview').onclick = () => { if (!activeWalletID) return; $('sendpanel').hidden = false; $('sendheading').focus(); };
+$('sendview').onclick = () => { if (!activeWalletID) return; $('sendpanel').hidden = false; $('recipient').focus(); };
 $('closesend').onclick = () => {
   viewEpoch++; $('sendpanel').hidden = true; prepared = undefined; $('send').disabled = true;
   for (const id of ['recipient', 'amount', 'memo']) $(id).value = '';
@@ -856,7 +915,7 @@ $('history').onclick = () => run(() => history(), true);
 $('historymore').onclick = () => run(() => history(true), true);
 $('journalaccount').onchange = () => { populateJournalAssets(); return run(history, true); };
 $('journalasset').onchange = () => { journalEpoch++; resetJournalPages(); show('journalcontext', `${accountName(journalAccount().index)} · ${journalAccount().network} · ${$('journalasset').value}`); show('journalresult', 'No journal action requested.'); resetChainHistory(); show('chainhistoryresult', 'History has not been queried for this selection.'); renderHistory(); };
-for (const id of ['recipient', 'amount', 'memo', 'asset']) $(id).addEventListener('input', () => { $('send').disabled = true; prepared = undefined; viewEpoch++; show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.'); if (id === 'asset') { renderBalance(); populateJournal(current()?.id, $('asset').value); void run(() => history(), true); } });
+for (const id of ['recipient', 'amount', 'memo', 'asset']) $(id).addEventListener('input', () => { $('send').disabled = true; prepared = undefined; viewEpoch++; show('preview', 'No payment prepared. Earlier unsigned reservations remain in the journal until cancelled.'); if (id === 'asset') { renderWalletAssets(); renderTabs(); renderBalance(); populateJournal(current()?.id, $('asset').value); void run(() => history(), true); } });
 async function addressAction(method, id) {
   return nativeAction(async () => {
   const epoch = sessionEpoch, account = accounts.find(account => account.id === id);
@@ -870,12 +929,12 @@ async function addressAction(method, id) {
   const fresh = state.accounts?.find(item => item.id === id);
   if (!fresh) return;
   accounts = accounts.map(item => item.id === id ? fresh : item); renderAccountGroups();
-  if (current()?.id === id) { show('address', fresh.address); $('address').title = fresh.address; show('diagnostics', { account: fresh, network: networks.find(network => network.id === fresh.network) }); }
+  if (current()?.id === id) { show('address', fresh.address); $('address').title = fresh.address; renderWalletAddress(fresh); show('diagnostics', { account: fresh, network: networks.find(network => network.id === fresh.network) }); }
   });
 }
 $('copy').onclick = () => run(() => addressAction('copyReceive', current()?.id || ''), true);
+$('copywalletaddress').onclick = () => recoveryRequired || vaultMode !== 'ready' || !activeWalletID ? undefined : run(() => addressAction('copyReceive', current()?.id || ''), true);
 $('saveqr').onclick = () => run(() => addressAction('saveQR', current()?.id || ''), true);
-$('scan').onclick = () => { if ($('sendpanel').hidden) return; return run(() => result('scanQR', {}, value => { viewEpoch++; $('recipient').value = value; prepared = undefined; $('send').disabled = true; }), true); };
 $('configure').onclick = () => run(() => nativeAction(async () => {
   const epoch = sessionEpoch, network = current()?.network || '';
   await window.wallet.configure({ network });

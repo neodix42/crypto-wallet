@@ -1,0 +1,63 @@
+PASS Actual core SIGKILL at password; restart preserves root/confirmation boundaries
+PASS Actual core SIGKILL at recording; restart preserves root/confirmation boundaries
+PASS Actual core SIGKILL at challenge; restart preserves root/confirmation boundaries
+PASS Actual signer SIGKILL revokes the pending prompt and preserves encrypted root
+PASS Actual signer SIGABRT revokes the pending prompt and preserves encrypted root
+PASS Cancellation and failed reauthentication preserve pending state without secret error details
+PASS Password/phrase/fragments/entropy/seed/Ed25519 canaries absent from tested public IPC, logs, argv/env and persisted crash/temp files
+{
+  "status": "PASS",
+  "scope": "Owned-process crash/canary drill using real Go binaries and disposable roots.\n\nThe client emulates only the typed Electron prompt channel. No GUI automation,\nlive network request, Decred operation, public testnet, or real user profile is\nused. No private prompt bytes or secret diagnostics are written to reports.\n",
+  "checks": [
+    {
+      "name": "Actual core SIGKILL at password; restart preserves root/confirmation boundaries",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual core SIGKILL at recording; restart preserves root/confirmation boundaries",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual core SIGKILL at challenge; restart preserves root/confirmation boundaries",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual signer SIGKILL revokes the pending prompt and preserves encrypted root",
+      "status": "PASS"
+    },
+    {
+      "name": "Actual signer SIGABRT revokes the pending prompt and preserves encrypted root",
+      "status": "PASS"
+    },
+    {
+      "name": "Cancellation and failed reauthentication preserve pending state without secret error details",
+      "status": "PASS"
+    },
+    {
+      "name": "Password/phrase/fragments/entropy/seed/Ed25519 canaries absent from tested public IPC, logs, argv/env and persisted crash/temp files",
+      "status": "PASS"
+    }
+  ],
+  "sourceSHA256": {
+    "scripts/crash-security.py": "5db857560fb45e61b2e28b639ef477254a1f00e0396e94d203f4912f9d160ea9"
+  },
+  "notRun": [
+    "Electron/Chromium crash collection and browser storage/clipboard/QR/network capture",
+    "Live send-boundary crash acceptance",
+    "Physical OS lock/suspend/Wayland",
+    "Independent review",
+    "Decred-specific work and public testnet tests excluded by owner"
+  ],
+  "artifact": {
+    "binaryManifest": {
+      "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
+      "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
+      "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
+    }
+  },
+  "lastCase": "challenge: reopen",
+  "processes": 13,
+  "persistedFilesScanned": 13,
+  "publicFramesScanned": 20,
+  "promptException": "Only exact active signer-authored prompt and its one-use input reply"
+}

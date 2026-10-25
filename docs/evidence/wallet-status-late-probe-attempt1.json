@@ -1,0 +1,9 @@
+{
+  "status": "FAIL",
+  "scope": "Targeted late-helper scratch driver startup only",
+  "reason": "Scratch script outside scripts directory could not import build manifest verifier; no wallet or workflow started",
+  "steps": [],
+  "notRun": [
+    "All wallet workflow cases"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, floating feedback without moving its public page anchor, native balances, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, fixed-height bottom status feedback without moving its public page anchor, numeric native balances and hover-only observation metadata, unclipped table addresses, persistent wallet address/copy, asset tabs and whole-asset Amount wording, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only",
   "steps": [
     {
       "name": "short-password-feedback",
@@ -47,11 +47,15 @@
       "status": "PASS"
     },
     {
-      "name": "Overview table displays its native balance column and an exact ETH quantity or explicit unknown state",
+      "name": "Overview table displays numeric-only native balances or explicit unknown; live observation metadata appears only on hover when available",
       "status": "PASS"
     },
     {
-      "name": "Unconfigured Decred table row explains authenticated TLS node setup and leaves balance unknown",
+      "name": "Long NEAR table address remains complete on one line and matches the independent public reference vector",
+      "status": "PASS"
+    },
+    {
+      "name": "Unconfigured Decred table row shows connection required and explains authenticated TLS node setup on hover, leaving balance unknown",
       "status": "PASS"
     },
     {
@@ -79,7 +83,15 @@
       "status": "PASS"
     },
     {
-      "name": "Installed cancellation feedback floats without moving the Exchange settings heading and can be dismissed",
+      "name": "Installed cancellation feedback stays in the fixed bottom status bar without moving the Exchange settings heading and can be dismissed",
+      "status": "PASS"
+    },
+    {
+      "name": "Wallet page always shows the complete receive address and working copy icon without visible provider-observed metadata or an asset dropdown",
+      "status": "PASS"
+    },
+    {
+      "name": "Real asset buttons select USDT and restore ETH, update the wallet tab and explain whole-asset amount units",
       "status": "PASS"
     },
     {
@@ -88,6 +100,14 @@
     },
     {
       "name": "Confirmed recovery enables Send form without any encrypted-backup prompt",
+      "status": "PASS"
+    },
+    {
+      "name": "Send uses Amount and explicit 1 = 1 ETH guidance, with no Scan local QR image control",
+      "status": "PASS"
+    },
+    {
+      "name": "Wallet, Exchange and Settings navigation keeps headings free of the green focus rectangle",
       "status": "PASS"
     },
     {
@@ -129,16 +149,17 @@
     "authenticated live Decred mainnet balance/discovery"
   ],
   "environment": "mainnet",
-  "producerSHA256": "8a469c5bf0cdf8dba87ab9e637fe253d251ae8d54394ac00f38296aff838420f",
+  "producerSHA256": "2e323de558a03c08044b8925a1598b125e558571070f52405b7f0c8b1588c34e",
+  "phraseHelperSHA256": "9b8d81c80fdb50985767671267952ff33360b26907e2898ddac59c6b436d63c6",
   "sourceStable": true,
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "7800ef19547a217a4edc91c8126086757b451980c2179c883869fc1c0df14f2f",
-      "wallet-launcher": "799fab84ac4cdfe1a685517cee6c058acb8f50b3a872195805e295cf5e118b5c",
-      "wallet-signer": "617b6e0f10215a30ccb0bf93d25da9cf5585e981ff2f4f12ba47ecebac442893"
+      "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
+      "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
+      "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
     },
-    "asarSHA256": "b3ecf4262b3be27dc95bd45ca62035daac6584af77c65c2058422efc9495b5be"
+    "asarSHA256": "03a3215f05b3f1f02ebbdbc717e4752a67f8a30a232117ee68951ac3caa8814e"
   },
   "notificationLayoutObservations": [
     {
@@ -160,6 +181,12 @@
         486,
         698,
         516
+      ],
+      "fixedStatusbarBounds": [
+        50,
+        849,
+        1230,
+        937
       ]
     },
     {
@@ -181,6 +208,12 @@
         522,
         250,
         540
+      ],
+      "fixedStatusbarBounds": [
+        50,
+        849,
+        1230,
+        937
       ]
     },
     {
@@ -202,25 +235,97 @@
         522,
         250,
         540
+      ],
+      "fixedStatusbarBounds": [
+        50,
+        849,
+        1230,
+        937
+      ]
+    }
+  ],
+  "tableAddressObservations": [
+    {
+      "network": "Ethereum",
+      "completeSingleLineAddress": "0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
+      "publicBounds": [
+        647,
+        721,
+        955,
+        739
+      ]
+    },
+    {
+      "network": "NEAR",
+      "completeSingleLineAddress": "5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412",
+      "publicBounds": [
+        647,
+        507,
+        1113,
+        531
       ]
     }
   ],
   "nativeBalanceObservation": {
     "status": "PASS",
-    "scope": "Installed Ethereum table native-currency amount and observation metadata visible",
-    "publicText": "0 ETH - provider-observed - 0x663fe1 aff08e2ced623b88326eecdff77f6al 25bdb 52e0e58f0b3e75c02307cb"
+    "scope": "Installed Ethereum native balance is only an exact whole-asset decimal value; provider observation is hidden until hover",
+    "publicText": "0",
+    "hoverMetadata": "PASS: provider-observed appears only after a real pointer hover"
   },
   "decredConnectionObservations": {
     "overview": {
       "status": "PASS",
-      "publicBalanceText": "connection required \u2014 configure an authenticated tls dcrd node. balance unknown. - active (trusted"
+      "publicBalanceText": "connection required",
+      "hoverMetadata": "Authenticated TLS dcrd node and unknown balance guidance independently observed on actual hover"
     },
     "configuredNodeBalance": "NOT_RUN: no authenticated trusted-TLS Decred mainnet node supplied",
     "wallet": {
       "status": "PASS",
-      "scope": "Both balance and connection guidance visible; Configure trusted RPC and certificate/credential/discovery requirements verified from installed public pixels"
+      "scope": "Compact balance connection guidance visible; Configure trusted RPC and certificate/credential/discovery requirements verified from installed public pixels"
     }
   },
+  "headingOutlineObservations": [
+    {
+      "heading": "Settings",
+      "publicBounds": [
+        104,
+        407,
+        197,
+        430
+      ],
+      "greenOutlinePixels": 0
+    },
+    {
+      "heading": "Exchange",
+      "publicBounds": [
+        80,
+        496,
+        187,
+        520
+      ],
+      "greenOutlinePixels": 0
+    },
+    {
+      "heading": "Ethereum",
+      "publicBounds": [
+        80,
+        500,
+        189,
+        518
+      ],
+      "greenOutlinePixels": 0
+    },
+    {
+      "heading": "Send payment",
+      "publicBounds": [
+        101,
+        440,
+        229,
+        458
+      ],
+      "greenOutlinePixels": 0
+    }
+  ],
   "exchangeAssetIdentity": {
     "status": "PASS",
     "scope": "Public screenshot OCR contains the complete independently verified owned Ethereum receive address and separate exact canonical USDT contract after native keyboard selection; no live Bybit query",

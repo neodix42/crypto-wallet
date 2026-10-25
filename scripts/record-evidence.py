@@ -6,7 +6,9 @@ root=pathlib.Path(__file__).resolve().parents[1];out=root/'docs/evidence';out.mk
 names=['coverage','go-coverage','frontend-coverage','mutation','fuzz','integration','stress','stress-race','stress-race-reference-budget','soak','native-input','native-input-long','native-duration','packaged-recovery','display-startup','mainnet-rpc','mainnet-tabs','wallet-layout','wallet-actions','phrase-recovery','phrase-onboarding','phrase-native-focused','electron-interface','prompt-ui','release-banner-removal','receive-small-display','failure-feedback','password-backup-regression','launcher-thread-proof','supervisor-lifecycle','desktop-e2e','public-testnets','independent-review','build-tools','go-only-build','nondefault-go-version','artifact-security']
 names += ['hypercore-pagination','license-notices','release-auth','release-evidence','crash-security','packaged-send','fuzz-long','nondecred-soak-run','production-hardening']
 names += ['bybit-client','bybit-client-mutations','exchange-core','exchange-signermutation',
-          'usdt-execution','exchange','exchange-live','exchange-settings','settings-main','x11-diagnostics','near-dcr-balances','pre-exchange-soak','pre-exchange-nondecred-soak-run']
+          'usdt-execution','exchange','exchange-live','exchange-settings','settings-main','x11-diagnostics','near-dcr-balances','wallet-status','wallet-status-x11-driver','pre-exchange-soak','pre-exchange-nondecred-soak-run']
+names += sorted(path.stem for path in (root/'reports').glob('wallet-status-packaged-attempt[0-9]*.json') if path.is_file())
+names += sorted(path.stem for path in (root/'reports').glob('wallet-status-late-probe*.json') if path.is_file())
 index=[]
 for name in names:
  source=root/'reports'/(name+'.json')
@@ -56,6 +58,21 @@ for name in ['near-balance-unit.log','near-balance-local.log','near-balance-live
              'near-dcr-version.log','near-dcr-production-gate.log']:
  source=root/'reports'/name
  if source.is_file():shutil.copyfile(source,out/name)
+for name in ['wallet-status-components-first.log','wallet-status-components.log',
+             'wallet-status-coverage-before-notice.log','wallet-status-coverage-before-attribution.log',
+             'wallet-status-coverage-before-pending-fix.log','wallet-status-coverage-first-pending-fix.log',
+             'wallet-status-frontend-coverage.log',
+             'wallet-status-amount-approval.log','wallet-status-install.log',
+             'wallet-status-packaged.log','wallet-status-packaged-send.log',
+             'wallet-status-version.log','wallet-status-recovery.log','wallet-status-crash.log',
+             'wallet-status-production-gate.log']:
+ source=root/'reports'/name
+ if source.is_file():shutil.copyfile(source,out/name)
+for source in sorted((root/'reports').glob('wallet-status-packaged-attempt[0-9]*.log')):
+ if source.is_file():shutil.copyfile(source,out/source.name)
+for pattern in ['wallet-status-late-probe*.log','wallet-status-late-probe*-producer.py']:
+ for source in sorted((root/'reports').glob(pattern)):
+  if source.is_file():shutil.copyfile(source,out/source.name)
 manifest=json.loads((root/'dist'/('go-build-manifest.json' if args.go_only else 'build-manifest.json')).read_text())
 artifact=manifest['archive'] if args.go_only else manifest['portable']
 candidate={'sourceCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),'version':manifest['version'],'artifact':artifact['file'],'sha256':artifact['sha256'],'binaryManifest':manifest['binaryManifest'],'go':manifest['go'],'status':'DEVELOPMENT_UNSIGNED','productionRelease':'NOT_RUN: mandatory external gates remain incomplete','reports':index}
