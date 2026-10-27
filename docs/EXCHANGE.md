@@ -30,7 +30,7 @@ A supported local wallet asset does not guarantee a Bybit deposit/withdrawal net
 
 ## Connect a Bybit account
 
-1. Complete wallet recovery-word confirmation and unlock the wallet. Select **Settings**, immediately to the right of **Exchange** in the main tab bar, then select its **Exchange** tab. The main Exchange page's **Exchange settings** shortcut opens the same page.
+1. Complete wallet recovery-word confirmation and unlock the wallet. Select **Settings**, immediately to the right of **Exchange** in the main tab bar, then select its **Exchange** tab.
 2. Choose the API region matching your Bybit account. The list is explicit; the app does not infer a region from your IP or machine timezone.
 3. Select **Connect Bybit API key**. Reauthenticate with the app password, then enter the **API key** and matching **API secret** from a system-generated key created in Bybit, using the separate masked wallet dialogs. Review the custody/access confirmation.
 4. Configure only the Bybit permissions needed for your intended actions: spot trading, internal account transfers and withdrawal. Withdrawals require a master-account key. Use an appropriate API IP restriction and add each exact owned destination address to Bybit's withdrawal whitelist. Read-only or insufficient permissions remain visible and cannot authorize writes.

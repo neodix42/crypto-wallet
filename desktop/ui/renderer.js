@@ -7,18 +7,25 @@ let journalCursor = '', journalBytes = 0, journalRequestEpoch = 0, chainRequestE
 let journalEpoch = 0, receiveIntent, balanceRunning = false, nativeActionsPending = 0;
 let exchangeOpen = false, exchangeEpoch = 0, exchangeQuoteEpoch = 0, exchangeWithdrawEpoch = 0, exchangeStateEpoch = 0;
 let exchangeBusy = false, exchangeConnected = false, exchangeMarket, exchangeWithdrawal, exchangeOperations = [];
-let settingsOpen = false, settingsSection = 'wallet', notificationReturnFocus;
+let settingsOpen = false, settingsSection = 'wallet', notificationReturnFocus, notificationTimer, notificationGeneration = 0, lastLockedMode;
 const rowBalances = new Map(), balanceQueue = [];
 const walletAssets = new Map();
 const decredConnectionRequired = 'Connection required — configure an authenticated TLS dcrd node. Balance unknown.';
 const nativeResultMethods = new Set(['send']);
 const show = (id, value) => { $(id).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
 function showStatus(message) {
+  cancelNotificationTimer();
   show('message', message); $('message').hidden = false; $('notifications').hidden = false;
+  const generation = notificationGeneration;
+  notificationTimer = window.setTimeout(() => { if (generation === notificationGeneration) dismissNotification(); }, 7000);
+}
+function cancelNotificationTimer() {
+  window.clearTimeout(notificationTimer); notificationTimer = undefined; notificationGeneration++;
 }
 function dismissNotification() {
+  cancelNotificationTimer();
   const restoreFocus = $('notifications').contains(document.activeElement);
-  $('notifications').hidden = true; clearOperationError(); show('message', '');
+  $('notifications').hidden = true; clearOperationError(); show('message', ''); $('message').hidden = true;
   if (restoreFocus) {
     const target = notificationReturnFocus;
     if (target?.isConnected && !target.disabled && !target.closest('[hidden]')) target.focus();
@@ -26,7 +33,6 @@ function dismissNotification() {
   }
   notificationReturnFocus = undefined;
 }
-$('dismissnotification').onclick = dismissNotification;
 $('notifications').onkeydown = event => { if (event.key === 'Escape') { event.preventDefault(); dismissNotification(); } };
 const operationErrors = Object.freeze({
   PASSWORD_POLICY: 'Use an app password of 12–4096 UTF-8 bytes. Enter and repeat it in the wallet dialog, then try again.',
@@ -86,11 +92,12 @@ function clearLocked() {
   $('send').disabled = true;
   for (const id of ['recipient', 'amount', 'memo', 'associateaddress', 'birthday', 'gap', 'limit', 'blockbudget']) $(id).value = '';
   for (const id of ['address', 'diagnostics', 'preview', 'balance', 'chainhistoryresult', 'journalcontext', 'journalresult']) show(id, 'Locked');
-  if (!retainError) showStatus(vaultMode === 'missing' ? 'Start by choosing your app password in the wallet dialog.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the wallet dialog.');
+  if (!retainError && lastLockedMode !== vaultMode) showStatus(vaultMode === 'missing' ? 'Start by choosing your app password in the wallet dialog.' : vaultMode === 'unavailable' ? 'Wallet storage unavailable. Retry the storage check before continuing.' : 'Wallet locked. Unlock through the wallet dialog.');
+  lastLockedMode = vaultMode;
   renderGate(); renderTabs();
 }
 const removeLockListener = window.wallet.onLocked(clearLocked);
-window.addEventListener('beforeunload', removeLockListener, { once: true });
+window.addEventListener('beforeunload', () => { cancelNotificationTimer(); removeLockListener(); }, { once: true });
 window.wallet.getVersion().then(version => { $('version').textContent = 'Version ' + version; }).catch(() => { $('version').textContent = 'Version unavailable'; });
 async function run(fn, scoped = false, completion = 'Request completed. Check the returned state and any limitations.') {
   const epoch = sessionEpoch, view = viewEpoch;
@@ -335,7 +342,6 @@ $('exchangequote').onclick = () => run(() => refreshExchangeQuote(false), true);
 $('exchangewithdrawquote').onclick = () => run(() => refreshExchangeQuote(true), true);
 $('exchangerefresh').onclick = () => run(refreshExchangeState, true);
 $('exchangesettingsrefresh').onclick = () => run(refreshExchangeState, true);
-$('exchangesettings').onclick = () => openSettings('exchange');
 $('exchangeconnect').onclick = () => exchangeMutation('exchangeConnect', { endpoint: 'https://' + $('exchangeendpoint').value });
 $('exchangedisconnect').onclick = () => exchangeConnected ? exchangeMutation('exchangeDisconnect', {}) : undefined;
 for (const [button, method, input, withdrawal] of [
@@ -556,7 +562,7 @@ async function refresh(queryActive = true) {
   if (epoch !== sessionEpoch) return;
   accounts = state.accounts || [];
   networks = availableNetworks;
-  vaultMode = 'ready'; recoveryRequired = state.recoveryConfirmed !== true; renderGate();
+  vaultMode = 'ready'; lastLockedMode = undefined; recoveryRequired = state.recoveryConfirmed !== true; renderGate();
   $('walletrecoverynotice').hidden = !recoveryRequired;
   $('receive').disabled = false; $('sendview').disabled = false;
   for (const id of ['copy', 'copywalletaddress', 'saveqr', 'prepare', 'max']) $(id).disabled = recoveryRequired;

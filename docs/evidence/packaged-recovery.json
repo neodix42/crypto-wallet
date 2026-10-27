@@ -1,13 +1,17 @@
 {
   "status": "PASS",
-  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, fixed-height bottom status feedback without moving its public page anchor, numeric native balances and hover-only observation metadata, unclipped table addresses, persistent wallet address/copy, asset tabs and whole-asset Amount wording, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only",
+  "scope": "Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, widened workarea-clamped main window without locked-screen horizontal scrolling, compact empty Unlock input/OK geometry recorded numerically without retaining private pixels, fixed 52-pixel bottom status feedback with seven-second auto-hide and no Dismiss or page displacement, numeric native balances and hover-only observation metadata, unclipped table addresses, persistent wallet address/copy, asset tabs and whole-asset Amount wording, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls with no redundant settings shortcut and isolated Connect cancellation; disposable generated and public fixture roots only",
   "steps": [
+    {
+      "name": "Installed main window uses the wider default and clamps to the owned display workarea",
+      "status": "PASS"
+    },
     {
       "name": "short-password-feedback",
       "status": "PASS"
     },
     {
-      "name": "Installed error feedback remains readable across polling without moving onboarding and dismisses independently",
+      "name": "Installed error feedback survives polling, auto-hides on its seven-second interval without Dismiss and never moves onboarding",
       "status": "PASS"
     },
     {
@@ -23,7 +27,7 @@
       "status": "PASS"
     },
     {
-      "name": "Pending Receive guide cancels without opening an unconfirmed address workflow",
+      "name": "Pending Receive guide remains actionable beyond seven seconds and cancels without opening an unconfirmed address workflow",
       "status": "PASS"
     },
     {
@@ -79,11 +83,15 @@
       "status": "PASS"
     },
     {
+      "name": "Installed Exchange trading page omits its redundant Exchange settings shortcut while permanent Settings remains available",
+      "status": "PASS"
+    },
+    {
       "name": "Installed Settings Exchange owns Bybit region and Connect; isolated credential cancellation preserves the disconnected vault",
       "status": "PASS"
     },
     {
-      "name": "Installed cancellation feedback stays in the fixed bottom status bar without moving the Exchange settings heading and can be dismissed",
+      "name": "Installed cancellation feedback auto-hides after its seven-second interval without Dismiss or movement of the Exchange settings heading",
       "status": "PASS"
     },
     {
@@ -112,6 +120,18 @@
     },
     {
       "name": "Middle-click closes wallet tab and returns to account table",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed locked information auto-hides on its seven-second interval without Dismiss and remains absent across polling",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed locked screen fits its widened window without horizontal movement or a visible horizontal scrollbar",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed empty Unlock dialog is compact and its password input-to-OK gap is at most 48 pixels without retaining private pixels",
       "status": "PASS"
     },
     {
@@ -149,99 +169,178 @@
     "authenticated live Decred mainnet balance/discovery"
   ],
   "environment": "mainnet",
-  "producerSHA256": "2e323de558a03c08044b8925a1598b125e558571070f52405b7f0c8b1588c34e",
+  "producerSHA256": "73e0289279274d2ed29a68f5fcce481b7b63557e397cf43e9d3e314fd1b79ccb",
   "phraseHelperSHA256": "9b8d81c80fdb50985767671267952ff33360b26907e2898ddac59c6b436d63c6",
   "sourceStable": true,
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
-      "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
-      "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
+      "wallet-core": "513678e14c3617103dc18eee45294d65b399d8b20d2f052c86e73d52dcb876d9",
+      "wallet-launcher": "e5f1c776320773785eed778f11d6c46fb576f390d651c383e232e6e8772bef0c",
+      "wallet-signer": "5e0813e04e064fda987bea762e597681924e96e3481b5b5656b84c46a0c84ae4"
     },
-    "asarSHA256": "03a3215f05b3f1f02ebbdbc717e4752a67f8a30a232117ee68951ac3caa8814e"
+    "asarSHA256": "6d909d73641191991807ffb5b37c7ebcb19c2bfc2a90087e36e42041d84374eb"
   },
+  "initialWindowObservations": [
+    {
+      "stage": "first run",
+      "screenSize": [
+        1280,
+        1024
+      ],
+      "nativeBounds": [
+        16,
+        32,
+        1248,
+        960
+      ],
+      "expectedClampedSize": [
+        1248,
+        960
+      ]
+    },
+    {
+      "stage": "locked restart",
+      "screenSize": [
+        1280,
+        1024
+      ],
+      "nativeBounds": [
+        16,
+        32,
+        1248,
+        960
+      ],
+      "expectedClampedSize": [
+        1248,
+        960
+      ]
+    }
+  ],
   "notificationLayoutObservations": [
     {
       "anchor": "Create your app password",
       "before": [
-        311,
-        486,
-        698,
-        516
+        318,
+        431,
+        705,
+        461
       ],
       "whileFeedbackVisible": [
-        311,
-        486,
-        698,
-        516
+        318,
+        431,
+        705,
+        461
       ],
-      "afterDismissal": [
-        311,
-        486,
-        698,
-        516
+      "afterAutomaticExpiry": [
+        318,
+        431,
+        705,
+        461
       ],
       "fixedStatusbarBounds": [
-        50,
-        849,
-        1230,
-        937
-      ]
+        16,
+        940,
+        1264,
+        992
+      ],
+      "lastVisibleSecondsAfterNativeAction": 6.8,
+      "firstAbsentSecondsAfterNativeAction": 8.005,
+      "dismissControl": "absent",
+      "remainsAbsentAcrossLaterPoll": true
     },
     {
       "anchor": "Bybit connection",
       "before": [
-        104,
-        522,
-        250,
-        540
+        70,
+        467,
+        216,
+        485
       ],
       "whileFeedbackVisible": [
-        104,
-        522,
-        250,
-        540
+        70,
+        467,
+        216,
+        485
       ],
-      "afterDismissal": [
-        104,
-        522,
-        250,
-        540
+      "afterAutomaticExpiry": [
+        70,
+        467,
+        216,
+        485
       ],
       "fixedStatusbarBounds": [
-        50,
-        849,
-        1230,
-        937
-      ]
+        16,
+        940,
+        1264,
+        992
+      ],
+      "lastVisibleSecondsAfterNativeAction": 6.8,
+      "firstAbsentSecondsAfterNativeAction": 8.033,
+      "dismissControl": "absent",
+      "remainsAbsentAcrossLaterPoll": false
     },
     {
       "anchor": "Bybit connection",
       "before": [
-        104,
-        522,
-        250,
-        540
+        70,
+        467,
+        216,
+        485
       ],
       "whileFeedbackVisible": [
-        104,
-        522,
-        250,
-        540
+        70,
+        467,
+        216,
+        485
       ],
-      "afterDismissal": [
-        104,
-        522,
-        250,
-        540
+      "afterAutomaticExpiry": [
+        70,
+        467,
+        216,
+        485
       ],
       "fixedStatusbarBounds": [
-        50,
-        849,
-        1230,
-        937
-      ]
+        16,
+        940,
+        1264,
+        992
+      ],
+      "lastVisibleSecondsAfterNativeAction": 6.8,
+      "firstAbsentSecondsAfterNativeAction": 8.007,
+      "dismissControl": "absent",
+      "remainsAbsentAcrossLaterPoll": false
+    },
+    {
+      "anchor": "Welcome back",
+      "before": [
+        317,
+        431,
+        531,
+        454
+      ],
+      "whileFeedbackVisible": [
+        317,
+        431,
+        531,
+        454
+      ],
+      "afterAutomaticExpiry": [
+        317,
+        431,
+        531,
+        454
+      ],
+      "fixedStatusbarBounds": [
+        16,
+        940,
+        1264,
+        992
+      ],
+      "lastVisibleSecondsAfterNativeAction": 6.8,
+      "firstAbsentSecondsAfterNativeAction": 7.793,
+      "dismissControl": "absent",
+      "remainsAbsentAcrossLaterPoll": true
     }
   ],
   "tableAddressObservations": [
@@ -249,20 +348,20 @@
       "network": "Ethereum",
       "completeSingleLineAddress": "0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
       "publicBounds": [
-        647,
-        721,
-        955,
-        739
+        681,
+        664,
+        989,
+        688
       ]
     },
     {
       "network": "NEAR",
       "completeSingleLineAddress": "5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412",
       "publicBounds": [
-        647,
-        507,
-        1113,
-        531
+        681,
+        598,
+        1147,
+        622
       ]
     }
   ],
@@ -275,7 +374,7 @@
   "decredConnectionObservations": {
     "overview": {
       "status": "PASS",
-      "publicBalanceText": "connection required",
+      "publicBalanceText": "connection required tt)",
       "hoverMetadata": "Authenticated TLS dcrd node and unknown balance guidance independently observed on actual hover"
     },
     "configuredNodeBalance": "NOT_RUN: no authenticated trusted-TLS Decred mainnet node supplied",
@@ -288,39 +387,39 @@
     {
       "heading": "Settings",
       "publicBounds": [
-        104,
-        407,
-        197,
-        430
+        70,
+        352,
+        163,
+        375
       ],
       "greenOutlinePixels": 0
     },
     {
       "heading": "Exchange",
       "publicBounds": [
-        80,
-        496,
-        187,
-        520
+        46,
+        436,
+        153,
+        460
       ],
       "greenOutlinePixels": 0
     },
     {
       "heading": "Ethereum",
       "publicBounds": [
-        80,
-        500,
-        189,
-        518
+        46,
+        445,
+        155,
+        463
       ],
       "greenOutlinePixels": 0
     },
     {
       "heading": "Send payment",
       "publicBounds": [
-        101,
+        67,
         440,
-        229,
+        195,
         458
       ],
       "greenOutlinePixels": 0
@@ -336,6 +435,64 @@
     "status": "PASS",
     "scope": "Real isolated app-password and empty masked API-input dialogs cancelled through XTest; no API credentials entered, custody approved or live exchange acceptance claimed"
   },
+  "lockedHorizontalScrollObservation": {
+    "status": "PASS",
+    "scope": "Classic Chromium/X11: actual public pixels show no horizontal content movement under real right/left wheel input and no bottom scrollbar rail; component tests independently verify configured display bounds",
+    "headingBounds": [
+      317,
+      431,
+      531,
+      454
+    ],
+    "fixedStatusbarBounds": [
+      16,
+      940,
+      1264,
+      992
+    ]
+  },
+  "unlockGeometryObservations": [
+    {
+      "nativeSize": [
+        620,
+        304
+      ],
+      "inputBoundsRelativeToWindow": [
+        27,
+        163,
+        578,
+        211
+      ],
+      "okBoundsRelativeToWindow": [
+        479,
+        243,
+        593,
+        285
+      ],
+      "inputToOKGapUpperBoundPixels": 32,
+      "privatePixelsRetained": false
+    },
+    {
+      "nativeSize": [
+        620,
+        304
+      ],
+      "inputBoundsRelativeToWindow": [
+        27,
+        163,
+        578,
+        211
+      ],
+      "okBoundsRelativeToWindow": [
+        479,
+        243,
+        593,
+        285
+      ],
+      "inputToOKGapUpperBoundPixels": 32,
+      "privatePixelsRetained": false
+    }
+  ],
   "liveLogChecks": [
     {
       "mesaLoaderError": false,

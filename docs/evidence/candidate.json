@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "9ae4353ce6e4fdc546857e6d3e1627da72545db9",
+  "sourceCommit": "4e842198378934c54347552873c954a8a492bf07",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "42e68e0d02513f00e0438753b38e27683737180663d54fd3317978078a427d2e",
+  "sha256": "2adce9f74ccc61c0c58b82abff06c74987032a961f525b5c50806a4062b8fb85",
   "binaryManifest": {
-    "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
-    "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
-    "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
+    "wallet-core": "513678e14c3617103dc18eee45294d65b399d8b20d2f052c86e73d52dcb876d9",
+    "wallet-launcher": "e5f1c776320773785eed778f11d6c46fb576f390d651c383e232e6e8772bef0c",
+    "wallet-signer": "5e0813e04e064fda987bea762e597681924e96e3481b5b5656b84c46a0c84ae4"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -28,7 +28,7 @@
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "43a83ec4dae85c3e01713b86f54eda98ccb83315a874c8bf5293c5652781bf4a"
+      "sha256": "eaba79170f7e72c5c2aad779fe869633538e4f6f00a25986fe221ba5af4d45b5"
     },
     {
       "report": "mutation",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "6df75fc613d1d4e58ec70cb1a2657c2f70723b36a66a72107de036cd313314a6"
+      "sha256": "6720b6ba5ca2d183cb83fcad6cc9671c2afc3da0c0853861b8e2be8af9e7cf61"
     },
     {
       "report": "display-startup",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "444267f129797b835ab345f77fa751b7af9b518d4511691e3f3e19a89a5276f0"
+      "sha256": "ee3845bc3a79fd676fa926e94a921c826f40da795b9e36fe14fcfec1fd9a2cc1"
     },
     {
       "report": "phrase-onboarding",
@@ -232,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "a59a8ac30e160c8841ecbd37c5545b1f74d41fdea38480e2c7d39b4ad327961b"
+      "sha256": "45a3932925fe9a7c5c6ecdbae7e5bf0f5875fe01cbefb4e247b9bdebecaf61dc"
     },
     {
       "report": "hypercore-pagination",
@@ -262,13 +262,13 @@
       "report": "crash-security",
       "status": "PASS",
       "file": "crash-security.json",
-      "sha256": "f3bd47a7d49457672de6cb4a8c8a6b5a733632002712f6492d6c4c01542dbb05"
+      "sha256": "4df40243aec83d3f6b350df5494fd7e6e797c32834f1c081e4d682a892f6b1aa"
     },
     {
       "report": "packaged-send",
       "status": "PASS",
       "file": "packaged-send.json",
-      "sha256": "5c8c5f0ca17eac8821ff1c9866d412bdf561c7c8c9520f9634ec73da0e382b17"
+      "sha256": "b96a7139e9bb9c958e3c82673b78dc774b6a8e201f89d9ba2e2733ba08f3cb0b"
     },
     {
       "report": "fuzz-long",
@@ -479,6 +479,24 @@
       "status": "PASS",
       "file": "wallet-status-late-probe-pass3.json",
       "sha256": "bcc2ac4ad9ac13b48ac96045e9808fff1c022c1fe65a12916d7aa4f4ac6a7a3b"
+    },
+    {
+      "report": "window-compact",
+      "status": "PASS",
+      "file": "window-compact.json",
+      "sha256": "f27a529167e640ad198095f98da81c43539f8094131b7cc57bcf55c44d34639d"
+    },
+    {
+      "report": "window-compact-x11-driver",
+      "status": "PASS",
+      "file": "window-compact-x11-driver.json",
+      "sha256": "91a19cfa90cfe592e91ff6c4dcb9742f0b88da8aa1bb5a7a5f868849fadd2f77"
+    },
+    {
+      "report": "window-compact-packaged-attempt1",
+      "status": "PASS",
+      "file": "window-compact-packaged-attempt1.json",
+      "sha256": "edd6cf583ec538f59b3c2e0c81ba76df1afc448e528cc8f39271697ecc23e0e1"
     }
   ],
   "node": "v24.19.0",

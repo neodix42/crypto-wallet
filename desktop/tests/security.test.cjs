@@ -8,17 +8,18 @@ test('TP033 TP041 production surface no secret inputs or remote assets',()=>{con
 const vm=require('node:vm');const path=require('node:path');const crypto=require('node:crypto');
 const {EventEmitter}=require('node:events');const {PassThrough,Writable}=require('node:stream');
 const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
-function noticeHarness(){
+function noticeHarness(options={}){
  const stdout=new PassThrough(),outbound=[],windows=[],publicEvents=[],partitions=[],validated=[];let buffered=Buffer.alloc(0),timerID=0;
  const stdin=new Writable({write(chunk,_encoding,done){buffered=Buffer.concat([buffered,chunk]);while(buffered.length>=4){const n=buffered.readUInt32BE();if(buffered.length<n+4)break;outbound.push(JSON.parse(buffered.subarray(4,n+4).toString()));buffered=buffered.subarray(n+4)}done()}});
  const timers=new Map();const app=new EventEmitter();Object.assign(app,{isPackaged:false,enableSandbox(){},disableHardwareAcceleration(){},commandLine:{appendSwitch(){}},whenReady:()=>Promise.resolve(),quit(){},getVersion:()=> '0.1.0-synthetic'});
  const ipcMain=new EventEmitter();ipcMain.handlers=new Map();ipcMain.handle=(name,handler)=>ipcMain.handlers.set(name,handler);const powerMonitor=new EventEmitter();
  class BrowserWindow extends EventEmitter{
   constructor(config){super();this.config=config;this.webContents=new EventEmitter();Object.assign(this.webContents,{mainFrame:{url:'wallet://app/'},isDestroyed:()=>!!this.destroyed,send:(...args)=>publicEvents.push(args),setWindowOpenHandler(){}});windows.push(this)}
-  isDestroyed(){return !!this.destroyed}destroy(){this.destroyed=true;this.emit('closed')}setMenu(){}setTitle(){}show(){}async loadURL(url){this.webContents.mainFrame.url=url}
+  getBounds(){return options.parentBounds||{x:0,y:0,width:this.config.width,height:this.config.height}}isDestroyed(){return !!this.destroyed}destroy(){this.destroyed=true;this.emit('closed')}setMenu(){}setTitle(){}show(){}async loadURL(url){this.webContents.mainFrame.url=url}
  }
  const session={fromPartition(name){partitions.push(name);const value=new EventEmitter();Object.assign(value,{setPermissionRequestHandler(){},setPermissionCheckHandler(){},webRequest:{onBeforeRequest(){}},protocol:{handle(){}},clearStorageData:()=>Promise.resolve()});return value}};
- const electron={app,BrowserWindow,ipcMain,powerMonitor,session,protocol:{registerSchemesAsPrivileged(){}},net:{fetch:()=>Promise.resolve(new Response('local asset'))},dialog:{},clipboard:{writeText(){throw Error('A notice must never copy data')}}};
+ const screenCalls=[];const screen={getPrimaryDisplay(){screenCalls.push('primary');return {workAreaSize:options.mainArea||{width:1920,height:1080}}},getDisplayMatching(bounds){screenCalls.push(publicResult(bounds));return {workAreaSize:options.promptArea||options.mainArea||{width:1920,height:1080}}}};
+ const electron={app,BrowserWindow,ipcMain,powerMonitor,session,screen,protocol:{registerSchemesAsPrivileged(){}},net:{fetch:()=>Promise.resolve(new Response('local asset'))},dialog:{},clipboard:{writeText(){throw Error('A notice must never copy data')}}};
  const image=Buffer.from('public synthetic executable');const digest=crypto.createHash('sha256').update(image).digest('hex');
  const fileAPI={readFileSync(filename){return filename.endsWith('manifest.json')?JSON.stringify({'wallet-core':digest}):image},createWriteStream:()=>stdin,createReadStream:()=>stdout};
  const prompts=require('../app/prompts.js');const directory=path.resolve(__dirname,'../app');
@@ -26,7 +27,7 @@ function noticeHarness(){
  new vm.Script(fs.readFileSync(path.join(directory,'main.js'),'utf8'),{filename:path.join(directory,'main.js')}).runInContext(context);
  const event=(window=windows[0])=>({sender:window.webContents,senderFrame:window.webContents.mainFrame});
  function response(request,body={},extra={}){const frame=Buffer.from(JSON.stringify({version:1,id:request.id,session:request.session,method:request.method,body,...extra}));const header=Buffer.alloc(4);header.writeUInt32BE(frame.length);stdout.write(Buffer.concat([header,frame]))}
- return {outbound,windows,publicEvents,partitions,validated,timers,stdin,stdout,powerMonitor,ready:async()=>{await nextTurn();await nextTurn()},call:(method,body={})=>ipcMain.handlers.get('wallet:request')(event(),method,body),response,prompt:(request,prompt,extra={})=>response(request,prompt,{method:'prompt',...extra}),promptCall:(method,body)=>Promise.resolve().then(()=>ipcMain.handlers.get('wallet:prompt:'+method)(event(windows.at(-1)),body)),cleanup(){app.emit('before-quit');stdout.destroy();stdin.destroy()}};
+ return {outbound,windows,publicEvents,partitions,validated,timers,stdin,stdout,powerMonitor,screenCalls,ready:async()=>{await nextTurn();await nextTurn()},call:(method,body={})=>ipcMain.handlers.get('wallet:request')(event(),method,body),response,prompt:(request,prompt,extra={})=>response(request,prompt,{method:'prompt',...extra}),promptCall:(method,body)=>Promise.resolve().then(()=>ipcMain.handlers.get('wallet:prompt:'+method)(event(windows.at(-1)),body)),cleanup(){app.emit('before-quit');stdout.destroy();stdin.destroy()}};
 }
 const recoveryNotice={kind:'notice',title:'Recovery phrase not confirmed',summary:'The recorded words did not match. Record the complete phrase in order, then try again. Your wallet remains unavailable for payments until this is complete.'};
 const noticeID='a'.repeat(32);
@@ -104,4 +105,53 @@ test('TP033 public preload accepts the fixed recovery guidance code and exposes 
  for(const code of ['RECOVERY_WORDS_MISMATCH','PASSWORD_POLICY','REQUEST_CANCELLED']){envelope={ok:false,error:code};await assert.rejects(api.confirmRecovery(),error=>error.message===code)}
  for(const value of [{ok:false,error:'PRIVATE_CANARY'},{ok:false,error:'RECOVERY_WORDS_MISMATCH',summary:'PRIVATE_CANARY'},{ok:false,error:{code:'RECOVERY_WORDS_MISMATCH'}},null]){envelope=value;await assert.rejects(api.confirmRecovery(),error=>error.message==='REQUEST_FAILED_STATE_UNKNOWN')}
  assert.ok(Object.isFrozen(api));for(const key of ['getPrompt','promptReply','onNotice','onPrompt','invoke'])assert.equal(api[key],undefined);assert.ok(invocations.every(call=>call[0]==='wallet:request'&&call[1]==='confirmRecovery'));
+});
+
+test('TP070 main window opens larger while its default and minimum bounds fit one display work area',async t=>{
+ for(const [mainArea,expected] of [
+  [{width:3840,height:2160},{width:1440,height:960,minWidth:960,minHeight:640}],
+  [{width:1280,height:1024},{width:1248,height:960,minWidth:960,minHeight:640}],
+  [{width:1024,height:768},{width:992,height:736,minWidth:960,minHeight:640}],
+  [{width:800,height:600},{width:768,height:568,minWidth:768,minHeight:568}],
+  [{width:32,height:16},{width:1,height:1,minWidth:1,minHeight:1}]
+ ]){
+  const h=noticeHarness({mainArea});t.after(h.cleanup);await h.ready();const config=h.windows[0].config;
+  assert.deepEqual(Object.fromEntries(['width','height','minWidth','minHeight'].map(key=>[key,config[key]])),expected);assert.deepEqual(h.screenCalls,['primary']);
+  assert.equal(config.webPreferences.contextIsolation,true);assert.equal(config.webPreferences.sandbox,true);assert.equal(config.webPreferences.nodeIntegration,false);assert.equal(h.windows[0].webContents.mainFrame.url,'wallet://app/');
+ }
+});
+
+test('TP033 input prompt dimensions follow row count and the parent display; large approval, phrase and Receive views remain scrollable',async t=>{
+ const parentBounds={x:1920,y:90,width:1440,height:960};
+ for(const [count,expectedHeight] of [[1,304],[2,400],[3,496],[4,592],[8,720]]){
+  const h=noticeHarness({parentBounds});t.after(h.cleanup);await h.ready();const operation=h.call('unlock'),request=h.outbound[0];h.prompt(request,{id:noticeID,kind:'input',title:'Unlock local wallet',labels:Array(count).fill('App password')});await nextTurn();const config=h.windows[1].config;
+  assert.deepEqual([config.width,config.height,config.minWidth,config.minHeight,config.useContentSize],[620,expectedHeight,540,280,true]);assert.deepEqual(h.screenCalls,['primary',parentBounds]);assert.equal(config.modal,true);assert.equal(config.parent,h.windows[0]);assert.equal(config.webPreferences.sandbox,true);
+  await h.promptCall('get');await h.promptCall('reply',{promptId:noticeID,accepted:false});h.response(request,null,{error:'REQUEST_CANCELLED'});assert.deepEqual(publicResult(await operation),{ok:false,error:'REQUEST_CANCELLED'});
+ }
+ for(const [promptArea,prompt,method,body,expected] of [
+  [{width:640,height:480},{kind:'input',title:'Multiple private fields',labels:Array(8).fill('Input field')},'unlock',{},[576,400,540,280,true]],
+  [{width:480,height:320},{kind:'input',title:'Unlock local wallet',labels:['App password']},'unlock',{},[416,240,416,240,true]],
+  [{width:1920,height:1080},{kind:'confirm',title:'Review payment',summary:'Public transfer details\n'.repeat(1000)},'send',{id:'original'},[720,720,540,480,false]],
+  [{width:1024,height:600},{kind:'recovery',title:'Record recovery phrase',phrase:Array(24).fill('abandon').join(' ')},'create',{words:24},[720,568,540,480,false]],
+  [{width:640,height:480},{kind:'receive',title:'Receive wallet asset',summary:'Public domain\n'.repeat(1000),address:'PUBLIC_ADDRESS',png:'iVBORw0KGgoAAAA='},'receive',{accountId:'public'},[608,448,540,448,false]]
+ ]){
+  const h=noticeHarness({parentBounds,promptArea});t.after(h.cleanup);await h.ready();const operation=h.call(method,body),request=h.outbound[0];h.prompt(request,{id:noticeID,...prompt});await nextTurn();const config=h.windows[1].config;
+  assert.deepEqual([config.width,config.height,config.minWidth,config.minHeight,config.useContentSize],expected);assert.deepEqual(h.screenCalls,['primary',parentBounds]);assert.equal(h.outbound.length,1);
+  await h.promptCall('get');await h.promptCall('reply',{promptId:noticeID,accepted:false});h.response(request,null,{error:'REQUEST_CANCELLED'});assert.deepEqual(publicResult(await operation),{ok:false,error:'REQUEST_CANCELLED'});
+ }
+});
+
+test('TP033 compact input document keeps masked fields, reachable footer controls and scrolling for many fields without changing response authority',async t=>{
+ const {JSDOM}=require('jsdom');const directory=path.resolve(__dirname,'../ui');
+ for(const count of [1,8]){
+  const dom=new JSDOM(fs.readFileSync(path.join(directory,'prompt.html'),'utf8'),{url:'wallet://prompt/',runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());const document=dom.window.document,$=id=>document.getElementById(id),calls=[];
+  const style=document.createElement('style');style.textContent=fs.readFileSync(path.join(directory,'prompt.css'),'utf8');document.head.append(style);
+  dom.window.walletPrompt=Object.freeze({getPrompt:()=>Promise.resolve({id:noticeID,kind:'input',title:'Unlock local wallet',labels:Array(count).fill('App password')}),respond:async value=>calls.push(structuredClone(value)),copyAddress:async()=>{throw Error('No secret copy')}});
+  const filename=path.join(directory,'prompt.js');new vm.Script(fs.readFileSync(filename,'utf8'),{filename}).runInContext(dom.getInternalVMContext());await nextTurn();const css=node=>dom.window.getComputedStyle(node),inputs=[...$('inputfields').querySelectorAll('input')];
+  assert.equal($('promptform').dataset.kind,'input');assert.equal(inputs.length,count);assert.equal(document.activeElement,inputs[0]);assert.ok(inputs.every(input=>input.type==='password'&&input.autocomplete==='off'));
+  assert.equal(css(document.querySelector('header')).paddingTop,'20px');assert.equal(css(document.querySelector('.brand')).marginBottom,'12px');assert.equal(css(document.querySelector('main')).overflow,'auto');assert.equal(css(document.querySelector('main')).minHeight,'0px');assert.equal(css(document.querySelector('footer')).flexShrink,'0');assert.equal(css(inputs.at(-1).parentElement).marginBottom,'0px');
+  for(const id of ['accept','cancel']){assert.equal($(id).disabled,false);assert.equal($(id).closest('[hidden]'),null);assert.equal($(id).parentElement.tagName,'FOOTER');$(id).focus();assert.equal(document.activeElement,$(id))}
+  const tab=new dom.window.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});$('accept').focus();document.dispatchEvent(tab);assert.equal(tab.defaultPrevented,true);assert.equal(document.activeElement,inputs[0]);
+  inputs.at(-1).value='public-synthetic-input';$('cancel').click();await nextTurn();assert.deepEqual(calls,[{promptId:noticeID,accepted:false}]);assert.equal($('inputfields').children.length,0);assert.equal(inputs.at(-1).value,'');assert.equal($('promptform').dataset.kind,undefined);
+ }
 });

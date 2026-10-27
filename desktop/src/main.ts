@@ -1,4 +1,4 @@
-import {app,BrowserWindow,ipcMain,protocol,session,powerMonitor,net,dialog,clipboard} from 'electron';
+import {app,BrowserWindow,ipcMain,protocol,session,powerMonitor,net,dialog,clipboard,screen} from 'electron';
 import {ReadStream,WriteStream} from 'node:fs';
 import {randomBytes,createHash} from 'node:crypto';
 import fs from 'node:fs';
@@ -38,6 +38,12 @@ function nativeActivity(id:string,p:Pending,r:ReturnType<typeof parseResponse>):
 }
 function notifyLocked():void{finishPrompt(true);if(win&&!win.webContents.isDestroyed()){try{win.webContents.send('wallet:locked')}catch{/* A disposed render frame cannot retain a live view. Locking must continue. */}}}
 function stop():void{finishPrompt(false);buffered.fill(0);buffered=Buffer.alloc(0);clearInterval(statusTimer);statusTimer=undefined;const previous=core;core=undefined;if(previous)notifyLocked();previous?.stdin.destroy();previous?.stdout.destroy();for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error('Wallet session ended'))}pending.clear();}
+function boundedWindowSize(width:number,height:number,minWidth:number,minHeight:number,area:{width:number,height:number},horizontalMargin=32,verticalMargin=32):{width:number,height:number,minWidth:number,minHeight:number}{
+ // Electron reports work-area sizes in device-independent pixels. Keep the
+ // default inside that display rather than spanning multiple monitors.
+ width=Math.min(width,Math.max(1,area.width-horizontalMargin));height=Math.min(height,Math.max(1,area.height-verticalMargin));
+ return {width,height,minWidth:Math.min(minWidth,width),minHeight:Math.min(minHeight,height)};
+}
 function lockedSnapshot(value:unknown):boolean{return value!==null&&typeof value==='object'&&(value as {locked?:unknown}).locked===true;}
 function pollLock():void{
  if(!core||!win||win.webContents.isDestroyed()||statusInFlight||pending.size!==0)return;
@@ -109,7 +115,12 @@ async function showPrompt(requestID:string,prompt:Prompt):Promise<void>{
  }
  const partition='wallet-prompt-'+randomBytes(16).toString('hex');active.ses=secureSession(partition,'prompt',{'/':'prompt.html','/prompt.js':'prompt.js','/prompt.css':'prompt.css'});
  const fixedTitle='LocalWallet — '+prompt.title.replace(/ — Go signer$/,'');
- const modal=new BrowserWindow({parent:win,modal:true,show:false,width:720,height:720,minWidth:540,minHeight:480,title:fixedTitle,webPreferences:{partition,preload:path.join(__dirname,'prompt-preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});active.window=modal;modal.setMenu(null);
+ const input=prompt.kind==='input';
+ const area=screen.getDisplayMatching(win.getBounds()).workAreaSize;
+ // Input rows have a compact fixed layout; long/many-field inputs scroll while
+ // footer controls remain reachable. Reserve frame space for content sizing.
+ const size=boundedWindowSize(input?620:720,input?Math.min(720,304+96*(prompt.labels!.length-1)):720,540,input?280:480,area,input?64:32,input?80:32);
+ const modal=new BrowserWindow({parent:win,modal:true,show:false,...size,useContentSize:input,title:fixedTitle,webPreferences:{partition,preload:path.join(__dirname,'prompt-preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});active.window=modal;modal.setMenu(null);
  // The packaged document title must never replace the signer-bound dialog title.
  modal.on('page-title-updated',event=>event.preventDefault());
  modal.webContents.setWindowOpenHandler(()=>({action:'deny'}));modal.webContents.on('will-attach-webview',event=>event.preventDefault());
@@ -126,7 +137,7 @@ void app.whenReady().then(async()=>{
  ses.webRequest.onBeforeRequest((details,callback)=>callback({cancel:!details.url.startsWith(origin+'/')&&!details.url.startsWith('data:image/png;base64,')}));
  ses.on('will-download',event=>event.preventDefault());
  await ses.protocol.handle('wallet',request=>{const u=new URL(request.url);const files:Record<string,string>={'/':'index.html','/renderer.js':'renderer.js','/style.css':'style.css'};const name=files[u.pathname];if(u.host!=='app'||!name||u.search||u.hash)return new Response('Denied',{status:403});return net.fetch('file://'+path.join(__dirname,'../ui',name));});
- win=new BrowserWindow({width:1180,height:850,title:'LocalWallet — Verification pending',webPreferences:{partition:'wallet-local',preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});
+ win=new BrowserWindow({...boundedWindowSize(1440,960,960,640,screen.getPrimaryDisplay().workAreaSize),title:'LocalWallet — Verification pending',webPreferences:{partition:'wallet-local',preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});
  win.on('closed',()=>{win=undefined;stop()});
  win.webContents.on('will-navigate',e=>e.preventDefault());win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-attach-webview',e=>e.preventDefault());
  const osLock=()=>{finishPrompt(true);notifyLocked();void request('lock',{}).catch(stop)};

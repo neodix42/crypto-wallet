@@ -57,7 +57,7 @@
 
       </div>
       <div id="exchangepage" role="tabpanel" hidden>
-        <div class="wallet-heading"><div><h1 id="exchangetitle" tabindex="-1">Exchange</h1><p>Deposit to Bybit, trade a spot USDT pair, then withdraw to your wallet.</p></div><div class="actions"><button id="exchangesettings">Exchange settings</button></div></div>
+        <div class="wallet-heading"><div><h1 id="exchangetitle" tabindex="-1">Exchange</h1><p>Deposit to Bybit, trade a spot USDT pair, then withdraw to your wallet.</p></div></div>
         <p id="exchangeconnection" role="status">Bybit is disconnected.</p>
         <p>Bybit holds deposited assets. Review and approve each deposit, trade and withdrawal in this wallet using your app password. The wallet then submits the authorized request. Transfers between Bybit accounts require a separate approval.</p>
         <div class="panel exchange-selection"><label>Wallet and network <select id="exchangeaccount"></select></label><label>Wallet asset <select id="exchangeasset"></select></label><div class="asset-identity"><span>Your wallet address</span><code id="exchangeaddress"></code><p id="exchangeassetinfo"></p></div><p id="exchangeroute">Select a wallet asset and refresh its market.</p><button id="exchangequote">Refresh market &amp; price</button><pre id="exchangeprice">Price unknown — no market query completed.</pre></div>
@@ -120,7 +120,6 @@
   <span class="statusbar-label">Status</span>
   <aside id="notifications" class="notifications" aria-label="Wallet notifications">
     <div class="notification-content"><p id="message" role="status" aria-live="polite">Checking the local wallet…</p><div id="operationerror" role="alert" aria-live="assertive" tabindex="-1" hidden></div></div>
-    <button id="dismissnotification" aria-label="Dismiss notification">Dismiss</button>
   </aside>
   <div id="receiverecoverydialog" class="statusbar-recovery" hidden>
     <section role="region" aria-labelledby="receiverecoverytitle" tabindex="-1">

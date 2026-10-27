@@ -9,6 +9,8 @@ names += ['bybit-client','bybit-client-mutations','exchange-core','exchange-sign
           'usdt-execution','exchange','exchange-live','exchange-settings','settings-main','x11-diagnostics','near-dcr-balances','wallet-status','wallet-status-x11-driver','pre-exchange-soak','pre-exchange-nondecred-soak-run']
 names += sorted(path.stem for path in (root/'reports').glob('wallet-status-packaged-attempt[0-9]*.json') if path.is_file())
 names += sorted(path.stem for path in (root/'reports').glob('wallet-status-late-probe*.json') if path.is_file())
+names += ['window-compact','window-compact-x11-driver']
+names += sorted(path.stem for path in (root/'reports').glob('window-compact-packaged-attempt[0-9]*.json') if path.is_file())
 index=[]
 for name in names:
  source=root/'reports'/(name+'.json')
@@ -71,6 +73,11 @@ for name in ['wallet-status-components-first.log','wallet-status-components.log'
 for source in sorted((root/'reports').glob('wallet-status-packaged-attempt[0-9]*.log')):
  if source.is_file():shutil.copyfile(source,out/source.name)
 for pattern in ['wallet-status-late-probe*.log','wallet-status-late-probe*-producer.py']:
+ for source in sorted((root/'reports').glob(pattern)):
+  if source.is_file():shutil.copyfile(source,out/source.name)
+for source in sorted((root/'reports').glob('window-compact-*.log')):
+ if source.is_file():shutil.copyfile(source,out/source.name)
+for pattern in ['window-compact-packaged-attempt*-producer.py','window-compact-x11-driver-probe.py','window-compact-x11-closed-query.json','window-compact-x11-unexpected-error.json']:
  for source in sorted((root/'reports').glob(pattern)):
   if source.is_file():shutil.copyfile(source,out/source.name)
 manifest=json.loads((root/'dist'/('go-build-manifest.json' if args.go_only else 'build-manifest.json')).read_text())

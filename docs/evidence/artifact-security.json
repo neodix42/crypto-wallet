@@ -4,11 +4,11 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "23e918bfb6d31feda1cc39d7dfc7cd3bdd16a4decdca5fd7afe6c8e378ff87c7",
-      "wallet-launcher": "ae7c906a15098220f35570879ed6f13f4dc6aa81ae75d3faf6038dc2037cd203",
-      "wallet-signer": "95c0aca23ccff910ca6fde41e23e5f603e3daf8f1af3d98c8673b234f16ec9da"
+      "wallet-core": "513678e14c3617103dc18eee45294d65b399d8b20d2f052c86e73d52dcb876d9",
+      "wallet-launcher": "e5f1c776320773785eed778f11d6c46fb576f390d651c383e232e6e8772bef0c",
+      "wallet-signer": "5e0813e04e064fda987bea762e597681924e96e3481b5b5656b84c46a0c84ae4"
     },
-    "asarSHA256": "03a3215f05b3f1f02ebbdbc717e4752a67f8a30a232117ee68951ac3caa8814e",
+    "asarSHA256": "6d909d73641191991807ffb5b37c7ebcb19c2bfc2a90087e36e42041d84374eb",
     "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c"
   },
   "fuses": {
@@ -42,31 +42,31 @@
   ],
   "payloadSHA256": {
     "app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
-    "app/main.js": "c488342c28687a3e1ff48c4d71ea2817f988ab7fd7d3310dad5bbe007f75787e",
+    "app/main.js": "c3c0e2427fc36676266a0754457eee299f954eee90e64e5338e438368d108ef3",
     "app/preload.js": "847241abe7c04b0755c07a8568f86ed01e064808e3035cb4bb71d60f5d14bd70",
     "app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
     "app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
     "app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "ui/index.html": "5a8ed9146cfd27ff58e263c9b5353482343c604cff8c132006a15d18bd559fb3",
-    "ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "ui/index.html": "682ccdeb9b7ee371a27d0777059e5dd9d4682a10a7aea56ba0bfc687db463790",
+    "ui/prompt.css": "9b9e9361fd6d7df171f202dcc1c3cb3fe11fa363fbd5ad14517aa0a237b932cc",
     "ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
-    "ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
-    "ui/renderer.js": "422cca163e5c4950ed0042cccbd6d55aba60cf0aae77cae10605229ba86a44a5",
-    "ui/style.css": "17f85b266b227b2deaf63bdbcf31de921f583c6a999e03c674524960739ce9c5"
+    "ui/prompt.js": "09d5ec7eec003b9e1b1c4b5b66d44aa514d4a46954cc75385c4c26038f2083a6",
+    "ui/renderer.js": "435bc2055b90401fa46a759ffd054645263ead42ab498e4db294bf37967ebb66",
+    "ui/style.css": "ea782e58de56c2c1f653279b74b3349c121415435961e472b22637992c07d606"
   },
   "productionSourceSHA256": {
     "desktop/app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
-    "desktop/app/main.js": "c488342c28687a3e1ff48c4d71ea2817f988ab7fd7d3310dad5bbe007f75787e",
+    "desktop/app/main.js": "c3c0e2427fc36676266a0754457eee299f954eee90e64e5338e438368d108ef3",
     "desktop/app/preload.js": "847241abe7c04b0755c07a8568f86ed01e064808e3035cb4bb71d60f5d14bd70",
     "desktop/app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
     "desktop/app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
     "desktop/app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "desktop/ui/index.html": "5a8ed9146cfd27ff58e263c9b5353482343c604cff8c132006a15d18bd559fb3",
-    "desktop/ui/prompt.css": "1d2f2b420ac9e58c3254a0c73e956fcaa0d8741bf64ed48e809ddf4c863c759e",
+    "desktop/ui/index.html": "682ccdeb9b7ee371a27d0777059e5dd9d4682a10a7aea56ba0bfc687db463790",
+    "desktop/ui/prompt.css": "9b9e9361fd6d7df171f202dcc1c3cb3fe11fa363fbd5ad14517aa0a237b932cc",
     "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
-    "desktop/ui/prompt.js": "101945ae06a22232002751563f191c3876d200b08a8f57bbefe34ad6bdb4e229",
-    "desktop/ui/renderer.js": "422cca163e5c4950ed0042cccbd6d55aba60cf0aae77cae10605229ba86a44a5",
-    "desktop/ui/style.css": "17f85b266b227b2deaf63bdbcf31de921f583c6a999e03c674524960739ce9c5"
+    "desktop/ui/prompt.js": "09d5ec7eec003b9e1b1c4b5b66d44aa514d4a46954cc75385c4c26038f2083a6",
+    "desktop/ui/renderer.js": "435bc2055b90401fa46a759ffd054645263ead42ab498e4db294bf37967ebb66",
+    "desktop/ui/style.css": "ea782e58de56c2c1f653279b74b3349c121415435961e472b22637992c07d606"
   },
   "productionPayloadMatchesSource": true,
   "productionFilesCompared": 12

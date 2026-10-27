@@ -1,6 +1,23 @@
 # Implementation and release evidence
 
-The current 2026-10-25 interface update uses a reserved fixed-height bottom status bar, including informational validation failures and pending Receive guidance. Wallet rows show exact native amounts with observation details on hover and complete untruncated addresses. Open wallets always show the receive address/copy icon, use asset buttons and identify the selected asset in their titles. Send uses whole-asset **Amount** wording and no QR-image scan control. Tab navigation no longer outlines page headings. See [WALLET_STATUS.md](WALLET_STATUS.md) for behavior, approval boundaries and current evidence.
+The current **2026-10-27** interface update uses a larger display-bounded main window, compact masked Unlock dialog, a **52-pixel** status bar and **seven-second** automatic notice expiry without a Dismiss button. Bybit configuration remains in **Settings → Exchange**; the main Exchange page no longer has its settings shortcut. Secret, authorization, network and recovery rules are unchanged.
+
+## Current compact-window verification — 2026-10-27
+
+| Status | Measured scope and limit |
+| --- | --- |
+| PASS | **154 frontend tests**, zero skipped; all eight shipped JS files have **100% statements**, main **98.53% branches**, renderer **98.26%**, remaining six 100%. Deterministic-clock tests cover exactly seven seconds, new-message renewal, obsolete callbacks, idle locks, focus, unload and preserved recovery/payment gates. |
+| PASS | Final **0.1.0** portable build/install, all **12** packaged payload comparisons, production fuses and consistent versions. Main default **1440×960**, display bounded; Unlock **620×304 content pixels**, with larger scrollable layouts retained for other prompt types. |
+| PASS | **Seven** actual isolated-geth packaged Send checks with independent receipt, exact recipient credit, source fee debit and delayed nonce; **six** headless recovery and **seven** owned-Go-process crash/canary checks match final installed binaries. |
+| PASS | **39/39** source-stable actual packaged X11 checks: main **1248×960** on a **1280×1024** display; no locked-screen horizontal scrollbar/movement; Unlock **620×304** with a **32-pixel** input-to-OK gap; four fixed **52-pixel** footer/automatic-expiry observations; no Dismiss or Exchange settings shortcut. Pending recovery remains actionable beyond notice expiry. Private Unlock pixels stayed in memory and only numeric geometry was retained. |
+| PASS | Final-producer-bound X11 driver regression: a vanished owned window is absent, original handler/getter restored, unexpected native errors remain fatal. Its intentionally failing child is required rejection evidence, not a passing wallet run. |
+| FAIL | `make verify-release`: existing required acceptance remains incomplete, including the blocked Go aggregate and unrun external gates. No new frontend, artifact, packaged recovery or isolated Send binding failure. |
+| FAIL / BLOCKED — unchanged | Full Go aggregate requires the unavailable pinned Decred simnet prerequisite. No Go code or dependencies changed for this interface task. |
+| NOT_RUN | Funded/private Bybit acceptance, public-chain payments, complete installed Ubuntu X11/Wayland/lifecycle matrix, full soak and independent review. |
+
+The scoped source/artifact-bound report is [window-compact.json](evidence/window-compact.json). An initial component test rewrite incorrectly moved every action into Settings; the retained failed log and corrected guard remain distinct from final passing coverage. The first 39-check desktop run passed its assertions but contained an unsupported metadata clause about component DOM-width measurement. Its exact source/report/log are retained; the clause was removed and all 39 checks reran on the unchanged application. The current measurements use public pixels and native input, not DOM geometry or private dialog screenshots.
+
+The previous 2026-10-25 interface update uses a reserved fixed-height bottom status bar, including informational validation failures and pending Receive guidance. Wallet rows show exact native amounts with observation details on hover and complete untruncated addresses. Open wallets always show the receive address/copy icon, use asset buttons and identify the selected asset in their titles. Send uses whole-asset **Amount** wording and no QR-image scan control. Tab navigation no longer outlines page headings. See [WALLET_STATUS.md](WALLET_STATUS.md) for behavior, approval boundaries and current evidence.
 
 The preceding balance update distinguishes a NEAR implicit account that has not been created on chain from an unavailable RPC. A zero requires structured absence at an exact fresh final block; network errors, removed/restricted keys and ambiguous responses remain unavailable. An unconfigured Decred wallet displays authenticated-TLS node guidance and skips futile balance queries. Its historical synchronization limits remain unchanged. See [BALANCE_CONNECTIVITY.md](BALANCE_CONNECTIVITY.md) for setup and that candidate's evidence.
 
@@ -16,7 +33,7 @@ PASS means the named scope ran successfully. RUNNING does not mean complete. NOT
 
 Every root specification and applicable instruction was read; no applicable AGENTS.md was present. Source/test hashes and binary/ASAR identities identify the modified working tree; a base Git commit alone does not. [candidate.json](evidence/candidate.json), [production-hardening.json](evidence/production-hardening.json) and generated source inventories retain the candidate bindings.
 
-## Current wallet/status interface verification — 2026-10-25
+## Previous wallet/status interface verification — historical 2026-10-25 evidence
 
 | Status | Measured scope and limit |
 | --- | --- |

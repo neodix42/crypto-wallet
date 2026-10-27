@@ -16,7 +16,7 @@ vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
 phrase_spec=importlib.util.spec_from_file_location('test_phrase',root/'tests/e2e/phrase.py');phrase_ui=importlib.util.module_from_spec(phrase_spec);phrase_spec.loader.exec_module(phrase_ui)
-report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, fixed-height bottom status feedback without moving its public page anchor, numeric native balances and hover-only observation metadata, unclipped table addresses, persistent wallet address/copy, asset tabs and whole-asset Amount wording, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls and isolated Connect cancellation; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals','authenticated live Decred mainnet balance/discovery']}
+report={'status':'NOT_RUN','scope':'Uninstrumented portable X11 password-to-dialog-phrase setup, recorded-word confirmation, isolated fresh-profile phrase restore, main-page Settings Wallet/Exchange/Journal navigation, widened workarea-clamped main window without locked-screen horizontal scrolling, compact empty Unlock input/OK geometry recorded numerically without retaining private pixels, fixed 52-pixel bottom status feedback with seven-second auto-hide and no Dismiss or page displacement, numeric native balances and hover-only observation metadata, unclipped table addresses, persistent wallet address/copy, asset tabs and whole-asset Amount wording, unconfigured Decred table/wallet connection guidance, receive QR/copy, tab closing, disconnected Exchange controls with no redundant settings shortcut and isolated Connect cancellation; disposable generated and public fixture roots only','steps':[], 'notRun':['clean Ubuntu24.04 desktop','Wayland full wallet workflows','OS suspend/session lock','send from installed package','upgrade/uninstall recovery matrix','live Bybit authentication, deposits, spot fills and withdrawals','authenticated live Decred mainnet balance/discovery']}
 report['environment']=selected_profile
 report['producerSHA256']=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()
 report['phraseHelperSHA256']=hashlib.sha256((root/'tests/e2e/phrase.py').read_bytes()).hexdigest()
@@ -26,7 +26,7 @@ report.update(status='RUNNING',sourceStable=False)
 # receives a fresh HOME below. These paths are never passed to the wallet.
 decoder_environment=json.loads(subprocess.check_output([str(root/'scripts/with-go.sh'),'go','env','-json','GOROOT','GOPATH','GOMODCACHE','GOCACHE'],cwd=root,text=True))
 password='public-synthetic-password-79326';phrase='abandon '*11+'about'
-owned=[];app=None;display=None;desktop=None;logs=[];live_log_checks=[];x11_error_handler_refs=None
+owned=[];app=None;display=None;desktop=None;logs=[];live_log_checks=[];x11_error_handler_refs=None;launch_started_at=None
 def passed(name): report['steps'].append({'name':name,'status':'PASS'});print('PASS '+name,flush=True)
 def install_owned_window_query_handler(desktop,report,report_path):
  # Window destruction can race XQueryTree/GetWindowAttributes on this owned
@@ -179,24 +179,45 @@ def statusbarbounds():
  candidates=[yy for yy in range(max(y,y+h-200),y+h-1) if all(picture.getpixel((xx,yy))==(64,81,107) for xx in samples) and all(picture.getpixel((xx,yy+1))==(20,30,43) for xx in samples)]
  if len(candidates)!=1:raise RuntimeError('Full-width bottom status bar boundary is missing or ambiguous')
  top=candidates[0]
- if y+h-top!=88:raise RuntimeError('Bottom status bar is not the required fixed 88-pixel height')
+ if y+h-top!=52:raise RuntimeError('Bottom status bar is not the required fixed 52-pixel height')
  return (x,top,x+w,y+h)
-def dismissnotification():
- bar=statusbarbounds()
- if any(a[11].lower()=='dismiss' for a in textboxes(bar)):
-  clickphrase('Dismiss',region=bar);time.sleep(.2)
-def notificationlayout(anchor,before):
+def notificationwords():
+ rows=textboxes(statusbarbounds())
+ if any(a[11].lower()=='dismiss' for a in rows):raise RuntimeError('Bottom status feedback still displays a Dismiss control')
+ return ' '.join(a[11] for a in rows).lower()
+def waitnotificationexpiry():
+ # Let the real production timeout clear ordinary feedback. Do not replace the
+ # removed Dismiss control with Escape or an injected renderer event.
+ until(lambda:notificationwords().strip() in ('','status'),12)
+def seenfeedback(fragment,triggered_at):
+ fragment=fragment.lower()
+ until(lambda:not phrase_ui.secret_window(desktop),20)
+ until(lambda:fragment in notificationwords(),20)
+ if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Information-only feedback opened a floating application dialog')
+ return {'fragment':fragment,'triggeredAt':triggered_at,'firstObservedAt':time.monotonic()}
+def notificationlayout(anchor,before,feedback,verify_poll=False):
  # A visible error previously inserted a block above the page. Require the
- # same public heading rectangle while feedback is shown and after dismissal,
- # and prove that its dismiss control is inside the fixed bottom status bar.
+ # same public heading rectangle while feedback is shown and after automatic
+ # expiry. Timing is measured from real native input, never from a test bridge.
+ # Component tests additionally check the precise 7,000 ms timer boundary.
  bar=statusbarbounds()
- if not any(a[11].lower()=='dismiss' for a in textboxes(bar)):raise RuntimeError('Bottom status feedback has no visible dismiss control')
  during=publicphrasebounds(anchor)
  if during!=before:raise RuntimeError('Feedback moved the public page anchor')
- dismissnotification();after=publicphrasebounds(anchor)
- if after!=before:raise RuntimeError('Dismissing feedback moved the public page anchor')
- if statusbarbounds()!=bar:raise RuntimeError('Dismissing feedback changed the bottom status bar geometry')
- report.setdefault('notificationLayoutObservations',[]).append({'anchor':anchor,'before':before,'whileFeedbackVisible':during,'afterDismissal':after,'fixedStatusbarBounds':bar})
+ target=feedback['triggeredAt']+6.8
+ if time.monotonic()>=target:raise RuntimeError('Public feedback timing observation started too late')
+ time.sleep(max(0,target-time.monotonic()))
+ checked_at=time.monotonic()
+ if feedback['fragment'] not in notificationwords():raise RuntimeError('Public feedback disappeared before the near-seven-second observation')
+ until(lambda:feedback['fragment'] not in notificationwords(),5)
+ expired_at=time.monotonic();after=publicphrasebounds(anchor)
+ if after!=before:raise RuntimeError('Automatic feedback expiry moved the public page anchor')
+ if statusbarbounds()!=bar:raise RuntimeError('Automatic feedback expiry changed the bottom status bar geometry')
+ if verify_poll:
+  # The locked status poll runs every five seconds. Expired text must remain
+  # absent across another complete poll interval, rather than being revived.
+  time.sleep(5.2)
+  if feedback['fragment'] in notificationwords():raise RuntimeError('Locked polling revived expired public feedback')
+ report.setdefault('notificationLayoutObservations',[]).append({'anchor':anchor,'before':before,'whileFeedbackVisible':during,'afterAutomaticExpiry':after,'fixedStatusbarBounds':bar,'lastVisibleSecondsAfterNativeAction':round(checked_at-feedback['triggeredAt'],3),'firstAbsentSecondsAfterNativeAction':round(expired_at-feedback['triggeredAt'],3),'dismissControl':'absent','remainsAbsentAcrossLaterPoll':verify_poll})
 def headingwithoutoutline(phrase):
  rows=textboxes();words=phrase.lower().split();matches=[]
  navigation=[int(a[7]) for a in rows if a[11].lower()=='settings']
@@ -219,21 +240,13 @@ def waitprompt(prefix):
  # One in-flight overview query can finish before the serial core handles a
  # dialog action. Its production deadline is 30 seconds; no wallet retry occurs.
  w,_=desktop.wait(prefix,45);desktop.focus(w);return desktop.geometry(w)
-def expectfailure(public_fragment,name,persist=False):
+def expectfailure(public_fragment,name,triggered_at=None):
  # Expected failures now arrive as fixed reviewed public codes in the bottom
  # status bar. The Go notice transport is not permission to create or approve
  # a confirmation window, and no raw error/prompt summary is shown here.
- until(lambda:not phrase_ui.secret_window(desktop),20)
- def visible():return public_fragment.lower() in ' '.join(a[11] for a in textboxes(statusbarbounds())).lower()
- until(visible,20)
- if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Information-only failure feedback opened a floating application dialog')
- if persist:
-  # The locked status poll runs every five seconds. Its next response must not
-  # erase the error before the user can read it.
-  end=time.monotonic()+6
-  while time.monotonic()<end:time.sleep(.1)
-  if not visible():raise RuntimeError('Locked polling erased public failure guidance')
+ feedback=seenfeedback(public_fragment,triggered_at if triggered_at is not None else time.monotonic())
  desktop.screenshot(reports/('packaged-'+name+'.png'));passed(name)
+ return feedback
 def stopapp():
  global app
  if app is not None:
@@ -246,7 +259,7 @@ def stopapp():
   except subprocess.TimeoutExpired:os.killpg(app.pid,signal.SIGKILL);app.wait()
   app=None;time.sleep(.5)
 def launch(profile,env,environment=None):
- global app
+ global app,launch_started_at
  env={**env,'XDG_CONFIG_HOME':str(profile)}
  log=tempfile.TemporaryFile(mode='w+');logs.append(log)
  launcher=root/'wallet' if (root/'wallet').exists() else root/'dist/LocalWallet-linux-x64/wallet-launcher'
@@ -259,7 +272,7 @@ def launch(profile,env,environment=None):
  # receive. Testnet is always an explicit isolated developer profile.
  environment=environment or selected_profile
  if environment=='testnet':arguments.append('--profile=testnet')
- app=subprocess.Popen(arguments,env=env,stdout=log,stderr=log,start_new_session=True)
+ launch_started_at=time.monotonic();app=subprocess.Popen(arguments,env=env,stdout=log,stderr=log,start_new_session=True)
  desktop.wait('LocalWallet',20);time.sleep(1)
 def finishimport():
  # Imported recovery limits are an actual Go-authored confirmation, rather
@@ -402,7 +415,7 @@ def overviewbalance():
  overview();tableaddress('NEAR','5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412')
  passed('Long NEAR table address remains complete on one line and matches the independent public reference vector')
 def decredconnection():
- overview();dismissnotification();rows=textboxes()
+ overview();waitnotificationexpiry();rows=textboxes()
  native=[a for a in rows if a[11].lower()=='native']
  receive=[a for a in rows if a[11].lower()=='receive']
  if not native or not receive:raise RuntimeError('Balance-column coordinates unavailable for Decred guidance')
@@ -456,6 +469,54 @@ def publiccontroltext(picture,box,name):
  crop=crop.resize((crop.width*4,crop.height*4),Image.Resampling.LANCZOS)
  path=reports/('packaged-'+name+'-control-text.png');crop.save(path)
  return ' '.join(subprocess.check_output(['tesseract',str(path),'stdout','--psm','7'],stderr=subprocess.DEVNULL,text=True).split())
+def initialwindowgeometry(stage):
+ # Xvfb has no window-manager frame, so its native geometry directly observes
+ # the installed app's clamped default, without resizing the application.
+ _,_,screen_width,screen_height=desktop.geometry(desktop.root)
+ x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ expected=(min(1440,screen_width-32),min(960,screen_height-32))
+ if (w,h)!=expected:raise RuntimeError('Installed main window did not use its wider workarea-clamped default size')
+ if x<0 or y<0 or x+w>screen_width or y+h>screen_height:raise RuntimeError('Installed main window extends outside the owned display')
+ report.setdefault('initialWindowObservations',[]).append({'stage':stage,'screenSize':(screen_width,screen_height),'nativeBounds':(x,y,w,h),'expectedClampedSize':expected})
+def lockedpresentation():
+ initialwindowgeometry('locked restart')
+ anchor=publicphrasebounds('Welcome back')
+ feedback=seenfeedback('Wallet locked. Unlock through the wallet dialog.',launch_started_at)
+ notificationlayout('Welcome back',anchor,feedback,verify_poll=True)
+ passed('Installed locked information auto-hides on its seven-second interval without Dismiss and remains absent across polling')
+ # Real horizontal pointer-wheel input must not move the locked page. Classic
+ # Chromium scrollbars also consume viewport height below a fixed footer;
+ # its exact 52-pixel full-client-bottom geometry and background rule out that
+ # rail. No DOM scrollWidth inspection or renderer event injection is used.
+ bar=statusbarbounds();x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ for button in (7,6):
+  scrollpage(button,20)
+  if publicphrasebounds('Welcome back')!=anchor:raise RuntimeError('Locked main page scrolls horizontally')
+ if statusbarbounds()!=bar:raise RuntimeError('Horizontal input changed locked main footer geometry')
+ picture=Image.open(capture()).convert('RGB')
+ if not all(picture.getpixel((xx,yy))==(20,30,43) for xx in (x+3,x+w//2,x+w-25) for yy in (y+h-3,y+h-2)):
+  raise RuntimeError('Locked main window has a bottom scrollbar rail instead of its fixed footer background')
+ report['lockedHorizontalScrollObservation']={'status':'PASS','scope':'Classic Chromium/X11: actual public pixels show no horizontal content movement under real right/left wheel input and no bottom scrollbar rail; component tests independently verify configured display bounds','headingBounds':anchor,'fixedStatusbarBounds':bar}
+ desktop.screenshot(reports/'compact-ui-locked.png')
+ passed('Installed locked screen fits its widened window without horizontal movement or a visible horizontal scrollbar')
+def compactunlockgeometry():
+ # This must run immediately after opening a NEW EMPTY Unlock prompt, before
+ # desktop.inputs. Private pixels stay only in RAM, never OCR/files/reports.
+ # Only numeric rectangles/gap are retained. A missing/ambiguous fill fails
+ # closed rather than falling back to a screenshot of the credential window.
+ window,title=desktop.wait('Unlock local wallet',20)
+ if title!='LocalWallet — Unlock local wallet':raise RuntimeError('Unexpected Unlock credential window identity')
+ x,y,w,h=desktop.geometry(window)
+ if not (620<=w<=650 and 304<=h<=344):raise RuntimeError('Unlock credential window retained excessive default dimensions')
+ mod.T.XTestFakeMotionEvent(desktop.d,-1,5,5,0);mod.X.XFlush(desktop.d);time.sleep(.1)
+ picture=desktop.image().convert('RGB')
+ inputs=[box for box in publicfillrectangles(picture,(x,y,x+w,y+h),{(11,19,31)}) if box[2]-box[0]>=w*.6 and 35<=box[3]-box[1]<=60]
+ primary=[box for box in publicfillrectangles(picture,(x,y+h//2,x+w,y+h),{(66,105,170)}) if 80<=box[2]-box[0]<=150 and 32<=box[3]-box[1]<=50]
+ if len(inputs)!=1 or len(primary)!=1:raise RuntimeError('Empty Unlock control geometry could not be identified unambiguously; no private pixels retained')
+ gap=primary[0][1]-inputs[0][3]
+ if not 0<=gap<=48:raise RuntimeError('Unlock password input has excessive spacing before its OK button')
+ report.setdefault('unlockGeometryObservations',[]).append({'nativeSize':(w,h),'inputBoundsRelativeToWindow':tuple(value-(x if index%2==0 else y) for index,value in enumerate(inputs[0])),'okBoundsRelativeToWindow':tuple(value-(x if index%2==0 else y) for index,value in enumerate(primary[0])),'inputToOKGapUpperBoundPixels':gap,'privatePixelsRetained':False})
+ del picture,inputs,primary
 def selectwalletasset(symbol):
  scrollhome();rows=textboxes();_,_,_,panel_bottom=publicphrasebounds('Balance')
  # Locate the actual public button fills inside the independently labelled
@@ -477,7 +538,7 @@ def selectwalletasset(symbol):
  elif symbol!='ETH':raise RuntimeError('Unsupported asset selection in public fixture drill')
  time.sleep(.3)
 def walletpresentation(expected):
- openfirstwallet();dismissnotification();headingwithoutoutline('Ethereum')
+ openfirstwallet();waitnotificationexpiry();headingwithoutoutline('Ethereum')
  rows=textboxes();text=' '.join(a[11] for a in rows)
  if 'provider-observed' in text.lower():raise RuntimeError('Provider observation metadata is visible in the wallet page')
  if re.search(r'\bAsset\b',text):raise RuntimeError('Wallet page still presents a redundant asset dropdown label')
@@ -596,7 +657,7 @@ def exchangeassetidentity(expected):
  # keyboard selection exercises the real select control without a provider
  # query, credentials, DOM inspection or synthetic renderer event injection.
  desktop.key('Home');desktop.key('Down');desktop.key('Escape');time.sleep(.3)
- dismissnotification()
+ waitnotificationexpiry()
  for attempt in range(5):
   rows=textboxes();text=' '.join(a[11] for a in rows)
   if 'your wallet address' in text.lower() and 'token contract' in text.lower():break
@@ -643,11 +704,18 @@ def exchangedisconnected(profile):
  words=' '.join(a[11] for a in textboxes()).lower()
  if 'connect bybit api key' in words or 'bybit api region' in words:raise RuntimeError('Bybit connection setup remains on the trading page')
  scrollhome();time.sleep(.2)
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
- navtop=min(int(a[7]) for a in textboxes() if a[11].lower().strip('.,:')=='exchange')
- # The adjacent permanent tabs themselves read "Exchange Settings". Scope the
- # shortcut to page content so it cannot be mistaken for those two controls.
- clickphrase('Exchange settings',region=(x,navtop+40,x+w,y+h));time.sleep(.3)
+ x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0]);rows=textboxes()
+ navtop=min(int(a[7]) for a in rows if a[11].lower().strip('.,:')=='exchange')
+ # The adjacent permanent tabs themselves read "Exchange Settings". Search
+ # only page content, including its scrolled tail, for the removed shortcut.
+ for attempt in range(3):
+  rows=textboxes((x,navtop+40 if attempt==0 else y,x+w,y+h-52))
+  for i,a in enumerate(rows[:-1]):
+   b=rows[i+1]
+   if a[11].lower()=='exchange' and b[11].lower().strip('.,:')=='settings' and a[1:5]==b[1:5]:raise RuntimeError('Exchange page still displays its Exchange settings shortcut')
+  scrollpage(5,5)
+ passed('Installed Exchange trading page omits its redundant Exchange settings shortcut while permanent Settings remains available')
+ settingssection('Exchange')
  until(lambda:'bybit api region' in ' '.join(a[11] for a in textboxes()).lower(),20)
  if 'bybit connection' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Settings Exchange tab did not display Bybit setup')
  if 'local payment journal' in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Journal remained on the Exchange settings page')
@@ -664,16 +732,16 @@ def exchangedisconnected(profile):
   if enter_password:
    desktop.inputs('Reauthenticate Bybit connection',[password]);desktop.accept('Reauthenticate Bybit connection');waitprompt('Connect Bybit')
    if not phrase_ui.secret_window(desktop):raise RuntimeError('Bybit API dialog is outside the protected credential-window classification')
-  desktop.key('Escape')
+  cancelled_at=time.monotonic();desktop.key('Escape')
   until(lambda:not phrase_ui.secret_window(desktop),20)
   if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Cancelled Bybit connection left a floating information dialog')
   until(lambda:'bybit is disconnected' in ' '.join(a[11] for a in textboxes()).lower(),20)
-  until(lambda:'request cancelled' in ' '.join(a[11] for a in textboxes()).lower(),20)
-  notificationlayout('Bybit connection',connection_anchor)
+  feedback=seenfeedback('request cancelled',cancelled_at)
+  notificationlayout('Bybit connection',connection_anchor,feedback)
  if hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()!=before:raise RuntimeError('Cancelled Bybit connection changed encrypted wallet state')
  report['exchangeConnectionDrill']={'status':'PASS','scope':'Real isolated app-password and empty masked API-input dialogs cancelled through XTest; no API credentials entered, custody approved or live exchange acceptance claimed'}
  passed('Installed Settings Exchange owns Bybit region and Connect; isolated credential cancellation preserves the disconnected vault')
- passed('Installed cancellation feedback stays in the fixed bottom status bar without moving the Exchange settings heading and can be dismissed')
+ passed('Installed cancellation feedback auto-hides after its seven-second interval without Dismiss or movement of the Exchange settings heading')
  desktop.key('Escape');time.sleep(.3)
  if 'bybit connection' not in ' '.join(a[11] for a in textboxes()).lower():raise RuntimeError('Escape dismissed main-page Exchange settings')
  overview()
@@ -729,14 +797,16 @@ try:
   home=folder/'home';home.mkdir(mode=0o700);env['HOME']=str(home);os.environ['HOME']=str(home)
   for key in ['WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS']:os.environ.pop(key,None)
   generated=folder/'generated';launch(generated,env)
+  initialwindowgeometry('first run')
+  passed('Installed main window uses the wider default and clamps to the owned display workarea')
   if any(t.startswith(('Create local wallet','Unlock local wallet')) for _,t in desktop.windows()):raise RuntimeError('First launch opened a credential window without a user action')
   desktop.screenshot(reports/'packaged-first-run.png')
   onboarding_anchor=publicphrasebounds('Create your app password')
   clickline('Create app password');waitprompt('Create local wallet')
-  desktop.inputs('Create local wallet',['bad','bad']);desktop.accept('Create local wallet')
-  expectfailure('Use an app password','short-password-feedback',persist=True)
-  notificationlayout('Create your app password',onboarding_anchor)
-  passed('Installed error feedback remains readable across polling without moving onboarding and dismisses independently')
+  desktop.inputs('Create local wallet',['bad','bad']);submitted_at=time.monotonic();desktop.accept('Create local wallet')
+  feedback=expectfailure('Use an app password','short-password-feedback',triggered_at=submitted_at)
+  notificationlayout('Create your app password',onboarding_anchor,feedback,verify_poll=True)
+  passed('Installed error feedback survives polling, auto-hides on its seven-second interval without Dismiss and never moves onboarding')
   if (generated/vault_relative).exists():raise RuntimeError('Short password created a vault')
   clickline('Create app password');waitprompt('Create local wallet')
   desktop.inputs('Create local wallet',[password,'different-public-password-79326']);desktop.accept('Create local wallet')
@@ -757,9 +827,11 @@ try:
   clickphrase('Close send form');clickprimary('Receive');time.sleep(.3)
   bar=statusbarbounds()
   if not any(a[11].lower()=='cancel' for a in textboxes(bar)):raise RuntimeError('Pending Receive continuation is not docked inside the bottom status bar')
+  time.sleep(7.2)
+  if not any(a[11].lower()=='cancel' for a in textboxes(statusbarbounds())):raise RuntimeError('Ordinary feedback timeout erased the pending Receive recovery action')
   clickphrase('Cancel',region=bar);time.sleep(.3)
   if any(t.startswith('Verify receive address') for _,t in desktop.windows()):raise RuntimeError('Pending recovery opened a receive QR')
-  passed('Pending Receive guide cancels without opening an unconfirmed address workflow')
+  passed('Pending Receive guide remains actionable beyond seven seconds and cancels without opening an unconfirmed address workflow')
   clickprimary('Receive');time.sleep(.3);bar=statusbarbounds();clickphrase('Finish recovery phrase setup',region=((bar[0]+bar[2])//2,bar[1],bar[2],bar[3]))
   waitprompt('Complete recovery setup');desktop.inputs('Complete recovery setup',[password]);desktop.accept('Complete recovery setup')
   phrase_ui.record(desktop,expected=generated_phrase);waitprompt('Verify receive address')
@@ -793,7 +865,9 @@ try:
   scrollhome();clickphrase('Ethereum',button=2);time.sleep(.4)
   if 'Your wallets' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Middle click did not close wallet tab')
   passed('Middle-click closes wallet tab and returns to account table')
-  stopapp();launch(profile,env);clickprimary('Unlock wallet');waitprompt('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
+  stopapp();launch(profile,env);lockedpresentation();clickprimary('Unlock wallet');waitprompt('Unlock local wallet');compactunlockgeometry()
+  passed('Installed empty Unlock dialog is compact and its password input-to-OK gap is at most 48 pixels without retaining private pixels')
+  desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
   if publicaddress()!=expected:raise RuntimeError('Restart changed wallet identities')
   passed('Restart requires dialog unlock and preserves confirmed recovery and wallet address')
   stopapp()
@@ -803,7 +877,7 @@ try:
    if 'Testnet profile' not in words or 'Create your app password' not in words or (profile/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Explicit testnet reused mainnet state')
    if hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()!=saved:raise RuntimeError('Explicit testnet modified mainnet ciphertext')
    passed('Explicit testnet remains isolated from the restored mainnet profile')
-   stopapp();launch(profile,env);clickprimary('Unlock wallet');waitprompt('Unlock local wallet');desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
+   stopapp();launch(profile,env);clickprimary('Unlock wallet');waitprompt('Unlock local wallet');compactunlockgeometry();desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)
    walletmenu('Add deterministic account');scrollhome();until(lambda:'Account 2' in ' '.join(a[11] for a in textboxes()),45);clickphrase('Account 2');time.sleep(.5)
    if 'Derivation index 1' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Additional account index not preserved')
    passed('Adding deterministic account preserves phrase confirmation and creates its own account tab')

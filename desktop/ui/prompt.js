@@ -22,6 +22,7 @@ function erase() {
   $('prompttitle').textContent = 'Wallet request closed';
   for (const id of ['inputfields', 'summary', 'recovery', 'receive']) $(id).hidden = true;
   $('accept').disabled = true; $('cancel').disabled = true; $('copyaddress').disabled = true;
+  delete $('promptform').dataset.kind;
   current = undefined;
 }
 function failed() {
@@ -43,6 +44,7 @@ async function finish(accepted) {
 function render(prompt) {
   if (abandoned) return;
   if (!valid(prompt)) { failed(); return; }
+  $('promptform').dataset.kind = prompt.kind;
   current = { id: prompt.id, kind: prompt.kind };
   $('prompttitle').textContent = prompt.title;
   $('accept').disabled = false; $('cancel').disabled = false;

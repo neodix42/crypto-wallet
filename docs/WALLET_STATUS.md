@@ -1,6 +1,8 @@
 # Wallet amounts, addresses and status feedback
 
-The main window reserves an **88-pixel status bar** across its bottom edge. Ordinary information, errors and pending Receive setup guidance stay inside that bar. Long messages scroll within it, and dismissing them does not move the page. Informational Go notices no longer open an additional window. The isolated password, phrase, transaction approval and verified Receive QR dialogs retain their separate origin/session and Go authorization checks; no secret is moved into the portfolio or status bar.
+The main window initially opens at **1440×960**, bounded by the display work area. Masked input dialogs use compact content sizing: Unlock is **620×304** content pixels, with action buttons directly below the input. Longer inputs expand and then scroll; recovery, Receive and approval dialogs retain their larger layouts.
+
+The main window reserves a **52-pixel status bar** across its bottom edge. Ordinary information and errors clear automatically after **seven seconds**, without a Dismiss button or page movement. Each new message starts a fresh interval; obsolete timeouts cannot clear a newer message, and idle lock polling cannot revive expired notices. Pending Receive setup remains actionable until cancelled or completed; it does not expire with ordinary notices. Long text scrolls inside the bar. Informational Go notices no longer open an additional window. The isolated password, phrase, transaction approval and verified Receive QR dialogs retain their separate origin/session and Go authorization checks; no secret is moved into the portfolio or status bar.
 
 Switching main tabs focuses the selected navigation control. It does not focus or draw a green rectangle around the page heading. Keyboard focus indicators remain on interactive controls.
 
@@ -18,9 +20,15 @@ The Exchange disclosure now explicitly says to review and approve each deposit, 
 
 Bybit provides authenticated [spot-order](https://bybit-exchange.github.io/docs/v5/order/create-order) and [withdrawal](https://bybit-exchange.github.io/docs/v5/asset/withdraw) API calls. There is no additional manual confirmation API in this wallet's flow. Blockchain deposit confirmations accumulate with blocks; API calls cannot force them. Bybit's account, whitelist and compliance restrictions still apply. See [the API contract](BYBIT_API.md) and [Exchange guide](EXCHANGE.md).
 
-## Evidence checklist
+Bybit connection settings are reached through **Settings → Exchange**. The main Exchange page has no Exchange Settings shortcut.
 
-The source/candidate-bound report is [wallet-status.json](evidence/wallet-status.json). A passing scope does not establish the separate production acceptance gates.
+## Current compact-window verification — 2026-10-27
+
+**PASS:** 154 frontend tests, all eight shipped JS files at 100% statements; 39 actual packaged X11 checks; seven isolated-geth Send, six headless recovery and seven owned-process crash checks. The packaged Unlock view measures 620×304 with a 32-pixel input-to-OK gap; the locked main window has no observed horizontal scrollbar on the tested private X11 display. See [the scoped report](evidence/window-compact.json) and [current checklist](STATUS.md) for source/artifact bindings, retained earlier attempts and unrun production gates.
+
+## Historical interface evidence — 2026-10-25
+
+The source/candidate-bound historical report is [wallet-status.json](evidence/wallet-status.json). A passing scope does not establish the separate production acceptance gates.
 
 The first actual packaged attempt exposed a real missing case: Go can successfully persist a pending wallet after wrong recovery words. Initial notice-routing tests treated that successful response as normal completion, so the footer incorrectly said **Request completed**. The fix returns a fixed, reviewed mismatch code even for that pending success response; the renderer refreshes the existing encrypted wallet before showing the error. New tests require the pending setup controls, useful guidance and no replacement wallet or automatic payment. The failed packaged log/report remain separate from the final result; statement coverage alone did not establish this integration behavior.
 
