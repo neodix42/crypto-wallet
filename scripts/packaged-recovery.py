@@ -86,6 +86,15 @@ def textboxes(region=None,*,scale=2,threshold=140,psm=3):
  if phrase_ui.secret_window(desktop):
   raise RuntimeError('Refusing to OCR a dialog credential window')
  picture=ImageOps.invert(Image.open(capture()).convert('L'))
+ origin_x=origin_y=0
+ if region is not None:
+  # Decode only the public region being observed. Full-page OCR for every
+  # status-bar poll consumed the seven-second feedback interval on hosted CI.
+  # Keep output coordinates in the original desktop coordinate space.
+  origin_x=max(0,region[0]);origin_y=max(0,region[1])
+  right=min(picture.width,region[2]);bottom=min(picture.height,region[3])
+  if right<=origin_x or bottom<=origin_y:return []
+  picture=picture.crop((origin_x,origin_y,right,bottom))
  picture=picture.resize((picture.width*scale,picture.height*scale),Image.Resampling.LANCZOS)
  if threshold is not None:picture=picture.point(lambda value:0 if value<threshold else 255)
  ocr=reports/'packaged-public-ocr.png';picture.save(ocr)
@@ -95,6 +104,7 @@ def textboxes(region=None,*,scale=2,threshold=140,psm=3):
   a=line.split('\t')
   if len(a)==12 and a[11].strip():
    for column in range(6,10):a[column]=str(int(a[column])//scale)
+   a[6]=str(int(a[6])+origin_x);a[7]=str(int(a[7])+origin_y)
    if region is None or (region[0]<=int(a[6])<region[2] and region[1]<=int(a[7])<region[3]):rows.append(a)
  return rows
 def scrollpage(button,ticks=100):

@@ -1,5 +1,7 @@
 # GitHub Actions failure review — 2026-10-27
 
+This is the earlier 17-run review snapshot. The subsequent timing failure and owner-requested independent build/publication workflow are recorded in [RELEASE_PIPELINE.md](RELEASE_PIPELINE.md).
+
 Reviewed all 17 available repository runs and the logs of all 12 failed jobs. The newest failed CI and release jobs use source commit `d9f6a95f057612978df30e6f0a1a020b6688c3e7`. No user credentials, vaults or mainnet payments are used in this review or its local tests.
 
 | Status | Finding and evidence |

@@ -14,6 +14,7 @@ names += ['unlock-scroll','unlock-layout','unlock-layout-before-fix']
 names += ['phrase-backup','phrase-backup-packaged','phrase-backup-mutation','ci-desktop-tools']
 names += ['phrase-copy']
 names += ['desktop-ocr','actions-failure-review']
+names += ['release-pipeline']
 names += sorted(path.stem for path in (root/'reports').glob('phrase-backup-*-attempt[0-9]*.json') if path.is_file())
 names += sorted(path.stem for path in (root/'reports').glob('window-compact-packaged-attempt[0-9]*.json') if path.is_file())
 index=[]

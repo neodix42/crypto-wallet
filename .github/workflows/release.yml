@@ -1,4 +1,4 @@
-name: Build and authenticate complete versioned wallet releases
+name: Build and publish wallet
 on:
   push:
     branches: [main, master]
@@ -9,13 +9,12 @@ concurrency:
   group: wallet-release
   cancel-in-progress: false
 jobs:
-  release:
+  build:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact-id: ${{ steps.payload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,39 +23,20 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: 1.27.3
-          cache: false
+          cache: true
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.19.0
-          package-manager-cache: false
-      - name: Install native and isolated display test prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux apparmor-utils
-      - name: Provision pinned release authentication tool
-        run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install compilation prerequisites
+        run: sudo apt-get update && sudo apt-get install -y build-essential libseccomp2
       - name: Choose the next version
         id: version
         run: |
           version=$(python3 scripts/next-version.py)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "WALLET_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Install locked desktop/oracle dependencies and pinned local nodes
-        run: |
-          ./scripts/with-toolchain.sh npm --prefix desktop ci --ignore-scripts
-          ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
-      - name: Run mandatory local gates
-        run: make test test-security test-race test-interop test-integration test-fuzz coverage check-deps
-      - name: Execute Go-signed USDT transfers on isolated pinned EVM
-        run: WALLET_USDT_EVM=1 ./scripts/with-toolchain.sh go test ./internal/chains/evm -run USDT -count=1
-      - name: Test release authentication and tamper rejection offline
-        run: python3 scripts/release-auth-test.py
-      - name: Restore all wallets in independent fresh application copies
-        run: make test-recovery
-      - name: Exercise owned-process crashes and secret canaries
-        run: ./scripts/with-go.sh python3 scripts/crash-security.py
-      - name: Permit sandboxed desktop checks in an ephemeral CI AppArmor profile
-        run: python3 scripts/ci-desktop.py setup
-      - name: Exercise the actual portable Electron wallet and recovery dialogs
-        run: python3 scripts/ci-desktop.py run -- make test-packaged
       - name: Build the same version into complete desktop and Go component artifacts
         run: make package-desktop package-go
       - name: Verify candidate version and packaged production security
@@ -64,13 +44,6 @@ jobs:
           ./scripts/with-toolchain.sh python3 scripts/verify-version.py
           ./scripts/with-toolchain.sh python3 scripts/verify-version.py --go-only
           ./scripts/with-toolchain.sh node scripts/verify-artifact.cjs
-      - name: Execute an approved portable-wallet payment on isolated actual geth
-        run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
-      - name: Remove the ephemeral CI desktop AppArmor profile
-        if: always()
-        run: python3 scripts/ci-desktop.py cleanup
-      - name: Retain evidence for the actual complete desktop artifact
-        run: python3 scripts/record-evidence.py
       - name: Prepare complete release payload and exact checksum inventory
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
@@ -78,20 +51,72 @@ jobs:
           RELEASE_SOURCE_REF: ${{ github.ref }}
         run: |
           python3 - <<'PY'
-          import os,pathlib
+          import json,os,pathlib
           v=os.environ['WALLET_VERSION']
+          repo=os.environ['RELEASE_REPOSITORY']
+          commit=os.environ['GITHUB_SHA']
+          checks=f'https://github.com/{repo}/commit/{commit}/checks'
+          pathlib.Path('reports').mkdir(exist_ok=True)
+          pathlib.Path('reports/release-build.json').write_text(json.dumps({
+            'version':v,'sourceCommit':commit,'status':'BUILD_ONLY',
+            'tests':'NOT_RUN: independent .github/workflows/ci.yml workflow',
+            'checksURL':checks,'productionReadiness':'NOT_RUN'
+          },indent=2)+'\n')
           pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet v{v} — development prerelease; mainnet profile by default.
 
           The tag, release, Electron application and Go executable versions use {v}.
-          Included: the complete ready-to-run Linux amd64 Electron/Go portable wallet, separate Go component executables/archive, dependency/source inventories and test evidence. No Debian installer is built.
+          Included: the complete ready-to-run Linux amd64 Electron/Go portable wallet, separate Go component executables/archive and dependency/source inventories. No Debian installer is built.
+
+          Tests run independently in ci.yml and do not block this development prerelease. They were NOT_RUN in this build workflow. Check this exact source commit's test results: {checks}
+          test-evidence.tar.gz contains this build's status/artifact inspection and source documentation. Any retained test reports under docs/evidence are historical and are not certification of this release candidate.
 
           RELEASE-SHA256SUMS covers every payload and is authenticated with GitHub OIDC/Sigstore build provenance. The bundle is release-provenance.sigstore.json. Verify the expected repository, release workflow, protected source branch and full source commit before extracting or executing anything; see docs/BUILD.md in a separately trusted source checkout. This authenticates the publishing workflow; it is not an OS executable signature or independent audit.
 
           Public funded testnet roundtrips, the full installed X11/Wayland OS matrix,24-hour soak and independent security review remain separate production gates. Mainnet spending is never automated. Local make install remains unsigned and needs no publishing identity.
           ''')
           PY
-          tar -czf dist/test-evidence.tar.gz reports docs
+          tar -czf dist/test-evidence.tar.gz reports/release-build.json reports/artifact-security.json docs
           python3 scripts/release_assets.py prepare --version "$WALLET_VERSION" --repo "$RELEASE_REPOSITORY" --repo-id "$RELEASE_REPOSITORY_ID" --ref "$RELEASE_SOURCE_REF" --commit "$GITHUB_SHA"
+      - name: Hand off the built release payload without recompression
+        id: payload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wallet-release-payload
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/
+            !dist/LocalWallet-linux-x64/
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      WALLET_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download only this build job's immutable artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          merge-multiple: true
+          digest-mismatch: error
+          path: dist
+      - name: Verify the transferred payload before authentication
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_REPOSITORY_ID: ${{ github.repository_id }}
+          RELEASE_SOURCE_REF: ${{ github.ref }}
+        run: python3 scripts/release_assets.py check --version "$WALLET_VERSION" --repo "$RELEASE_REPOSITORY" --repo-id "$RELEASE_REPOSITORY_ID" --ref "$RELEASE_SOURCE_REF" --commit "$GITHUB_SHA"
+      - name: Provision pinned release authentication tool
+        run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
       - name: Authenticate the complete release checksum manifest
         id: provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -111,7 +136,7 @@ jobs:
       - name: Publish matching tag and authenticated development prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
           gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --title "v$RELEASE_VERSION" --prerelease --notes-file dist/RELEASE-NOTES.md \
             "dist/localwallet-$RELEASE_VERSION-linux-amd64.tar.gz" "dist/localwallet-go-$RELEASE_VERSION-linux-amd64.tar.gz" \
@@ -121,9 +146,9 @@ jobs:
             dist/THIRD-PARTY-NOTICES.txt dist/THIRD-PARTY-NOTICES.json dist/go-THIRD-PARTY-NOTICES.txt dist/go-THIRD-PARTY-NOTICES.json \
             dist/test-evidence.tar.gz dist/RELEASE-NOTES.md dist/release.json dist/RELEASE-SHA256SUMS dist/release-provenance.sigstore.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: failure()
         with:
-          name: wallet-build-and-test-evidence
+          name: wallet-release-failure-payload
           path: |
             reports/
             dist/

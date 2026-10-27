@@ -250,7 +250,7 @@ class CIDesktop(unittest.TestCase):
                 ci.main(arguments)
 
     def test_workflows_install_utils_wrap_both_checks_and_cleanup_even_on_failure(self):
-        for name in ['ci.yml', 'release.yml']:
+        for name in ['ci.yml']:
             text = (ROOT / '.github/workflows' / name).read_text()
             setup = text.index('run: python3 scripts/ci-desktop.py setup')
             packaged = text.index('run: python3 scripts/ci-desktop.py run -- make test-packaged')
@@ -262,13 +262,14 @@ class CIDesktop(unittest.TestCase):
             self.assertLess(packaged, send)
             self.assertLess(send, cleanup)
             self.assertLess(cleanup, upload)
-            if name == 'release.yml':
-                self.assertLess(cleanup, text.index('gh release create '))
             self.assertIn('if: always()', text[text.rfind('      - name:', 0, cleanup):cleanup])
             self.assertNotIn('run: make test-packaged', text)
             self.assertNotIn('run: ./scripts/with-toolchain.sh python3 scripts/packaged-send.py', text)
             for forbidden in ['--no-sandbox', 'chmod 4755', 'sysctl ', 'apparmor_restrict_unprivileged_userns=0']:
                 self.assertNotIn(forbidden, text)
+        release = (ROOT / '.github/workflows/release.yml').read_text()
+        for test_only in ['scripts/ci-desktop.py', 'make test-packaged', 'scripts/packaged-send.py']:
+            self.assertNotIn(test_only, release)
         self.assertIn('\tpython3 scripts/ci-desktop-test.py\n', (ROOT / 'Makefile').read_text())
 
 

@@ -49,7 +49,11 @@ class PublicTooltipOCR(unittest.TestCase):
         rows = self.read(scale=3, threshold=None, psm=11)
         first_line = [row for row in rows if int(row[7]) < 20]
         self.assertTrue(first_line)
-        self.assertEqual(self.read((0, 0, 575, 20), scale=3, threshold=None, psm=11), first_line)
+        # Cropping changes the decoder's confidence estimate. Compare the
+        # actual words and original pixel rectangles, not OCR confidence.
+        cropped = self.read((0, 0, 575, 20), scale=3, threshold=None, psm=11)
+        self.assertEqual([(row[6:10], row[11]) for row in cropped],
+                         [(row[6:10], row[11]) for row in first_line])
         self.assertEqual(self.read((575, 0, 600, 43), scale=3, threshold=None, psm=11), [])
 
     def test_credential_guard_runs_before_any_pixel_capture_or_ocr(self):
@@ -60,6 +64,21 @@ class PublicTooltipOCR(unittest.TestCase):
         self.capture.assert_not_called()
         run.assert_not_called()
         self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()), [])
+
+    def test_status_region_is_cropped_before_decoding_and_restores_desktop_origin(self):
+        output = 'header\n5\t1\t1\t1\t1\t1\t12\t14\t20\t10\t99\tPublic\n'
+        def decode(command, **options):
+            with Image.open(command[1]) as picture:
+                self.assertEqual(picture.size, (160, 40))
+            return output
+        with mock.patch.object(subprocess, 'check_output', side_effect=decode):
+            rows = self.read((20, 10, 100, 30))
+        self.assertEqual(rows[0][6:10], ['26', '17', '10', '5'])
+
+    def test_empty_outside_region_does_not_launch_decoder(self):
+        with mock.patch.object(subprocess, 'check_output') as run:
+            self.assertEqual(self.read((575, 0, 600, 43)), [])
+        run.assert_not_called()
 
     def test_ordinary_text_keeps_existing_threshold_mode_and_coordinate_scale(self):
         output = 'header\n5\t1\t1\t1\t1\t1\t12\t14\t20\t10\t99\tPublic\n'

@@ -653,11 +653,29 @@ class BuildTools(unittest.TestCase):
         self.assertIn('tar.gz', text)
         self.assertIn('sha256', text)
 
-    def test_release_publish_step_follows_mandatory_gates_and_version_check(self):
+    def test_release_build_and_publish_are_separate_from_complete_ci_tests(self):
         text = (ROOT / '.github/workflows/release.yml').read_text()
+        tests = (ROOT / '.github/workflows/ci.yml').read_text()
         publish = text.index('gh release create ')
-        gate = next(line.split('run: ', 1)[1] for line in text[:publish].splitlines() if 'run: make test ' in line)
-        self.assertTrue(set(('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'coverage', 'check-deps')).issubset(shlex.split(gate)))
+        gate = ' '.join(line.split('run: ', 1)[1] for line in tests.splitlines() if 'run: make ' in line)
+        self.assertTrue(set(('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'test-fuzz', 'coverage', 'check-deps')).issubset(shlex.split(gate)))
+        for required in ('make test-packaged', 'scripts/packaged-send.py', 'make test-recovery', 'make test-crash', 'WALLET_USDT_EVM=1'):
+            self.assertIn(required, tests)
+        for forbidden in ('make test', 'scripts/provision-tests.py', 'scripts/ci-desktop.py', 'scripts/record-evidence.py', 'test-security', 'test-race', 'xvfb', 'tesseract'):
+            self.assertNotIn(forbidden, text)
+        build, release = text.split('  release:\n', 1)
+        self.assertEqual(build.count('make package-desktop package-go'), 1)
+        self.assertIn('needs: build', release)
+        self.assertIn('artifact-id: ${{ steps.payload.outputs.artifact-id }}', build)
+        self.assertIn('artifact-ids: ${{ needs.build.outputs.artifact-id }}', release)
+        self.assertIn('digest-mismatch: error', release)
+        self.assertIn('compression-level: 0', build)
+        self.assertIn('WALLET_VERSION: ${{ needs.build.outputs.version }}', release)
+        self.assertNotIn('make ', release)
+        self.assertNotIn('contents: write', build)
+        self.assertIn("'tests':'NOT_RUN: independent .github/workflows/ci.yml workflow'", build)
+        self.assertIn('scripts/release_assets.py check', release)
+        self.assertLess(release.index('scripts/release_assets.py check'), release.index('actions/attest-build-provenance@'))
         self.assertLess(text.index('scripts/verify-version.py'), publish)
         self.assertIn('scripts/verify-version.py\n', text[:publish])
         self.assertIn('scripts/verify-version.py --go-only', text[:publish])
@@ -678,6 +696,28 @@ class BuildTools(unittest.TestCase):
         self.assertIn('--prerelease', text[publish:])
         self.assertIn('--target "$GITHUB_SHA"', text[publish:])
         self.assertIn('cancel-in-progress: false', text)
+
+    def test_release_build_metadata_marks_tests_not_run_for_exact_source(self):
+        workflow = (ROOT / '.github/workflows/release.yml').read_text()
+        block = workflow.split("          python3 - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
+        program = '\n'.join(line[10:] if line.startswith('          ') else line for line in block.splitlines())
+        (self.root / 'dist').mkdir()
+        commit = 'a' * 40
+        subprocess.run([sys.executable, '-c', program], cwd=self.root, check=True,
+                       env={'WALLET_VERSION': '0.1.10', 'RELEASE_REPOSITORY': 'fixture/wallet', 'GITHUB_SHA': commit},
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        report = json.loads((self.root / 'reports/release-build.json').read_text())
+        self.assertEqual(report['status'], 'BUILD_ONLY')
+        self.assertEqual(report['version'], '0.1.10')
+        self.assertEqual(report['sourceCommit'], commit)
+        self.assertTrue(report['tests'].startswith('NOT_RUN:'))
+        self.assertEqual(report['productionReadiness'], 'NOT_RUN')
+        self.assertEqual(report['checksURL'], f'https://github.com/fixture/wallet/commit/{commit}/checks')
+        notes = (self.root / 'dist/RELEASE-NOTES.md').read_text()
+        self.assertIn('LocalWallet v0.1.10', notes)
+        self.assertIn(report['checksURL'], notes)
+        self.assertIn('NOT_RUN', notes)
+        self.assertIn('historical', notes)
 
     def test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap(self):
         scripts = self.root / 'scripts'
@@ -792,7 +832,7 @@ class EvidenceRunner(unittest.TextTestRunner):
 
     def run(self, test):
         result = super().run(test)
-        filenames = ['scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/release.yml']
+        filenames = ['scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
         report = {
             'status': 'PASS' if result.wasSuccessful() and not result.skipped else 'FAIL' if not result.wasSuccessful() else 'NOT_RUN',
             'command': [sys.executable, 'scripts/build-tools-test.py'],

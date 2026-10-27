@@ -1,7 +1,10 @@
-name: hermetic-security-gates
+name: Wallet tests
 on: [push, pull_request]
 permissions:
   contents: read
+concurrency:
+  group: wallet-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   checks:
     runs-on: ubuntu-24.04
