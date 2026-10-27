@@ -25,6 +25,7 @@ test:
 	python3 scripts/coverage-test.py
 	python3 scripts/campaign-test.py
 	python3 scripts/release-auth-test.py
+	$(TOOLS) npm --prefix .github/provenance test
 	python3 scripts/release-evidence-test.py
 	python3 scripts/license-notices-test.py
 	$(GO_TOOLS) go test ./...
@@ -61,6 +62,7 @@ test-crash: build
 	$(GO_TOOLS) python3 scripts/crash-security.py
 test-release-auth:
 	python3 scripts/release-auth-test.py
+	$(TOOLS) npm --prefix .github/provenance test
 test-release-evidence:
 	python3 scripts/release-evidence-test.py
 test-license-notices:
@@ -98,6 +100,7 @@ check-deps:
 	$(TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/fuzz.yml
 	$(TOOLS) go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 	$(TOOLS) npm --prefix desktop audit --audit-level=high
+	$(TOOLS) npm --prefix .github/provenance audit --audit-level=high
 package-desktop: build-desktop
 	$(TOOLS) node scripts/package.cjs
 	$(TOOLS) python3 scripts/sbom.py

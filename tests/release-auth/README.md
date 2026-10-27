@@ -9,3 +9,5 @@ Source: official [cli/cli v2.103.2](https://github.com/cli/cli/tree/4f2cfe92e349
 The fixture trusted root exists solely to make the old upstream public signature test hermetic. Production verification uses GitHub CLI's maintained Sigstore roots, or a separately provisioned trusted root selected by the consumer; a downloaded wallet must not supply its own trust anchor.
 
 Upstream `cli/cli` is MIT licensed; the package fixture includes its upstream Sigstore license. These files are test-only and are not shipped in the desktop or component runtime.
+
+`private-timestamp/` adds the public `actions/attest-demo` wheel and RFC3161-timestamped bundle from the same pinned upstream CLI repository. The actual CLI verifies its private-Sigstore certificate/timestamp with frozen test-only GitHub roots, then rejects timestamp/artifact tampering, a foreign publisher and a root set without the required authorities. No stored attestation record or new signing identity is used. Its per-directory provenance records the original source and root acquisition; the parent manifest hashes every fixture.

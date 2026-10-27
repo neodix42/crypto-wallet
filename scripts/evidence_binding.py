@@ -15,7 +15,10 @@ PRODUCTION_FILES = ('app/codec.js', 'app/main.js', 'app/preload.js',
 FRONTEND_PINS = ('desktop/package.json', 'desktop/package-lock.json', 'desktop/tsconfig.json',
                  'scripts/frontend-coverage.py', 'scripts/evidence_binding.py')
 AUTH_INPUTS = ('scripts/release_assets.py', 'scripts/release-auth-test.py',
-               'scripts/bootstrap-gh.py', '.github/workflows/release.yml')
+               'scripts/bootstrap-gh.py', '.github/workflows/release.yml',
+               '.github/provenance/attest.mjs', '.github/provenance/attest.test.mjs',
+               '.github/provenance/package.json', '.github/provenance/package-lock.json',
+               'tests/release-auth/provenance.json')
 EVIDENCE_INPUTS = ('scripts/evidence_binding.py', 'scripts/verify-release.py',
                    'scripts/frontend-coverage.py', 'scripts/verify-artifact.cjs',
                    'scripts/release-evidence-test.py')

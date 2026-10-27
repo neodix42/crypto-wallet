@@ -1,0 +1,11 @@
+{
+  "name": "localwallet-release-provenance",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CI-only detached GitHub Sigstore provenance; never wallet runtime code",
+  "scripts": {"test": "node --experimental-test-module-mocks --test attest.test.mjs"},
+  "engines": {"node": "24.19.0"},
+  "dependencies": {"@actions/attest": "3.2.0"},
+  "overrides": {"@sigstore/core": "4.0.1"}
+}

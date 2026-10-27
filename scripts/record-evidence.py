@@ -15,6 +15,7 @@ names += ['phrase-backup','phrase-backup-packaged','phrase-backup-mutation','ci-
 names += ['phrase-copy']
 names += ['desktop-ocr','actions-failure-review']
 names += ['release-pipeline']
+names += ['private-provenance']
 names += sorted(path.stem for path in (root/'reports').glob('phrase-backup-*-attempt[0-9]*.json') if path.is_file())
 names += sorted(path.stem for path in (root/'reports').glob('window-compact-packaged-attempt[0-9]*.json') if path.is_file())
 index=[]

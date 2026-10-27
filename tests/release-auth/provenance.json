@@ -6,7 +6,11 @@
   "sha256": {
     "sigstore-js-2.1.0.tgz": "f0c641fce0310cb43208f4272dc1423153630e44ba8cdc0b5ce8466f724e0eed",
     "sigstore-js-2.1.0-bundle.json": "cfadddd579b9fb45947530cd0e860986ec610a28f7fa6de3ef31cc051f07f761",
-    "trusted_root.json": "455b3fe53e2678889f093d66ebbfda5f12ebb9d682b146c3535fa04e97689787"
+    "trusted_root.json": "455b3fe53e2678889f093d66ebbfda5f12ebb9d682b146c3535fa04e97689787",
+    "private-timestamp/provenance.json": "7aa7339e23effc1d410ca95f84cc64f3cf4005e5ae7b51065746f11eebaa9a8d",
+    "private-timestamp/bundle.json": "4f8c096e38a0eee242574ab100d16701928605409225e59784a3636f742bb27e",
+    "private-timestamp/trusted-root.jsonl": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
+    "private-timestamp/artifact.whl": "ae57936def59bc4c75edd3a837d89bcefc6d3a5e31d55a6fa7a71624f92c3c3b"
   },
   "scope": "Frozen public upstream Sigstore artifact and attestation; not a LocalWallet release signature."
 }

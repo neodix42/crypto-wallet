@@ -1,0 +1,12 @@
+{
+  "scope": "Public upstream GitHub Sigstore RFC3161 timestamp fixture; never a LocalWallet attestation or production trust-root replacement",
+  "sourceRepository": "cli/cli",
+  "sourceCommit": "4f2cfe92e3499f8581bf39db77e0a1431fa7b55c",
+  "upstreamPath": "pkg/cmd/attestation/test/data/github_provenance_demo-0.0.12-py3-none-any",
+  "rootSource": "gh 2.103.2 attestation trusted-root, obtained using its built-in trusted update mechanism on 2026-10-27; frozen test-only roots",
+  "publisherRepository": "actions/attest-demo",
+  "publisherRepositoryId": "763287532",
+  "sourceRef": "refs/heads/main",
+  "sourceCommitAttested": "a6c23b9806c593664f68637c8f9d45dfcf98b2db",
+  "workflow": ".github/workflows/build-python.yml"
+}

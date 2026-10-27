@@ -171,11 +171,15 @@ class InventoryTests(unittest.TestCase):
         self.assertGreaterEqual(len(uses), 5)
         self.assertTrue(all(re.fullmatch(r'actions/[A-Za-z0-9-]+@[0-9a-f]{40}', item) for item in uses))
         publish = text.index('gh release create ')
-        for check in ('scripts/release_assets.py prepare', 'actions/attest-build-provenance@', 'scripts/release_assets.py verify'):
+        for check in ('scripts/release_assets.py prepare', 'node .github/provenance/attest.mjs', 'scripts/release_assets.py verify'):
             self.assertLess(text.index(check), publish)
         self.assertNotIn('continue-on-error', text)
         self.assertNotIn('--no-sandbox', text)
         self.assertIn('persist-credentials: false', text)
+        self.assertNotIn('attestations: write', text)
+        self.assertNotIn('ATTESTATION_BUNDLE:', text)
+        self.assertNotIn('actions/attest-build-provenance@', text)
+        self.assertIn('npm --prefix .github/provenance ci --ignore-scripts', text)
 
 
 class RealSigstoreTests(unittest.TestCase):
@@ -202,6 +206,7 @@ class RealSigstoreTests(unittest.TestCase):
         self.work = pathlib.Path(self.temporary.name)
         for name in ('sigstore-js-2.1.0.tgz', 'sigstore-js-2.1.0-bundle.json', 'trusted_root.json'):
             shutil.copy2(FIXTURES / name, self.work / name)
+        shutil.copytree(FIXTURES / 'private-timestamp', self.work / 'private-timestamp')
 
     def verify(self, repo='sigstore/sigstore-js', ref=REF, commit='26d16513386ffaa790b1c32f927544f1322e4194', repo_id='495574555'):
         # Capture CLI output (which contains no secrets). Cryptography is real,
@@ -257,6 +262,42 @@ class RealSigstoreTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             self.verify()
 
+    def verify_private_timestamp(self, repo='actions/attest-demo', trusted_root=None):
+        folder = self.work / 'private-timestamp'
+        # The independent fixture's workflow differs from LocalWallet's. Only
+        # this test selects that known public publisher; production stays fixed.
+        with mock.patch.object(release, 'WORKFLOW', '.github/workflows/build-python.yml'):
+            release.verify_provenance(folder / 'artifact.whl', folder / 'bundle.json', repo, REF,
+                                      'a6c23b9806c593664f68637c8f9d45dfcf98b2db', self.gh,
+                                      trusted_root or folder / 'trusted-root.jsonl', repo_id='763287532')
+
+    def test_real_private_sigstore_timestamp_bundle_verifies_without_a_stored_record(self):
+        bundle = json.loads((self.work / 'private-timestamp/bundle.json').read_text())
+        self.assertTrue(bundle['verificationMaterial']['timestampVerificationData']['rfc3161Timestamps'])
+        self.assertFalse(bundle['verificationMaterial'].get('tlogEntries'))
+        self.verify_private_timestamp()
+
+    def test_real_private_timestamp_and_artifact_tampering_fail(self):
+        folder = self.work / 'private-timestamp'
+        artifact = folder / 'artifact.whl'
+        original = artifact.read_bytes();artifact.write_bytes(original + b'public fixture tampering')
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.verify_private_timestamp()
+        artifact.write_bytes(original)
+        bundle_path = folder / 'bundle.json';bundle = json.loads(bundle_path.read_text())
+        timestamp = bundle['verificationMaterial']['timestampVerificationData']['rfc3161Timestamps'][0]
+        signature = bytearray(base64.b64decode(timestamp['signedTimestamp']));signature[-1] ^= 1
+        timestamp['signedTimestamp'] = base64.b64encode(signature).decode()
+        bundle_path.write_text(json.dumps(bundle))
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.verify_private_timestamp()
+
+    def test_real_private_timestamp_wrong_root_and_publisher_fail(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.verify_private_timestamp(repo='actions/wrong-publisher')
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.verify_private_timestamp(trusted_root=self.work / 'trusted_root.json')
+
 
 class EvidenceResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
@@ -283,7 +324,8 @@ class EvidenceResult(unittest.TextTestResult):
 if __name__ == '__main__':
     suite = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
     result = unittest.TextTestRunner(verbosity=2, resultclass=EvidenceResult).run(suite)
-    names = ['scripts/release_assets.py', 'scripts/release-auth-test.py', 'scripts/bootstrap-gh.py', '.github/workflows/release.yml']
+    from evidence_binding import AUTH_INPUTS
+    names = AUTH_INPUTS
     report = {'status': 'FAIL' if not result.wasSuccessful() else 'BLOCKED' if result.skipped else 'PASS',
               'tests': result.outcomes, 'testsRun': result.testsRun,
               'sourceSHA256': {name: release.digest(ROOT / name) for name in names},
