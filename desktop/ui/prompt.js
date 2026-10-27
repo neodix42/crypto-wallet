@@ -21,9 +21,12 @@ function erase() {
   $('inputfields').replaceChildren(); $('recoverywords').replaceChildren();
   $('summary').textContent = ''; $('receivedomain').textContent = ''; $('receiveaddress').textContent = ''; $('receiveqr').removeAttribute('src');
   $('copystatus').textContent = ''; $('description').textContent = ''; $('recoverynote').textContent = '';
+  $('phrasecopystatus').textContent = '';
+  for (const id of ['copyphrase', 'phrasecopywarning', 'phrasecopystatus']) $(id).hidden = true;
   $('prompttitle').textContent = 'Wallet request closed';
   for (const id of ['inputfields', 'summary', 'recovery', 'receive']) $(id).hidden = true;
   $('accept').disabled = true; $('cancel').disabled = true; $('copyaddress').disabled = true;
+  $('copyphrase').disabled = true;
   delete $('promptform').dataset.kind;
   current = undefined;
 }
@@ -67,6 +70,10 @@ function render(prompt) {
     $('description').textContent = 'Your recovery phrase restores your wallets on another device.';
     $('recovery').hidden = false;
     $('recoverynote').textContent = (prompt.kind === 'recovery' ? 'Next, confirm a few words from your written copy. ' : 'This is a manual backup of the same phrase for all your wallets. ') + 'Never share your phrase or enter it on a website. If you used an additional BIP39 passphrase, keep that separately too.';
+    if (prompt.kind === 'recoveryBackup') {
+      for (const id of ['copyphrase', 'phrasecopywarning', 'phrasecopystatus']) $(id).hidden = false;
+      $('copyphrase').disabled = false;
+    }
     const words = prompt.phrase.split(' ');
     for (const word of words) { const item = document.createElement('li'); item.textContent = word; $('recoverywords').append(item); }
     words.fill(''); $('cancel').focus();
@@ -83,6 +90,14 @@ function render(prompt) {
 }
 $('promptform').onsubmit = event => { event.preventDefault(); void finish(true); };
 $('cancel').onclick = () => { void finish(false); };
+$('copyphrase').onclick = async () => {
+  if (!current || current.kind !== 'recoveryBackup' || pending || $('copyphrase').disabled) return;
+  const id = current.id;
+  $('copyphrase').disabled = true;
+  try { await window.walletPrompt.copyRecoveryPhrase(); if (current?.id === id) $('phrasecopystatus').textContent = 'Recovery phrase copied. Clear the clipboard after use.'; }
+  catch { if (current?.id === id) $('phrasecopystatus').textContent = 'Recovery phrase could not be copied. Try again.'; }
+  finally { if (current?.id === id) $('copyphrase').disabled = false; }
+};
 $('copyaddress').onclick = async () => {
   if (!current || current.kind !== 'receive' || pending || $('copyaddress').disabled) return;
   const id = current.id;

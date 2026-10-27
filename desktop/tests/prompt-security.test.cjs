@@ -25,13 +25,15 @@ test('TP042 prompt replies bind acceptance to one ID and exactly the current pro
  for(const value of [null,[],1])assert.throws(()=>validatePromptReply(value,examples[0]));
  const payload={...examples[3],labels:['secret'],summary:'secret',png:'public',address:'public'};clearPrompt(payload);assert.deepEqual(payload,{id:'',title:'',kind:'recovery'});
 });
-test('TP033 prompt preload exposes only three scoped operations and sanitizes all transport errors',async()=>{
- let exposed;let fail=false,clock=10000;const calls=[],sent=[],listeners=[];
- const electron={contextBridge:{exposeInMainWorld(name,value){assert.equal(name,'walletPrompt');exposed=value}},ipcRenderer:{invoke:async(...args)=>{calls.push(args);if(fail)throw Error('SYNTHETIC-SECRET-ERROR');return 'safe'},send:(...args)=>sent.push(args)}};
+test('TP033 prompt preload exposes four scoped operations and sanitizes all transport errors',async()=>{
+ let exposed;let fail=false,clock=10000,ack={ok:true};const calls=[],sent=[],listeners=[];
+ const electron={contextBridge:{exposeInMainWorld(name,value){assert.equal(name,'walletPrompt');exposed=value}},ipcRenderer:{invoke:async(...args)=>{calls.push(args);if(fail)throw Error('SYNTHETIC-SECRET-ERROR');return args[0]==='wallet:prompt:copy-recovery'?ack:'safe'},send:(...args)=>sent.push(args)}};
  class Clock extends Date {static now(){return clock}}
  const context=vm.createContext({exports:{},Date:Clock,window:{addEventListener:(...args)=>listeners.push(args)},require(name){assert.equal(name,'electron');return electron}});const filename=path.resolve(__dirname,'../app/prompt-preload.js');new vm.Script(fs.readFileSync(filename,'utf8'),{filename}).runInContext(context);
- assert.ok(Object.isFrozen(exposed));assert.deepEqual(Object.keys(exposed).sort(),['copyAddress','getPrompt','respond']);assert.equal(await exposed.getPrompt(),'safe');assert.deepEqual(calls.at(-1),['wallet:prompt:get',undefined]);await exposed.respond({promptId:base.id,accepted:false});assert.equal(calls.at(-1)[0],'wallet:prompt:reply');await exposed.copyAddress();assert.deepEqual(calls.at(-1),['wallet:prompt:copy',undefined]);
+ assert.ok(Object.isFrozen(exposed));assert.deepEqual(Object.keys(exposed).sort(),['copyAddress','copyRecoveryPhrase','getPrompt','respond']);assert.equal(await exposed.getPrompt(),'safe');assert.deepEqual(calls.at(-1),['wallet:prompt:get',undefined]);await exposed.respond({promptId:base.id,accepted:false});assert.equal(calls.at(-1)[0],'wallet:prompt:reply');await exposed.copyAddress();assert.deepEqual(calls.at(-1),['wallet:prompt:copy',undefined]);
+ assert.equal(await exposed.copyRecoveryPhrase('SYNTHETIC-FORBIDDEN-ARGUMENT'),undefined);assert.deepEqual(calls.at(-1),['wallet:prompt:copy-recovery',undefined]);
+ for(const value of [null,false,'SYNTHETIC-SECRET-ERROR',[],{}, {ok:false},{ok:'true'},{ok:true,phrase:'SYNTHETIC-SECRET-ERROR'}]){ack=value;await assert.rejects(exposed.copyRecoveryPhrase(),error=>error.message==='Prompt unavailable')}
  for(const forbidden of ['wallet','create','unlock','invoke','on','readFile','getMnemonic','activity','require'])assert.equal(exposed[forbidden],undefined);
- fail=true;for(const invoke of [()=>exposed.getPrompt(),()=>exposed.respond({}),()=>exposed.copyAddress()])await assert.rejects(invoke(),error=>error.message==='Prompt unavailable');
+ fail=true;for(const invoke of [()=>exposed.getPrompt(),()=>exposed.respond({}),()=>exposed.copyAddress(),()=>exposed.copyRecoveryPhrase()])await assert.rejects(invoke(),error=>error.message==='Prompt unavailable');
  assert.equal(listeners.length,1);assert.equal(listeners[0][0],'pointerdown');assert.equal(listeners[0][2].capture,true);const pointer=listeners[0][1];pointer({isTrusted:false});assert.equal(sent.length,0);pointer({isTrusted:true});pointer({isTrusted:true});assert.equal(sent.length,1);clock=11001;pointer({isTrusted:true});assert.deepEqual(sent,[['wallet:prompt:activity'],['wallet:prompt:activity']]);
 });

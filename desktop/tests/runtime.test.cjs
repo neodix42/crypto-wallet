@@ -26,7 +26,7 @@ function mainHarness(options={}){
  const powerMonitor=new EventEmitter();const windows=[];const notifications=[];const partitions=new Map([['wallet-local',ses]]);const copied=[];const fileCalls=[];
  class BrowserWindow extends EventEmitter {constructor(config){super();this.config=config;this.title=config.title;this.webContents=new EventEmitter();this.webContents.mainFrame={url:'wallet://app/'};this.webContents.destroyed=false;this.webContents.isDestroyed=()=>this.webContents.destroyed;this.webContents.send=(...args)=>notifications.push(args);this.webContents.setWindowOpenHandler=fn=>{this.webContents.openWindow=fn};windows.push(this)}isDestroyed(){return this.destroyed===true}destroy(){this.destroyed=true;this.webContents.destroyed=true;this.emit('closed')}setTitle(value){this.title=value;this.setTitleCalled=true}show(){this.shown=true;this.titleAtShow=this.title}setMenu(value){this.menu=value}getBounds(){return {x:0,y:0,width:this.config.width,height:this.config.height}}async loadURL(url){this.url=url;this.webContents.mainFrame.url=url;let prevented=false;this.emit('page-title-updated',{preventDefault(){prevented=true}},'Document title');if(!prevented)this.title='Document title';if(options.loadFailure||(options.promptLoadFailure&&windows.length>1))throw Error('load failed')}}
  const protocol={schemes:[],registerSchemesAsPrivileged:schemes=>{protocol.schemes=schemes}};
- const fetched=[];const screen={getPrimaryDisplay:()=>({workAreaSize:options.workAreaSize??{width:1920,height:1080}}),getDisplayMatching:()=>({workAreaSize:options.workAreaSize??{width:1920,height:1080}})};const electron={app,BrowserWindow,screen,ipcMain,protocol,session:{fromPartition:(partition,config)=>{assert.deepEqual(plain(config),{cache:false});if(partition==='wallet-local')return ses;assert.match(partition,/^wallet-prompt-[a-f0-9]{32}$/);const isolated=new EventEmitter();isolated.protocol={handle:async(scheme,handler)=>{assert.equal(scheme,'wallet');isolated.resource=handler}};isolated.setPermissionRequestHandler=fn=>isolated.permissionRequest=fn;isolated.setPermissionCheckHandler=fn=>isolated.permissionCheck=fn;isolated.webRequest={onBeforeRequest:fn=>isolated.beforeRequest=fn};isolated.clearStorageData=async()=>{isolated.cleared=true;if(options.storageFailure)throw Error('storage failed')};partitions.set(partition,isolated);return isolated}},powerMonitor,clipboard:{writeText:value=>copied.push(value)},dialog:{showOpenDialog:async(...args)=>{fileCalls.push(['open',...args]);return options.openResult??{canceled:true,filePaths:[]}},showSaveDialog:async(...args)=>{fileCalls.push(['save',...args]);return options.saveResult??{canceled:true,filePath:undefined}}},net:{fetch:url=>{fetched.push(url);return Promise.resolve(new Response('local bundled asset'))}}};
+ const fetched=[];const screen={getPrimaryDisplay:()=>({workAreaSize:options.workAreaSize??{width:1920,height:1080}}),getDisplayMatching:()=>({workAreaSize:options.workAreaSize??{width:1920,height:1080}})};const electron={app,BrowserWindow,screen,ipcMain,protocol,session:{fromPartition:(partition,config)=>{assert.deepEqual(plain(config),{cache:false});if(partition==='wallet-local')return ses;assert.match(partition,/^wallet-prompt-[a-f0-9]{32}$/);const isolated=new EventEmitter();isolated.protocol={handle:async(scheme,handler)=>{assert.equal(scheme,'wallet');isolated.resource=handler}};isolated.setPermissionRequestHandler=fn=>isolated.permissionRequest=fn;isolated.setPermissionCheckHandler=fn=>isolated.permissionCheck=fn;isolated.webRequest={onBeforeRequest:fn=>isolated.beforeRequest=fn};isolated.clearStorageData=async()=>{isolated.cleared=true;if(options.storageFailure)throw Error('storage failed')};partitions.set(partition,isolated);return isolated}},powerMonitor,clipboard:{writeText:value=>{if(options.clipboardFailure)throw Error('PRIVATE_CLIPBOARD_FAILURE:'+value);copied.push(value)}},dialog:{showOpenDialog:async(...args)=>{fileCalls.push(['open',...args]);return options.openResult??{canceled:true,filePaths:[]}},showSaveDialog:async(...args)=>{fileCalls.push(['save',...args]);return options.saveResult??{canceled:true,filePath:undefined}}},net:{fetch:url=>{fetched.push(url);return Promise.resolve(new Response('local bundled asset'))}}};
  const image=Buffer.from('public synthetic executable bytes');const expected=crypto.createHash('sha256').update(image).digest('hex');const files=[];
  const fileAPI={readFileSync(filename,encoding){files.push(filename);if(filename.endsWith('manifest.json'))return options.invalidManifest?'not JSON':JSON.stringify({'wallet-core':options.badDigest?'00':expected});return image},createReadStream(filename,config){assert.equal(filename,'');assert.deepEqual(plain(config),{fd:3,autoClose:true});return stdout},createWriteStream(filename,config){assert.equal(filename,'');assert.deepEqual(plain(config),{fd:4,autoClose:true});return stdin}};
  const timers=new Map(),intervals=new Map();let timerID=0,clock=10_000;
@@ -1087,4 +1087,43 @@ test('TP041 backup phrase kind cannot cross operation bindings and backup cannot
   const h=mainHarness();t.after(h.cleanup);await h.ready();const op=h.call('backupPhrase'),rejected=assert.rejects(op,/REQUEST_FAILED_STATE_UNKNOWN/);h.reply(h.outbound[0],prompt,{method:'prompt'});await rejected;assert.equal(h.windows.length,1);assert.equal(h.stdin.destroyed,true);assert.deepEqual(h.copied,[]);assert.deepEqual(h.fileCalls,[]);
  }
  const h=mainHarness();t.after(h.cleanup);await h.ready();const op=h.call('backupPhrase'),request=h.outbound[0];const modal=await emitPrompt(h,request,backup);await invokePrompt(h,'get');await assert.rejects(invokePrompt(h,'reply',{promptId:syntheticPrompt.id,accepted:true,values:[phrase]}),/Prompt unavailable/);assert.equal(modal.isDestroyed(),true);assert.deepEqual(h.outbound[1].body,{promptId:syntheticPrompt.id,accepted:false});assert.equal(h.outbound[2].method,'lock');h.reply(h.outbound[2],{});h.reply(request,null,{error:'REQUEST_CANCELLED'});await assert.rejects(op,/REQUEST_CANCELLED/);assert.ok(!JSON.stringify(h.outbound).includes(phrase));
+});
+
+test('TP033 phrase clipboard export uses only the live delivered authenticated backup prompt and returns no words',async t=>{
+ const h=mainHarness();t.after(h.cleanup);await h.ready();const op=h.call('backupPhrase'),request=h.outbound[0];
+ const phrase='abandon '.repeat(11)+'about';const modal=await emitPrompt(h,request,{id:syntheticPrompt.id,kind:'recoveryBackup',title:'Back up recovery phrase',phrase});
+ assert.deepEqual(h.copied,[]);
+ assert.deepEqual(plain(await invokePrompt(h,'copy-recovery')),{ok:false});
+ await invokePrompt(h,'get');
+ for(const sender of [h.event(),{sender:modal.webContents,senderFrame:{url:'wallet://prompt/'}},{sender:modal.webContents,senderFrame:{url:'wallet://evil/'}}])assert.deepEqual(plain(await invokePrompt(h,'copy-recovery',undefined,sender)),{ok:false});
+ for(const body of [null,{},[],phrase,{phrase:'ATTACKER-REPLACEMENT'}])assert.deepEqual(plain(await invokePrompt(h,'copy-recovery',body)),{ok:false});
+ assert.deepEqual(h.copied,[]);
+ assert.deepEqual(plain(await invokePrompt(h,'copy-recovery')),{ok:true});assert.deepEqual(h.copied,[phrase]);
+ assert.ok(!JSON.stringify(h.notifications).includes(phrase));assert.ok(!JSON.stringify(h.outbound).includes(phrase));
+ const old=promptSender(h);await invokePrompt(h,'reply',{promptId:syntheticPrompt.id,accepted:true});h.reply(request,{});await op;
+ assert.deepEqual(plain(await invokePrompt(h,'copy-recovery',undefined,old)),{ok:false});assert.deepEqual(h.copied,[phrase]);
+ const next=h.call('backupPhrase'),nextRequest=h.outbound.at(-1);await emitPrompt(h,nextRequest,{id:'e'.repeat(32),kind:'recoveryBackup',title:'Backup',phrase});await invokePrompt(h,'get');
+ assert.deepEqual(plain(await invokePrompt(h,'copy-recovery',undefined,old)),{ok:false});
+ const lock=h.call('lock'),lockRequest=h.outbound.at(-1);assert.deepEqual(plain(await invokePrompt(h,'copy-recovery')),{ok:false});
+ h.reply(lockRequest,{locked:true});await lock;h.reply(nextRequest,null,{error:'REQUEST_CANCELLED'});await assert.rejects(next,/REQUEST_CANCELLED/);
+ assert.deepEqual(h.copied,[phrase]);
+});
+
+test('TP033 setup, password, receive and confirmation prompts cannot copy recovery phrases and clipboard errors stay value-free',async t=>{
+ const phrase='abandon '.repeat(11)+'about';
+ for(const [method,body,prompt] of [
+  ['create',{words:12},{kind:'recovery',phrase}],
+  ['backupPhrase',{}, {kind:'confirm',summary:'Review backup'}],
+  ['backupPhrase',{}, {kind:'input',labels:['App password']}],
+  ['receive',{accountId:'public'}, {kind:'receive',summary:'public',address:'public',png:'iVBORw0KGgoAAAA='}]
+ ]){
+  const h=mainHarness();t.after(h.cleanup);await h.ready();const op=h.call(method,body),request=h.outbound[0];
+  await emitPrompt(h,request,{id:syntheticPrompt.id,title:'Wallet dialog',...prompt});await invokePrompt(h,'get');
+  assert.deepEqual(plain(await invokePrompt(h,'copy-recovery')),{ok:false});assert.deepEqual(h.copied,[]);
+  await invokePrompt(h,'reply',{promptId:syntheticPrompt.id,accepted:false});h.reply(request,{});await op;
+ }
+ const h=mainHarness({clipboardFailure:true});t.after(h.cleanup);await h.ready();const op=h.call('backupPhrase'),request=h.outbound[0];
+ await emitPrompt(h,request,{id:syntheticPrompt.id,kind:'recoveryBackup',title:'Backup',phrase});await invokePrompt(h,'get');
+ assert.deepEqual(plain(await invokePrompt(h,'copy-recovery')),{ok:false});assert.deepEqual(h.copied,[]);assert.ok(!JSON.stringify(h.notifications).includes(phrase));
+ await invokePrompt(h,'reply',{promptId:syntheticPrompt.id,accepted:false});h.reply(request,{});await op;
 });

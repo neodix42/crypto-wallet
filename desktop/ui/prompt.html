@@ -18,6 +18,8 @@
         <p class="recovery-warning">Write these words down in order. Keep them offline and private.</p>
         <ol id="recoverywords" class="recovery-words"></ol>
         <p id="recoverynote" class="recovery-note">Next, confirm a few words from your written copy. Never share your phrase or enter it on a website. If you used an additional BIP39 passphrase, keep that separately too.</p>
+        <p id="phrasecopywarning" class="recovery-note" hidden>Copying puts these words on the system clipboard. Other apps and clipboard history may retain them. Clear the clipboard after use.</p>
+        <p id="phrasecopystatus" class="copy-status" role="status" aria-live="polite" hidden></p>
       </section>
       <section id="receive" aria-label="Receive address" hidden>
         <p id="receivedomain" class="receive-domain"></p>
@@ -29,7 +31,7 @@
       <pre id="summary" hidden></pre>
       <p id="prompterror" class="prompt-error" role="alert" tabindex="-1" hidden></p>
     </main>
-    <footer><button id="cancel" type="button" disabled>Cancel</button><button id="accept" class="primary" type="submit" disabled>Continue</button></footer>
+    <footer><button id="copyphrase" type="button" aria-describedby="phrasecopywarning" hidden disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 8h12v12H8zM4 15V4h11"/></svg><span>Copy phrase</span></button><button id="cancel" type="button" disabled>Cancel</button><button id="accept" class="primary" type="submit" disabled>Continue</button></footer>
   </form>
 </body>
 </html>

@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "a01471a301a31c788703ec5c94cd57279dcea209",
+  "sourceCommit": "b4ac37a1c02b71b33fce77bb19f950c9f0125901",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "6018baab2200cdc2afae97f4fcbdcd1026e8256291a9022ace2cf23d29cb1f86",
+  "sha256": "338a1f7abfdc887dc2aa64e6b7b2b26da27ce0ba7decc4b1132e771aba7b6dea",
   "binaryManifest": {
-    "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
-    "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
-    "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
+    "wallet-core": "bef3633353d92cee3e20f49ebe38f4030c0f3ebc388220b534e47023d9eeb434",
+    "wallet-launcher": "8eeb037d3af7e1c95e34be9eeee4c81915d4623be41f192c0102593f40da815b",
+    "wallet-signer": "ddb000fcb2b35107b7ddd12e233ac39dd850ab9abdfb173f06044c1e0afbf42b"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -28,7 +28,7 @@
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "17c2e89af4340333dd43f088dd8c60e3b428e4860ba8424dc80825044c2251fa"
+      "sha256": "39c5d727406764c66b2e9734a35d6f916f0de12f361adf4964282eaaff512afd"
     },
     {
       "report": "mutation",
@@ -94,7 +94,7 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "e2706e3e59fd035f9a88f8413a6a5e7fc37ee323595e0e8507461cc0378ca131"
+      "sha256": "6ba834dd4547c53246fe3bee27dad2995031800a599ad70b611c8cc84d2ef9d5"
     },
     {
       "report": "display-startup",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "3ac38662445c2e6f4ff3fdb8c9f680975ee405e48287881bf936c033296a3981"
+      "sha256": "8fe5b530d2786132d1aa80fb85715f4f63612643290a8a53f59e2cc52cd31a93"
     },
     {
       "report": "phrase-onboarding",
@@ -232,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "d23eda23f3fe727f5ddbaf275f5d8582eec881f5b2312875ca092bf0cfe7f8c0"
+      "sha256": "f6ba9fd0b1b96351e52fcd3cd5f60ef5913475b26b8355148f964e6b8da58668"
     },
     {
       "report": "hypercore-pagination",
@@ -262,13 +262,13 @@
       "report": "crash-security",
       "status": "PASS",
       "file": "crash-security.json",
-      "sha256": "4afc3e8a569e01e3cab5dba2e2fa45997a935031c8062ffe5c0b87d6271c4caa"
+      "sha256": "8baa9341a09aeb49cb3ae568b327ab969b8bc7d6dc8a95b8bdbb51d51749785d"
     },
     {
       "report": "packaged-send",
       "status": "PASS",
       "file": "packaged-send.json",
-      "sha256": "0e32f25bbaeb094c0a5fdbb7afd214b787196df96f1dcd0a8e5c985db292e508"
+      "sha256": "0e5cb349b60674eb0a096bb0c980b23a23a8c36cdfbc2c2e1833b3293c1f8688"
     },
     {
       "report": "fuzz-long",
@@ -502,7 +502,7 @@
       "report": "unlock-layout",
       "status": "PASS",
       "file": "unlock-layout.json",
-      "sha256": "c97999dd2e232736b9d8908e01d4bec73b36c8d6438aed746025bc5daca9483b"
+      "sha256": "8a34cfde2eb64860300ea177090ec2856867585062e71df521d50a16dabe1c6d"
     },
     {
       "report": "unlock-layout-before-fix",
@@ -520,7 +520,7 @@
       "report": "phrase-backup-packaged",
       "status": "PASS",
       "file": "phrase-backup-packaged.json",
-      "sha256": "b0352af2ebe96c2f5f1ae0a3a8b3de66b343b15984b8682c5f69b54a79c6bb56"
+      "sha256": "50c16d363c2ece3c6a2d7e810fb319896700e67187826f42e31211e80dadfe3f"
     },
     {
       "report": "phrase-backup-mutation",
@@ -533,6 +533,12 @@
       "status": "PASS",
       "file": "ci-desktop-tools.json",
       "sha256": "f5754f5f8e07bdf71b6f0b56213d76f6f4d22513410b38a88cfd040286f746ed"
+    },
+    {
+      "report": "phrase-copy",
+      "status": "PASS",
+      "file": "phrase-copy.json",
+      "sha256": "f8bf61acd689f9fc356ff5272e2db341b8aa13c7026e46834fece7ecaa6e5f9d"
     },
     {
       "report": "phrase-backup-canonical-attempt1",

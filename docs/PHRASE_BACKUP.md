@@ -2,15 +2,17 @@
 
 A verified empty profile already offered **Restore from recovery phrase**. The first-run page now also explains that an existing phrase can be imported instead of creating a new wallet. Import remains restricted to an empty profile and collects the phrase, optional original BIP39 passphrase and chosen local password in the isolated Electron input dialog. It never replaces an existing vault.
 
-For a confirmed unlocked wallet, open **Settings → Wallet → Back up recovery phrase**. Confirm the private-display warning and enter the current app password. Go verifies the password before sending the existing root's numbered words to the separate temporary Electron dialog. Write them down offline and choose **Done**. Every display requires fresh confirmation and authentication. The same root covers all deterministic account groups and supported networks.
+For a confirmed unlocked wallet, open **Settings → Wallet → Back up recovery phrase**. Confirm the private-display warning and enter the current app password. Go verifies the password before sending the existing root's numbered words to the separate temporary Electron dialog. Write them down offline, or use the explicit **Copy phrase** button, then choose **Done**. Copy puts the ordered words, without numbers, on the system clipboard. Other apps and clipboard history may retain them; clear the clipboard after use. No automatic clearing or OS-wide erasure guarantee is made. Every display requires fresh confirmation and authentication. The same root covers all deterministic account groups and supported networks.
 
 If an imported wallet uses an optional BIP39 passphrase, a separate warning explains that it must also be retained. The backup dialog does not disclose that passphrase. The app password protects local storage and cannot replace it. Restore on another installation still requires the exact original optional passphrase when one was used.
 
-This is an on-screen manual backup. No file backup, clipboard, print, QR or ordinary-renderer phrase response was added. `backupPhrase:{}` contains no secret parameters and returns public state only; its distinct one-use `recoveryBackup` prompt can be delivered only for that operation. Setup keeps its separate recorded-word challenge and cannot be reset by the backup action. Wrong password, cancellation, pending setup, storage failure, reentry, lock or changed session/generation prevents unauthorized display. The backup does not write vault files, change generation/completion, derive replacement keys or alter the journal.
+This is an on-screen manual backup. There is no file backup, print, QR or ordinary-renderer phrase response. The later owner request permits explicit clipboard copying from this authenticated backup view only; setup and keyboard copying remain blocked. `backupPhrase:{}` contains no secret parameters and returns public state only; its distinct one-use `recoveryBackup` prompt can be delivered only for that operation. Setup keeps its separate recorded-word challenge and cannot be reset by the backup action. Wrong password, cancellation, pending setup, storage failure, reentry, lock or changed session/generation prevents unauthorized display. The backup does not write vault files, change generation/completion, derive replacement keys or alter the journal.
 
 Electron main, the dedicated prompt/preload, transient Go coordinator transport and the display/input environment remain trusted with displayed words. Best-effort clearing does not guarantee erasure of every Go/V8/Chromium/OS copy. See [RECOVERY.md](RECOVERY.md) and [THREAT_MODEL.md](THREAT_MODEL.md).
 
-## Evidence checklist — 2026-10-27
+## Previous display-only evidence — 2026-10-27
+
+The checklist below records the earlier candidate before Copy phrase was authorized. Current clipboard-copy evidence is in [STATUS.md](STATUS.md).
 
 | Status | Executed scope and limit |
 | --- | --- |

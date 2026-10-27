@@ -148,6 +148,10 @@ void app.whenReady().then(async()=>{
  ipcMain.handle('wallet:prompt:get',event=>{const active=promptEvent(event);if(active.delivered)throw new Error('Prompt unavailable');active.delivered=true;return active.prompt});
  ipcMain.handle('wallet:prompt:reply',(event,body:unknown)=>{const active=promptEvent(event);try{if(!active.delivered)throw new Error('Prompt unavailable');const reply=validatePromptReply(body,active.prompt);promptReply(active,reply);finishPrompt(false)}catch{finishPrompt(true);notifyLocked();void request('lock',{}).catch(stop);throw new Error('Prompt unavailable')}});
  ipcMain.handle('wallet:prompt:copy',event=>{const active=promptEvent(event);if(active.prompt.kind!=='receive'||!active.delivered)throw new Error('Prompt unavailable');clipboard.writeText(active.prompt.address!)});
+ // Explicit owner-authorized export from the authenticated backup view only.
+ // Main copies the Go-authored phrase; neither arguments nor replies carry it.
+ // Return value-free errors rather than letting Electron log clipboard failures.
+ ipcMain.handle('wallet:prompt:copy-recovery',(event,body:unknown)=>{try{const active=promptEvent(event);if(body!==undefined||!active.delivered||active.prompt.kind!=='recoveryBackup'||pending.get(active.requestID)?.method!=='backupPhrase')return {ok:false};clipboard.writeText(active.prompt.phrase!);return {ok:true}}catch{return {ok:false}}});
  ipcMain.on('wallet:prompt:activity',event=>{try{promptActivity(promptEvent(event))}catch{/* Untrusted or expired events carry no activity. */}});
  ipcMain.handle('wallet:version',event=>{if(!win||event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame||event.senderFrame.url!==origin+'/')throw new Error('Untrusted frame');return app.getVersion()});
  powerMonitor.on('lock-screen',osLock);powerMonitor.on('suspend',osLock);powerMonitor.on('shutdown',osLock);

@@ -1,6 +1,25 @@
 # Implementation and release evidence
 
-## Current phrase-backup and CI update — 2026-10-27
+## Current Copy phrase update — 2026-10-27
+
+The authenticated **Back up recovery phrase** dialog now offers **Copy phrase**. It copies the ordered Go-provided words without numbering. Only this explicit button may export the phrase: setup and keyboard copying remain blocked. The dialog explains that other apps and clipboard history may retain the words and asks the user to clear the clipboard after use. No automatic or guaranteed erasure is claimed.
+
+The private command accepts no text parameters and returns a value-free acknowledgment. Electron main binds it to the live delivered backup prompt, exact trusted main frame/window and pending `backupPhrase` request. Closed, locked, stale, ordinary-renderer, setup and other prompt requests fail closed. Clipboard failures use fixed feedback without exposing native error contents. Copying does not approve or close the dialog, change vault files or bypass the existing per-view Go confirmation/password check. This is the owner's narrow exception to the earlier blanket clipboard prohibition; no other secret export is added.
+
+| Status | Evidence and scope |
+| --- | --- |
+| PASS | **163 frontend tests**, zero skipped; all eight shipped JS files **100% statements**. Main branches **98.58%**, portfolio **98.27%**, remaining six including secret prompt/preload **100%**. Tests reject wrong frames, kinds, delivery states, arguments, stale callers and native clipboard failures; duplicate clicks and late completions cannot repopulate closed UI. |
+| PASS | **14 actual installed backup checks** on an owned private X11 display, including exact copied word order, no numbering, keyboard-copy rejection, no automatic copy, cancellation/wrong-password protection, fresh repeat authentication, unchanged ciphertext and original optional BIP39 passphrase warnings. Only a published synthetic phrase was intentionally copied to the private display clipboard; no user desktop clipboard or secret screenshot was used. |
+| PASS | **39** canonical packaged recovery checks, **eight** Unlock/status checks and **seven** actual isolated-geth Send checks pass on the same final artifact. Build/install, all **12** packaged payload/fuse checks and runtime versions pass. |
+| PASS | Fresh-copy Go recovery **six checks**, **27 matching descriptors** across nine networks/three indices; owned-process crash/canary **seven checks**, bound to the rebuilt Go binaries. |
+| PASS — unchanged source | All **193 Go source/test/module hashes** match retained package/coverage evidence. No Go, derivation, network, signing or vault code changed. |
+| FAIL / BLOCKED — unchanged | The retained Go aggregate is still **FAIL** because pinned **dcrd v1.10.9** is unavailable; all **25** measured package floors passed, and nine skipped aggregate tests remain explicit. |
+| FAIL — production gate | `make verify-release` still rejects existing incomplete acceptance requirements, the blocked Go aggregate and missing external gates. Current frontend, artifact, packaged recovery and local Send bindings pass. |
+| NOT_RUN | Full supported OS/Wayland/lifecycle acceptance, new hosted CI/profile execution, funded public-network/Bybit acceptance, full 24-hour soak and independent review. No real user secrets or mainnet spending. |
+
+Source/artifact-bound evidence is in `reports/phrase-copy.json`; source/test logs remain under the existing ignored report/evidence directories. [Recovery instructions](RECOVERY.md) explain clipboard retention and the separate BIP39-passphrase requirement.
+
+## Previous phrase-backup and CI update — 2026-10-27
 
 First-run **Restore from recovery phrase** already existed; the page now makes that choice explicit. **Settings → Wallet → Back up recovery phrase** confirms the request and verifies the current app password before showing numbered words in the isolated Electron dialog. Every view authenticates again. The operation preserves the encrypted vault, generation, recovery completion, keys and journal and adds no file/clipboard/print/QR export. [Behavior and requirement-to-test checklist](PHRASE_BACKUP.md).
 

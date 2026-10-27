@@ -45,17 +45,17 @@
     "interfaces": [
       "lo"
     ],
-    "networkNamespace": "net:[4026534735]",
+    "networkNamespace": "net:[4026535822]",
     "externalRoutes": false
   },
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
-      "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
-      "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
+      "wallet-core": "bef3633353d92cee3e20f49ebe38f4030c0f3ebc388220b534e47023d9eeb434",
+      "wallet-launcher": "8eeb037d3af7e1c95e34be9eeee4c81915d4623be41f192c0102593f40da815b",
+      "wallet-signer": "ddb000fcb2b35107b7ddd12e233ac39dd850ab9abdfb173f06044c1e0afbf42b"
     },
-    "asarSHA256": "7b3e9015cb7e2440e7716757f4805539c9b5973e5858a1e36755d3f617e4abc9"
+    "asarSHA256": "342385f381173e522cec576c63b4fb43ed053d4f47ca6db1f85e0431dad4c929"
   },
   "node": {
     "implementation": "geth1.17.9-stable",
@@ -78,14 +78,14 @@
     "nativeRecipientBefore": "0",
     "nativeRecipientAfter": "12345678912345678",
     "sourceBefore": "1000000000000000000000",
-    "sourceAfter": "999987653448140607322",
-    "actualFee": "872947047000",
+    "sourceAfter": "999987653326433889322",
+    "actualFee": "994653765000",
     "receipt": {
-      "blockHash": "0x8a34c2e4006ea5ae4353fba24faa7e970a0912996ada5f1e02beea24a4f5b88f",
-      "blockNumber": "0x18",
+      "blockHash": "0x1c28f2dbc484f2bf5b6937feb7a119435bfee842115f1dcba20ad46dc0abe99f",
+      "blockNumber": "0x17",
       "contractAddress": null,
       "cumulativeGasUsed": "0x5208",
-      "effectiveGasPrice": "0x27a4a8b",
+      "effectiveGasPrice": "0x2d2b971",
       "from": "0x9858effd232b4033e47d90003d41ec34ecaeda94",
       "gasUsed": "0x5208",
       "logs": [],
@@ -98,5 +98,5 @@
     },
     "sourcePendingNonceAfter": 1
   },
-  "seconds": 27.537
+  "seconds": 26.611
 }

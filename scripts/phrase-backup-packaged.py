@@ -87,7 +87,7 @@ reports = ROOT / 'reports'
 reports.mkdir(exist_ok=True)
 report_path = reports / (args.report_prefix + '.json')
 report = {'status': 'RUNNING', 'sourceSHA256': hashes(), 'steps': [],
-          'scope': 'Uninstrumented installed app on private X11: first-run phrase import, Settings Wallet confirmation and per-view app-password authentication, ordered numbered backup words, wrong password/cancellation, repeat display, optional imported BIP39-passphrase warning, unchanged ciphertext and public clipboard, locked/restart protection; synthetic public fixtures only',
+          'scope': 'Uninstrumented installed app on private X11: first-run phrase import, Settings Wallet confirmation and per-view app-password authentication, ordered numbered backup words, wrong password/cancellation, repeat display, optional imported BIP39-passphrase warning, unchanged ciphertext, explicit phrase copy to the private test clipboard with keyboard copying still blocked, locked/restart protection; synthetic public fixtures only',
           'notRun': ['separate physical machines', 'clean supported Ubuntu X11/Wayland OS matrix',
                      'OS suspend/session-lock races', 'public funded network acceptance', 'mainnet spending',
                      'independent security review']}
@@ -261,7 +261,9 @@ try:
         authenticate(WRONG_PASSWORD)
         public()
         unchanged(before)
-        passed('An incorrect app password cannot reveal the recovery phrase or modify the vault')
+        if clipboard() != EXPECTED_ADDRESS:
+            raise RuntimeError('Incorrect password copied words without an authenticated backup view')
+        passed('An incorrect app password cannot reveal or copy the recovery phrase or modify the vault')
 
         begin_backup()
         authenticate()
@@ -270,11 +272,22 @@ try:
         desktop.key('c', ctrl=True)
         if clipboard() != EXPECTED_ADDRESS:
             raise RuntimeError('Recovery backup changed the public address clipboard')
+        passed('Recovery keyboard copying remains blocked before the explicit Copy phrase button is used')
+        # Operate only this test-owned secret dialog. Do not OCR/save phrase
+        # pixels or retain clipboard words in any log, report, file or exception.
+        # The fixed footer remains outside the scrollable numbered-word area.
+        window, _ = desktop.wait(CONFIRM_TITLE)
+        x, y, width, height = desktop.geometry(window)
+        desktop.click(x + 100, y + height - 46)
+        wait(lambda: clipboard() == PHRASE)
+        unchanged(before)
+        passed('Explicit Copy phrase writes exactly the ordered recovery words to the owned private X11 clipboard')
         desktop.accept(CONFIRM_TITLE)
         public()
         unchanged(before)
-        passed('Authenticated backup displays all twelve numbered words in order without a new word challenge')
-        passed('Recovery words cannot be copied with keyboard selection and the public address clipboard stays unchanged')
+        if clipboard() != PHRASE:
+            raise RuntimeError('Explicit backup copy did not remain available after Done')
+        passed('Authenticated backup displays all twelve numbered words and copied text remains available after Done without a new challenge')
 
         begin_backup()
         authenticate()
@@ -282,8 +295,8 @@ try:
         desktop.key('Escape')
         public()
         unchanged(before)
-        if clipboard() != EXPECTED_ADDRESS:
-            raise RuntimeError('Repeated recovery backup changed the public address clipboard')
+        if clipboard() != PHRASE:
+            raise RuntimeError('Repeated backup changed the clipboard without an explicit copy request')
         passed('A second backup requires fresh confirmation and app-password authentication for the same unchanged root')
 
         gui.click('Lock wallet')
@@ -360,7 +373,7 @@ try:
     if verify_binaries(runtime) != report['artifact']['binaryManifest'] or hashlib.sha256((runtime / 'resources/app.asar').read_bytes()).hexdigest() != report['artifact']['asarSHA256']:
         raise RuntimeError('Packaged artifact changed during the phrase-backup test')
     report.update(status='PASS', sourceStable=True, privatePixelsRetained=False,
-                  secretClipboardTransport=False, productionInstrumentation=False)
+                  secretClipboardTransport=True, clipboardScope="Explicit Copy phrase on a public synthetic fixture; owned private X11 display only; no user clipboard", productionInstrumentation=False)
 except Exception as error:
     report.update(status='FAIL', sourceStable=False,
                   reason=str(error) if isinstance(error, RuntimeError) else 'Owned phrase-backup automation failed; no secret diagnostic retained')

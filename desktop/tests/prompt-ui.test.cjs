@@ -14,18 +14,19 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return {promise, resolve, reject}; }
 async function harness(prompt, options = {}) {
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'ui/prompt.html'), 'utf8'), {url:'wallet://prompt/', runScripts:'outside-only', pretendToBeVisual:true});
-  const calls = [], copyCalls = [];
+  const calls = [], copyCalls = [], phraseCopyCalls = [];
   const $ = name => dom.window.document.getElementById(name);
   const bridge = {
     getPrompt: () => options.get ? options.get() : Promise.resolve(prompt),
     respond(reply) { calls.push(structuredClone(reply)); if (options.respond) return options.respond(reply, $); return Promise.resolve(); },
-    copyAddress(...args) { copyCalls.push(args); return options.copy ? options.copy() : Promise.resolve(); }
+    copyAddress(...args) { copyCalls.push(args); return options.copy ? options.copy() : Promise.resolve(); },
+    copyRecoveryPhrase(...args) { phraseCopyCalls.push(args); return options.copyPhrase ? options.copyPhrase() : Promise.resolve(); }
   };
   dom.window.walletPrompt = Object.freeze(bridge);
   new vm.Script(fs.readFileSync(path.join(root, 'ui/prompt.js'), 'utf8'), {filename:path.join(root, 'ui/prompt.js')}).runInContext(dom.getInternalVMContext());
   await tick();
   const event = (type, init = {}) => new dom.window.Event(type, {bubbles:true, cancelable:true, ...init});
-  return {dom, $, calls, copyCalls, async submit() { $('promptform').dispatchEvent(event('submit')); await tick(); }, async cancel() { $('cancel').click(); await tick(); }, key(key, init = {}) { const value = new dom.window.KeyboardEvent('keydown', {key, bubbles:true, cancelable:true, ...init}); dom.window.document.dispatchEvent(value); return value; }, event, close() { dom.window.close(); }};
+  return {dom, $, calls, copyCalls, phraseCopyCalls, async submit() { $('promptform').dispatchEvent(event('submit')); await tick(); }, async cancel() { $('cancel').click(); await tick(); }, key(key, init = {}) { const value = new dom.window.KeyboardEvent('keydown', {key, bubbles:true, cancelable:true, ...init}); dom.window.document.dispatchEvent(value); return value; }, event, close() { dom.window.close(); }};
 }
 function cleared(h, retainedInputs = []) {
   assert.equal(h.$('inputfields').children.length, 0);
@@ -36,6 +37,9 @@ function cleared(h, retainedInputs = []) {
   assert.equal(h.$('receiveqr').hasAttribute('src'), false);
   assert.equal(h.$('accept').disabled, true);
   assert.equal(h.$('cancel').disabled, true);
+  assert.equal(h.$('copyphrase').hidden, true);
+  assert.equal(h.$('copyphrase').disabled, true);
+  assert.equal(h.$('phrasecopystatus').textContent, '');
   for (const input of retainedInputs) assert.equal(input.value, '');
 }
 test('TP033 dedicated prompt is local-only, has no wallet API, storage, reveal or secret export actions', async t => {
@@ -229,4 +233,45 @@ test('TP033 backup phrase cancellation, lifecycle loss and rejected replies eras
     assert.ok(!h.dom.window.document.body.textContent.includes('PRIVATE_BACKUP_FAILURE_CANARY'));
     await h.submit(); await h.cancel(); assert.equal(h.calls.length, 1);
   }
+});
+
+test('TP033 only an explicit backup Copy phrase click requests an argument-free copy and explains clipboard retention', async t => {
+  const h = await harness({id, kind:'recoveryBackup', title:'Back up recovery phrase', phrase:fixturePhrase}); t.after(h.close);
+  assert.equal(h.$('copyphrase').hidden, false); assert.equal(h.$('copyphrase').disabled, false);
+  assert.equal(h.$('copyphrase').type, 'button'); assert.equal(h.$('phrasecopywarning').hidden, false);
+  assert.match(h.$('phrasecopywarning').textContent, /Other apps and clipboard history may retain/);
+  assert.equal(h.phraseCopyCalls.length, 0);
+  h.$('recoverywords').firstChild.textContent = 'renderer-tampering-never-sent-to-main';
+  await h.$('copyphrase').onclick(); assert.deepEqual(h.phraseCopyCalls, [[]]);
+  assert.match(h.$('phrasecopystatus').textContent, /phrase copied.*Clear the clipboard/);
+  assert.equal(h.calls.length, 0); assert.equal(h.copyCalls.length, 0); assert.equal(h.$('copyphrase').disabled, false);
+  await h.submit(); cleared(h); assert.deepEqual(h.calls, [{promptId:id, accepted:true}]);
+  await h.$('copyphrase').onclick(); assert.equal(h.phraseCopyCalls.length, 1);
+  for (const prompt of [
+    {id,kind:'recovery',title:'Setup',phrase:fixturePhrase},
+    {id,kind:'input',title:'Password',labels:['Password']},
+    {id,kind:'receive',title:'Receive',summary:'public',address:'public',png:'AAAA'},
+    {id,kind:'confirm',title:'Confirm',summary:'public'},
+    {id,kind:'notice',title:'Notice',summary:'public'}
+  ]) {
+    const other = await harness(prompt); t.after(other.close);
+    assert.equal(other.$('copyphrase').hidden, true); assert.equal(other.$('copyphrase').disabled, true);
+    await other.$('copyphrase').onclick(); assert.equal(other.phraseCopyCalls.length, 0);
+  }
+});
+
+test('TP033 phrase copy disables duplicate work and ignores success or failure after cancellation', async t => {
+  for (const outcome of ['success','error']) {
+    const copy = deferred();
+    const h = await harness({id,kind:'recoveryBackup',title:'Backup',phrase:fixturePhrase}, {copyPhrase:()=>copy.promise}); t.after(h.close);
+    const work = h.$('copyphrase').onclick(); await tick(); assert.equal(h.$('copyphrase').disabled, true);
+    await h.$('copyphrase').onclick(); assert.equal(h.phraseCopyCalls.length, 1);
+    await h.cancel(); if (outcome === 'success') copy.resolve(); else copy.reject(Error('PRIVATE_PHRASE_COPY_ERROR'));
+    await work; cleared(h); assert.ok(!h.dom.window.document.body.textContent.includes('PRIVATE_PHRASE_COPY_ERROR'));
+  }
+  let fails = true;
+  const h = await harness({id,kind:'recoveryBackup',title:'Backup',phrase:fixturePhrase}, {copyPhrase:()=>fails?Promise.reject(Error(fixturePhrase)):Promise.resolve()}); t.after(h.close);
+  await h.$('copyphrase').onclick(); assert.match(h.$('phrasecopystatus').textContent, /could not be copied/);
+  assert.ok(!h.$('phrasecopystatus').textContent.includes(fixturePhrase)); assert.equal(h.$('copyphrase').disabled, false);
+  fails = false; await h.$('copyphrase').onclick(); assert.match(h.$('phrasecopystatus').textContent, /phrase copied/);
 });

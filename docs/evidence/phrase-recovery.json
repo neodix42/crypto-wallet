@@ -35,12 +35,12 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
-      "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
-      "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
+      "wallet-core": "bef3633353d92cee3e20f49ebe38f4030c0f3ebc388220b534e47023d9eeb434",
+      "wallet-launcher": "8eeb037d3af7e1c95e34be9eeee4c81915d4623be41f192c0102593f40da815b",
+      "wallet-signer": "ddb000fcb2b35107b7ddd12e233ac39dd850ab9abdfb173f06044c1e0afbf42b"
     }
   },
   "walletsCompared": 27,
-  "walletDescriptorsSHA256": "89f0907868c317813405f39996e6d3ede30e70bc8d735bdd85e15ddf4047c7af",
+  "walletDescriptorsSHA256": "9a9c1e956f24acc48e777a3a28a65bab183bfd6f4b29fc25d0b1fd1a6811b8b4",
   "promptTransportException": "Transient recovery phrase to isolated Electron dialog; input-only passwords/phrase/challenge replies to Go. Never snapshots/logs/files/network."
 }

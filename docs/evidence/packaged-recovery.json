@@ -175,11 +175,11 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
-      "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
-      "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
+      "wallet-core": "bef3633353d92cee3e20f49ebe38f4030c0f3ebc388220b534e47023d9eeb434",
+      "wallet-launcher": "8eeb037d3af7e1c95e34be9eeee4c81915d4623be41f192c0102593f40da815b",
+      "wallet-signer": "ddb000fcb2b35107b7ddd12e233ac39dd850ab9abdfb173f06044c1e0afbf42b"
     },
-    "asarSHA256": "7b3e9015cb7e2440e7716757f4805539c9b5973e5858a1e36755d3f617e4abc9"
+    "asarSHA256": "342385f381173e522cec576c63b4fb43ed053d4f47ca6db1f85e0431dad4c929"
   },
   "initialWindowObservations": [
     {
@@ -245,7 +245,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.314,
+      "firstAbsentSecondsAfterNativeAction": 8.086,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": true
     },
@@ -276,7 +276,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.051,
+      "firstAbsentSecondsAfterNativeAction": 8.067,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": false
     },
@@ -307,7 +307,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.032,
+      "firstAbsentSecondsAfterNativeAction": 8.002,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": false
     },
@@ -338,7 +338,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 7.791,
+      "firstAbsentSecondsAfterNativeAction": 7.774,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": true
     }
