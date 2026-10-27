@@ -37,7 +37,7 @@ class StartupDiagnostics(unittest.TestCase):
             def flush(self):
                 raise AssertionError('must not read a successful workflow log')
         report = {}
-        wait_for_startup(SimpleNamespace(windows=lambda: [(1, 'LocalWallet')]), SimpleNamespace(poll=lambda: None), NoRead(), report)
+        wait_for_startup(SimpleNamespace(windows=lambda: [(1, 'CryptoWallet')]), SimpleNamespace(poll=lambda: None), NoRead(), report)
         self.assertEqual(report, {})
 
     def test_timeout_and_large_diagnostics_stay_bounded(self):

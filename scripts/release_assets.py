@@ -26,7 +26,7 @@ MIN_GH = (2, 103, 2)
 def expected_assets(version):
     validate_version(version)
     return sorted(('RELEASE-NOTES.md', METADATA,
-                   f'localwallet-{version}-linux-amd64.tar.gz'))
+                   f'cryptowallet-{version}-linux-amd64.tar.gz'))
 
 
 def identity(repo, ref, commit, repo_id=None):

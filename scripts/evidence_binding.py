@@ -119,23 +119,23 @@ def validate_source_report(root, report, names):
 
 def candidate(root):
     manifest = read_json(root, 'dist/build-manifest.json')
-    binaries = read_json(root, 'dist/LocalWallet-linux-x64/resources/bin/manifest.json')
+    binaries = read_json(root, 'dist/CryptoWallet-linux-x64/resources/bin/manifest.json')
     if set(binaries) != set(COMPONENTS) or any(not isinstance(value, str) or not re.fullmatch(r'[0-9a-f]{64}', value) for value in binaries.values()):
         raise EvidenceError('invalid-candidate-binary-manifest')
     if manifest.get('binaryManifest') != binaries:
         raise EvidenceError('candidate-binary-manifest-mismatch')
     for name in COMPONENTS:
-        for prefix in ('bin/', 'dist/LocalWallet-linux-x64/resources/bin/'):
+        for prefix in ('bin/', 'dist/CryptoWallet-linux-x64/resources/bin/'):
             if sha256(regular(root, prefix + name)) != binaries[name]:
                 raise EvidenceError('candidate-binary-hash-mismatch')
-    if sha256(regular(root, 'dist/LocalWallet-linux-x64/cryptowallet')) != binaries['wallet-launcher']:
+    if sha256(regular(root, 'dist/CryptoWallet-linux-x64/cryptowallet')) != binaries['wallet-launcher']:
         raise EvidenceError('candidate-launcher-hash-mismatch')
     version = manifest.get('version')
     if not isinstance(version, str) or not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', version):
         raise EvidenceError('invalid-candidate-version')
     return {'version': version, 'binaryManifest': binaries,
-            'asarSHA256': sha256(regular(root, 'dist/LocalWallet-linux-x64/resources/app.asar')),
-            'electronSHA256': sha256(regular(root, 'dist/LocalWallet-linux-x64/cryptowallet-ui'))}
+            'asarSHA256': sha256(regular(root, 'dist/CryptoWallet-linux-x64/resources/app.asar')),
+            'electronSHA256': sha256(regular(root, 'dist/CryptoWallet-linux-x64/cryptowallet-ui'))}
 
 
 def validate_artifact(root, report, current):

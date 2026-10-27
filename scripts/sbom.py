@@ -27,7 +27,7 @@ if not go_only:
     for location,item in lock['packages'].items():
         if not location:continue
         components.append({'type':'library','name':location.rsplit('node_modules/',1)[-1],'version':item.get('version','unknown'),'scope':'required' if location=='node_modules/electron' or not item.get('dev') else 'excluded','properties':[{'name':'buildDependency','value':str(bool(item.get('dev'))).lower()},{'name':'npmIntegrity','value':item.get('integrity','missing')}]})
-sbom={'bomFormat':'CycloneDX','specVersion':'1.6','version':1,'metadata':{'component':{'type':'application','name':'LocalWallet Go Components Development' if go_only else 'LocalWallet Development','version':subprocess.check_output(['python3','scripts/version.py'],cwd=root,text=True).strip()}},'components':components}
+sbom={'bomFormat':'CycloneDX','specVersion':'1.6','version':1,'metadata':{'component':{'type':'application','name':'CryptoWallet Go Components Development' if go_only else 'CryptoWallet Development','version':subprocess.check_output(['python3','scripts/version.py'],cwd=root,text=True).strip()}},'components':components}
 (out/(prefix+'sbom.cdx.json')).write_text(json.dumps(sbom,indent=2)+'\n');(out/(prefix+'dependency-licenses.json')).write_text(json.dumps(licenses,indent=2)+'\n')
 dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=root,text=True).strip())
 sources=subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard','-z'],cwd=root).decode().split('\0');entries={}

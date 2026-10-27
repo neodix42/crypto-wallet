@@ -8,7 +8,9 @@ The existing verifier is retained: exact manifest digest, complete payload inven
 
 The publisher uses pinned Node 24.19.0 and a separate integrity-locked official toolkit dependency graph, installed without lifecycle scripts. Its core DSSE dependency is pinned to a patched compatible release; audit reports no findings. Only `contents: write` and `id-token: write` remain; `attestations: write` is removed. The toolkit receives no repository write token. Build/test separation, version incrementing, complete archives and wallet security boundaries are unchanged.
 
-| Status | Evidence |
+The following measurements describe the original private-repository signing fix. They are historical local results, not hosted verification of the subsequent CryptoWallet branding change. The current portable archive is `cryptowallet-<version>-linux-amd64.tar.gz`; publishing `0.1.3` with the updated workflow applies the new name.
+
+| Status | Historical evidence |
 | --- | --- |
 | PASS | 13 Node signing regressions: exact digest/options, mandatory private service and storage skip, workflow/identity guards, unsafe file/output rejection, changed manifest/identity, signing failures and value-free CLI errors. The real toolkit's skipped storage branch passes; its storage-enabled control fails. The real DSSE bundle builder preserves UTF-8 type binding. |
 | PASS | 21 Python release-authentication tests, including actual GitHub CLI verification of frozen private-Sigstore RFC3161 timestamp evidence without a stored record, plus wrong publisher/root and timestamp/artifact tampering rejection. Original public signature/transparency and policy tests also pass. |

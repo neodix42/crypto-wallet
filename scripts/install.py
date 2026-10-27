@@ -117,4 +117,4 @@ def install(source, destination):
 
 
 if __name__ == '__main__':
-    install(root / 'dist/LocalWallet-linux-x64', root)
+    install(root / 'dist/CryptoWallet-linux-x64', root)

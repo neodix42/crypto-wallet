@@ -312,7 +312,7 @@ def collect_desktop(root, runtime, components, texts):
 def render(components, texts, scope, provenance):
     require(components and texts, 'No redistribution notices collected')
     components = sorted(components, key=lambda entry: entry['id'])
-    header = ('LocalWallet third-party redistribution texts\n\n'
+    header = ('CryptoWallet third-party redistribution texts\n\n'
               'Technical inventory only. ' + REVIEW + '.\n'
               'License classifications, compatibility and obligations are not determined by this file.\n'
               'Upstream text bytes are reproduced below without substantive modification.\n\n')
@@ -326,7 +326,7 @@ def render(components, texts, scope, provenance):
                     inventoryMeaning='Selected upstream text inventory, not legal clearance or a completeness opinion on obligations',
                     provenance=provenance, components=components, noticeSHA256=sha256(body),
                     externalRuntimeLibraries='System libc/libseccomp2 and desktop shared libraries are runtime prerequisites, not copied from the host into this notice inventory; review their use and distribution obligations separately.',
-                    projectLicense='NOT_REVIEWED: this artifact does not assign a license to LocalWallet source')
+                    projectLicense='NOT_REVIEWED: this artifact does not assign a license to CryptoWallet source')
     return bytes(body), json_bytes(manifest)
 
 
@@ -364,7 +364,7 @@ def generate(root, go_only=False, runtime=None):
     components, texts = [], []
     provenance = collect_go(root, components, texts)
     if not go_only:
-        runtime = Path(runtime or root / 'dist/LocalWallet-linux-x64').absolute()
+        runtime = Path(runtime or root / 'dist/CryptoWallet-linux-x64').absolute()
         provenance['desktop'] = collect_desktop(root, runtime, components, texts)
     scope = 'Actual production Go command dependencies and Go standard-library texts'
     if not go_only:

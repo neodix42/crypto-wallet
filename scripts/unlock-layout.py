@@ -130,7 +130,7 @@ try:
     desktop = mod.Desktop(display.encode())
     handler_refs = selected_helper('install_owned_window_query_handler')(desktop, report, report_path)
     gui = gui_module.Gui(desktop)
-    with tempfile.TemporaryDirectory(prefix='localwallet-unlock-layout-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='cryptowallet-unlock-layout-') as temporary:
         owned = pathlib.Path(temporary)
         home = owned / 'home'
         home.mkdir(mode=0o700)
@@ -142,7 +142,7 @@ try:
             log = tempfile.TemporaryFile(mode='w+')
             logs.append(log)
             app = subprocess.Popen([str(launcher), '--ozone-platform=x11'], env=env, stdout=log, stderr=log, start_new_session=True)
-            desktop.wait('LocalWallet', 20)
+            desktop.wait('CryptoWallet', 20)
             time.sleep(.7)
 
         launch()
@@ -165,7 +165,7 @@ try:
 
         def empty_geometry(stage):
             window, title = desktop.wait('Unlock local wallet')
-            if title != 'LocalWallet — Unlock local wallet':
+            if title != 'CryptoWallet — Unlock local wallet':
                 raise RuntimeError('Unexpected empty Unlock dialog identity')
             x, y, width, height = desktop.geometry(window)
             mod.T.XTestFakeMotionEvent(desktop.d, -1, 5, 5, 0)
@@ -229,7 +229,7 @@ try:
         desktop.key('Escape')
         wait(lambda: not desktop.secret_window())
         wait(lambda: 'request cancelled' in gui.text().lower())
-        x, y, width, height = desktop.geometry(desktop.wait('LocalWallet')[0])
+        x, y, width, height = desktop.geometry(desktop.wait('CryptoWallet')[0])
 
         def public_status():
             if desktop.secret_window():

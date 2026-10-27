@@ -25,14 +25,14 @@ def numbered(desktop,prefix='Record recovery phrase'):
  for attempt in range(3):
   time.sleep(.2)
   buffer=io.BytesIO();crop=desktop.image().crop((x,y,x+w,y+h))
-  if desktop.wait(prefix)[1].startswith('LocalWallet — '):
+  if desktop.wait(prefix)[1].startswith('CryptoWallet — '):
    from PIL import ImageOps
    crop=ImageOps.invert(crop.convert('L'))
   crop.resize((w*2,h*2)).save(buffer,format='PNG')
   output=subprocess.check_output(['tesseract','stdin','stdout','--psm','6'],input=buffer.getvalue(),stderr=subprocess.DEVNULL)
   found={int(i):word for i,word in re.findall(rb'(?m)\b(\d{1,2})[.),:]?\s+([a-z]+)\b',output)}
   if set(found)==set(range(1,13)):break
- if set(found)!=set(range(1,13)) and desktop.wait(prefix)[1].startswith('LocalWallet — '):
+ if set(found)!=set(range(1,13)) and desktop.wait(prefix)[1].startswith('CryptoWallet — '):
   # Read each displayed grid cell independently when document OCR merges the
   # small ordinal with a word. Locate public CSS borders; secret pixels stay
   # exclusively in memory. Recovered addresses later verify the full phrase.

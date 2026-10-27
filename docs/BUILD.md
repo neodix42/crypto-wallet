@@ -32,7 +32,7 @@ make install
 ./cryptowallet --profile=testnet
 ```
 
-`make install` needs no sudo. It copies a complete staged runtime under `wallet-runtime/` and atomically switches the repository-root `./cryptowallet` launcher. Existing profile files are not in the copy. The installer rejects unrelated files, unsafe/symlinked runtime generations and mismatched hashes, and rechecks the staged copy before switching. Prior managed generations and any legacy `./wallet` entry are retained. Use `./cryptowallet` for the new installation. Profile locations and keys do not change. The installed runtime does not use `.tools/` or system Node/npm; Electron's runtime is bundled.
+`make install` needs no sudo. It copies a complete staged runtime under `wallet-runtime/` and atomically switches the repository-root `./cryptowallet` launcher. Existing profile files are not in the copy. The installer rejects unrelated files, unsafe/symlinked runtime generations and mismatched hashes, and rechecks the staged copy before switching. Prior managed generations and any legacy `./wallet` entry are retained. Use `./cryptowallet` for the new installation. Profile locations and keys do not change. The legacy `~/.config/localwallet` / `$XDG_CONFIG_HOME/localwallet` storage name is intentionally retained so existing vaults and settings reopen without a migration or a replacement wallet. The installed runtime does not use `.tools/` or system Node/npm; Electron's runtime is bundled.
 
 Pins for this optional desktop build are Node24.19.0, npm11.17.0, Electron45.0.0 and TypeScript7.0.2. The build wrapper bootstraps the SHA256-verified Node distribution in `.tools/` if necessary. Electron, Go SDKs and npm dependencies have locked versions/checksums. No local build/install command produces a `.deb` file, invokes `dpkg-deb`, installs an AppArmor profile, or changes system-wide sandbox settings. The GitHub-hosted CI workflow alone explicitly loads a temporary named userns profile for its desktop test processes and removes it afterward; see [CI_DESKTOP.md](CI_DESKTOP.md). A host that blocks Chromium's user-namespace sandbox remains unsupported until properly configured/tested; the launcher never uses `--no-sandbox`.
 
@@ -48,18 +48,18 @@ Artifacts:
 |---|---|
 | `bin/wallet-{core,signer,launcher}` | Compiled Go executables |
 | `bin/manifest.json`, `bin/go-build-manifest.json` | Binary hashes, version and Go build identity |
-| `dist/localwallet-go-<version>-linux-amd64.tar.gz` | Go components only |
+| `dist/cryptowallet-go-<version>-linux-amd64.tar.gz` | Go components only |
 | `dist/wallet-{core,signer,launcher}`, `dist/GO-SHA256SUMS` | Raw Go release executables and checksums |
 | `dist/go-{sbom.cdx,dependency-licenses,source-manifest}.json` | Go-only module/license/source inventories, hashed by `GO-SHA256SUMS` |
-| `dist/LocalWallet-linux-x64/` | Optional full portable desktop |
-| `dist/localwallet-<version>-linux-amd64.tar.gz` | Optional complete desktop archive |
+| `dist/CryptoWallet-linux-x64/` | Optional full portable desktop |
+| `dist/cryptowallet-<version>-linux-amd64.tar.gz` | Optional complete desktop archive |
 | `wallet-runtime/`, `./cryptowallet` | Locally installed complete desktop |
 
 All generated outputs/cache directories stay out of Git. The source manifest hashes the actual working tree; a base commit alone does not identify modified source. Go paths/build IDs are stripped; bit-for-bit archive reproducibility is not yet established. Bare SHA256 manifests do not authenticate a publisher against an attacker who can replace every local file. Locally built artifacts remain unsigned. The release workflow additionally authenticates the complete checksum manifest as described below.
 
 ## Authenticate a downloaded release before running it
 
-The only uploaded GitHub Release asset is `localwallet-<version>-linux-amd64.tar.gz`. Its tag, release name and all app/runtime versions are the same bare number, initially `0.1.1`. The public entry point inside `LocalWallet-linux-x64/` is **`cryptowallet`**; the internal Electron runtime is `cryptowallet-ui`. Both are required. Local Go-only archives remain available through `make package-go`, independently of release publishing.
+The only uploaded GitHub Release asset is `cryptowallet-<version>-linux-amd64.tar.gz`. Its tag, release name and all app/runtime versions are the same automatically incremented bare number. With `0.1.2` published under the previous archive name, the next publication is `0.1.3`; the new archive and directory names apply after the updated workflow publishes. The public entry point inside `CryptoWallet-linux-x64/` is **`cryptowallet`**; the internal Electron runtime is `cryptowallet-ui`. Both are required. Local Go-only archives remain available through `make package-go`, independently of release publishing.
 
 The build job compiles/packages once, verifies versions/fuses/payloads and hands off a fixed archive plus verification metadata. Publishing downloads that exact artifact ID and rejects transfer digest mismatches, altered bytes or wrong source/version. It installs no wallet compiler and executes no downloaded wallet binary. Tests run independently in `ci.yml`; release notes explicitly mark them **NOT_RUN** in this build workflow and link the exact source commit's checks. Historical reports do not certify this candidate. See [RELEASE_PIPELINE.md](RELEASE_PIPELINE.md).
 
@@ -69,15 +69,15 @@ Private repositories use the official `@actions/attest` toolkit's `skipWrite: tr
 
 Use GitHub CLI **2.103.2 or later** from a separately trusted installation. The repository's optional developer helper `python3 scripts/bootstrap-gh.py` downloads the pinned official Linux amd64 CLI into ignored `.tools/`; neither downloaded wallets nor running wallets need it. Choose the expected publisher repository, version, protected source branch, immutable numeric repository ID and full source commit from an independently trusted project/release reference. Do not infer the trusted publisher from the downloaded `release.json`, bundle or a link supplied by an unknown mirror.
 
-Download the portable archive from release `0.1.1` and its four detached verification records from the Actions run linked in that release's notes, into the same directory. In the Actions web UI, select `wallet-release-verification-0.1.1` under **Artifacts** and unpack that records ZIP. Alternatively, with an authenticated GitHub CLI:
+After the updated workflow publishes `0.1.3`, download its `cryptowallet-0.1.3-linux-amd64.tar.gz` portable archive and four detached verification records from the Actions run linked in that release's notes, into the same directory. In the Actions web UI, select `wallet-release-verification-0.1.3` under **Artifacts** and unpack that records ZIP. Alternatively, with an authenticated GitHub CLI:
 
 ```sh
-release_version='0.1.1'
-release_dir="$HOME/Downloads/localwallet-$release_version"
+release_version='0.1.3'
+release_dir="$HOME/Downloads/cryptowallet-$release_version"
 release_run_id='INDEPENDENTLY_CHECKED_ACTIONS_RUN_ID'
 mkdir -p "$release_dir"
 gh release download "$release_version" --repo neodix42/crypto-wallet \
-  --pattern "localwallet-$release_version-linux-amd64.tar.gz" --dir "$release_dir"
+  --pattern "cryptowallet-$release_version-linux-amd64.tar.gz" --dir "$release_dir"
 gh run download "$release_run_id" --repo neodix42/crypto-wallet \
   --name "wallet-release-verification-$release_version" --dir "$release_dir"
 ```
@@ -88,7 +88,7 @@ The records are verification inputs, not runtime dependencies. From a separately
 # Replace these example values with independently checked project identity.
 release_repo='OWNER/REPOSITORY'
 release_repo_id='INDEPENDENTLY_CHECKED_NUMERIC_REPOSITORY_ID'
-release_version='0.1.1'
+release_version='0.1.3'
 release_ref='refs/heads/main' # refs/heads/master when that is the default branch
 release_commit='FULL_40_CHARACTER_LOWERCASE_COMMIT_SHA'
 python3 scripts/release_assets.py verify --directory /path/to/downloads \
@@ -98,11 +98,11 @@ python3 scripts/release_assets.py verify --directory /path/to/downloads \
 
 Check the permanent repository ID on a trusted connected machine with `gh api repos/OWNER/REPOSITORY --jq .id`; pin that ID separately from the downloaded files to reject ownership/name reuse. The command authenticates the manifest with `gh attestation verify`, exact certificate identity `https://github.com/OWNER/REPOSITORY/.github/workflows/release.yml@refs/heads/main`, GitHub's OIDC issuer, exact source ref/commit and certificate repository ID, SLSA v1 predicate and GitHub-hosted runner policy. It then validates the complete fixed inventory, all hashes and exact release identity/version. A missing CLI, old CLI, missing/invalid bundle, wrong publisher, branch, commit or version fails. It never executes or extracts a downloaded artifact. `prepare` and `check` subcommands only generate/check integrity; their success explicitly does **not** authenticate a publisher.
 
-For an offline machine, obtain a Sigstore trusted-root file using `gh attestation trusted-root` on a separately trusted connected machine, transfer it along with the bundle, and add `--trusted-root /trusted/path/trusted_root.jsonl`. The root file must come from that independent trust step; never accept a replacement trust root from an untrusted release mirror. GitHub documents [offline verification](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/verify-attestations-offline). Once verification passes, extract `localwallet-<version>-linux-amd64.tar.gz`, keep its files together and start `LocalWallet-linux-x64/cryptowallet` as an ordinary user. Launch `cryptowallet`, which establishes process isolation before starting the internal runtime.
+For an offline machine, obtain a Sigstore trusted-root file using `gh attestation trusted-root` on a separately trusted connected machine, transfer it along with the bundle, and add `--trusted-root /trusted/path/trusted_root.jsonl`. The root file must come from that independent trust step; never accept a replacement trust root from an untrusted release mirror. GitHub documents [offline verification](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/verify-attestations-offline). Once verification passes, extract `cryptowallet-<version>-linux-amd64.tar.gz`, keep its files together and start `CryptoWallet-linux-x64/cryptowallet` as an ordinary user. Launch `cryptowallet`, which establishes process isolation before starting the internal runtime.
 
 This proves workflow provenance and downloaded-byte integrity, not source correctness, independent review, production readiness, OS code signing or rollback protection. The trusted repository/workflow, GitHub-hosted build environment, GitHub OIDC and Sigstore trust roots remain part of the supply-chain trust model. An older authentic release can still verify if the consumer explicitly requests its version/commit; there is no automatic updater.
 
-`make test-release-auth` runs the strict inventory/policy tests and real offline cryptographic verification using frozen public upstream fixtures. Provision its pinned CLI first if it is absent. Tests reject missing/changed assets, identity mismatch, signature tampering and an independently generated ephemeral wrong verification key. Fixture keys never sign a LocalWallet release. These local tests passed; actual GitHub OIDC issuance, complete remote workflow execution and publication remain **NOT_RUN** until an authorized release run. The workflow pins all actions to exact commits and verifies its freshly issued bundle before `gh release create`.
+`make test-release-auth` runs the strict inventory/policy tests and real offline cryptographic verification using frozen public upstream fixtures. Provision its pinned CLI first if it is absent. Tests reject missing/changed assets, identity mismatch, signature tampering and an independently generated ephemeral wrong verification key. Fixture keys never sign a CryptoWallet release. Historical local tests passed; GitHub OIDC issuance, complete remote workflow execution and publication for the current branding change remain **NOT_RUN** until that change runs on GitHub. The workflow pins all actions to exact commits and verifies its freshly issued bundle before `gh release create`.
 
 ## Tests
 

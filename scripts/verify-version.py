@@ -29,7 +29,7 @@ def _electron_version(base, appdir):
 def verify_go_versions(base, version, packaged=True):
     validate_version(version)
     base = pathlib.Path(base)
-    appdir = base / 'dist/LocalWallet-linux-x64'
+    appdir = base / 'dist/CryptoWallet-linux-x64'
     binaries = [base / 'bin' / name for name in _COMPONENTS]
     if packaged:
         binaries += [appdir / 'resources/bin' / name for name in _COMPONENTS]
@@ -80,7 +80,7 @@ def verify_go_only(base=root):
     verify_go_versions(base, version, packaged=False)
     if 'archive' in manifest:
         archive = manifest['archive']
-        expected = f'localwallet-go-{version}-linux-amd64.tar.gz'
+        expected = f'cryptowallet-go-{version}-linux-amd64.tar.gz'
         if not isinstance(archive, dict) or set(archive) != {'file', 'sha256'} or archive['file'] != expected or _sha256(base / 'dist' / expected) != archive['sha256']:
             raise RuntimeError('Go archive identity differs')
         if _read_json(base / 'dist/go-build-manifest.json') != manifest or _read_json(base / 'dist/manifest.json') != binaries:
@@ -114,7 +114,7 @@ def verify_go_archive(filename, source, manifest):
     source = pathlib.Path(source)
     dist = source.parent / 'dist'
     _verify_go_inventories(dist, manifest)
-    prefix = f"localwallet-go-{manifest['version']}-linux-amd64"
+    prefix = f"cryptowallet-go-{manifest['version']}-linux-amd64"
     required = set(_COMPONENTS) | set(_GO_INVENTORIES) | {'manifest.json', 'go-build-manifest.json', 'README.md'}
     seen = set()
     with tarfile.open(filename, 'r:gz') as archive:
@@ -182,7 +182,7 @@ def verify_version(base=root):
     manifest = json.loads((dist / 'build-manifest.json').read_text())
     if manifest['version'] != version:
         raise RuntimeError('Build manifest version differs')
-    appdir = dist / 'LocalWallet-linux-x64'
+    appdir = dist / 'CryptoWallet-linux-x64'
     actual = _electron_version(base, appdir)
     if actual != version:
         raise RuntimeError('Electron app.getVersion() source differs')
@@ -196,7 +196,7 @@ def verify_version(base=root):
         if _sha256(base / 'bin' / name) != binary_manifest[name]:
             raise RuntimeError('Source binary hash differs: ' + name)
     portable = manifest['portable']
-    expected_name = f'localwallet-{version}-linux-amd64.tar.gz'
+    expected_name = f'cryptowallet-{version}-linux-amd64.tar.gz'
     if portable['file'] != expected_name or _sha256(dist / expected_name) != portable['sha256']:
         raise RuntimeError('Portable artifact identity differs')
     verify_portable_payload(dist / expected_name, appdir)

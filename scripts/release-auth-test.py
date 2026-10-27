@@ -50,7 +50,7 @@ class InventoryTests(unittest.TestCase):
     def test_portable_and_detached_verification_inventory_is_required(self):
         entries = self.check()
         self.assertEqual(set(entries), set(release.expected_assets(VERSION)))
-        self.assertIn(f'localwallet-{VERSION}-linux-amd64.tar.gz', entries)
+        self.assertIn(f'cryptowallet-{VERSION}-linux-amd64.tar.gz', entries)
         self.assertEqual(len(entries), 3)
         self.assertEqual(json.loads((self.dist / release.METADATA).read_text())['tag'], VERSION)
 
@@ -69,7 +69,7 @@ class InventoryTests(unittest.TestCase):
 
     def test_prepare_refuses_incomplete_desktop_without_overwriting_manifest(self):
         manifest = (self.dist / release.MANIFEST).read_bytes()
-        (self.dist / f'localwallet-{VERSION}-linux-amd64.tar.gz').unlink()
+        (self.dist / f'cryptowallet-{VERSION}-linux-amd64.tar.gz').unlink()
         with self.assertRaises(ValueError):
             release.prepare(self.dist, VERSION, REPO, REF, COMMIT, REPO_ID)
         self.assertEqual((self.dist / release.MANIFEST).read_bytes(), manifest)
@@ -88,7 +88,7 @@ class InventoryTests(unittest.TestCase):
                     self.check()
 
     def test_symlink_and_hardlink_assets_are_not_accepted(self):
-        path = self.dist / f'localwallet-{VERSION}-linux-amd64.tar.gz'
+        path = self.dist / f'cryptowallet-{VERSION}-linux-amd64.tar.gz'
         path.unlink()
         outside = self.dist / 'public-outside'
         outside.write_text('Public fixture')
@@ -264,7 +264,7 @@ class RealSigstoreTests(unittest.TestCase):
 
     def verify_private_timestamp(self, repo='actions/attest-demo', trusted_root=None):
         folder = self.work / 'private-timestamp'
-        # The independent fixture's workflow differs from LocalWallet's. Only
+        # The independent fixture's workflow differs from CryptoWallet's. Only
         # this test selects that known public publisher; production stays fixed.
         with mock.patch.object(release, 'WORKFLOW', '.github/workflows/build-python.yml'):
             release.verify_provenance(folder / 'artifact.whl', folder / 'bundle.json', repo, REF,
@@ -329,8 +329,8 @@ if __name__ == '__main__':
     report = {'status': 'FAIL' if not result.wasSuccessful() else 'BLOCKED' if result.skipped else 'PASS',
               'tests': result.outcomes, 'testsRun': result.testsRun,
               'sourceSHA256': {name: release.digest(ROOT / name) for name in names},
-              'scope': 'Hermetic complete-release inventories, exact publisher policy and real frozen upstream Sigstore/certificate/transparency verification; ephemeral wrong-key test only. No signing of LocalWallet or remote workflow/publication.',
-              'publisherSigning': 'NOT_RUN: no workflow was triggered and no LocalWallet publisher attestation was fabricated',
+              'scope': 'Hermetic complete-release inventories, exact publisher policy and real frozen upstream Sigstore/certificate/transparency verification; ephemeral wrong-key test only. No signing of CryptoWallet or remote workflow/publication.',
+              'publisherSigning': 'NOT_RUN: no workflow was triggered and no CryptoWallet publisher attestation was fabricated',
               'remotePublication': 'NOT_RUN'}
     (ROOT / 'reports').mkdir(exist_ok=True)
     (ROOT / 'reports/release-auth.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 trap 'code=$?; if [ "$code" -ne 0 ]; then printf "Build failed (exit %s). See the command/error above; prerequisites are documented in README.md.\n" "$code" >&2; fi' EXIT
 command -v cc >/dev/null 2>&1 || { printf 'Install build-essential: CGO requires a C compiler.\n' >&2; exit 1; }
 version=$(python3 scripts/version.py)
-printf 'Building LocalWallet Go components %s with %s\n' "$version" "$(go version)"
+printf 'Building CryptoWallet Go components %s with %s\n' "$version" "$(go version)"
 mkdir -p bin
 for component in core signer launcher; do
   printf 'Compiling wallet-%s...\n' "$component"

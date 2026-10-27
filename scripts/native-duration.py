@@ -13,9 +13,9 @@ def control(d,word):
  for line in tsv.splitlines()[1:]:
   a=line.split('\t')
   if len(a)==12 and a[11].lower().startswith(word.lower()) and int(a[6])<320:
-   d.focus(d.wait('LocalWallet')[0]);d.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+   d.focus(d.wait('CryptoWallet')[0]);d.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
  if word=='Change':
-  d.focus(d.wait('LocalWallet')[0]);d.click(180,615);return
+  d.focus(d.wait('CryptoWallet')[0]);d.click(180,615);return
  raise RuntimeError('Public control not found: '+word)
 try:
  display=next(f':{n}' for n in range(180,190) if not pathlib.Path(f'/tmp/.X11-unix/X{n}').exists() and not pathlib.Path(f'/tmp/.X{n}-lock').exists())
@@ -31,7 +31,7 @@ try:
   d=m.Desktop(display.encode())
   report['launcherSHA256']=hashlib.sha256((root/'cryptowallet').resolve().read_bytes()).hexdigest()
   app=subprocess.Popen([str(root/'cryptowallet'),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
-  d.wait('LocalWallet',20);time.sleep(1);control(d,'Import')
+  d.wait('CryptoWallet',20);time.sleep(1);control(d,'Import')
   w,_=d.wait('Create local wallet');d.focus(w);x,y,_,_=d.geometry(w)
   password='public-synthetic-duration-password-79326';phrase='abandon '*11+'about'
   d.inputs('Create local wallet',[password,password,phrase,''])

@@ -12,4 +12,4 @@ The explicit `@sigstore/core` 4.0.1 override fixes the DSSE payload-type encodin
 make test-release-auth
 ```
 
-No local test requests a real OIDC identity or signs a LocalWallet release. Live signing/publication requires executing the changed workflow on GitHub. See [the evidence checklist](../../docs/PRIVATE_RELEASES.md).
+No local test requests a real OIDC identity or signs a CryptoWallet release. Live signing/publication requires executing the changed workflow on GitHub. See [the evidence checklist](../../docs/PRIVATE_RELEASES.md).

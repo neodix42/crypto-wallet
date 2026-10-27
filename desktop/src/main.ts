@@ -7,6 +7,12 @@ import {validate} from './validation';
 import {parseResponse} from './codec';
 import {Prompt,PromptReply,validatePrompt,validatePromptReply,clearPrompt} from './prompts';
 
+// Branding must not relocate an existing Electron profile or its session files.
+// Wallet vaults independently retain their Go-owned ~/.config/localwallet paths.
+const legacyUserData=path.join(app.getPath('appData'),'LocalWallet Development');
+fs.mkdirSync(legacyUserData,{recursive:true,mode:0o700});
+app.setPath('userData',legacyUserData);app.setPath('sessionData',legacyUserData);
+app.setName('CryptoWallet');
 app.enableSandbox();
 // Public wallet views and QR images do not need a hardware rendering pipeline.
 // Keep Chromium away from host-specific Mesa/DRI loaders while retaining sandboxing.
@@ -114,7 +120,7 @@ async function showPrompt(requestID:string,prompt:Prompt):Promise<void>{
   promptReply(active,reply);finishPrompt(false);return;
  }
  const partition='wallet-prompt-'+randomBytes(16).toString('hex');active.ses=secureSession(partition,'prompt',{'/':'prompt.html','/prompt.js':'prompt.js','/prompt.css':'prompt.css'});
- const fixedTitle='LocalWallet — '+prompt.title.replace(/ — Go signer$/,'');
+ const fixedTitle='CryptoWallet — '+prompt.title.replace(/ — Go signer$/,'');
  const input=prompt.kind==='input';
  const area=screen.getDisplayMatching(win.getBounds()).workAreaSize;
  // Input rows have a compact fixed layout; long/many-field inputs scroll while
@@ -137,7 +143,7 @@ void app.whenReady().then(async()=>{
  ses.webRequest.onBeforeRequest((details,callback)=>callback({cancel:!details.url.startsWith(origin+'/')&&!details.url.startsWith('data:image/png;base64,')}));
  ses.on('will-download',event=>event.preventDefault());
  await ses.protocol.handle('wallet',request=>{const u=new URL(request.url);const files:Record<string,string>={'/':'index.html','/renderer.js':'renderer.js','/style.css':'style.css'};const name=files[u.pathname];if(u.host!=='app'||!name||u.search||u.hash)return new Response('Denied',{status:403});return net.fetch('file://'+path.join(__dirname,'../ui',name));});
- win=new BrowserWindow({...boundedWindowSize(1440,960,960,640,screen.getPrimaryDisplay().workAreaSize),title:'LocalWallet — Verification pending',webPreferences:{partition:'wallet-local',preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});
+ win=new BrowserWindow({...boundedWindowSize(1440,960,960,640,screen.getPrimaryDisplay().workAreaSize),title:'CryptoWallet — Verification pending',webPreferences:{partition:'wallet-local',preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,devTools:false}});
  win.on('closed',()=>{win=undefined;stop()});
  win.webContents.on('will-navigate',e=>e.preventDefault());win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-attach-webview',e=>e.preventDefault());
  const osLock=()=>{finishPrompt(true);notifyLocked();void request('lock',{}).catch(stop)};

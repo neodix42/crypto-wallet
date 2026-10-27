@@ -44,6 +44,8 @@ function cleared(h, retainedInputs = []) {
 }
 test('TP033 dedicated prompt is local-only, has no wallet API, storage, reveal or secret export actions', async t => {
   const h = await harness({id, kind:'recovery', title:'Record recovery phrase', phrase:fixturePhrase}); t.after(h.close);
+  assert.equal(h.dom.window.document.title, 'CryptoWallet — Wallet dialog');
+  assert.equal(h.dom.window.document.querySelector('.brand span').textContent, 'CryptoWallet');
   assert.equal(h.dom.window.wallet, undefined);
   assert.equal(h.dom.window.require, undefined);
   assert.equal(h.dom.window.process, undefined);

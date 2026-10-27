@@ -5,7 +5,7 @@ The build now produces actual upstream license, notice, copying, copyright and p
 ```sh
 ./scripts/with-go.sh python3 scripts/license-notices.py --go-only
 ./scripts/with-toolchain.sh python3 scripts/license-notices.py \
-  --desktop-runtime dist/LocalWallet-linux-x64
+  --desktop-runtime dist/CryptoWallet-linux-x64
 python3 scripts/license-notices-test.py
 ```
 
@@ -19,4 +19,4 @@ Collection fails on missing primary license/copying texts, symlinked source path
 
 The initial local run passed 13 regressions covering provenance, deterministic rendering, exact byte preservation, source/output path attacks, missing texts, Go-only separation, packaged npm identity and nested unlisted dependencies. Actual collection passed with 39 Go components/56 texts and 40 desktop components/58 texts. These results are tracked in `reports/license-notices.json`; packaging/release inventories bind the generated files separately.
 
-This collection does not determine whether source-offer, relinking, attribution, patent, modification-disclosure or other obligations apply or have been satisfied. In particular, copying LGPL text does not by itself satisfy all applicable LGPL obligations. System libc/libseccomp2 and graphical shared libraries are runtime prerequisites and are not copied from the host into these inventories; their use and any redistribution need separate review. This artifact also assigns no license to LocalWallet's own source. Publisher signatures authenticate an artifact publisher, not the legal conclusions that remain outstanding.
+This collection does not determine whether source-offer, relinking, attribution, patent, modification-disclosure or other obligations apply or have been satisfied. In particular, copying LGPL text does not by itself satisfy all applicable LGPL obligations. System libc/libseccomp2 and graphical shared libraries are runtime prerequisites and are not copied from the host into these inventories; their use and any redistribution need separate review. This artifact also assigns no license to CryptoWallet's own source. Publisher signatures authenticate an artifact publisher, not the legal conclusions that remain outstanding.

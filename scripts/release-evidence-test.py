@@ -59,12 +59,12 @@ class ReleaseEvidence(unittest.TestCase):
         for name in binding.COMPONENTS:
             content = 'Public executable byte fixture: ' + name
             self.write('bin/' + name, content)
-            self.write('dist/LocalWallet-linux-x64/resources/bin/' + name, content)
+            self.write('dist/CryptoWallet-linux-x64/resources/bin/' + name, content)
             hashes[name] = binding.sha256(self.root / 'bin' / name)
-        self.write('dist/LocalWallet-linux-x64/cryptowallet', 'Public executable byte fixture: wallet-launcher')
-        self.write('dist/LocalWallet-linux-x64/cryptowallet-ui', 'Public Electron byte fixture')
-        self.write('dist/LocalWallet-linux-x64/resources/app.asar', 'Public opaque archive byte fixture; not an actual ASAR')
-        self.write_json('dist/LocalWallet-linux-x64/resources/bin/manifest.json', hashes)
+        self.write('dist/CryptoWallet-linux-x64/cryptowallet', 'Public executable byte fixture: wallet-launcher')
+        self.write('dist/CryptoWallet-linux-x64/cryptowallet-ui', 'Public Electron byte fixture')
+        self.write('dist/CryptoWallet-linux-x64/resources/app.asar', 'Public opaque archive byte fixture; not an actual ASAR')
+        self.write_json('dist/CryptoWallet-linux-x64/resources/bin/manifest.json', hashes)
         self.write_json('dist/build-manifest.json', {'version': '1.2.3', 'binaryManifest': hashes})
         self.current = binding.candidate(self.root)
         sources = binding.hash_names(self.root, ['desktop/' + name for name in binding.PRODUCTION_FILES])
@@ -261,23 +261,23 @@ class ReleaseEvidence(unittest.TestCase):
         self.assert_blocked('frontend-coverage-missing-or-unstable')
 
     def test_recovery_from_another_asar_or_binary_candidate_is_rejected(self):
-        self.write('dist/LocalWallet-linux-x64/resources/app.asar', 'Public different ASAR')
+        self.write('dist/CryptoWallet-linux-x64/resources/app.asar', 'Public different ASAR')
         self.assert_blocked('packaged-recovery-not-bound-to-candidate')
         self.assert_blocked('artifact-security-not-bound-to-candidate')
         self.assert_blocked('packaged-send-binding')
 
     def test_consistent_new_go_binaries_cannot_reuse_old_packaged_recovery(self):
         name = 'wallet-core'
-        for prefix in ('bin/', 'dist/LocalWallet-linux-x64/resources/bin/'):
+        for prefix in ('bin/', 'dist/CryptoWallet-linux-x64/resources/bin/'):
             self.write(prefix + name, 'Public newly built core')
         hashes = dict(self.current['binaryManifest'])
         hashes[name] = binding.sha256(self.root / 'bin' / name)
-        self.write_json('dist/LocalWallet-linux-x64/resources/bin/manifest.json', hashes)
+        self.write_json('dist/CryptoWallet-linux-x64/resources/bin/manifest.json', hashes)
         self.write_json('dist/build-manifest.json', {'version': '1.2.3', 'binaryManifest': hashes})
         self.assert_blocked('packaged-recovery-not-bound-to-candidate')
 
     def test_electron_binary_or_manifest_tampering_blocks(self):
-        self.write('dist/LocalWallet-linux-x64/cryptowallet-ui', 'Public changed Electron')
+        self.write('dist/CryptoWallet-linux-x64/cryptowallet-ui', 'Public changed Electron')
         self.assert_blocked('artifact-security-not-bound-to-candidate')
         self.write('bin/wallet-signer', 'Public changed signer')
         self.assert_blocked('candidate-binary-hash-mismatch')

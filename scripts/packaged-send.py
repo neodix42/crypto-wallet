@@ -77,15 +77,15 @@ class Gui:
         from PIL import Image, ImageOps
         titles = [title for _, title in self.desktop.windows()]
         if public_prompt is not None:
-            expected = 'LocalWallet — ' + public_prompt
-            if expected not in titles or any(title.startswith('LocalWallet — ') and title != expected for title in titles):
+            expected = 'CryptoWallet — ' + public_prompt
+            if expected not in titles or any(title.startswith('CryptoWallet — ') and title != expected for title in titles):
                 raise RuntimeError('Unexpected prompt during public approval inspection')
         elif self.desktop.secret_window():
             raise RuntimeError('Refusing to OCR a credential or recovery dialog')
         # No image or OCR temporary file is ever saved, including failure paths.
         picture = self.desktop.image()
         if public_prompt is not None:
-            window = next(window for window, title in self.desktop.windows() if title == 'LocalWallet — ' + public_prompt)
+            window = next(window for window, title in self.desktop.windows() if title == 'CryptoWallet — ' + public_prompt)
             x, y, width, height = self.desktop.geometry(window)
             picture = picture.crop((x, y, x + width, y + height))
         picture = ImageOps.invert(picture.convert('L'))
@@ -118,7 +118,7 @@ class Gui:
                         matches.append(row)
                 if matches:
                     row = matches[-1] if last else matches[0]
-                    self.desktop.focus(self.desktop.wait('LocalWallet')[0])
+                    self.desktop.focus(self.desktop.wait('CryptoWallet')[0])
                     self.desktop.click(int(row[6]) + int(row[8]) // 2, int(row[7]) + int(row[9]) // 2)
                     return
             self.desktop.key('Home', ctrl=True) if attempt in (0, 8) else self.desktop.key('Page_Down')
@@ -141,7 +141,7 @@ class Gui:
                     x, y = int(row[6]), int(row[7]) + int(row[9]) // 2
                     if picture.getpixel((max(0, x-8), y)) not in ((36, 54, 80), (50, 76, 112)):
                         continue
-                    self.desktop.focus(self.desktop.wait('LocalWallet')[0])
+                    self.desktop.focus(self.desktop.wait('CryptoWallet')[0])
                     self.desktop.click(x + int(row[8]) // 2, y)
                     return
             self.desktop.key('Home', ctrl=True) if attempt in (0, 6) else self.desktop.key('Page_Down')
@@ -154,7 +154,7 @@ class Gui:
         except RuntimeError:
             titles = [title for _, title in self.desktop.windows()]
             if not self.desktop.secret_window():
-                self.desktop.focus(self.desktop.wait('LocalWallet')[0])
+                self.desktop.focus(self.desktop.wait('CryptoWallet')[0])
                 self.desktop.key('Home', ctrl=True)
                 public = self.text().lower()
                 known = ('wallet locked', 'unlock wallet', 'waiting for go wallet', 'request completed',
@@ -162,8 +162,8 @@ class Gui:
                          'could not', '127.0.0.1:18547', '1000 eth', 'request unavailable',
                          'request failed', 'request cancelled', 'welcome back', 'your wallets')
                 print('Public workflow state: ' + json.dumps({value: value in public for value in known}), flush=True)
-            print('Owned mapped window state: ' + json.dumps({'mainWindow': 'LocalWallet' in titles,
-                'errorNotice': 'LocalWallet — Wallet request failed' in titles}), flush=True)
+            print('Owned mapped window state: ' + json.dumps({'mainWindow': 'CryptoWallet' in titles,
+                'errorNotice': 'CryptoWallet — Wallet request failed' in titles}), flush=True)
             raise
         self.desktop.focus(window)
         return window
@@ -240,7 +240,7 @@ def inside(parent_namespace, owned_directory):
                 x11.X.XFlush(self.d)
                 time.sleep(.1)
         binary = node_fixture.cached_geth(ROOT)
-        launcher = (ROOT / 'cryptowallet').resolve() if (ROOT / 'cryptowallet').exists() else ROOT / 'dist/LocalWallet-linux-x64/cryptowallet'
+        launcher = (ROOT / 'cryptowallet').resolve() if (ROOT / 'cryptowallet').exists() else ROOT / 'dist/CryptoWallet-linux-x64/cryptowallet'
         runtime = launcher.parent
         report['artifact'] = {'version': subprocess.check_output([str(launcher), '--version'], text=True, timeout=10).strip(),
             'binaryManifest': verify_binaries(runtime), 'asarSHA256': hashlib.sha256((runtime / 'resources/app.asar').read_bytes()).hexdigest()}
@@ -311,7 +311,7 @@ def inside(parent_namespace, owned_directory):
             logs.append(app_log)
             app = subprocess.Popen([str(launcher), '--profile=testnet', '--ozone-platform=x11'], env=env,
                                    stdout=app_log, stderr=app_log)
-            gui.prompt('LocalWallet')
+            gui.prompt('CryptoWallet')
             time.sleep(1)
             gui.click_button('Restore from recovery phrase')
             gui.prompt('Create local wallet')
@@ -348,7 +348,7 @@ def inside(parent_namespace, owned_directory):
             gui.click('Prepare', last=True)
             # The public preview is actual Go-prepared plan data. No internal API
             # or DOM instrumentation is used to submit or approve the operation.
-            desktop.focus(desktop.wait('LocalWallet')[0])
+            desktop.focus(desktop.wait('CryptoWallet')[0])
             desktop.key('Home', ctrl=True)
             wait(lambda: 'request completed' in gui.text().lower())
             passed('Ordinary Electron form prepares the exact decimal payment through the real Go/node pipeline')
@@ -449,7 +449,7 @@ def main():
             raise Blocked('Packaged Send must run as an ordinary user')
         node_fixture.cached_geth(ROOT)  # Cached image only; never pulls a node.
         save({**report, 'status': 'RUNNING'})
-        with tempfile.TemporaryDirectory(prefix='localwallet-packaged-send-') as temporary:
+        with tempfile.TemporaryDirectory(prefix='cryptowallet-packaged-send-') as temporary:
             process = subprocess.Popen(['unshare', '--user', '--map-current-user', '--net', '--keep-caps', sys.executable,
                 str(pathlib.Path(__file__).resolve()), '--isolated-network', '--parent-network-namespace', os.readlink('/proc/self/ns/net'),
                 '--owned-directory', temporary], cwd=ROOT, start_new_session=True)

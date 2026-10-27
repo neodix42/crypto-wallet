@@ -1,6 +1,6 @@
 {
-  "name": "localwallet-desktop",
-  "productName": "LocalWallet Development",
+  "name": "cryptowallet-desktop",
+  "productName": "CryptoWallet",
   "version": "0.1.0",
   "private": true,
   "description": "Local multichain wallet development candidate — release gates incomplete",
@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "check": "tsc --noEmit --project tsconfig.json",
-    "start": "../dist/LocalWallet-linux-x64/cryptowallet",
+    "start": "../dist/CryptoWallet-linux-x64/cryptowallet",
     "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {

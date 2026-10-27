@@ -4,7 +4,7 @@ not the clean desktop X11+Wayland acceptance matrix required for release."""
 import json,pathlib,shutil,subprocess,time
 root=pathlib.Path(__file__).resolve().parents[1];rows=[]
 for version in ['24.04','26.04']:
-    image='localwallet-package-test:'+version;start=time.monotonic()
+    image='cryptowallet-package-test:'+version;start=time.monotonic()
     if not shutil.which('docker'):
         rows.append({'os':version,'status':'BLOCKED','reason':'Docker executable unavailable','seconds':0});continue
     try:

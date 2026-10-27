@@ -1,6 +1,6 @@
 # Independent public release-authentication fixtures
 
-These are frozen **public upstream fixtures**, not wallet keys, wallet releases or LocalWallet publisher signatures. They are never executed or extracted. The Sigstore archive is verified as opaque bytes with its original SHA512 subject, certificate chain and signed transparency evidence. `provenance.json` records source commit and individual SHA256 hashes.
+These are frozen **public upstream fixtures**, not wallet keys, wallet releases or CryptoWallet publisher signatures. They are never executed or extracted. The Sigstore archive is verified as opaque bytes with its original SHA512 subject, certificate chain and signed transparency evidence. `provenance.json` records source commit and individual SHA256 hashes.
 
 Source: official [cli/cli v2.103.2](https://github.com/cli/cli/tree/4f2cfe92e3499f8581bf39db77e0a1431fa7b55c/pkg/cmd/attestation/test/data). The signed package fixture is `sigstore/sigstore-js`2.1.0, signed by its `.github/workflows/release.yml` at source commit `26d16513386ffaa790b1c32f927544f1322e4194` on `refs/heads/main`. Its original certificate and log proof are independent expected data; tests do not manufacture acceptance.
 

@@ -1,4 +1,4 @@
-# LocalWallet
+# CryptoWallet
 
 Go + Electron multichain desktop wallet for Ubuntu amd64. Implemented domains are Ethereum ETH and USDT, NEAR, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN on Base and Horizen L3 (plus ETH gas), Decred and TON Wallet V5R1. The optional **Exchange** tab connects to your custodial Bybit account for Deposit, Swap and Withdraw. [Repository implementation instructions](START_HERE.txt).
 
@@ -18,22 +18,22 @@ sudo apt install -y \
 
 These are runtime libraries; the downloaded desktop bundles Electron and needs no Go, Node.js, npm, compiler, `.tools/`, blockchain node or test tools. Ubuntu installs the libraries' dependencies automatically. Package names were checked against the official [Noble](https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/) and [Resolute](https://archive.ubuntu.com/ubuntu/dists/resolute/main/binary-amd64/) package indexes; this does not establish the outstanding full OS acceptance matrix.
 
-1. Open [LocalWallet Releases](https://github.com/neodix42/crypto-wallet/releases) and select the desired **development release**. New publications are regular GitHub Releases and appear under [Latest release](https://github.com/neodix42/crypto-wallet/releases/latest). Sign in with a GitHub account that has repository access if required. If no release with **Assets** is visible, the publishing workflow has not produced a downloadable release yet.
-2. Download **`localwallet-0.1.1-linux-amd64.tar.gz`** from release **`0.1.1`** (or the matching archive for a later version). This is the only uploaded release asset. GitHub's automatic **Source code** archives are for building from source.
+1. Open [CryptoWallet Releases](https://github.com/neodix42/crypto-wallet/releases) and select the desired **development release**. New publications are regular GitHub Releases and appear under [Latest release](https://github.com/neodix42/crypto-wallet/releases/latest). Sign in with a GitHub account that has repository access if required. If no release with **Assets** is visible, the publishing workflow has not produced a downloadable release yet.
+2. Download **`cryptowallet-<version>-linux-amd64.tar.gz`** from the matching release. The updated name becomes available after this workflow change is published; with `0.1.2` already released, the next version is **`0.1.3`**. Existing `0.1.2` retains its older archive name. This is the only uploaded release asset. GitHub's automatic **Source code** archives are for building from source.
 3. **Authenticate the archive before extracting or running it**, following [release verification](docs/BUILD.md#authenticate-a-downloaded-release-before-running-it). Detached signing records are available separately in the release run's **`wallet-release-verification-<version>`** Actions artifact for 90 days, subject to earlier repository cleanup. Save them if you need verification later. Python 3 and GitHub CLI **2.103.2+** are verification tools only; they are not runtime dependencies.
 
-An authenticated GitHub CLI can download the portable wallet:
+After release `0.1.3` is published with the updated name, an authenticated GitHub CLI can download the portable wallet:
 
 ```sh
-release_version='0.1.1'
-release_dir="$HOME/Downloads/localwallet-$release_version"
+release_version='0.1.3'
+release_dir="$HOME/Downloads/cryptowallet-$release_version"
 mkdir -p "$release_dir"
 gh release download "$release_version" --repo neodix42/crypto-wallet \
-  --pattern "localwallet-$release_version-linux-amd64.tar.gz" --dir "$release_dir"
+  --pattern "cryptowallet-$release_version-linux-amd64.tar.gz" --dir "$release_dir"
 # Complete the linked publisher verification before continuing.
 cd "$release_dir"
-tar -xzf "localwallet-$release_version-linux-amd64.tar.gz"
-cd LocalWallet-linux-x64
+tar -xzf "cryptowallet-$release_version-linux-amd64.tar.gz"
+cd CryptoWallet-linux-x64
 ./cryptowallet
 ```
 
@@ -55,7 +55,7 @@ The default build compiles **only Go executables**: `bin/wallet-core`, `bin/wall
 ```sh
 make package-go
 bin/wallet-core --version
-# Outputs: dist/localwallet-go-<version>-linux-amd64.tar.gz,
+# Outputs: dist/cryptowallet-go-<version>-linux-amd64.tar.gz,
 # raw dist/wallet-{core,signer,launcher}, GO-SHA256SUMS and manifests.
 ```
 
@@ -73,7 +73,7 @@ make install
 
 Node 24.19.0/npm 11.17.0 are needed only for desktop builds/tests and are bootstrapped into `.tools/` when missing. Explicit display backends are `./cryptowallet --ozone-platform=x11` and `./cryptowallet --ozone-platform=wayland`. Always use the Go launcher for the desktop security boundary. Application execution as root and `--no-sandbox` are rejected.
 
-The default profile stores data in `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, separately from build caches/runtime files. Existing testnet data stays in its original directory and can be opened explicitly with `./cryptowallet --profile=testnet`. There is no automatic conversion, copying or replacement of an existing vault. An empty mainnet profile requires its own explicit create/import/restore action. Outputs and dependencies are explained in [BUILD.md](docs/BUILD.md). Nothing in these targets creates a `.deb` package.
+The default profile stores data in `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, separately from build caches/runtime files. The legacy `localwallet` storage-directory name is intentionally preserved so the CryptoWallet rename reopens existing keys and settings without migration or creating another wallet. Existing testnet data stays in its original directory and can be opened explicitly with `./cryptowallet --profile=testnet`. There is no automatic conversion, copying or replacement of an existing vault. An empty mainnet profile requires its own explicit create/import/restore action. Outputs and dependencies are explained in [BUILD.md](docs/BUILD.md). Nothing in these targets creates a `.deb` package.
 
 Public mainnet connections are configured for Ethereum, HyperEVM, HyperCore, Base, Horizen, NEAR, Aptos and TON. Decred remains available and requires an authenticated TLS `dcrd` connection configured through the **Configure trusted RPC** wallet dialog. See [mainnet connection setup](docs/MAINNET.md) for exact endpoints, API-key/rate-limit considerations and Decred setup. An unavailable connection displays an unknown balance; it is never treated as a verified zero.
 
@@ -180,9 +180,9 @@ The recovery phrase reconstructs wallet keys, including the Ethereum address use
 
 ## Automatic versioned releases
 
-[The release workflow](.github/workflows/release.yml) runs on default-branch pushes or manual dispatch. The **build** job compiles/packages the portable desktop once and checks its version, fuses and production payloads. The **release** job downloads that exact immutable artifact, verifies integrity and publisher provenance, and publishes one asset: **`localwallet-<version>-linux-amd64.tar.gz`**. Separate Go executables, launchers, JSON files, evidence archives and notices are not uploaded as release assets. Required runtime files and redistribution notices remain inside the portable archive.
+[The release workflow](.github/workflows/release.yml) runs on default-branch pushes or manual dispatch. The **build** job compiles/packages the portable desktop once and checks its version, fuses and production payloads. The **release** job downloads that exact immutable artifact, verifies integrity and publisher provenance, and publishes one asset: **`cryptowallet-<version>-linux-amd64.tar.gz`**. Separate Go executables, launchers, JSON files, evidence archives and notices are not uploaded as release assets. Required runtime files and redistribution notices remain inside the portable archive.
 
-Publications are regular GitHub Releases (not marked **Pre-release**). The release name, tag and displayed app version always match and automatically advance: **`0.1.2`**, then **`0.1.3`**, and so on. The build fetches all tags and selects one patch above the greatest existing numeric version across both `X.Y.Z` and legacy `vX.Y.Z` tags, with [VERSION](VERSION) as a minimum. Thus existing `v0.1.1` and `0.1.1` both count as version `0.1.1`; the next tag, title, app version and archive use **`0.1.2`**. New tags have no `v` prefix. Existing remote releases are left intact. A failed build creates no release/tag; publishing never overwrites an existing tag.
+Publications are regular GitHub Releases (not marked **Pre-release**). The release name, tag and displayed app version always match and automatically advance. With **`0.1.2`** already published, the next versions are **`0.1.3`**, then **`0.1.4`**, and so on. The build fetches all tags and selects one patch above the greatest existing numeric version across both `X.Y.Z` and legacy `vX.Y.Z` tags, with [VERSION](VERSION) as a minimum. Both legacy `v0.1.1` and bare `0.1.1` count as version `0.1.1`; the existing `0.1.2` is also consumed. The next tag, title, app version and `cryptowallet-` archive use **`0.1.3`**. New tags have no `v` prefix. Existing remote releases are left intact. A failed build creates no release/tag; publishing never overwrites an existing tag.
 
 [Wallet tests](.github/workflows/ci.yml) run independently and do not block development releases. Release notes mark tests **NOT_RUN in the build workflow** and link the exact commit's checks. No scheduled soak workflow is enabled; `make test-soak` remains available manually. See [the build/publication pipeline](docs/RELEASE_PIPELINE.md).
 

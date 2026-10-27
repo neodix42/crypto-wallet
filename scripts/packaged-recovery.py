@@ -112,7 +112,7 @@ def scrollpage(button,ticks=100):
  # Real pointer-wheel events scroll the public page without activating a tab,
  # editing a field, inspecting the DOM or injecting renderer events.
  if phrase_ui.secret_window(desktop):raise RuntimeError('Refusing page scroll while a credential window is open')
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0])
  mod.T.XTestFakeMotionEvent(desktop.d,-1,x+5,y+h//2,0)
  for _ in range(ticks):
   mod.T.XTestFakeButtonEvent(desktop.d,button,1,0);mod.T.XTestFakeButtonEvent(desktop.d,button,0,0)
@@ -123,8 +123,8 @@ def clickword(word,maxx=2000):
  for attempt in range(20):
   for a in textboxes():
    if a[11].lower().strip('.,:')==word.lower() and int(a[6])<maxx:
-    desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
-  desktop.focus(desktop.wait('LocalWallet')[0])
+    desktop.focus(desktop.wait('CryptoWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+  desktop.focus(desktop.wait('CryptoWallet')[0])
   scrollhome() if attempt in (8,16) else desktop.key('Page_Down')
   time.sleep(.2)
  raise RuntimeError('Public UI control unavailable: '+word)
@@ -134,7 +134,7 @@ def clickline(prefix):
  for a in textboxes():lines.setdefault(tuple(a[1:5]),[]).append(a)
  for words in lines.values():
   if ' '.join(a[11] for a in words).lower().startswith(prefix.lower()):
-   a=words[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
+   a=words[0];desktop.focus(desktop.wait('CryptoWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2);return
  raise RuntimeError('Public UI button unavailable: '+prefix)
 def clickphrase(phrase,button=1,region=None):
  words=phrase.lower().split()
@@ -143,7 +143,7 @@ def clickphrase(phrase,button=1,region=None):
   for i,a in enumerate(rows):
    segment=rows[i:i+len(words)]
    if len(segment)==len(words) and [b[11].lower().strip('.,:') for b in segment]==words and all(b[1:5]==a[1:5] for b in segment):
-    desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2,button=button);return
+    desktop.focus(desktop.wait('CryptoWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2,button=button);return
   scrollhome() if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('Public UI phrase unavailable: '+phrase)
 def clickrestorebutton():
@@ -157,7 +157,7 @@ def clickrestorebutton():
    if [b[11].lower().strip('.,:') for b in segment]!=wanted or not all(b[1:5]==a[1:5] for b in segment):continue
    x,y=int(a[6]),int(a[7])+int(a[9])//2
    if picture.getpixel((max(0,x-8),y)) not in ((36,54,80),(50,76,112)):continue
-   desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(x+int(a[8])//2,y);return
+   desktop.focus(desktop.wait('CryptoWallet')[0]);desktop.click(x+int(a[8])//2,y);return
   scrollhome() if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('Actual first-run phrase-import button unavailable in public pixels')
 def clickprimary(word,last=False):
@@ -181,7 +181,7 @@ def clickprimary(word,last=False):
    red,green,blue=original.getpixel((px,py))
    if 40<=red<=80 and 65<=green<=120 and 120<=blue<=180:matches.append(a)
  if matches:
-  a=matches[-1] if last else matches[0];desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
+  a=matches[-1] if last else matches[0];desktop.focus(desktop.wait('CryptoWallet')[0]);desktop.click((int(a[6])+int(a[8])//2)//2,(int(a[7])+int(a[9])//2)//2);return
  raise RuntimeError('Public primary control unavailable: '+word)
 def publicphrasebounds(phrase):
  # Public pixels are the oracle: no DOM, accessibility internals, debugging
@@ -199,7 +199,7 @@ def statusbarbounds():
  # Observe the full-width border and background in the actual public pixels.
  # This detects layout displacement, an auto-growing bar, or a floating notice
  # without relying on CSS/DOM inspection or a test-only renderer bridge.
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0]);picture=Image.open(capture()).convert('RGB')
+ x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0]);picture=Image.open(capture()).convert('RGB')
  samples=[x+3,x+w//2,x+w-25]
  candidates=[yy for yy in range(max(y,y+h-200),y+h-1) if all(picture.getpixel((xx,yy))==(64,81,107) for xx in samples) and all(picture.getpixel((xx,yy+1))==(20,30,43) for xx in samples)]
  if len(candidates)!=1:raise RuntimeError('Full-width bottom status bar boundary is missing or ambiguous')
@@ -218,7 +218,7 @@ def seenfeedback(fragment,triggered_at):
  fragment=fragment.lower()
  until(lambda:not phrase_ui.secret_window(desktop),20)
  until(lambda:fragment in notificationwords(),20)
- if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Information-only feedback opened a floating application dialog')
+ if any(title!='CryptoWallet' for _,title in desktop.windows()):raise RuntimeError('Information-only feedback opened a floating application dialog')
  return {'fragment':fragment,'triggeredAt':triggered_at,'firstObservedAt':time.monotonic()}
 def notificationlayout(anchor,before,feedback,verify_poll=False):
  # A visible error previously inserted a block above the page. Require the
@@ -288,7 +288,7 @@ def wait_for_startup(desktop,process,log,report,seconds=20):
  # credential/phrase input. Never persist workflow logs after secret entry.
  deadline=time.monotonic()+seconds
  while time.monotonic()<deadline:
-  if any(title=='LocalWallet' for _,title in desktop.windows()):return
+  if any(title=='CryptoWallet' for _,title in desktop.windows()):return
   if process.poll() is not None:break
   time.sleep(.1)
  log.flush();log.seek(0)
@@ -299,7 +299,7 @@ def launch(profile,env,environment=None):
  global app,launch_started_at
  env={**env,'XDG_CONFIG_HOME':str(profile)}
  log=tempfile.TemporaryFile(mode='w+');logs.append(log)
- launcher=root/'cryptowallet' if (root/'cryptowallet').exists() else root/'dist/LocalWallet-linux-x64/cryptowallet'
+ launcher=root/'cryptowallet' if (root/'cryptowallet').exists() else root/'dist/CryptoWallet-linux-x64/cryptowallet'
  runtime=launcher.resolve().parent
  identity={'version':subprocess.check_output([str(launcher),'--version'],env=env,text=True,timeout=10).strip(),'binaryManifest':verify_binaries(runtime),'asarSHA256':hashlib.sha256((runtime/'resources/app.asar').read_bytes()).hexdigest()}
  if 'artifact' in report and report['artifact']!=identity:raise RuntimeError('Portable runtime changed between recovery steps')
@@ -317,7 +317,7 @@ def finishimport():
  waitprompt('Imported account recovery limits');desktop.accept('Imported account recovery limits')
  until(lambda:not phrase_ui.secret_window(desktop),20)
  until(lambda:'Your wallets' in ' '.join(a[11] for a in textboxes()),45)
- if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Phrase import left an application dialog after explicit confirmation')
+ if any(title!='CryptoWallet' for _,title in desktop.windows()):raise RuntimeError('Phrase import left an application dialog after explicit confirmation')
 def clip():
  # Only the public address is requested. No secret is ever written to a clipboard.
  gtk=C.CDLL('libgtk-3.so.0');gdk=C.CDLL('libgdk-3.so.0');glib=C.CDLL('libglib-2.0.so.0')
@@ -334,7 +334,7 @@ def publicaddress():
  openfirstwallet()
  clickword('Copy');waitprompt('Verify receive address');desktop.accept('Verify receive address');time.sleep(.3);return clip()
 def overview():
- desktop.focus(desktop.wait('LocalWallet')[0]);scrollhome();time.sleep(.2)
+ desktop.focus(desktop.wait('CryptoWallet')[0]);scrollhome();time.sleep(.2)
  clickphrase('Main account');time.sleep(.3)
 def openfirstwallet():
  overview();clickphrase('Ethereum');time.sleep(.5)
@@ -346,7 +346,7 @@ def setupmenu(phrase):
  if phrase.lower() not in ' '.join(a[11] for a in textboxes()).lower():clickphrase('Other setup options')
  clickphrase(phrase)
 def settingstab(button=1):
- desktop.focus(desktop.wait('LocalWallet')[0])
+ desktop.focus(desktop.wait('CryptoWallet')[0])
  # The middle-click persistence check is already at the top. Do not send
  # Home while the Journal tab has focus: tab-list keyboard navigation would
  # intentionally select its first section before this persistence assertion.
@@ -514,7 +514,7 @@ def initialwindowgeometry(stage):
  # Xvfb has no window-manager frame, so its native geometry directly observes
  # the installed app's clamped default, without resizing the application.
  _,_,screen_width,screen_height=desktop.geometry(desktop.root)
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0])
  expected=(min(1440,screen_width-32),min(960,screen_height-32))
  if (w,h)!=expected:raise RuntimeError('Installed main window did not use its wider workarea-clamped default size')
  if x<0 or y<0 or x+w>screen_width or y+h>screen_height:raise RuntimeError('Installed main window extends outside the owned display')
@@ -529,7 +529,7 @@ def lockedpresentation():
  # Chromium scrollbars also consume viewport height below a fixed footer;
  # its exact 52-pixel full-client-bottom geometry and background rule out that
  # rail. No DOM scrollWidth inspection or renderer event injection is used.
- bar=statusbarbounds();x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ bar=statusbarbounds();x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0])
  for button in (7,6):
   scrollpage(button,20)
   if publicphrasebounds('Welcome back')!=anchor:raise RuntimeError('Locked main page scrolls horizontally')
@@ -546,7 +546,7 @@ def compactunlockgeometry():
  # Only numeric rectangles/gap are retained. A missing/ambiguous fill fails
  # closed rather than falling back to a screenshot of the credential window.
  window,title=desktop.wait('Unlock local wallet',20)
- if title!='LocalWallet — Unlock local wallet':raise RuntimeError('Unexpected Unlock credential window identity')
+ if title!='CryptoWallet — Unlock local wallet':raise RuntimeError('Unexpected Unlock credential window identity')
  x,y,w,h=desktop.geometry(window)
  if not (620<=w<=650 and 304<=h<=344):raise RuntimeError('Unlock credential window retained excessive default dimensions')
  mod.T.XTestFakeMotionEvent(desktop.d,-1,5,5,0);mod.X.XFlush(desktop.d);time.sleep(.1)
@@ -569,7 +569,7 @@ def selectwalletasset(symbol):
   if a[11].lower()=='receive' and b[11].lower().strip('.,:')=='address' and a[1:5]==b[1:5]:labels.append(int(a[7]))
  if not labels:raise RuntimeError('Wallet asset strip receive-field boundary is unavailable')
  field_top=max(labels);picture=Image.open(capture()).convert('RGB')
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0])
+ x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0])
  buttons=publicfillrectangles(picture,(x,panel_bottom+3,x+w,field_top-4),{(54,87,131),(36,54,80)})
  if len(buttons)!=2:raise RuntimeError('The labelled Ethereum asset strip does not expose exactly two public buttons')
  observed=[publiccontroltext(picture,box,'wallet-asset-'+str(index)) for index,box in enumerate(buttons)]
@@ -602,7 +602,7 @@ def walletpresentation(expected):
   # access to USDT without a dropdown or changing the receive account.
   selectwalletasset('USDT')
   rows=textboxes();tabtop=min(int(a[7]) for a in rows if a[11].lower()=='settings')
-  x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0]);picture=Image.open(capture()).convert('RGB')
+  x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0]);picture=Image.open(capture()).convert('RGB')
   navigation=publicfillrectangles(picture,(x,tabtop-18,x+w,tabtop+28),{(54,87,131)})
   if len(navigation)!=1:raise RuntimeError('Selected wallet navigation tab cannot be isolated from its public fill')
   tabwords=publiccontroltext(picture,navigation[0],'wallet-asset-navigation')
@@ -644,7 +644,7 @@ def settingsjournal():
  headingwithoutoutline('Settings')
  words=' '.join(a[11] for a in textboxes())
  if 'Local payment journal' not in words or 'Refresh journal' not in words or 'Ethereum' not in words or 'Wallet' not in words:raise RuntimeError('Settings Journal tab lacks its explicit wallet context or controls')
- if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Settings navigation opened another application window')
+ if any(title!='CryptoWallet' for _,title in desktop.windows()):raise RuntimeError('Settings navigation opened another application window')
  desktop.screenshot(reports/'packaged-settings-journal.png')
  desktop.key('Escape');time.sleep(.3)
  if 'Local payment journal' not in ' '.join(a[11] for a in textboxes()):raise RuntimeError('Escape dismissed the main Settings page')
@@ -656,7 +656,7 @@ def settingsjournal():
 def exchangetab(button=1):
  # Select the topmost public Exchange label, which is the permanent tab rather
  # than the page heading. No DOM, accessibility internals or debugger is used.
- desktop.focus(desktop.wait('LocalWallet')[0]);scrollhome();time.sleep(.2)
+ desktop.focus(desktop.wait('CryptoWallet')[0]);scrollhome();time.sleep(.2)
  rows=[a for a in textboxes() if a[11].lower().strip('.,:')=='exchange']
  if not rows:raise RuntimeError('Installed Exchange tab is unavailable')
  a=min(rows,key=lambda value:(int(value[7]),int(value[6])))
@@ -745,7 +745,7 @@ def exchangedisconnected(profile):
  words=' '.join(a[11] for a in textboxes()).lower()
  if 'connect bybit api key' in words or 'bybit api region' in words:raise RuntimeError('Bybit connection setup remains on the trading page')
  scrollhome();time.sleep(.2)
- x,y,w,h=desktop.geometry(desktop.wait('LocalWallet')[0]);rows=textboxes()
+ x,y,w,h=desktop.geometry(desktop.wait('CryptoWallet')[0]);rows=textboxes()
  navtop=min(int(a[7]) for a in rows if a[11].lower().strip('.,:')=='exchange')
  # The adjacent permanent tabs themselves read "Exchange Settings". Search
  # only page content, including its scrolled tail, for the removed shortcut.
@@ -766,7 +766,7 @@ def exchangedisconnected(profile):
  # synthetic app password and cancel empty API input. Never enter an API key,
  # capture private dialog pixels, approve custody or call a private Bybit API.
  for enter_password in (False,True):
-  desktop.focus(desktop.wait('LocalWallet')[0]);scrollhome();time.sleep(.2)
+  desktop.focus(desktop.wait('CryptoWallet')[0]);scrollhome();time.sleep(.2)
   desktop.screenshot(reports/'packaged-exchange-top.png')
   clickword('Connect');waitprompt('Reauthenticate Bybit connection')
   if not phrase_ui.secret_window(desktop):raise RuntimeError('Bybit password dialog is outside the protected credential-window classification')
@@ -775,7 +775,7 @@ def exchangedisconnected(profile):
    if not phrase_ui.secret_window(desktop):raise RuntimeError('Bybit API dialog is outside the protected credential-window classification')
   cancelled_at=time.monotonic();desktop.key('Escape')
   until(lambda:not phrase_ui.secret_window(desktop),20)
-  if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Cancelled Bybit connection left a floating information dialog')
+  if any(title!='CryptoWallet' for _,title in desktop.windows()):raise RuntimeError('Cancelled Bybit connection left a floating information dialog')
   until(lambda:'bybit is disconnected' in ' '.join(a[11] for a in textboxes()).lower(),20)
   feedback=seenfeedback('request cancelled',cancelled_at)
   notificationlayout('Bybit connection',connection_anchor,feedback)
@@ -820,7 +820,7 @@ def decodereceive(expected):
 import("image";_ "image/png";"os";"fmt";"github.com/makiuchi-d/gozxing";"github.com/makiuchi-d/gozxing/qrcode")
 func main(){f,e:=os.Open(os.Args[1]);if e!=nil{panic(e)};defer f.Close();im,_,e:=image.Decode(f);if e!=nil{panic(e)};b,e:=gozxing.NewBinaryBitmapFromImage(im);if e!=nil{panic(e)};r,e:=qrcode.NewQRCodeReader().Decode(b,nil);if e!=nil{panic(e)};fmt.Print(r.GetText())}
 '''
- with tempfile.TemporaryDirectory(prefix='localwallet-public-qr-oracle-') as temporary:
+ with tempfile.TemporaryDirectory(prefix='cryptowallet-public-qr-oracle-') as temporary:
   source=pathlib.Path(temporary)/'main.go';source.write_text(oracle)
   decoded=subprocess.check_output([str(pathlib.Path(decoder_environment['GOROOT'])/'bin/go'),'run',str(source),str(path)],cwd=root,env={**os.environ,**decoder_environment,'GOTOOLCHAIN':'local'},text=True,timeout=60)
  if decoded!=expected:raise RuntimeError('Displayed Receive QR pixels differ from the independent expected address')
@@ -833,7 +833,7 @@ try:
  xvlog=tempfile.TemporaryFile();xv=subprocess.Popen([server,display,'-screen','0','1280x1024x24','-nolisten','tcp'],env=env,stdout=xvlog,stderr=xvlog);owned.append(xv)
  until(lambda:pathlib.Path('/tmp/.X11-unix/X'+display[1:]).exists(),10)
  desktop=mod.Desktop(display.encode());x11_error_handler_refs=install_owned_window_query_handler(desktop,report,reports/'packaged-recovery.json');os.environ.update(DISPLAY=display,GDK_BACKEND='x11')
- with tempfile.TemporaryDirectory(prefix='localwallet-package-fixture-') as temporary:
+ with tempfile.TemporaryDirectory(prefix='cryptowallet-package-fixture-') as temporary:
   folder=pathlib.Path(temporary);profile=folder/'original'
   home=folder/'home';home.mkdir(mode=0o700);env['HOME']=str(home);os.environ['HOME']=str(home)
   for key in ['WAYLAND_DISPLAY','XDG_RUNTIME_DIR','DBUS_SESSION_BUS_ADDRESS']:os.environ.pop(key,None)
@@ -857,7 +857,7 @@ try:
   generated_phrase=phrase_ui.record(desktop,wrong=True)
   until(lambda:not phrase_ui.secret_window(desktop),20)
   until(lambda:'did not match' in ' '.join(a[11] for a in textboxes(statusbarbounds())).lower(),20)
-  if any(title!='LocalWallet' for _,title in desktop.windows()):raise RuntimeError('Incorrect recorded words opened a floating information dialog')
+  if any(title!='CryptoWallet' for _,title in desktop.windows()):raise RuntimeError('Incorrect recorded words opened a floating information dialog')
   until(lambda:(generated/vault_relative).exists());time.sleep(1)
   pending_words=' '.join(a[11] for a in textboxes()).lower()
   if 'recovery phrase setup required' not in pending_words or 'finish recovery phrase setup' not in pending_words:raise RuntimeError('Wrong recorded words did not retain the actionable original pending wallet')

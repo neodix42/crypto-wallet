@@ -25,14 +25,14 @@ def package():
   if binary.is_symlink() or not binary.is_file() or digest(binary)!=binary_manifest[name]:raise RuntimeError('Go component identity mismatch: '+name)
   if subprocess.check_output([str(binary),'--version'],text=True,timeout=10)!=version+'\n':raise RuntimeError('Go component version mismatch: '+name)
  manifest={'schemaVersion':1,'kind':'go-components','version':version,'status':'DEVELOPMENT_UNSIGNED','source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),'dirty':bool(subprocess.check_output(['git','status','--porcelain'],cwd=root,text=True).strip()),'go':subprocess.check_output(['go','version'],text=True).strip(),'platform':'linux-amd64','binaryManifest':binary_manifest,'inventorySHA256':metadata}
- dirname='localwallet-go-'+version+'-linux-amd64';archive=dist/(dirname+'.tar.gz')
+ dirname='cryptowallet-go-'+version+'-linux-amd64';archive=dist/(dirname+'.tar.gz')
  with tempfile.TemporaryDirectory(prefix='wallet-go-artifact-') as tmp:
   folder=pathlib.Path(tmp)/dirname;folder.mkdir()
   for name in names:shutil.copy2(bins/name,folder/name)
   for name in inventories:shutil.copy2(dist/name,folder/name)
   (folder/'manifest.json').write_text(json.dumps(binary_manifest,sort_keys=True)+'\n')
   (folder/'go-build-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-  (folder/'README.md').write_text('''# Go wallet components
+  (folder/'README.md').write_text('''# CryptoWallet Go components
 
 These executables do not depend on .tools, Go, Node, npm, Python or the source repository at runtime.
 They are backend components of the existing Go + Electron wallet; this archive has no standalone main wallet interface.

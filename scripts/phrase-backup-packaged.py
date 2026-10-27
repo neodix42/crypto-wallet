@@ -139,7 +139,7 @@ try:
     for key in ('WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS'):
         os.environ.pop(key, None)
     clipboard = helper('clip')
-    with tempfile.TemporaryDirectory(prefix='localwallet-phrase-backup-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='cryptowallet-phrase-backup-') as temporary:
         owned = pathlib.Path(temporary)
         home = owned / 'home'
         home.mkdir(mode=0o700)
@@ -154,15 +154,15 @@ try:
             log = tempfile.TemporaryFile(mode='w+')
             logs.append(log)
             app = subprocess.Popen([str(launcher), '--ozone-platform=x11'], env=env, stdout=log, stderr=log, start_new_session=True)
-            desktop.wait('LocalWallet', 20)
+            desktop.wait('CryptoWallet', 20)
             time.sleep(.7)
 
         def public():
             wait(lambda: not desktop.secret_window() and
-                 all(title == 'LocalWallet' for _, title in desktop.windows()))
+                 all(title == 'CryptoWallet' for _, title in desktop.windows()))
 
         def wallet_settings():
-            desktop.focus(desktop.wait('LocalWallet')[0])
+            desktop.focus(desktop.wait('CryptoWallet')[0])
             gui.click('Settings')
             rows = gui.ocr()
             nav_top = min(int(row[7]) for row in rows if row[11].lower() == 'settings')

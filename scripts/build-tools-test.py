@@ -111,14 +111,14 @@ class BuildTools(unittest.TestCase):
 
     def project(self, metadata='0.1.1', binaries=None):
         binaries = binaries or metadata
-        app = self.app(binaries, 'dist/LocalWallet-linux-x64')
+        app = self.app(binaries, 'dist/CryptoWallet-linux-x64')
         (app / 'resources/app.asar').write_text(json.dumps({'version': metadata}))
         source = self.root / 'bin'
         shutil.copytree(app / 'resources/bin', source)
         (self.root / 'VERSION').write_text(metadata + '\n')
-        portable = self.root / 'dist' / f'localwallet-{metadata}-linux-amd64.tar.gz'
+        portable = self.root / 'dist' / f'cryptowallet-{metadata}-linux-amd64.tar.gz'
         with tarfile.open(portable, 'w:gz') as archive:
-            archive.add(app, arcname='LocalWallet-linux-x64')
+            archive.add(app, arcname='CryptoWallet-linux-x64')
         manifest = {'format': 'portable-desktop-v1', 'version': metadata, 'binaryManifest': json.loads((source / 'manifest.json').read_text()), 'portable': {'file': portable.name, 'sha256': digest(portable)}}
         (self.root / 'dist/build-manifest.json').write_text(json.dumps(manifest))
         return app, manifest
@@ -148,7 +148,7 @@ class BuildTools(unittest.TestCase):
             (dist / 'go-THIRD-PARTY-NOTICES.json').write_text(json.dumps({'noticeSHA256': digest(dist / 'go-THIRD-PARTY-NOTICES.txt'), 'review': 'NOT_RUN: legal review'}))
             manifest['inventorySHA256'] = {name: digest(dist / name) for name in verifier._GO_INVENTORIES}
             (source / 'go-build-manifest.json').write_text(json.dumps(manifest))
-            folder = self.root / f'localwallet-go-{value}-linux-amd64'
+            folder = self.root / f'cryptowallet-go-{value}-linux-amd64'
             shutil.copytree(source, folder)
             for name in verifier._GO_INVENTORIES:
                 shutil.copy2(dist / name, folder / name)
@@ -498,6 +498,17 @@ class BuildTools(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'manifest mismatch'):
             self.verify()
 
+    def test_legacy_archive_name_is_rejected_even_with_matching_hash(self):
+        _, manifest = self.project()
+        portable = self.root / 'dist' / manifest['portable']['file']
+        legacy = portable.with_name('localwallet-0.1.1-linux-amd64.tar.gz')
+        portable.rename(legacy)
+        manifest['portable']['file'] = legacy.name
+        manifest['portable']['sha256'] = digest(legacy)
+        (self.root / 'dist/build-manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(RuntimeError, 'Portable artifact identity differs'):
+            self.verify()
+
     def test_portable_artifact_identity_and_payload_fail_closed(self):
         app, manifest = self.project()
         portable = self.root / 'dist' / manifest['portable']['file']
@@ -509,7 +520,7 @@ class BuildTools(unittest.TestCase):
         # A self-consistent archive digest must still bind the actual runtime.
         (app / 'cryptowallet-ui').write_bytes(b'PUBLIC wrong archived Electron runtime')
         with tarfile.open(portable, 'w:gz') as archive:
-            archive.add(app, arcname='LocalWallet-linux-x64')
+            archive.add(app, arcname='CryptoWallet-linux-x64')
         shutil.copy2(self.elf['0.1.1'], app / 'cryptowallet-ui')
         manifest['portable']['sha256'] = digest(portable)
         (self.root / 'dist/build-manifest.json').write_text(json.dumps(manifest))
@@ -717,11 +728,11 @@ class BuildTools(unittest.TestCase):
         self.assertIn('id-token: write', text[:publish])
         self.assertNotIn('attestations: write', text)
         self.assertNotIn('actions/attest-build-provenance@', text)
-        self.assertIn('dist/localwallet-$RELEASE_VERSION-linux-amd64.tar.gz', text[publish:])
+        self.assertIn('dist/cryptowallet-$RELEASE_VERSION-linux-amd64.tar.gz', text[publish:])
         publication = text[publish:].split('      - uses:', 1)[0]
         self.assertIn('gh release create "$RELEASE_VERSION"', publication)
         self.assertIn('--title "$RELEASE_VERSION"', publication)
-        for forbidden in ('dist/wallet-', 'dist/test-evidence', 'dist/THIRD-PARTY', 'dist/release.json', 'dist/release-provenance', 'dist/RELEASE-SHA256SUMS', 'localwallet-go-'):
+        for forbidden in ('dist/wallet-', 'dist/test-evidence', 'dist/THIRD-PARTY', 'dist/release.json', 'dist/release-provenance', 'dist/RELEASE-SHA256SUMS', 'cryptowallet-go-'):
             self.assertNotIn(forbidden, publication)
         self.assertIn('name: wallet-release-verification-${{ needs.build.outputs.version }}', text[:publish])
         self.assertIn('retention-days: 90', text[:publish])
@@ -750,7 +761,11 @@ class BuildTools(unittest.TestCase):
         self.assertEqual(report['productionReadiness'], 'NOT_RUN')
         self.assertEqual(report['checksURL'], f'https://github.com/fixture/wallet/commit/{commit}/checks')
         notes = (self.root / 'dist/RELEASE-NOTES.md').read_text()
-        self.assertIn('LocalWallet 0.1.10', notes)
+        self.assertIn('CryptoWallet 0.1.10', notes)
+        self.assertIn('cryptowallet-0.1.10-linux-amd64.tar.gz', notes)
+        self.assertIn('CryptoWallet-linux-x64/cryptowallet', notes)
+        self.assertNotIn('LocalWallet', notes)
+        self.assertNotIn('localwallet-', notes)
         self.assertIn(report['checksURL'], notes)
         self.assertIn('NOT_RUN', notes)
         self.assertIn('historical', notes)
@@ -773,7 +788,7 @@ class BuildTools(unittest.TestCase):
             self.assertEqual(selected, expected)
             subprocess.run(['bash', '-eu', '-c', command], cwd=self.root, check=True,
                            env={**os.environ, 'PATH': str(fakebin) + os.pathsep + os.environ['PATH'], 'CAPTURE': str(capture), 'RELEASE_VERSION': selected, 'GITHUB_SHA': 'a' * 40})
-            self.assertEqual(json.loads(capture.read_text()), ['release', 'create', expected, '--target', 'a' * 40, '--title', expected, '--notes-file', 'dist/RELEASE-NOTES.md', f'dist/localwallet-{expected}-linux-amd64.tar.gz'])
+            self.assertEqual(json.loads(capture.read_text()), ['release', 'create', expected, '--target', 'a' * 40, '--title', expected, '--notes-file', 'dist/RELEASE-NOTES.md', f'dist/cryptowallet-{expected}-linux-amd64.tar.gz'])
             embedded = subprocess.check_output([sys.executable, str(ROOT / 'scripts/version.py')], env={**os.environ, 'WALLET_VERSION': selected}, text=True)
             self.assertEqual(embedded, expected + '\n')
             tags.append(selected)

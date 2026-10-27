@@ -68,7 +68,7 @@ def probe(backend, launcher):
 
     processes = []
     app_started = False
-    temporary = tempfile.TemporaryDirectory(prefix='localwallet-display-fixture-')
+    temporary = tempfile.TemporaryDirectory(prefix='cryptowallet-display-fixture-')
     folder = pathlib.Path(temporary.name)
     env = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'}
     for name, relative in [('HOME', 'home'), ('XDG_CONFIG_HOME', 'config'), ('XDG_CACHE_HOME', 'cache'), ('XDG_DATA_HOME', 'data'), ('XDG_STATE_HOME', 'state'), ('XDG_RUNTIME_DIR', 'runtime'), ('TMPDIR', 'tmp')]:
@@ -109,7 +109,7 @@ def probe(backend, launcher):
             processes.append(app)
             app_started = True
             if backend == 'x11':
-                desktop.wait('LocalWallet', 20)
+                desktop.wait('CryptoWallet', 20)
             time.sleep(5)
             if app.poll() is not None:
                 raise RuntimeError('Portable wallet exited during display startup')
@@ -157,7 +157,7 @@ def main():
     parser.add_argument('--backend', choices=['all', 'x11', 'wayland'], default='all')
     args = parser.parse_args()
     reports.mkdir(exist_ok=True)
-    launcher = (root / 'cryptowallet').resolve() if (root / 'cryptowallet').exists() else root / 'dist/LocalWallet-linux-x64/cryptowallet'
+    launcher = (root / 'cryptowallet').resolve() if (root / 'cryptowallet').exists() else root / 'dist/CryptoWallet-linux-x64/cryptowallet'
     report = {'status': 'NOT_RUN', 'scope': 'Uninstrumented portable startup on owned disposable displays; no wallet creation, secret input or user profile access', 'notRun': ['actual host hardware/display reproduction', 'native Wayland credential/backup workflows', 'stock Ubuntu OS/display acceptance matrix'], 'rendererPolicy': 'Expected hardware acceleration disabled before ready; separately enforced by frontend startup tests alongside sandbox retention', 'electronAPI': 'https://www.electronjs.org/docs/latest/api/app#appdisablehardwareacceleration', 'backends': []}
     try:
         runtime = launcher.parent
