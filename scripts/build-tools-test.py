@@ -187,10 +187,18 @@ class BuildTools(unittest.TestCase):
         self.assertEqual(next_release.next_version('2.0.0', ['1.99.999']), '2.0.0')
         self.assertEqual(next_release.next_version('0.1.1', []), '0.1.1')
         self.assertEqual(next_release.next_version('0.1.1', ['0.1.1']), '0.1.2')
-        self.assertEqual(next_release.next_version('0.1.1', ['v0.1.1']), '0.1.1')
+        self.assertEqual(next_release.next_version('0.1.1', ['v0.1.1']), '0.1.2')
+        self.assertEqual(next_release.next_version('0.1.1', ['1.9.99', 'v1.10.2', 'v1.2.999']), '1.10.3')
+
+    def test_old_and_new_tag_formats_share_one_incrementing_history(self):
+        tags = ['v0.1.1', '0.1.1']
+        for expected in ('0.1.2', '0.1.3', '0.1.4'):
+            actual = next_release.next_version('0.1.1', tags)
+            self.assertEqual(actual, expected)
+            tags.append(actual)
 
     def test_invalid_and_out_of_policy_tags_are_ignored(self):
-        tags = ['01.2.3', 'v1.2.3', '1.2', '1.2.3-beta', '1.2.3+build', '1.2.3\nINJECT=1', '2147483648.0.0', '0.2147483648.0', '0.0.' + '9' * 5000, '-1.0.0', None, 1]
+        tags = ['01.2.3', 'vv1.2.3', 'v01.2.3', 'V1.2.3', 'v1.2.3-beta', 'v1.2.3+build', 'v1.2.3\nINJECT=1', '1.2', '1.2.3-beta', '1.2.3+build', '1.2.3\nINJECT=1', '2147483648.0.0', 'v2147483648.0.0', '0.2147483648.0', '0.0.' + '9' * 5000, '-1.0.0', None, 1]
         self.assertEqual(next_release.next_version('0.1.1', tags), '0.1.1')
         for base in ('01.1.0', '1.2', '1.2.3;touch injected', '2147483648.0.0'):
             with self.subTest(base=base), self.assertRaises(ValueError):
@@ -201,6 +209,8 @@ class BuildTools(unittest.TestCase):
         self.assertEqual(next_release.next_version('0.0.0', ['1.2.2147483646']), '1.2.2147483647')
         with self.assertRaises(ValueError):
             next_release.next_version('0.0.0', ['1.2.2147483647'])
+        with self.assertRaises(ValueError):
+            next_release.next_version('0.0.0', ['v1.2.2147483647'])
         self.assertEqual(next_release.next_version('2.0.0', ['1.2.2147483647']), '2.0.0')
 
     def test_version_override_rejects_shell_and_github_environment_injection(self):
@@ -223,12 +233,29 @@ class BuildTools(unittest.TestCase):
         (self.root / 'VERSION').write_text('0.1.0\n')
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
         subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Public Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'public fixture'], check=True)
-        for tag in ('1.9.9', '1.10.1', 'v9.99.99', '01.99.99', '3.0.0-beta'):
+        for tag in ('1.9.9', '1.10.1', 'v1.10.2', '01.99.99', '3.0.0-beta'):
             subprocess.run(['git', '-C', str(self.root), 'tag', tag], check=True)
         before = subprocess.check_output(['git', '-C', str(self.root), 'tag', '--list'])
         result = subprocess.check_output([sys.executable, str(scripts / 'next-version.py')], text=True)
-        self.assertEqual(result, '1.10.2\n')
+        self.assertEqual(result, '1.10.3\n')
         self.assertEqual(subprocess.check_output(['git', '-C', str(self.root), 'tag', '--list']), before)
+
+    def test_consecutive_cli_selections_from_real_mixed_git_tags_do_not_repeat(self):
+        scripts = self.root / 'scripts'
+        scripts.mkdir()
+        for name in ('next-version.py', 'version.py'):
+            shutil.copy2(ROOT / 'scripts' / name, scripts / name)
+        (self.root / 'VERSION').write_text('0.1.1\n')
+        subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
+        subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Public Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'public fixture'], check=True)
+        for tag in ('v0.1.1', '0.1.1'):
+            subprocess.run(['git', '-C', str(self.root), 'tag', tag], check=True)
+        for expected in ('0.1.2', '0.1.3', '0.1.4'):
+            before = subprocess.check_output(['git', '-C', str(self.root), 'tag', '--list'])
+            result = subprocess.check_output([sys.executable, str(scripts / 'next-version.py')], text=True).strip()
+            self.assertEqual(result, expected)
+            self.assertEqual(subprocess.check_output(['git', '-C', str(self.root), 'tag', '--list']), before)
+            subprocess.run(['git', '-C', str(self.root), 'tag', result], check=True)
 
     def test_install_preserves_unrelated_wallet_file(self):
         app, destination = self.app(), self.destination()
@@ -666,6 +693,8 @@ class BuildTools(unittest.TestCase):
         for forbidden in ('make test', 'scripts/provision-tests.py', 'scripts/ci-desktop.py', 'scripts/record-evidence.py', 'test-security', 'test-race', 'xvfb', 'tesseract'):
             self.assertNotIn(forbidden, text)
         build, release = text.split('  release:\n', 1)
+        self.assertIn('fetch-depth: 0', build)
+        self.assertIn('fetch-tags: true', build)
         self.assertEqual(build.count('make package-desktop'), 1)
         self.assertIn('needs: build', release)
         self.assertIn('artifact-id: ${{ steps.payload.outputs.artifact-id }}', build)
@@ -738,9 +767,16 @@ class BuildTools(unittest.TestCase):
         transport = fakebin / 'gh'
         transport.write_text('#!' + sys.executable + '\nimport json,os,sys\nopen(os.environ["CAPTURE"],"w").write(json.dumps(sys.argv[1:]))\n')
         transport.chmod(0o755)
-        subprocess.run(['bash', '-eu', '-c', command], cwd=self.root, check=True,
-                       env={**os.environ, 'PATH': str(fakebin) + os.pathsep + os.environ['PATH'], 'CAPTURE': str(capture), 'RELEASE_VERSION': '0.1.1', 'GITHUB_SHA': 'a' * 40})
-        self.assertEqual(json.loads(capture.read_text()), ['release', 'create', '0.1.1', '--target', 'a' * 40, '--title', '0.1.1', '--notes-file', 'dist/RELEASE-NOTES.md', 'dist/localwallet-0.1.1-linux-amd64.tar.gz'])
+        tags = ['v0.1.1', '0.1.1']
+        for expected in ('0.1.2', '0.1.3'):
+            selected = next_release.next_version('0.1.1', tags)
+            self.assertEqual(selected, expected)
+            subprocess.run(['bash', '-eu', '-c', command], cwd=self.root, check=True,
+                           env={**os.environ, 'PATH': str(fakebin) + os.pathsep + os.environ['PATH'], 'CAPTURE': str(capture), 'RELEASE_VERSION': selected, 'GITHUB_SHA': 'a' * 40})
+            self.assertEqual(json.loads(capture.read_text()), ['release', 'create', expected, '--target', 'a' * 40, '--title', expected, '--notes-file', 'dist/RELEASE-NOTES.md', f'dist/localwallet-{expected}-linux-amd64.tar.gz'])
+            embedded = subprocess.check_output([sys.executable, str(ROOT / 'scripts/version.py')], env={**os.environ, 'WALLET_VERSION': selected}, text=True)
+            self.assertEqual(embedded, expected + '\n')
+            tags.append(selected)
 
     def test_new_install_preserves_legacy_wallet_entry_and_existing_data(self):
         destination = self.destination()

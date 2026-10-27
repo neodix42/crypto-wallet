@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Select the version floor or increment the greatest bare numeric release tag; never create a tag."""
+"""Increment numeric release history (X.Y.Z or legacy vX.Y.Z); never create a tag."""
 import pathlib
 import subprocess
 from version import MAX_COMPONENT, validate_version
@@ -9,13 +9,14 @@ root = pathlib.Path(__file__).resolve().parents[1]
 
 def next_version(base, tags):
     validate_version(base)
-    # Bare numeric tags are the current release namespace. Legacy v-prefixed
-    # tags do not consume its first version during the naming migration.
+    # Removing the v prefix changes presentation, not release history. Both
+    # formats consume the same numeric version; new publications use bare tags.
     minimum = tuple(map(int, base.split('.')))
     versions = []
     for tag in tags:
+        value = tag[1:] if isinstance(tag, str) and tag.startswith('v') else tag
         try:
-            value = validate_version(tag)
+            value = validate_version(value)
         except (ValueError, TypeError):
             continue
         versions.append(tuple(map(int, value.split('.'))))
