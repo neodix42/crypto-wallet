@@ -1,0 +1,18 @@
+{
+  "source": "https://github.com/neodix42/crypto-wallet/actions/runs/40478173873/job/122101481249",
+  "artifactID": 12724190450,
+  "sourceImageSHA256": "03fb1895309fc90478f0fb3260c1e3a7c7dade106fa439ff66ebd8f464e10610",
+  "crop": [
+    521,
+    757,
+    1096,
+    800
+  ],
+  "fixtureSHA256": "975dea048ec83f16837e3546565e9238cf2a8c0db39727d70b3abc85305efddf",
+  "scope": "Public unconfigured-node tooltip only; no credential or phrase pixels",
+  "expectedFragments": [
+    "authenticated TLS",
+    "dcrd node",
+    "Balance unknown"
+  ]
+}

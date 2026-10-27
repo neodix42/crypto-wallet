@@ -20,7 +20,9 @@ The packaged recovery driver now detects exit before the public window and retai
 | PASS | Same artifact starts on an owned private X11 display under the existing userns-enabled IDE profile. `reports/phrase-backup-ci-allowed.log`. This does not execute the new CI profile. |
 | PASS | **20 offline CI-helper regressions**, including actual parser compilation without loading policy, bounded inventory reads, CI-only/workspace/command guards, failure propagation and cleanup wiring. **42 existing build-tool tests** and pinned workflow lint pass. |
 | PASS | **Three** startup-diagnostic regressions, including a real owned failed subprocess, bounded timeout/log size and no workflow-log capture after successful startup. |
-| NOT_RUN | Loading the new named profile and executing the changed workflows on GitHub-hosted Ubuntu. No remote run, push or publication was triggered by this change. |
+| PASS — hosted startup prerequisite | The subsequent [CI run](https://github.com/neodix42/crypto-wallet/actions/runs/40478173873/job/122101481249) and [release run](https://github.com/neodix42/crypto-wallet/actions/runs/40478173969/job/122102282356) loaded the named profile, started the sandboxed wallet and passed the first fourteen packaged checks. Both always-run cleanup steps removed the profile successfully. Their later tooltip OCR failure is separate; neither complete job passed. |
 | NOT_RUN | Full clean supported OS/display acceptance and independent security review. The private X11 probes do not establish those gates. |
 
 Run `python3 scripts/ci-desktop-test.py` and `python3 scripts/desktop-startup-test.py` for the local offline regressions. Workflow invocations of `scripts/ci-desktop.py setup/run/cleanup` are intentionally restricted to hosted CI. Source-bound tool evidence is in `reports/ci-desktop-tools.json`; [STATUS.md](STATUS.md) retains the broader release gates.
+
+The [Actions failure checklist](CI_ACTIONS.md) records the later hosted tooltip failure and its pixel regression. Historical red runs retain the result of their original source commit; local fixes do not change those results.

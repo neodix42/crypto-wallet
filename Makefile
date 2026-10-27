@@ -21,6 +21,7 @@ test:
 	python3 scripts/mutation-test.py
 	python3 scripts/ci-desktop-test.py
 	python3 scripts/desktop-startup-test.py
+	python3 scripts/desktop-ocr-test.py
 	python3 scripts/coverage-test.py
 	python3 scripts/campaign-test.py
 	python3 scripts/release-auth-test.py
@@ -93,7 +94,7 @@ coverage:
 check-deps:
 	$(TOOLS) go mod verify
 	$(TOOLS) go vet ./...
-	$(TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/soak.yml
+	$(TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/release.yml
 	$(TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/fuzz.yml
 	$(TOOLS) go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 	$(TOOLS) npm --prefix desktop audit --audit-level=high

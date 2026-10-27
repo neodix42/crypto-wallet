@@ -48,6 +48,8 @@ A new NEAR implicit address is not an on-chain account until it receives NEAR. A
 
 Use public synthetic fixtures only. No test automatically spends mainnet funds. The default tests run offline after dependencies/toolchains have been installed; optional node integrations explicitly report a skip when their prerequisites are absent.
 
+The public-pixel OCR regression in `make test` requires `python3-pil` and `tesseract-ocr` (`sudo apt-get install python3-pil tesseract-ocr`). It uses a committed public tooltip fixture and does not open a wallet or display.
+
 ```sh
 make test-go              # Go unit/corpus tests without Node/Electron build
 make test-exchange        # Bybit/signing/IPC/UI guards, mutations and explicit local USDT integration
@@ -85,6 +87,8 @@ make test-e2e             # package recovery on private X11, then disposable Ubu
 ```
 
 `make test-e2e` does not certify real Wayland/OS-lock acceptance; its container probes can remain blocked by container sandbox policy. No sandbox bypass is applied. `make test-soak` runs the actual 24-hour workload; a short smoke is reported separately. `make test-testnet` records the missing independently verified funded public testnet evidence and fails until that external gate is supplied. `make verify-release` deliberately fails on incomplete mandatory evidence. Reports go to `reports/`, with retained chain fixtures/results in `tests/oracles/` and readable interpretation in `docs/`. Passing unit tests do not imply that skipped integration scenarios ran.
+
+The scheduled GitHub Actions soak workflow has been removed. Soak tests remain available manually; removing the workflow does not record a passing soak result.
 
 The current owner excludes Decred implementation work and public testnet campaigns. Longer local fuzz and soak runs have explicit narrower commands:
 

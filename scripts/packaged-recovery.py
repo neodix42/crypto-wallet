@@ -80,20 +80,21 @@ def capture():
  mod.X.XSync(desktop.d,0)
  if phrase_ui.secret_window(desktop):raise RuntimeError('Refusing to capture a dialog secret window')
  p=reports/'packaged-current.png';desktop.screenshot(p);return p
-def textboxes(region=None):
+def textboxes(region=None,*,scale=2,threshold=140,psm=3):
  # The public desktop uses light text on dark controls. Normalize its screenshot
  # for OCR; dialog credential windows are never parsed by this helper.
  if phrase_ui.secret_window(desktop):
   raise RuntimeError('Refusing to OCR a dialog credential window')
  picture=ImageOps.invert(Image.open(capture()).convert('L'))
- picture=picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).point(lambda value:0 if value<140 else 255)
+ picture=picture.resize((picture.width*scale,picture.height*scale),Image.Resampling.LANCZOS)
+ if threshold is not None:picture=picture.point(lambda value:0 if value<threshold else 255)
  ocr=reports/'packaged-public-ocr.png';picture.save(ocr)
- raw=subprocess.check_output(['tesseract',str(ocr),'stdout','tsv'],stderr=subprocess.DEVNULL,text=True)
+ raw=subprocess.check_output(['tesseract',str(ocr),'stdout','--psm',str(psm),'tsv'],stderr=subprocess.DEVNULL,text=True,timeout=20)
  rows=[]
  for line in raw.splitlines()[1:]:
   a=line.split('\t')
   if len(a)==12 and a[11].strip():
-   for column in range(6,10):a[column]=str(int(a[column])//2)
+   for column in range(6,10):a[column]=str(int(a[column])//scale)
    if region is None or (region[0]<=int(a[6])<region[2] and region[1]<=int(a[7])<region[3]):rows.append(a)
  return rows
 def scrollpage(button,ticks=100):
@@ -461,7 +462,11 @@ def decredconnection():
  connection=[a for a in rows if a[11].lower()=='connection' and left<=int(a[6])<right and middle-25<=int(a[7])<middle+25]
  if not connection:raise RuntimeError('Compact Decred connection guidance has no visible hover target')
  target=connection[0];mod.T.XTestFakeMotionEvent(desktop.d,-1,int(target[6])+int(target[8])//2,int(target[7])+int(target[9])//2,0);mod.X.XFlush(desktop.d)
- until(lambda:all(fragment in ' '.join(a[11] for a in textboxes()).lower() for fragment in ('authenticated tls','dcrd node','balance unknown')),5)
+ # Native Chromium tooltips use a small font on black. The normal threshold
+ # merges its c/r strokes into e: the hosted runner read "dcrd" as "derd".
+ # Preserve grayscale and use sparse-text OCR at 3x; still require every exact
+ # word from actual public pixels, without spelling repair or relaxed checks.
+ until(lambda:all(fragment in ' '.join(a[11] for a in textboxes(scale=3,threshold=None,psm=11)).lower() for fragment in ('authenticated tls','dcrd node','balance unknown')),5)
  report['decredConnectionObservations']={'overview':{'status':'PASS','publicBalanceText':cell,'hoverMetadata':'Authenticated TLS dcrd node and unknown balance guidance independently observed on actual hover'},'configuredNodeBalance':'NOT_RUN: no authenticated trusted-TLS Decred mainnet node supplied'}
  mod.T.XTestFakeMotionEvent(desktop.d,-1,10,10,0);mod.X.XFlush(desktop.d);time.sleep(.3)
  desktop.screenshot(reports/'packaged-decred-table-guidance.png')
