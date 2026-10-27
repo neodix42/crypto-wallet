@@ -52,3 +52,4 @@ go.work.sum
 /wallet
 /wallet-runtime/
 **/__pycache__/
+/docs/evidence/
