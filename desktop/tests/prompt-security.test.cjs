@@ -3,14 +3,15 @@ const {test}=require('node:test');const assert=require('node:assert/strict');con
 const {validatePrompt,validatePromptReply,clearPrompt}=require('../app/prompts.js');
 const base={id:'a'.repeat(32),title:'Synthetic prompt'};
 const examples=[{...base,kind:'input',labels:['Password']},{...base,kind:'confirm',summary:'Network / recipient / amount / fees'},{...base,kind:'notice',summary:''},{...base,kind:'recovery',phrase:Array(12).fill('abandon').join(' ')},{...base,kind:'receive',summary:'Ethereum',png:'iVBORw0KGgoAAAA=',address:'PUBLIC'},{...base,kind:'file',save:false},{...base,kind:'copy',address:'PUBLIC'}];
+examples.push({...base,kind:'recoveryBackup',phrase:Array(12).fill('abandon').join(' ')});
 test('TP033 prompt schemas accept only the expected bounded fields and never interpret hostile text as authority',()=>{
  for(const prompt of examples){assert.equal(validatePrompt(prompt),prompt);assert.throws(()=>validatePrompt({...prompt,extra:'forbidden'}));for(const key of Object.keys(prompt)){const missing={...prompt};delete missing[key];assert.throws(()=>validatePrompt(missing),prompt.kind+':'+key)}}
  for(const value of [null,[],1,'{}',false])assert.throws(()=>validatePrompt(value));
  for(const mutation of [{id:'not-an-id'},{id:0},{title:''},{title:2},{title:'é'.repeat(129)},{title:'bad\0title'},{kind:'eval'}])assert.throws(()=>validatePrompt({...examples[0],...mutation}));
  for(const labels of [null,[],Array(9).fill('label'),[0],[''],['é'.repeat(129)]])assert.throws(()=>validatePrompt({...examples[0],labels}));
  for(const summary of [null,1,'x'.repeat(65537)])for(const kind of ['confirm','notice'])assert.throws(()=>validatePrompt({...base,kind,summary}));
- for(const phrase of [null,Array(11).fill('abandon').join(' '),' abandon '.repeat(12),'é '.repeat(12),'a'.repeat(513)])assert.throws(()=>validatePrompt({...examples[3],phrase}));
- for(const words of [12,15,18,21,24])validatePrompt({...examples[3],phrase:Array(words).fill('abandon').join(' ')});
+ for(const kind of ['recovery','recoveryBackup'])for(const phrase of [null,Array(11).fill('abandon').join(' '),' abandon '.repeat(12),'é '.repeat(12),'a'.repeat(513)])assert.throws(()=>validatePrompt({...examples[3],kind,phrase}));
+ for(const kind of ['recovery','recoveryBackup'])for(const words of [12,15,18,21,24])validatePrompt({...examples[3],kind,phrase:Array(words).fill('abandon').join(' ')});
  for(const mutation of [{summary:null},{address:0},{address:''},{address:'a'.repeat(513)},{png:null},{png:'iVBORw0KGgo'+ 'A'.repeat(350001)},{png:'data:image/png;base64,iVBORw0KGgo='},{png:'SGVsbG8='}])assert.throws(()=>validatePrompt({...examples[4],...mutation}));
  for(const save of [null,'false',0])assert.throws(()=>validatePrompt({...examples[5],save}));
  for(const address of [null,'','x'.repeat(513)])assert.throws(()=>validatePrompt({...examples[6],address}));

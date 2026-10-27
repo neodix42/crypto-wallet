@@ -1,8 +1,26 @@
 # Implementation and release evidence
 
-The current correction makes the compact **Unlock local wallet** form fit without its internal scrollbar and renders status messages without a rectangular focus highlight. Input-only bottom spacing is reduced; longer prompts keep their scrolling and reachable controls. Secret handling, authorization and seven-second notice expiry are unchanged.
+## Current phrase-backup and CI update — 2026-10-27
 
-## Current Unlock/status correction — 2026-10-27
+First-run **Restore from recovery phrase** already existed; the page now makes that choice explicit. **Settings → Wallet → Back up recovery phrase** confirms the request and verifies the current app password before showing numbered words in the isolated Electron dialog. Every view authenticates again. The operation preserves the encrypted vault, generation, recovery completion, keys and journal and adds no file/clipboard/print/QR export. [Behavior and requirement-to-test checklist](PHRASE_BACKUP.md).
+
+| Status | Current evidence and limits |
+| --- | --- |
+| PASS | **159 frontend tests**, zero skipped; every shipped JS file **100% statements**. **Four** modified Go packages pass fresh tests and focused race checks; both new backend display functions have **100% statements**. Strict prompt/method binding and cleanup are covered. |
+| PASS | **13/13 actual installed X11 backup checks**, including first-run import, cancellation/wrong-password refusal, exact numbered words, repeat authentication, clipboard/ciphertext preservation, lock/restart and separate BIP39-passphrase warning. No private screenshots retained. |
+| PASS | Full **39/39** canonical packaged recovery regression, **eight** Unlock/status checks and **seven** actual isolated-geth Send checks on the final installed artifact; **six** fresh-copy headless recovery checks and **seven** owned-process crash/canary checks pass on its Go binaries. |
+| PASS | Four focused backup semantic mutants killed with passing controls; **16** short fuzz campaigns, explicit bounded stress, vet, public API/type checks and coverage/release-evidence regression tests pass. Full default **18-mutant** campaign was **NOT_RUN** for this change. |
+| PASS / FAIL aggregate | All **25** current Go package coverage floors pass against **193** source/test/module hashes. Aggregate remains **FAIL** because pinned **dcrd v1.10.9** is unavailable; nine aggregate skips remain explicit, including optional local/network/soak prerequisites. No floor or prerequisite was removed. |
+| PASS / NOT_RUN remote | CI/release workflows now grant userns only to explicitly started desktop-test processes using a temporary named AppArmor profile and always remove it before publication. **20** offline CI-helper checks, **42** build-tool tests, **three** startup-diagnostic checks and workflow lint pass. New hosted profile loading/workflow execution is **NOT_RUN**. |
+| FAIL — intentional reproduction | The current wallet under an otherwise unconfined AppArmor context aborts before a window with Chromium's sandbox-helper fatal; the same artifact starts under the existing IDE's userns-enabled profile. This supports the runner-prerequisite diagnosis; the original remote artifact discarded startup logs, so remote resolution is not yet established. [CI evidence and scope](CI_DESKTOP.md). |
+| FAIL — production gate | `make verify-release` still rejects incomplete acceptance, blocked Go aggregate and missing external gates. Current frontend, artifact, recovery, local Send and provenance/evidence bindings introduce no new verifier failure. |
+| NOT_RUN | Physical-machine restore, full installed Ubuntu X11/Wayland/lifecycle matrix, funded public testnet/Bybit acceptance, complete 24-hour soak and independent security review. No real user secrets or automatic mainnet payments. |
+
+Scoped source/artifact identities and report hashes are in `reports/phrase-backup.json`; the existing ignore policy keeps generated reports/evidence local. Earlier failed automation attempts remain separate from final passes. The original production release gates below remain required.
+
+## Previous Unlock/status correction — 2026-10-27
+
+The previous correction made the compact **Unlock local wallet** form fit without its internal scrollbar and rendered status messages without a rectangular focus highlight. Input-only bottom spacing was reduced; longer prompts kept their scrolling and reachable controls. Secret handling, authorization and seven-second notice expiry were unchanged.
 
 | Status | Measured scope and limit |
 | --- | --- |
@@ -187,7 +205,7 @@ TON continuation follows exact BOC previous-transaction identities; its bounded 
 
 ## Secret boundary and recovery policy
 
-The owner requires Electron for every application window. Go generates and durably encrypts the BIP39 root, authors prompts, verifies recorded words/passwords, reconstructs immutable spend effects and signs. The separate temporary prompt origin/preload/session handles masked credentials and pending phrase recording; the ordinary portfolio has no prompt retrieval/reply API. Cancellation preserves the same pending root, resume requires reauthentication, confirmed roots have no repeat reveal/export action, and changing the app password preserves addresses.
+The owner requires Electron for every application window. Go generates and durably encrypts the BIP39 root, authors prompts, verifies recorded words/passwords, reconstructs immutable spend effects and signs. The separate temporary prompt origin/preload/session handles masked credentials and pending phrase recording; the ordinary portfolio has no prompt retrieval/reply API. Cancellation preserves the same pending root, resume requires reauthentication, under the former policy confirmed roots had no repeated display (the 2026-10-27 owner update adds authenticated manual backup), and changing the app password preserves addresses.
 
 This intentionally trusts the coordinator/supervisor, Electron main and dedicated prompt renderer/preload with transient credential/phrase frames. Ordinary public requests/snapshots, logs, plaintext files, browser storage, clipboard, QR and network requests must stay secret-free; entropy/binary seeds/private keys remain in Go. Go generation does not protect against compromised trusted prompt/main code. Core and signer dump protections are tested; Electron inherits zero core-size limits but post-exec Electron non-dumpability and immunity to privileged host collection are not established. Runtime/OS copies prevent guaranteed erasure. See [ELECTRON_INTERFACE.md](ELECTRON_INTERFACE.md) and [THREAT_MODEL.md](THREAT_MODEL.md).
 

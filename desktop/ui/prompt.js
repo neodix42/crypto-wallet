@@ -2,7 +2,8 @@
 // This window has its own sandbox and preload. The ordinary wallet renderer
 // cannot open it, read its contents, or supply its authoritative prompt data.
 const $ = id => document.getElementById(id);
-const kinds = new Set(['input', 'confirm', 'notice', 'receive', 'recovery']);
+const kinds = new Set(['input', 'confirm', 'notice', 'receive', 'recovery', 'recoveryBackup']);
+const recoveryKinds = new Set(['recovery', 'recoveryBackup']);
 let current, pending = false, abandoned = false;
 const unavailable = 'This request is no longer available. Return to your wallet and try again.';
 function text(value, limit) { return typeof value === 'string' && value.length > 0 && value.length <= limit; }
@@ -10,15 +11,16 @@ function summary(value) { return typeof value === 'string' && value.length <= 65
 function valid(prompt) {
   if (!prompt || typeof prompt !== 'object' || Array.isArray(prompt) || typeof prompt.id !== 'string' || !/^[0-9a-f]{32}$/.test(prompt.id) || !kinds.has(prompt.kind) || !text(prompt.title, 256)) return false;
   if (prompt.kind === 'input') return Array.isArray(prompt.labels) && prompt.labels.length > 0 && prompt.labels.length <= 8 && prompt.labels.every(label => text(label, 256));
-  if (prompt.kind === 'recovery') return text(prompt.phrase, 512) && /^[a-z]+(?: [a-z]+)*$/.test(prompt.phrase) && [12, 15, 18, 21, 24].includes(prompt.phrase.split(' ').length);
+  if (recoveryKinds.has(prompt.kind)) return Object.keys(prompt).length === 4 && text(prompt.phrase, 512) && /^[a-z]+(?: [a-z]+)*$/.test(prompt.phrase) && [12, 15, 18, 21, 24].includes(prompt.phrase.split(' ').length);
   if (prompt.kind === 'receive') return summary(prompt.summary) && text(prompt.address, 512) && text(prompt.png, 350000) && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(prompt.png);
   return summary(prompt.summary);
 }
 function erase() {
   for (const input of document.querySelectorAll('input')) input.value = '';
+  for (const word of $('recoverywords').children) word.textContent = '';
   $('inputfields').replaceChildren(); $('recoverywords').replaceChildren();
   $('summary').textContent = ''; $('receivedomain').textContent = ''; $('receiveaddress').textContent = ''; $('receiveqr').removeAttribute('src');
-  $('copystatus').textContent = ''; $('description').textContent = '';
+  $('copystatus').textContent = ''; $('description').textContent = ''; $('recoverynote').textContent = '';
   $('prompttitle').textContent = 'Wallet request closed';
   for (const id of ['inputfields', 'summary', 'recovery', 'receive']) $(id).hidden = true;
   $('accept').disabled = true; $('cancel').disabled = true; $('copyaddress').disabled = true;
@@ -48,7 +50,7 @@ function render(prompt) {
   current = { id: prompt.id, kind: prompt.kind };
   $('prompttitle').textContent = prompt.title;
   $('accept').disabled = false; $('cancel').disabled = false;
-  $('accept').textContent = { input: 'Continue', confirm: 'Confirm', notice: 'Close', receive: 'Done', recovery: 'I wrote it down' }[prompt.kind];
+  $('accept').textContent = { input: 'Continue', confirm: 'Confirm', notice: 'Close', receive: 'Done', recovery: 'I wrote it down', recoveryBackup: 'Done' }[prompt.kind];
   $('cancel').hidden = prompt.kind === 'notice';
   if (prompt.kind === 'input') {
     $('description').textContent = 'Enter the requested information to continue.';
@@ -61,9 +63,10 @@ function render(prompt) {
       wrapper.append(input); $('inputfields').append(wrapper);
     }
     $('promptinput0').focus();
-  } else if (prompt.kind === 'recovery') {
+  } else if (recoveryKinds.has(prompt.kind)) {
     $('description').textContent = 'Your recovery phrase restores your wallets on another device.';
     $('recovery').hidden = false;
+    $('recoverynote').textContent = (prompt.kind === 'recovery' ? 'Next, confirm a few words from your written copy. ' : 'This is a manual backup of the same phrase for all your wallets. ') + 'Never share your phrase or enter it on a website. If you used an additional BIP39 passphrase, keep that separately too.';
     const words = prompt.phrase.split(' ');
     for (const word of words) { const item = document.createElement('li'); item.textContent = word; $('recoverywords').append(item); }
     words.fill(''); $('cancel').focus();
@@ -96,9 +99,9 @@ document.addEventListener('keydown', event => {
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
-  if (current?.kind === 'recovery' && ((event.ctrlKey || event.metaKey) && ['c', 'x', 'p', 's'].includes(event.key.toLowerCase()))) event.preventDefault();
+  if (recoveryKinds.has(current?.kind) && ((event.ctrlKey || event.metaKey) && ['c', 'x', 'p', 's'].includes(event.key.toLowerCase()))) event.preventDefault();
 });
-for (const name of ['copy', 'cut', 'contextmenu', 'dragstart']) document.addEventListener(name, event => { if (current?.kind === 'recovery') event.preventDefault(); });
+for (const name of ['copy', 'cut', 'contextmenu', 'dragstart']) document.addEventListener(name, event => { if (recoveryKinds.has(current?.kind)) event.preventDefault(); });
 function abandon() { abandoned = true; void finish(false); erase(); }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') abandon(); });
 window.addEventListener('pagehide', abandon);

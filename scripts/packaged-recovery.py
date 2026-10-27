@@ -135,6 +135,20 @@ def clickphrase(phrase,button=1,region=None):
     desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(int(a[6])+int(a[8])//2,int(a[7])+int(a[9])//2,button=button);return
   scrollhome() if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
  raise RuntimeError('Public UI phrase unavailable: '+phrase)
+def clickrestorebutton():
+ # The first-run explanation also names this action. Select its actual public
+ # button fill, never the same phrase embedded in explanatory prose.
+ wanted='restore from recovery phrase'.split()
+ for attempt in range(16):
+  rows=textboxes();picture=Image.open(capture()).convert('RGB')
+  for i,a in enumerate(rows):
+   segment=rows[i:i+len(wanted)]
+   if [b[11].lower().strip('.,:') for b in segment]!=wanted or not all(b[1:5]==a[1:5] for b in segment):continue
+   x,y=int(a[6]),int(a[7])+int(a[9])//2
+   if picture.getpixel((max(0,x-8),y)) not in ((36,54,80),(50,76,112)):continue
+   desktop.focus(desktop.wait('LocalWallet')[0]);desktop.click(x+int(a[8])//2,y);return
+  scrollhome() if attempt in (0,8) else desktop.key('Page_Down');time.sleep(.2)
+ raise RuntimeError('Actual first-run phrase-import button unavailable in public pixels')
 def clickprimary(word,last=False):
  # The bright primary-button border confuses document-layout OCR at the
  # ordinary threshold. Remove that border while preserving its label contrast.
@@ -258,6 +272,18 @@ def stopapp():
   try:app.wait(timeout=10)
   except subprocess.TimeoutExpired:os.killpg(app.pid,signal.SIGKILL);app.wait()
   app=None;time.sleep(.5)
+def wait_for_startup(desktop,process,log,report,seconds=20):
+ # Called only immediately after launching a locked fresh process, before any
+ # credential/phrase input. Never persist workflow logs after secret entry.
+ deadline=time.monotonic()+seconds
+ while time.monotonic()<deadline:
+  if any(title=='LocalWallet' for _,title in desktop.windows()):return
+  if process.poll() is not None:break
+  time.sleep(.1)
+ log.flush();log.seek(0)
+ output=log.read(16385)
+ report.setdefault('startupFailures',[]).append({'phase':'before credential or phrase entry','exitCode':process.poll(),'log':output[:16384],'logTruncated':len(output)>16384})
+ raise RuntimeError('Packaged application did not open its public window; see startupFailures for pre-input diagnostics')
 def launch(profile,env,environment=None):
  global app,launch_started_at
  env={**env,'XDG_CONFIG_HOME':str(profile)}
@@ -273,7 +299,7 @@ def launch(profile,env,environment=None):
  environment=environment or selected_profile
  if environment=='testnet':arguments.append('--profile=testnet')
  launch_started_at=time.monotonic();app=subprocess.Popen(arguments,env=env,stdout=log,stderr=log,start_new_session=True)
- desktop.wait('LocalWallet',20);time.sleep(1)
+ wait_for_startup(desktop,app,log,report);time.sleep(1)
 def finishimport():
  # Imported recovery limits are an actual Go-authored confirmation, rather
  # than an information-only notice. Preserve its explicit human-consent step.
@@ -838,15 +864,15 @@ try:
   generated_address=promptcopy();decodereceive(generated_address);desktop.accept('Verify receive address');time.sleep(.3)
   passed('Electron password reauthentication and correct recorded words enable the original wallet receive QR without a file backup')
   if generated_address=='0x9858EfFD232B4033E47d90003D41EC34EcaEda94':raise RuntimeError('Generated wallet reused a fixed import fixture')
-  stopapp();launch(folder/'generated-restored',env);clickphrase('Restore from recovery phrase');waitprompt('Create local wallet')
+  stopapp();launch(folder/'generated-restored',env);clickrestorebutton();waitprompt('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,generated_phrase.decode('ascii'),'']);desktop.accept('Create local wallet');finishimport()
   if publicaddress()!=generated_address:raise RuntimeError('Fresh profile restored a different generated wallet')
   passed('Actual packaged app restores its generated wallet in an empty profile using only app password and recorded phrase')
-  stopapp();launch(profile,env);clickphrase('Restore from recovery phrase');waitprompt('Create local wallet')
+  stopapp();launch(profile,env);clickrestorebutton();waitprompt('Create local wallet')
   desktop.inputs('Create local wallet',[password,password,'bad','']);desktop.accept('Create local wallet')
   expectfailure('valid English BIP39','invalid-recovery-phrase-feedback')
   if (profile/vault_relative).exists():raise RuntimeError('Invalid phrase created a vault')
-  clickphrase('Restore from recovery phrase');waitprompt('Create local wallet');desktop.inputs('Create local wallet',[password,password,phrase,'']);desktop.accept('Create local wallet');finishimport()
+  clickrestorebutton();waitprompt('Create local wallet');desktop.inputs('Create local wallet',[password,password,phrase,'']);desktop.accept('Create local wallet');finishimport()
   expected='0x9858EfFD232B4033E47d90003D41EC34EcaEda94'
   if publicaddress()!=expected:raise RuntimeError('Restored independent fixture address differs')
   passed('Known phrase restoration reproduces the independently generated public address without backup files')

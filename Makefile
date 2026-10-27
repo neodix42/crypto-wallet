@@ -18,6 +18,9 @@ dev: install
 	./wallet
 test:
 	python3 scripts/build-tools-test.py
+	python3 scripts/mutation-test.py
+	python3 scripts/ci-desktop-test.py
+	python3 scripts/desktop-startup-test.py
 	python3 scripts/coverage-test.py
 	python3 scripts/campaign-test.py
 	python3 scripts/release-auth-test.py
@@ -68,6 +71,7 @@ test-native:
 	$(TOOLS) python3 scripts/native-input.py
 test-packaged: install
 	$(TOOLS) python3 scripts/packaged-recovery.py
+	$(TOOLS) python3 scripts/phrase-backup-packaged.py
 	$(TOOLS) python3 scripts/unlock-layout.py
 test-packaged-send: install
 	$(TOOLS) python3 scripts/packaged-send.py

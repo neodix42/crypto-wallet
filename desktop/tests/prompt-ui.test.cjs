@@ -95,21 +95,25 @@ test('TP033 cancelling or abandoning any input clears retained nodes and never r
   }
 });
 test('TP033 phrase acknowledgement has no phrase values and clears all displayed words before replying', async t => {
-  for (const words of [12, 15, 18, 21, 24]) {
-    const h = await harness({id, kind:'recovery', title:'Record recovery phrase', phrase:Array(words).fill('abandon').join(' ')}, {respond(_reply, $) { assert.equal($('recoverywords').children.length, 0); return Promise.resolve(); }}); t.after(h.close);
+  for (const kind of ['recovery', 'recoveryBackup']) for (const words of [12, 15, 18, 21, 24]) {
+    const h = await harness({id, kind, title:'Record recovery phrase', phrase:Array(words).fill('abandon').join(' ')}, {respond(_reply, $) { assert.equal($('recoverywords').children.length, 0); return Promise.resolve(); }}); t.after(h.close);
     assert.equal(h.$('recoverywords').children.length, words);
     assert.deepEqual([...h.$('recoverywords').children].map(item => item.textContent), Array(words).fill('abandon'));
-    assert.equal(h.$('accept').textContent, 'I wrote it down');
+    assert.equal(h.$('accept').textContent, kind === 'recovery' ? 'I wrote it down' : 'Done');
+    assert.equal(h.$('recoverynote').textContent.includes('Next, confirm'), kind === 'recovery');
+    assert.match(h.$('recoverynote').textContent, /Never share.*additional BIP39 passphrase/);
     assert.equal(h.dom.window.document.activeElement, h.$('cancel'));
     await h.submit(); cleared(h); assert.deepEqual(h.calls, [{promptId:id, accepted:true}]);
   }
 });
-test('TP033 recording phase blocks copy, cut, drag, context menu, print and save shortcuts without affecting other prompts', async t => {
-  const h = await harness({id, kind:'recovery', title:'Record recovery phrase', phrase:fixturePhrase}); t.after(h.close);
-  for (const type of ['copy', 'cut', 'contextmenu', 'dragstart']) { const event = h.event(type); h.$('recoverywords').dispatchEvent(event); assert.equal(event.defaultPrevented, true); }
-  for (const key of ['c', 'C', 'x', 'p', 's']) for (const modifier of ['ctrlKey', 'metaKey']) assert.equal(h.key(key, {[modifier]:true}).defaultPrevented, true);
-  assert.equal(h.key('a', {ctrlKey:true}).defaultPrevented, false); assert.equal(h.key('c').defaultPrevented, false);
-  await h.cancel(); assert.deepEqual(h.calls, [{promptId:id, accepted:false}]); cleared(h);
+test('TP033 both phrase views block copy, cut, drag, context menu, print and save shortcuts without affecting other prompts', async t => {
+  for (const kind of ['recovery', 'recoveryBackup']) {
+    const h = await harness({id, kind, title:'Record recovery phrase', phrase:fixturePhrase}); t.after(h.close);
+    for (const type of ['copy', 'cut', 'contextmenu', 'dragstart']) { const event = h.event(type); h.$('recoverywords').dispatchEvent(event); assert.equal(event.defaultPrevented, true); }
+    for (const key of ['c', 'C', 'x', 'p', 's']) for (const modifier of ['ctrlKey', 'metaKey']) assert.equal(h.key(key, {[modifier]:true}).defaultPrevented, true);
+    assert.equal(h.key('a', {ctrlKey:true}).defaultPrevented, false); assert.equal(h.key('c').defaultPrevented, false);
+    await h.cancel(); assert.deepEqual(h.calls, [{promptId:id, accepted:false}]); cleared(h);
+  }
   const notice = await harness({id, kind:'notice', title:'Wallet notice', summary:'Public information'}); t.after(notice.close);
   for (const type of ['copy', 'cut', 'contextmenu', 'dragstart']) { const event = notice.event(type); notice.dom.window.document.dispatchEvent(event); assert.equal(event.defaultPrevented, false); }
   assert.equal(notice.key('p', {ctrlKey:true}).defaultPrevented, false);
@@ -169,15 +173,18 @@ test('TP043 prompt focus stays in the current modal and visible-state events do 
   h.dom.window.document.dispatchEvent(h.event('visibilitychange')); assert.equal(h.calls.length, 0);
 });
 test('TP043 a hidden or closed window cannot render a delayed phrase response', async t => {
-  const delayed = deferred(); const h = await harness(null, {get:() => delayed.promise}); t.after(h.close);
-  h.dom.window.dispatchEvent(h.event('pagehide'));
-  delayed.resolve({id, kind:'recovery', title:'Record recovery phrase', phrase:fixturePhrase}); await tick();
-  cleared(h); assert.equal(h.calls.length, 0); assert.ok(!h.dom.window.document.body.textContent.includes(fixturePhrase));
+  for (const kind of ['recovery', 'recoveryBackup']) {
+    const delayed = deferred(); const h = await harness(null, {get:() => delayed.promise}); t.after(h.close);
+    h.dom.window.dispatchEvent(h.event('pagehide'));
+    delayed.resolve({id, kind, title:'Record recovery phrase', phrase:fixturePhrase}); await tick();
+    cleared(h); assert.equal(h.calls.length, 0); assert.ok(!h.dom.window.document.body.textContent.includes(fixturePhrase));
+  }
 });
 test('TP041 malformed prompt data fails closed without reflecting supplied data or sending a response', async t => {
   const input = {id, kind:'input', title:'Input', labels:['Password']};
   const invalid = [null, [], 1, {}, {...input,id:123}, {...input,id:'A'.repeat(32)}, {...input,id:'a'.repeat(31)}, {...input,kind:'eval'}, {...input,title:''}, {...input,title:'x'.repeat(257)}, {...input,labels:[]}, {...input,labels:null}, {...input,labels:Array(9).fill('Password')}, {...input,labels:['']}, {...input,labels:[123]}, {...input,labels:['x'.repeat(257)]},
-    ...['', 'abandon '.repeat(11), 'Abandon ' + fixturePhrase, fixturePhrase + ' extra', fixturePhrase.replace(' ', '  '), fixturePhrase.replace('abandon', '<img>'), 'a'.repeat(513)].map(phrase => ({id,kind:'recovery',title:'Phrase',phrase})),
+    ...['recovery', 'recoveryBackup'].flatMap(kind => ['', 'abandon '.repeat(11), 'Abandon ' + fixturePhrase, fixturePhrase + ' extra', fixturePhrase.replace(' ', '  '), fixturePhrase.replace('abandon', '<img>'), 'a'.repeat(513)].map(phrase => ({id,kind,title:'Phrase',phrase}))),
+    {id,kind:'recoveryBackup',title:'Phrase',phrase:fixturePhrase,summary:'forbidden'},
     ...['x'.repeat(65537), 12].map(summary => ({id,kind:'confirm',title:'Confirm',summary})),
     ...['', 'x'.repeat(513), null].map(address => ({id,kind:'receive',title:'Receive',summary:'Network',address,png:'AAAA'})),
     ...['', '<svg>', 'data:image/png;base64,AAAA', 'A', 'A===', 'x'.repeat(350001), null].map(png => ({id,kind:'receive',title:'Receive',summary:'Network',address:'PUBLIC-ADDRESS',png})),
@@ -202,5 +209,24 @@ test('TP041 an empty backend summary remains a usable title-only notice, confirm
     assert.equal(h.$('prompterror').hidden, true); assert.equal(h.$('accept').disabled, false);
     assert.equal(h.$('summary').textContent, ''); await h.submit(); cleared(h);
     assert.deepEqual(h.calls, [{promptId:id, accepted:true}]);
+  }
+});
+
+// Synthetic phrases are never retained as snapshots or screenshots.
+test('TP033 backup phrase cancellation, lifecycle loss and rejected replies erase every displayed word', async t => {
+  for (const action of ['cancel', 'escape', 'hidden', 'pagehide', 'beforeunload', 'failedReply']) {
+    const h = await harness({id,kind:'recoveryBackup',title:'Back up recovery phrase',phrase:fixturePhrase}, action === 'failedReply' ? {respond:() => Promise.reject(Error('PRIVATE_BACKUP_FAILURE_CANARY'))} : {}); t.after(h.close);
+    const words = [...h.$('recoverywords').children]; assert.equal(words.length, 12);
+    if (action === 'cancel') await h.cancel();
+    else if (action === 'escape') { h.key('Escape'); await tick(); }
+    else if (action === 'hidden') { Object.defineProperty(h.dom.window.document, 'visibilityState', {value:'hidden'}); h.dom.window.document.dispatchEvent(h.event('visibilitychange')); await tick(); }
+    else if (action === 'failedReply') await h.submit();
+    else { h.dom.window.dispatchEvent(h.event(action)); await tick(); }
+    cleared(h); assert.deepEqual(h.calls, [{promptId:id,accepted:action === 'failedReply'}]);
+    for (const word of words) assert.equal(word.textContent, '');
+    assert.equal(h.$('recoverynote').textContent, '');
+    assert.ok(!h.dom.window.document.body.textContent.includes(fixturePhrase));
+    assert.ok(!h.dom.window.document.body.textContent.includes('PRIVATE_BACKUP_FAILURE_CANARY'));
+    await h.submit(); await h.cancel(); assert.equal(h.calls.length, 1);
   }
 });

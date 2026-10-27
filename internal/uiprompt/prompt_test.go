@@ -29,7 +29,7 @@ func prompt(kind string) Prompt {
 	case "receive":
 		p.Address = "0xPublic"
 		p.PNG = []byte("public fixture PNG")
-	case "recovery":
+	case "recovery", "recoveryBackup":
 		p.Phrase = fixturePhrase
 	case "file":
 		v := false
@@ -41,7 +41,7 @@ func prompt(kind string) Prompt {
 }
 
 func TestPromptSchemasAreExactAndBounded(t *testing.T) {
-	for _, kind := range []string{"input", "confirm", "notice", "receive", "recovery", "file", "copy"} {
+	for _, kind := range []string{"input", "confirm", "notice", "receive", "recovery", "recoveryBackup", "file", "copy"} {
 		p := prompt(kind)
 		if _, e := DecodePrompt(encoded(t, p)); e != nil {
 			t.Fatalf("valid %s denied", kind)
@@ -86,7 +86,7 @@ func TestPromptSchemasAreExactAndBounded(t *testing.T) {
 	}{
 		{"confirm", func(p *Prompt) { p.Summary = strings.Repeat("x", 65537) }},
 		{"receive", func(p *Prompt) { p.Address = "" }}, {"receive", func(p *Prompt) { p.PNG = nil }}, {"receive", func(p *Prompt) { p.PNG = make([]byte, 262145) }},
-		{"recovery", func(p *Prompt) { p.Phrase = "abandon about" }}, {"file", func(p *Prompt) { p.Save = nil }}, {"copy", func(p *Prompt) { p.Address = "" }},
+		{"recovery", func(p *Prompt) { p.Phrase = "abandon about" }}, {"recoveryBackup", func(p *Prompt) { p.Phrase = "abandon about" }}, {"file", func(p *Prompt) { p.Save = nil }}, {"copy", func(p *Prompt) { p.Address = "" }},
 	} {
 		p := prompt(tc.kind)
 		tc.change(&p)
@@ -117,7 +117,7 @@ func TestRepliesAreSingleKindStrictAndLengthBounded(t *testing.T) {
 	if _, e := DecodeReply(invalidUTF8, prompt("input")); e == nil {
 		t.Fatal("malformed UTF8 secret input repaired silently")
 	}
-	for _, kind := range []string{"input", "confirm", "notice", "receive", "recovery", "file", "copy"} {
+	for _, kind := range []string{"input", "confirm", "notice", "receive", "recovery", "recoveryBackup", "file", "copy"} {
 		p := prompt(kind)
 		r := Reply{PromptID: p.ID, Accepted: true}
 		if kind == "input" {
@@ -277,10 +277,58 @@ func TestRecoveryRequiresActualRecordedWordsInGo(t *testing.T) {
 	}
 }
 
+func TestBackupRecoveryUsesDistinctStrictDisplayOnlyPrompt(t *testing.T) {
+	for _, mode := range []string{"accepted", "cancelled", "transport", "extra-values", "extra-path", "wrong-id"} {
+		t.Run(mode, func(t *testing.T) {
+			calls := 0
+			u := &UI{Exchange: func(p Prompt) (Reply, error) {
+				calls++
+				if p.Kind != "recoveryBackup" || p.Phrase != fixturePhrase || len(p.Labels) != 0 || p.Summary != "" || p.Address != "" || len(p.PNG) != 0 || p.Save != nil {
+					t.Fatal("backup was not a distinct phrase-only prompt")
+				}
+				r := Reply{PromptID: p.ID, Accepted: true}
+				switch mode {
+				case "cancelled":
+					r.Accepted = false
+				case "transport":
+					return Reply{}, ErrProtocol
+				case "extra-values":
+					r.Values = []string{"PUBLIC-not-allowed"}
+				case "extra-path":
+					r.Path = "/tmp/PUBLIC-not-allowed"
+				case "wrong-id":
+					r.PromptID = strings.Repeat("f", 32)
+				}
+				return r, nil
+			}}
+			if u.BackupRecovery("Back up recovery phrase", []byte(fixturePhrase)) != (mode == "accepted") || calls != 1 {
+				t.Fatal("backup acknowledged malformed reply or issued a setup challenge")
+			}
+		})
+	}
+	for _, bad := range []string{"", "abandon about", strings.Repeat("abandon ", 11) + "ABOUT", strings.Repeat("abandon ", 11) + "about "} {
+		if (&UI{}).BackupRecovery("Back up recovery phrase", []byte(bad)) {
+			t.Fatal("backup accepted a malformed phrase")
+		}
+	}
+	base := prompt("recoveryBackup")
+	for _, field := range []string{"values", "summary", "address", "labels", "png", "save"} {
+		var fields map[string]any
+		if json.Unmarshal(encoded(t, base), &fields) != nil {
+			t.Fatal("fixture schema invalid")
+		}
+		fields[field] = "PUBLIC-cross-kind"
+		if _, err := DecodePrompt(encoded(t, fields)); err == nil {
+			t.Fatal("backup accepted a cross-kind field")
+		}
+	}
+}
+
 // Fuzz only public protocol fixtures. No UI is instantiated and no entropy,
 // phrase generation, filesystem or network operation can occur in this target.
 func FuzzPromptProtocol(f *testing.F) {
 	f.Add([]byte(`{"id":"` + fixtureID + `","kind":"input","title":"Public fixture","labels":["Password"]}`))
+	f.Add(encodedFixtureBackup())
 	f.Add([]byte(`{"promptId":"` + fixtureID + `","accepted":false}`))
 	f.Add([]byte(`{"promptId":"` + fixtureID + `","accepted":true,"values":["PUBLIC-fixture"]}`))
 	f.Add([]byte(`{"id":"x","id":"y"}`))
@@ -310,4 +358,8 @@ func FuzzPromptProtocol(f *testing.F) {
 			clear(encoded)
 		}
 	})
+}
+
+func encodedFixtureBackup() []byte {
+	return []byte(`{"id":"` + fixtureID + `","kind":"recoveryBackup","title":"Back up recovery phrase","phrase":"` + fixturePhrase + `"}`)
 }

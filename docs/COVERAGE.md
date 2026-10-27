@@ -1,5 +1,7 @@
 # Go coverage and remaining-path review
 
+Current phrase-backup update (2026-10-27): all **25** Go package floors pass against **193** current source/test/module hashes. `Engine.BackupPhrase` and `uiprompt.BackupRecovery` have **100% statements** with explicit authentication/cancellation/session tests and four killed semantic mutants. The aggregate remains **FAIL** because pinned Decred simnet is unavailable; nine skipped aggregate tests remain explicit. Frontend evidence passes **159** tests with all eight JS files at **100% statements**. Full details and limits: [PHRASE_BACKUP.md](PHRASE_BACKUP.md).
+
 The detailed block review below describes the previous hardening baseline. The Exchange extension adds critical 95% floors for `internal/exchange` and its real Bybit client without reducing existing floors. Current regenerated profiles, source hashes and explicit optional-test skips are in `reports/go-coverage.json`, `reports/coverage.json` and `reports/go-uncovered.json`; current results are recorded in [EXCHANGE.md](EXCHANGE.md) and [STATUS.md](STATUS.md). Earlier percentages and block counts below are historical.
 
 This is an internal implementation review, not an external audit. Go measures statements, not branches. A passing percentage does not establish network compatibility, a clean-desktop recovery drill or production readiness. Public funded testnets, the full installed OS/display matrix, the 24-hour campaign and independent review retain their separate recorded statuses.

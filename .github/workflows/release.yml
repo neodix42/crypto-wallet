@@ -30,7 +30,7 @@ jobs:
           node-version: 24.19.0
           package-manager-cache: false
       - name: Install native and isolated display test prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux
+        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux apparmor-utils
       - name: Provision pinned release authentication tool
         run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
       - name: Choose the next version
@@ -53,8 +53,10 @@ jobs:
         run: make test-recovery
       - name: Exercise owned-process crashes and secret canaries
         run: ./scripts/with-go.sh python3 scripts/crash-security.py
+      - name: Permit sandboxed desktop checks in an ephemeral CI AppArmor profile
+        run: python3 scripts/ci-desktop.py setup
       - name: Exercise the actual portable Electron wallet and recovery dialogs
-        run: make test-packaged
+        run: python3 scripts/ci-desktop.py run -- make test-packaged
       - name: Build the same version into complete desktop and Go component artifacts
         run: make package-desktop package-go
       - name: Verify candidate version and packaged production security
@@ -63,7 +65,10 @@ jobs:
           ./scripts/with-toolchain.sh python3 scripts/verify-version.py --go-only
           ./scripts/with-toolchain.sh node scripts/verify-artifact.cjs
       - name: Execute an approved portable-wallet payment on isolated actual geth
-        run: ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
+        run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
+      - name: Remove the ephemeral CI desktop AppArmor profile
+        if: always()
+        run: python3 scripts/ci-desktop.py cleanup
       - name: Retain evidence for the actual complete desktop artifact
         run: python3 scripts/record-evidence.py
       - name: Prepare complete release payload and exact checksum inventory

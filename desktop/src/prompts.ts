@@ -1,6 +1,6 @@
 // This transport is private to the isolated, temporary Electron prompt window.
 // Portfolio IPC has a separate public-data-only allowlist.
-export type PromptKind='input'|'confirm'|'notice'|'receive'|'recovery'|'file'|'copy';
+export type PromptKind='input'|'confirm'|'notice'|'receive'|'recovery'|'recoveryBackup'|'file'|'copy';
 export interface Prompt {id:string;kind:PromptKind;title:string;labels?:string[];summary?:string;phrase?:string;png?:string;address?:string;save?:boolean}
 export interface PromptReply {promptId:string;accepted:boolean;values?:string[];path?:string}
 function object(value:unknown):Record<string,unknown>{if(value===null||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid prompt');return value as Record<string,unknown>}
@@ -12,7 +12,7 @@ export function validatePrompt(value:unknown):Prompt{
  switch(p['kind']){
   case 'input':exact(p,[...required,'labels']);if(!Array.isArray(p['labels'])||p['labels'].length<1||p['labels'].length>8||p['labels'].some(label=>!text(label,256)||label.length===0))throw new Error('Invalid prompt labels');break;
   case 'confirm':case 'notice':exact(p,[...required,'summary']);if(!text(p['summary'],65536))throw new Error('Invalid prompt summary');break;
-  case 'recovery':exact(p,[...required,'phrase']);if(!text(p['phrase'],512)||!/^([a-z]+ )*(?:[a-z]+)$/.test(p['phrase'])||![12,15,18,21,24].includes(p['phrase'].split(' ').length))throw new Error('Invalid recovery prompt');break;
+  case 'recovery':case 'recoveryBackup':exact(p,[...required,'phrase']);if(!text(p['phrase'],512)||!/^([a-z]+ )*(?:[a-z]+)$/.test(p['phrase'])||![12,15,18,21,24].includes(p['phrase'].split(' ').length))throw new Error('Invalid recovery prompt');break;
   case 'receive':exact(p,[...required,'summary','png','address']);if(!text(p['summary'],65536)||!text(p['address'],512)||p['address'].length===0||!text(p['png'],350000)||!/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(p['png']))throw new Error('Invalid receive prompt');break;
   case 'file':exact(p,[...required,'save']);if(typeof p['save']!=='boolean')throw new Error('Invalid file prompt');break;
   case 'copy':exact(p,[...required,'address']);if(!text(p['address'],512)||p['address'].length===0)throw new Error('Invalid copy prompt');break;

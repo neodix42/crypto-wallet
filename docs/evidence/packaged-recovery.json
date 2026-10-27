@@ -169,17 +169,17 @@
     "authenticated live Decred mainnet balance/discovery"
   ],
   "environment": "mainnet",
-  "producerSHA256": "73e0289279274d2ed29a68f5fcce481b7b63557e397cf43e9d3e314fd1b79ccb",
-  "phraseHelperSHA256": "9b8d81c80fdb50985767671267952ff33360b26907e2898ddac59c6b436d63c6",
+  "producerSHA256": "76b176bbd2f3d2a0b30531bb609213e7ca299d34bb795293e9bfe10dc681c45a",
+  "phraseHelperSHA256": "d25ca069eade42be3266798c3dda2227a9b54dc4f356efcedb3303a11a434dc0",
   "sourceStable": true,
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "cd0ff703d2d08509f4748d431022e8a2a5bb90c3a7c3ecb748d52a547f04c923",
-      "wallet-launcher": "2361f3735485f79613da2532b15d60b6830a41bd2c8a153ae47a5acacc3feca7",
-      "wallet-signer": "16d87d959abda4566885a788fae98168690fc7400ecc872a7b722748714b1a60"
+      "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
+      "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
+      "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
     },
-    "asarSHA256": "f3c9341f32986f7a6ba1fc760000839e4eba59329749b468fbae1497ce5e9a00"
+    "asarSHA256": "7b3e9015cb7e2440e7716757f4805539c9b5973e5858a1e36755d3f617e4abc9"
   },
   "initialWindowObservations": [
     {
@@ -245,7 +245,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.017,
+      "firstAbsentSecondsAfterNativeAction": 8.314,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": true
     },
@@ -276,7 +276,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.054,
+      "firstAbsentSecondsAfterNativeAction": 8.051,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": false
     },
@@ -307,7 +307,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.058,
+      "firstAbsentSecondsAfterNativeAction": 8.032,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": false
     },
@@ -338,7 +338,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 7.814,
+      "firstAbsentSecondsAfterNativeAction": 7.791,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": true
     }

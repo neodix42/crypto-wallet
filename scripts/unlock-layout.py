@@ -146,7 +146,7 @@ try:
             time.sleep(.7)
 
         launch()
-        gui.click('Restore from recovery phrase')
+        gui.click_button('Restore from recovery phrase')
         gui.prompt('Create local wallet')
         desktop.inputs('Create local wallet', [PASSWORD, PASSWORD, PHRASE, ''])
         desktop.accept('Create local wallet')
@@ -284,6 +284,10 @@ finally:
     if handler_refs is not None:
         handler_refs[2]()
     stop(xvfb)
+    # Stop the app before deleting any cache paths recreated during failure
+    # unwinding. This tree belongs solely to the disposable test run.
+    if 'owned' in globals() and owned.exists():
+        shutil.rmtree(owned)
     for log in logs:
         log.close()
     report['cleanup'] = {'walletExited': app is None or app.poll() is not None,

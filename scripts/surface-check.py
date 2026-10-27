@@ -13,6 +13,7 @@ for name in ['cmd/wallet-signer/main.go', 'cmd/wallet-core/main.go']:
     callable_names = {value for case in cases for value in re.findall(r'"([A-Za-z][A-Za-z0-9]*)"', case)}
     assert not callable_names.intersection({'backup', 'restore', 'revealPhrase', 'exportPhrase', 'getMnemonic'}), name
     assert 'confirmRecovery' in callable_names, name
+    assert 'backupPhrase' in callable_names, name
 
 # This policy is deliberately independent of the implementation's method list:
 # public state can describe recovery completion, never a recovery secret. A new
@@ -45,6 +46,7 @@ subprocess.run(['node', '-e', r'''
 const assert = require('node:assert/strict');
 const {validate, methods} = require('./desktop/app/validation.js');
 validate('confirmRecovery', {});
+validate('backupPhrase', {});
 for (const method of ['accounts','history','chainHistory']) {
   const base=method==='chainHistory'?{accountId:'public'}:{};
   validate(method,{...base,cursor:'ab'.repeat(16)});
@@ -60,7 +62,7 @@ for(const method of ['exchangeStatus','exchangeDisconnect','exchangeConnect','ex
  validate(method,base);
  for(const key of ['apiKey','apiSecret','secret','signature','payload','address','beneficiary','questionnaire'])assert.throws(()=>validate(method,{...base,[key]:'PUBLIC_FORBIDDEN_FIELD'}));
 }
-for (const method of ['create','import','unlock','confirmRecovery']) {
+for (const method of ['create','import','unlock','confirmRecovery','backupPhrase']) {
   const base = method === 'create' || method === 'import' ? {words:12} : {};
   for (const key of ['password','phrase','mnemonic','passphrase','seed','privateKey','recordedWords']) {
     assert.throws(() => validate(method, {...base, [key]:'PUBLIC-SYNTHETIC-FORBIDDEN'}), method + ':' + key);

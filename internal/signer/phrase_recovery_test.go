@@ -86,7 +86,7 @@ func TestFreshMachinePhraseRecoveryAllNetworksAndStoragePasswords(t *testing.T) 
 	}
 }
 
-func TestCancelledRecoveryResumesSameDurableRootAndCannotBeRevealedAfterwards(t *testing.T) {
+func TestCancelledRecoveryResumesSameDurableRootAndSetupCannotBeRepeated(t *testing.T) {
 	e, ui, dir := newEngine(t, chains.All())
 	pending := false
 	ui.recoveryApprove = &pending
@@ -129,7 +129,7 @@ func TestCancelledRecoveryResumesSameDurableRootAndCannotBeRevealedAfterwards(t 
 		t.Fatal("resume changed root or canonical wallets")
 	}
 	if e.ConfirmRecovery() == nil {
-		t.Fatal("confirmed root exposed repeated recovery reveal")
+		t.Fatal("confirmed root reused initial setup instead of separately authenticated backup")
 	}
 	e.Lock()
 	ui.inputs = append(ui.inputs, input(syntheticPassword))

@@ -79,7 +79,7 @@
     "scripts/release_assets.py": "be90ee2dacf249961a286d8fda1e81f661ad6d61c962ec64641156c4fe247b36",
     "scripts/release-auth-test.py": "7683aaa2d25b78879941ba5734239b1425fc2f97e5b1a596f788a15bced0183f",
     "scripts/bootstrap-gh.py": "f9c9ab610035c9de82bb3fe0587ab7aad984d277991218976953c41d5333c74a",
-    ".github/workflows/release.yml": "61b9d00a4c7d26b927d874db6eeeb5f8fe3d09a08c3d8f097a8150d25c2d0aac"
+    ".github/workflows/release.yml": "f059e66676cc17b87affa3b76f084af185c62db775ea0504f9ad86c2ea9cc721"
   },
   "scope": "Hermetic complete-release inventories, exact publisher policy and real frozen upstream Sigstore/certificate/transparency verification; ephemeral wrong-key test only. No signing of LocalWallet or remote workflow/publication.",
   "publisherSigning": "NOT_RUN: no workflow was triggered and no LocalWallet publisher attestation was fabricated",

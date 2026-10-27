@@ -62,7 +62,7 @@ while True:
  state.setdefault('calls',[]).append(method)
  output=None
  if method in state.get('reject',[]):error='SYNTHETIC_DENIED'
- elif method in ['snapshot','accounts','status','confirmRecovery','accountPage']:
+ elif method in ['snapshot','accounts','status','confirmRecovery','backupPhrase','accountPage']:
   allaccounts=state.get('accounts',[]);offset=int(body.get('cursor','') or '0');accounts=allaccounts[offset:offset+128]
   output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':accounts,'operations':None,'recoveryConfirmed':True,'revision':str(state.get('revision',1)),'totalAccounts':len(allaccounts),'totalOperations':len(state.get('ops',[])),'accountsCursor':str(offset+len(accounts)) if offset+len(accounts)<len(allaccounts) else ''}
  elif method=='pending':output=state.get('ops',[])
@@ -220,7 +220,7 @@ func message(method string, body any) ipc.Message {
 func TestTP041PublicHandlerSchemas(t *testing.T) {
 	a := &publicAdapter{}
 	c, path := fakeCoordinator(t, a, nil)
-	for _, method := range []string{"balances", "prepare", "send", "retry", "reconcile", "associate", "confirmRecovery"} {
+	for _, method := range []string{"balances", "prepare", "send", "retry", "reconcile", "associate", "confirmRecovery", "backupPhrase"} {
 		if _, e := c.handle(message(method, map[string]any{"password": "untrusted"})); e == nil {
 			t.Fatalf("secret/unknown field accepted by %s", method)
 		}
@@ -231,7 +231,7 @@ func TestTP041PublicHandlerSchemas(t *testing.T) {
 	if _, e := c.adapter("unknown"); e == nil {
 		t.Fatal("unknown adapter")
 	}
-	for _, method := range []string{"create", "import", "unlock", "confirmRecovery", "password", "addAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure"} {
+	for _, method := range []string{"create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure"} {
 		if _, e := c.handle(message(method, map[string]any{})); e != nil {
 			t.Fatalf("forward %s %v", method, e)
 		}
@@ -984,6 +984,30 @@ func TestTP033RecoveryConfirmationHasOnlyPublicSnapshotAndRemovedMethodsCannotRe
 		out, err := c.handle(ipc.Message{ID: "recovery-public-schema", Session: "fixture", Method: "confirmRecovery", Body: []byte(body)})
 		if err == nil || out != nil || err.Error() != "invalid fields" {
 			t.Fatal("credential or malformed confirmation reached signer", body, err)
+		}
+	}
+}
+
+func TestTP033BackupPhraseOnlyAcceptsEmptyPublicRequestAndReturnsPublicState(t *testing.T) {
+	c, _ := fakeCoordinator(t, &publicAdapter{}, nil)
+	out, err := c.handle(message("backupPhrase", struct{}{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(out)
+	if err != nil || !bytes.Contains(raw, []byte(`"recoveryConfirmed":true`)) {
+		t.Fatal("backup did not return public state")
+	}
+	for _, secret := range []string{`"phrase"`, `"mnemonic"`, `"entropy"`, `"password"`, `"seed"`, `"privateKey"`, `"passphrase"`} {
+		if bytes.Contains(raw, []byte(secret)) {
+			t.Fatal("backup public reply exposed a secret field")
+		}
+	}
+	c.child.Kill()
+	c.child.Path = filepath.Join(t.TempDir(), "unavailable-peer")
+	for _, body := range []string{`null`, `[]`, `{"password":"PUBLIC-FORBIDDEN"}`, `{"phrase":"PUBLIC-FORBIDDEN"}`, `{"confirmed":true}`, `{"words":["PUBLIC-FORBIDDEN"]}`, `{"x":1,"x":2}`} {
+		if out, err := c.handle(ipc.Message{ID: "backup-public-schema", Session: "fixture", Method: "backupPhrase", Body: []byte(body)}); err == nil || out != nil {
+			t.Fatal("credential or malformed backup request reached signer")
 		}
 	}
 }

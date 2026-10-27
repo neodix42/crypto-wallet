@@ -519,7 +519,7 @@ func TestDispatchCreateImportAndFixedEnvironmentBoundaries(t *testing.T) {
 func TestDispatchRejectsMalformedUnknownSecretBearingAndLockedRequests(t *testing.T) {
 	e, u := dispatchEngine(t, "testnet", false)
 	typed := []string{"create", "import", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "discovery", "associate", "configure", "prepare", "sign", "update"}
-	empty := []string{"unlock", "lock", "snapshot", "settings", "scanQR", "confirmRecovery", "password", "pending"}
+	empty := []string{"unlock", "lock", "snapshot", "settings", "scanQR", "confirmRecovery", "backupPhrase", "password", "pending"}
 	for _, method := range append(append([]string{}, typed...), empty...) {
 		t.Run(method, func(t *testing.T) {
 			before := u.inputCalls + u.confirmCalls + u.fileCalls + u.receiveCalls + u.recoveryCalls
@@ -535,7 +535,7 @@ func TestDispatchRejectsMalformedUnknownSecretBearingAndLockedRequests(t *testin
 			}
 		})
 	}
-	for _, method := range []string{"unlock", "scanQR", "confirmRecovery", "password"} {
+	for _, method := range []string{"unlock", "scanQR", "confirmRecovery", "backupPhrase", "password"} {
 		denied(t, e, method, struct{}{})
 	}
 	for _, method := range []string{"create", "import"} {

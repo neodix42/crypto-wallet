@@ -4,11 +4,11 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "cd0ff703d2d08509f4748d431022e8a2a5bb90c3a7c3ecb748d52a547f04c923",
-      "wallet-launcher": "2361f3735485f79613da2532b15d60b6830a41bd2c8a153ae47a5acacc3feca7",
-      "wallet-signer": "16d87d959abda4566885a788fae98168690fc7400ecc872a7b722748714b1a60"
+      "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
+      "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
+      "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
     },
-    "asarSHA256": "f3c9341f32986f7a6ba1fc760000839e4eba59329749b468fbae1497ce5e9a00",
+    "asarSHA256": "7b3e9015cb7e2440e7716757f4805539c9b5973e5858a1e36755d3f617e4abc9",
     "electronSHA256": "8128613dc65fe7474250f03d8e60eeb83f9812db0b8d4172ef88012602c3758c"
   },
   "fuses": {
@@ -42,30 +42,30 @@
   ],
   "payloadSHA256": {
     "app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
-    "app/main.js": "c3c0e2427fc36676266a0754457eee299f954eee90e64e5338e438368d108ef3",
-    "app/preload.js": "847241abe7c04b0755c07a8568f86ed01e064808e3035cb4bb71d60f5d14bd70",
+    "app/main.js": "53fc244e6ebf98b41bfbed2f1d0c4096591e42c9a0445f8e45e4bd3eaf46c2d3",
+    "app/preload.js": "d2097406deecb77c59d8f29f40cc654d74596c12bcf95be26d9629c34756b97b",
     "app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
-    "app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
-    "app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "ui/index.html": "682ccdeb9b7ee371a27d0777059e5dd9d4682a10a7aea56ba0bfc687db463790",
+    "app/prompts.js": "63065e54ccbc212c48c16751c0973bde395eb112c4b777e468e663acdf34c61a",
+    "app/validation.js": "bc85a3afb0abbe6b8224c3f5139702391936e4c1b3b1fa16d2678eda0f095efd",
+    "ui/index.html": "5afffb195bdba6c3c72b33cd721d8d3226955cda40bdd33f1f02f349539c7fff",
     "ui/prompt.css": "e61aa07e40dc7c5471dfed0f359cfe5dd6b525030502e0fd8b6aa3b69368fb52",
-    "ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
-    "ui/prompt.js": "09d5ec7eec003b9e1b1c4b5b66d44aa514d4a46954cc75385c4c26038f2083a6",
-    "ui/renderer.js": "435bc2055b90401fa46a759ffd054645263ead42ab498e4db294bf37967ebb66",
+    "ui/prompt.html": "44b80cee659d67d4ef25c2b16d87fb8df2aa781a30a8bbe1be1dc6ae23a7d2bb",
+    "ui/prompt.js": "f2bf2eca72477d9ff00e8eedd553f9918e8a3e47102784e44d2af93107315ff5",
+    "ui/renderer.js": "1f5b51a369747b4f9fd8a22454ab11f230ab4a8a570a84e8184de59068722bdd",
     "ui/style.css": "c723895c8b8f351c6212fa278b7bbb617e5e5bb2208586a229d203f45906079b"
   },
   "productionSourceSHA256": {
     "desktop/app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
-    "desktop/app/main.js": "c3c0e2427fc36676266a0754457eee299f954eee90e64e5338e438368d108ef3",
-    "desktop/app/preload.js": "847241abe7c04b0755c07a8568f86ed01e064808e3035cb4bb71d60f5d14bd70",
+    "desktop/app/main.js": "53fc244e6ebf98b41bfbed2f1d0c4096591e42c9a0445f8e45e4bd3eaf46c2d3",
+    "desktop/app/preload.js": "d2097406deecb77c59d8f29f40cc654d74596c12bcf95be26d9629c34756b97b",
     "desktop/app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
-    "desktop/app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
-    "desktop/app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "desktop/ui/index.html": "682ccdeb9b7ee371a27d0777059e5dd9d4682a10a7aea56ba0bfc687db463790",
+    "desktop/app/prompts.js": "63065e54ccbc212c48c16751c0973bde395eb112c4b777e468e663acdf34c61a",
+    "desktop/app/validation.js": "bc85a3afb0abbe6b8224c3f5139702391936e4c1b3b1fa16d2678eda0f095efd",
+    "desktop/ui/index.html": "5afffb195bdba6c3c72b33cd721d8d3226955cda40bdd33f1f02f349539c7fff",
     "desktop/ui/prompt.css": "e61aa07e40dc7c5471dfed0f359cfe5dd6b525030502e0fd8b6aa3b69368fb52",
-    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
-    "desktop/ui/prompt.js": "09d5ec7eec003b9e1b1c4b5b66d44aa514d4a46954cc75385c4c26038f2083a6",
-    "desktop/ui/renderer.js": "435bc2055b90401fa46a759ffd054645263ead42ab498e4db294bf37967ebb66",
+    "desktop/ui/prompt.html": "44b80cee659d67d4ef25c2b16d87fb8df2aa781a30a8bbe1be1dc6ae23a7d2bb",
+    "desktop/ui/prompt.js": "f2bf2eca72477d9ff00e8eedd553f9918e8a3e47102784e44d2af93107315ff5",
+    "desktop/ui/renderer.js": "1f5b51a369747b4f9fd8a22454ab11f230ab4a8a570a84e8184de59068722bdd",
     "desktop/ui/style.css": "c723895c8b8f351c6212fa278b7bbb617e5e5bb2208586a229d203f45906079b"
   },
   "productionPayloadMatchesSource": true,

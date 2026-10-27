@@ -54,7 +54,7 @@ function showOperationError(error) {
 }
 const gates = {
   checking: ['Checking your local wallet', 'Reading the local vault status. No password dialog opens until you choose an action.'],
-  missing: ['Create your app password', 'Choose your password in the wallet dialog. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Write down your generated phrase in the wallet dialog, then confirm the requested words to finish setup.'],
+  missing: ['Create your app password', 'Choose your password in the wallet dialog. The signer generates one BIP39 root and derives Main account (index 0) across every supported network. Write down your generated phrase in the wallet dialog, then confirm the requested words to finish setup. Already have a secret phrase? Choose Restore from recovery phrase to import it instead.'],
   present: ['Welcome back', 'Your encrypted wallet is already on this device. Enter its app password in the wallet dialog to unlock your accounts.'],
   unavailable: ['Wallet storage unavailable', 'The local vault could not be inspected safely. Check storage access and retry. Creation and restoration remain unavailable while its state is uncertain.']
 };
@@ -62,6 +62,7 @@ function renderGate() {
   const ready = vaultMode === 'ready', missing = vaultMode === 'missing', present = vaultMode === 'present';
   $('onboarding').hidden = ready || settingsOpen; $('walletcontent').hidden = !ready || settingsOpen;
   $('emptyactions').hidden = !missing; $('walletactions').hidden = !ready;
+  $('backupphrase').hidden = !ready || recoveryRequired;
   $('unlock').hidden = !present; $('lock').disabled = !ready;
   $('onboardcreate').hidden = !missing; $('onboardrestore').hidden = !missing; $('onboardunlock').hidden = !present;
   $('onboardretry').hidden = vaultMode !== 'unavailable';
@@ -814,13 +815,13 @@ for (const [index, section] of settingsSections.entries()) {
 }
 const credentialActions = [
   ['unlock', 'unlock', {}], ['create', 'create', { words: 12 }], ['create24', 'create', { words: 24 }],
-  ['import', 'import', { words: 12 }], ['recoverysettings', 'confirmRecovery', {}], ['password', 'password', {}],
+  ['import', 'import', { words: 12 }], ['recoverysettings', 'confirmRecovery', {}], ['backupphrase', 'backupPhrase', {}], ['password', 'password', {}],
   ['onboardcreate', 'create', { words: 12 }], ['onboardrestore', 'import', { words: 12 }], ['onboardunlock', 'unlock', {}], ['recoverycontinue', 'confirmRecovery', {}]
 ];
 let credentialPending = false;
 for (const [id, method, body] of credentialActions) $(id).onclick = async () => {
-  if (credentialPending || method === 'confirmRecovery' && (vaultMode !== 'ready' || !recoveryRequired)) return;
-  closeSettings();
+  if (credentialPending || method === 'confirmRecovery' && (vaultMode !== 'ready' || !recoveryRequired) || method === 'backupPhrase' && (vaultMode !== 'ready' || recoveryRequired)) return;
+  if (method !== 'backupPhrase') closeSettings();
   credentialPending = true;
   for (const [button] of credentialActions) $(button).disabled = true;
   try { await run(async () => {

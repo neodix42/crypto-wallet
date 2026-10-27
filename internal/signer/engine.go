@@ -47,6 +47,7 @@ type Engine struct {
 	parameters             vault.Parameters
 	persistFailed          bool
 	initializing           bool
+	backupInProgress       bool
 	exchangeAuthorizations map[string]string
 }
 type Snapshot struct {
@@ -293,9 +294,9 @@ func (e *Engine) Create(environment string, words int, importing bool) error {
 	return e.recordRecovery()
 }
 
-// ConfirmRecovery resumes interrupted setup only. Once acknowledged there is
-// no reveal/export endpoint. Password reauthentication happens before a secret
-// is passed to the native Go window; none of its contents enter public IPC.
+// ConfirmRecovery resumes interrupted setup only. An acknowledged wallet uses
+// the independently authenticated BackupPhrase flow for subsequent recording.
+// None of the phrase contents enter ordinary public IPC.
 func (e *Engine) ConfirmRecovery() error {
 	if e.data == nil || e.persistFailed || e.data.RecoveryConfirmed {
 		return ErrDenied
@@ -310,6 +311,66 @@ func (e *Engine) ConfirmRecovery() error {
 		return ErrDenied
 	}
 	return e.recordRecovery()
+}
+
+// BackupPhrase permits a fresh, password-authenticated on-screen recording of
+// the existing root. It neither exports a file nor changes recovery authority,
+// wallet generation, accounts or journal. Engine operations are serialized by
+// the signer; the guard also rejects reentry from a UI callback. A changed or
+// locked session invalidates authorization at every prompt boundary.
+func (e *Engine) BackupPhrase() error {
+	if !e.canAuthorize() || e.backupInProgress {
+		return ErrDenied
+	}
+	ui, ok := e.UI.(interface{ BackupRecovery(string, []byte) bool })
+	if !ok {
+		return ErrDenied
+	}
+	e.backupInProgress = true
+	defer func() { e.backupInProgress = false }()
+	d, generation := e.data, e.data.Generation
+	current := func() bool {
+		return e.data == d && e.canAuthorize() && d.Generation == generation
+	}
+	accepted := e.UI.Confirm("Back up recovery phrase", "The recovery phrase controls every wallet derived from this root. Anyone who sees it can take the assets. Continue only in a private place, write every numbered word in order and keep the copy offline. Your app password will be required before the phrase is shown.")
+	if !current() {
+		return ErrDenied
+	}
+	if !accepted {
+		return nil
+	}
+	in, err := e.UI.Input("Confirm app password to back up recovery phrase", "App password")
+	defer wipeInputs(in)
+	if !current() {
+		return ErrDenied
+	}
+	if err != nil {
+		return err
+	}
+	if len(in) != 1 || !hmac.Equal(in[0], e.password) {
+		return ErrDenied
+	}
+	// Authentication inputs are no longer needed while the words are displayed.
+	wipeInputs(in)
+	if len(d.Passphrase) != 0 {
+		accepted = e.UI.Confirm("Keep your separate BIP39 passphrase", "This wallet uses an optional BIP39 passphrase. Keep that exact passphrase separately from the recovery words. These words alone cannot restore the same wallets. The app password only encrypts this installation and cannot replace the original BIP39 passphrase.")
+		if !current() {
+			return ErrDenied
+		}
+		if !accepted {
+			return nil
+		}
+	}
+	phrase, err := derivation.Phrase(d.Entropy)
+	if err != nil {
+		return ErrDenied
+	}
+	defer clear(phrase)
+	ui.BackupRecovery("Back up recovery phrase — Go signer", phrase)
+	if !current() {
+		return ErrDenied
+	}
+	return nil
 }
 
 func (e *Engine) recordRecovery() error {

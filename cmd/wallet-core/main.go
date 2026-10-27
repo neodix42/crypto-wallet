@@ -175,7 +175,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
 		interactive = true
 	}
 	if interactive {
@@ -406,7 +406,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}()
 	switch m.Method {
-	case "networks", "status", "confirmRecovery":
+	case "networks", "status", "confirmRecovery", "backupPhrase":
 		if strictjson.Decode(m.Body, &struct{}{}) != nil {
 			return nil, errors.New("invalid fields")
 		}
@@ -441,7 +441,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			Version string `json:"version"`
 			snapshot
 		}{buildinfo.Version, s}, err
-	case "create", "import", "unlock", "confirmRecovery", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
 		var out json.RawMessage
 		if e := c.childCallAt(epoch, m.Method, json.RawMessage(m.Body), &out); e != nil {
 			return nil, e

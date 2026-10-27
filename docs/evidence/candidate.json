@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "001098c34250dc9af3d838cf59b234a6e8666525",
+  "sourceCommit": "a01471a301a31c788703ec5c94cd57279dcea209",
   "version": "0.1.0",
   "artifact": "localwallet-0.1.0-linux-amd64.tar.gz",
-  "sha256": "132827f0136f2926a83db68e18998e20b66ed6f3b6b47ccd718de67c3c776952",
+  "sha256": "6018baab2200cdc2afae97f4fcbdcd1026e8256291a9022ace2cf23d29cb1f86",
   "binaryManifest": {
-    "wallet-core": "cd0ff703d2d08509f4748d431022e8a2a5bb90c3a7c3ecb748d52a547f04c923",
-    "wallet-launcher": "2361f3735485f79613da2532b15d60b6830a41bd2c8a153ae47a5acacc3feca7",
-    "wallet-signer": "16d87d959abda4566885a788fae98168690fc7400ecc872a7b722748714b1a60"
+    "wallet-core": "31371f9f74946d34f1dd6ecf3df2d3aab01be3b5105fd2fbb2599e972617aebd",
+    "wallet-launcher": "fa8b76584339d8b5e5829c080b5ac99b0cdce43b8f222c2434cb257bf3aedbd4",
+    "wallet-signer": "2ca6eeb81e8b91adbd41042348254be4a5dd234f6a6f6314657aa0860e760b7f"
   },
   "go": "go version go1.27.3 linux/amd64",
   "status": "DEVELOPMENT_UNSIGNED",
@@ -16,19 +16,19 @@
       "report": "coverage",
       "status": "PASS",
       "file": "coverage.json",
-      "sha256": "6c63e6b6a5c54f4a97c36c4a9d7a721ab29240aad95269eee8bdfef7b1df7cc0"
+      "sha256": "3b5dc90e910095cbae8854e51fcbbffaaa1284846eb43f1ecf36d6ee8ed90d96"
     },
     {
       "report": "go-coverage",
       "status": "FAIL",
       "file": "go-coverage.json",
-      "sha256": "28c57da900a907061408abd8af3f1e42b2b90f0a1122d8c4b1bdf7584682cf5d"
+      "sha256": "934f61c670975a245fb12d0ce40376abe0c222b496297be3114f00a448f1abba"
     },
     {
       "report": "frontend-coverage",
       "status": "PASS",
       "file": "frontend-coverage.json",
-      "sha256": "117729046d0dadd670813ead5f266b3b6861bef819128fb736fb0f2b09dd8a0b"
+      "sha256": "17c2e89af4340333dd43f088dd8c60e3b428e4860ba8424dc80825044c2251fa"
     },
     {
       "report": "mutation",
@@ -40,7 +40,7 @@
       "report": "fuzz",
       "status": "PASS",
       "file": "fuzz.json",
-      "sha256": "932302af973607d1fd3b8c33ef518850c8aabf6713434e0f30e0ee090b14a066"
+      "sha256": "106299bb4e81ecfc8f6b0832e238fd8ebaca8cacd55d378d7715397c2d415ebf"
     },
     {
       "report": "integration",
@@ -52,7 +52,7 @@
       "report": "stress",
       "status": "PASS",
       "file": "stress.json",
-      "sha256": "44fa0f8fabe9c23c3f2b52a13e430db7a11fcbcfa51e94a2c97f439e09b4092c"
+      "sha256": "ebd75ba946c03a359dcc665ca99b968cacf48840cf60a116e409af2838d68784"
     },
     {
       "report": "stress-race",
@@ -76,7 +76,7 @@
       "report": "native-input",
       "status": "PASS",
       "file": "native-input.json",
-      "sha256": "eb7d349147981c0850d10189313d29a2dea58128d0a219b48e16c12f9f76cbda"
+      "sha256": "20fc4e49b0739889fad064dead72cb9f8c328e5b715f101539cc9311047bdb8f"
     },
     {
       "report": "native-input-long",
@@ -94,13 +94,13 @@
       "report": "packaged-recovery",
       "status": "PASS",
       "file": "packaged-recovery.json",
-      "sha256": "c799e02772e3d8e1d33a523239ca5cbb619b28b98a1f370b0991045f544bf043"
+      "sha256": "e2706e3e59fd035f9a88f8413a6a5e7fc37ee323595e0e8507461cc0378ca131"
     },
     {
       "report": "display-startup",
       "status": "PASS",
       "file": "display-startup.json",
-      "sha256": "42fb3f0f56a2ab582a01af70160132a2eee29216494ca9bcc1ac3aa9356e65a9"
+      "sha256": "f3cd2bc0540d018d357b32be7c02f724a9bed9e8d04012df1023b8b55bbeabdd"
     },
     {
       "report": "mainnet-rpc",
@@ -130,7 +130,7 @@
       "report": "phrase-recovery",
       "status": "PASS",
       "file": "phrase-recovery.json",
-      "sha256": "7faf1923589fbaa2ae1c159e8832fde72694727183d6119769b8a4a02ee587ef"
+      "sha256": "3ac38662445c2e6f4ff3fdb8c9f680975ee405e48287881bf936c033296a3981"
     },
     {
       "report": "phrase-onboarding",
@@ -214,7 +214,7 @@
       "report": "build-tools",
       "status": "PASS",
       "file": "build-tools.json",
-      "sha256": "1165f9b14a4858a900acaa41cbd8ad7334969d6267c30e499ea28f3289b9043a"
+      "sha256": "bd0cf471515842b25c693c49a8c5d373c8ed3c92acbc97c962141aa852f00651"
     },
     {
       "report": "go-only-build",
@@ -232,7 +232,7 @@
       "report": "artifact-security",
       "status": "PASS",
       "file": "artifact-security.json",
-      "sha256": "cfcabd959469e2fd66de1bf575ed7b7588494ad1111feec74890e4cd7a18ff2a"
+      "sha256": "d23eda23f3fe727f5ddbaf275f5d8582eec881f5b2312875ca092bf0cfe7f8c0"
     },
     {
       "report": "hypercore-pagination",
@@ -250,7 +250,7 @@
       "report": "release-auth",
       "status": "PASS",
       "file": "release-auth.json",
-      "sha256": "df608ef0eed9e61d5630b384c6c643692759eec8947bf90d6bac2d7d67c0affb"
+      "sha256": "6dc37a12854ee7bc60490fed0d8aad8d5363a63d58bebaaf2e273e95abe33d4f"
     },
     {
       "report": "release-evidence",
@@ -262,13 +262,13 @@
       "report": "crash-security",
       "status": "PASS",
       "file": "crash-security.json",
-      "sha256": "a2229b7d7306cf2b6f1cdf0f6c3a73a5f0d44a97dde64d47f690df7858706775"
+      "sha256": "4afc3e8a569e01e3cab5dba2e2fa45997a935031c8062ffe5c0b87d6271c4caa"
     },
     {
       "report": "packaged-send",
       "status": "PASS",
       "file": "packaged-send.json",
-      "sha256": "92e6db27cbb35553faf6f9aff81ee03bee6ed359d2c6c6cdbcf5a005a6640a86"
+      "sha256": "0e32f25bbaeb094c0a5fdbb7afd214b787196df96f1dcd0a8e5c985db292e508"
     },
     {
       "report": "fuzz-long",
@@ -502,13 +502,73 @@
       "report": "unlock-layout",
       "status": "PASS",
       "file": "unlock-layout.json",
-      "sha256": "01682b5a83d665b919bbbf93e499e1e7781698fcd97da1652e12d8170f2138d0"
+      "sha256": "c97999dd2e232736b9d8908e01d4bec73b36c8d6438aed746025bc5daca9483b"
     },
     {
       "report": "unlock-layout-before-fix",
       "status": "FAIL",
       "file": "unlock-layout-before-fix.json",
       "sha256": "3a5b15ab0b0f4bd9e6e5d9dc4d54e371b8342f186d6ff0134c6639fa9fa71cfb"
+    },
+    {
+      "report": "phrase-backup",
+      "status": "PASS",
+      "file": "phrase-backup.json",
+      "sha256": "2aaa791449b8b7962c5855d7a131211dba507bbf983ed4edbce4df862251cd72"
+    },
+    {
+      "report": "phrase-backup-packaged",
+      "status": "PASS",
+      "file": "phrase-backup-packaged.json",
+      "sha256": "b0352af2ebe96c2f5f1ae0a3a8b3de66b343b15984b8682c5f69b54a79c6bb56"
+    },
+    {
+      "report": "phrase-backup-mutation",
+      "status": "PASS",
+      "file": "phrase-backup-mutation.json",
+      "sha256": "0b6e4c636cbc469541b059f066d70218c47fb8d56711963d0d37ca4e53c03e11"
+    },
+    {
+      "report": "ci-desktop-tools",
+      "status": "PASS",
+      "file": "ci-desktop-tools.json",
+      "sha256": "f5754f5f8e07bdf71b6f0b56213d76f6f4d22513410b38a88cfd040286f746ed"
+    },
+    {
+      "report": "phrase-backup-canonical-attempt1",
+      "status": "FAIL",
+      "file": "phrase-backup-canonical-attempt1.json",
+      "sha256": "2585ee95b7ba3e3548d38256a27e234fb38efdaecffb84e6312231e71eda9f3e"
+    },
+    {
+      "report": "phrase-backup-packaged-attempt1",
+      "status": "FAIL",
+      "file": "phrase-backup-packaged-attempt1.json",
+      "sha256": "7a527d16fdee9fe87e83ba528ecc73c8824e3c5e82e0369f23705b3bebdf850d"
+    },
+    {
+      "report": "phrase-backup-packaged-attempt2",
+      "status": "FAIL",
+      "file": "phrase-backup-packaged-attempt2.json",
+      "sha256": "998f1a91b7e99c9695a46a4472f85cf2dd654ea76d0c445047a582b60adcc248"
+    },
+    {
+      "report": "phrase-backup-packaged-attempt3",
+      "status": "FAIL",
+      "file": "phrase-backup-packaged-attempt3.json",
+      "sha256": "4dce9ed421c0842e6070a8cfb261a212bc1fd3e79002e72e0ca37454be8a4171"
+    },
+    {
+      "report": "phrase-backup-packaged-send-attempt1",
+      "status": "FAIL",
+      "file": "phrase-backup-packaged-send-attempt1.json",
+      "sha256": "e5bb7fc7a1348be0f67fea42c48efd7f8e56aac76088e11d430e80b226f6b95e"
+    },
+    {
+      "report": "phrase-backup-unlock-layout-attempt1",
+      "status": "FAIL",
+      "file": "phrase-backup-unlock-layout-attempt1.json",
+      "sha256": "09c49602d2fd7164a7e79c95d6aeb092c96435f8abfd73459e96de479f9ba047"
     },
     {
       "report": "window-compact-packaged-attempt1",

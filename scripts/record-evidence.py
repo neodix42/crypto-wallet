@@ -11,6 +11,8 @@ names += sorted(path.stem for path in (root/'reports').glob('wallet-status-packa
 names += sorted(path.stem for path in (root/'reports').glob('wallet-status-late-probe*.json') if path.is_file())
 names += ['window-compact','window-compact-x11-driver']
 names += ['unlock-scroll','unlock-layout','unlock-layout-before-fix']
+names += ['phrase-backup','phrase-backup-packaged','phrase-backup-mutation','ci-desktop-tools']
+names += sorted(path.stem for path in (root/'reports').glob('phrase-backup-*-attempt[0-9]*.json') if path.is_file())
 names += sorted(path.stem for path in (root/'reports').glob('window-compact-packaged-attempt[0-9]*.json') if path.is_file())
 index=[]
 for name in names:
@@ -78,6 +80,9 @@ for pattern in ['wallet-status-late-probe*.log','wallet-status-late-probe*-produ
   if source.is_file():shutil.copyfile(source,out/source.name)
 for source in sorted((root/'reports').glob('window-compact-*.log')):
  if source.is_file():shutil.copyfile(source,out/source.name)
+for pattern in ['phrase-backup-*.log','phrase-backup-*-producer.py','phrase-backup-producer.py']:
+ for source in sorted((root/'reports').glob(pattern)):
+  if source.is_file():shutil.copyfile(source,out/source.name)
 for pattern in ['unlock-scroll-*.log','unlock-layout*.log','unlock-layout-before-fix-producer.py']:
  for source in sorted((root/'reports').glob(pattern)):
   if source.is_file():shutil.copyfile(source,out/source.name)

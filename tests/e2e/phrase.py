@@ -13,8 +13,11 @@ SECRET_TITLES=('Create local wallet','Unlock local wallet','Complete recovery se
 def secret_window(desktop):
  return desktop.secret_window()
 
-def record(desktop,expected=None,wrong=False):
- window,_=desktop.wait('Record recovery phrase',45);desktop.focus(window)
+def numbered(desktop,prefix='Record recovery phrase'):
+ # Read only the test-owned phrase view; do not acknowledge, log or persist it.
+ if prefix not in ('Record recovery phrase','Back up recovery phrase'):
+  raise ValueError('Unsupported disposable recovery-view title')
+ window,_=desktop.wait(prefix,45);desktop.focus(window)
  x,y,w,h=desktop.geometry(window)
  # OCR consumes a crop in memory. In particular, do not use Desktop.screenshot
  # or put these bytes into a temporary file or exception diagnostic.
@@ -22,14 +25,14 @@ def record(desktop,expected=None,wrong=False):
  for attempt in range(3):
   time.sleep(.2)
   buffer=io.BytesIO();crop=desktop.image().crop((x,y,x+w,y+h))
-  if desktop.wait('Record recovery phrase')[1].startswith('LocalWallet — '):
+  if desktop.wait(prefix)[1].startswith('LocalWallet — '):
    from PIL import ImageOps
    crop=ImageOps.invert(crop.convert('L'))
   crop.resize((w*2,h*2)).save(buffer,format='PNG')
   output=subprocess.check_output(['tesseract','stdin','stdout','--psm','6'],input=buffer.getvalue(),stderr=subprocess.DEVNULL)
   found={int(i):word for i,word in re.findall(rb'(?m)\b(\d{1,2})[.),:]?\s+([a-z]+)\b',output)}
   if set(found)==set(range(1,13)):break
- if set(found)!=set(range(1,13)) and desktop.wait('Record recovery phrase')[1].startswith('LocalWallet — '):
+ if set(found)!=set(range(1,13)) and desktop.wait(prefix)[1].startswith('LocalWallet — '):
   # Read each displayed grid cell independently when document OCR merges the
   # small ordinal with a word. Locate public CSS borders; secret pixels stay
   # exclusively in memory. Recovered addresses later verify the full phrase.
@@ -53,7 +56,10 @@ def record(desktop,expected=None,wrong=False):
      if re.fullmatch(rb'[a-z]+',value):parsed[row*3+column+1]=value
    if len(parsed)==12:found=parsed
  if set(found)!=set(range(1,13)):raise RuntimeError('Disposable phrase OCR incomplete: '+str(len(found))+' numbered words; '+str(len(groups) if 'groups' in locals() else 0)+' grid rows; '+str(len(parsed) if 'parsed' in locals() else 0)+' cells; no word/pixel diagnostic retained')
- phrase=b' '.join(found[i] for i in range(1,13))
+ return b' '.join(found[i] for i in range(1,13))
+
+def record(desktop,expected=None,wrong=False):
+ phrase=numbered(desktop)
  if expected is not None and phrase!=expected:raise RuntimeError('Pending setup changed the disposable root')
  desktop.accept('Record recovery phrase')
  desktop.wait('Confirm recovery phrase',15)

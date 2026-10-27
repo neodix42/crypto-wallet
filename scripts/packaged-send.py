@@ -125,6 +125,29 @@ class Gui:
             time.sleep(.2)
         raise RuntimeError('Required public packaged Send control was unavailable')
 
+    def click_button(self, phrase):
+        # Explanatory prose can repeat a button's caption. Require the label's
+        # actual normal/hover control fill, using public pixels only. This
+        # narrow selector is used for the first-run phrase-import button.
+        wanted = phrase.lower().split()
+        for attempt in range(12):
+            for threshold in (140, 90):
+                rows = self.ocr(threshold=threshold)
+                picture = self.desktop.image().convert('RGB')
+                for index, row in enumerate(rows):
+                    segment = rows[index:index + len(wanted)]
+                    if [value[11].lower().strip('.,:') for value in segment] != wanted or not all(value[1:5] == row[1:5] for value in segment):
+                        continue
+                    x, y = int(row[6]), int(row[7]) + int(row[9]) // 2
+                    if picture.getpixel((max(0, x-8), y)) not in ((36, 54, 80), (50, 76, 112)):
+                        continue
+                    self.desktop.focus(self.desktop.wait('LocalWallet')[0])
+                    self.desktop.click(x + int(row[8]) // 2, y)
+                    return
+            self.desktop.key('Home', ctrl=True) if attempt in (0, 6) else self.desktop.key('Page_Down')
+            time.sleep(.2)
+        raise RuntimeError('Actual first-run phrase-import button could not be identified from public pixels')
+
     def prompt(self, prefix):
         try:
             window, _ = self.desktop.wait(prefix, 45)
@@ -290,7 +313,7 @@ def inside(parent_namespace, owned_directory):
                                    stdout=app_log, stderr=app_log)
             gui.prompt('LocalWallet')
             time.sleep(1)
-            gui.click('Restore from recovery phrase')
+            gui.click_button('Restore from recovery phrase')
             gui.prompt('Create local wallet')
             desktop.inputs('Create local wallet', [PASSWORD, PASSWORD, PHRASE, ''])
             desktop.accept('Create local wallet')

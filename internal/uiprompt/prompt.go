@@ -113,7 +113,7 @@ func DecodePrompt(raw []byte) (Prompt, error) {
 		if !text(p.Summary, 65536, true) || !text(p.Address, 512, false) || len(p.PNG) == 0 || len(p.PNG) > 262144 {
 			return Prompt{}, ErrProtocol
 		}
-	case "recovery":
+	case "recovery", "recoveryBackup":
 		allowed += " phrase"
 		required += " phrase"
 		if !validPhrase([]byte(p.Phrase)) {
@@ -306,4 +306,15 @@ func (u *UI) Recovery(title string, phrase []byte) bool {
 		u.Notice("Recovery phrase not confirmed", "The recorded words did not match. Record the complete phrase in order, then try again. Your wallet remains unavailable for payments until this is complete.")
 	}
 	return matched
+}
+
+// BackupRecovery displays an already-confirmed root after Engine authorizes
+// this particular view. Its acknowledgment grants no authority and does not
+// repeat or alter the initial recorded-word challenge.
+func (u *UI) BackupRecovery(title string, phrase []byte) bool {
+	if !validPhrase(phrase) {
+		return false
+	}
+	_, err := u.ask(Prompt{Kind: "recoveryBackup", Title: title, Phrase: string(phrase)})
+	return err == nil
 }

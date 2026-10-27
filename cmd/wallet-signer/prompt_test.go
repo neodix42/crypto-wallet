@@ -199,6 +199,77 @@ func TestElectronPromptsRestoreFreshWalletsWithoutNativeWindowOrCopiedFiles(t *t
 	}
 }
 
+func TestBackupPhraseProtocolAuthenticatesEveryViewAndKeepsPublicRepliesSecretFree(t *testing.T) {
+	c := electronSigner(t)
+	initial := decodeSnapshot(t, electronCall(t, c, "import-backup", "import", map[string]int{"words": 12}, func(p uiprompt.Prompt) uiprompt.Reply {
+		r := uiprompt.Reply{Accepted: true}
+		if p.Kind == "input" {
+			r.Values = []string{publicPassword, publicPassword, publicPhrase, ""}
+		} else if p.Kind != "confirm" {
+			t.Fatal("unexpected fixture import prompt")
+		}
+		return r
+	}))
+	expected, _ := json.Marshal(initial.Accounts)
+	for i, mode := range []string{"cancel-confirm", "wrong-password", "cancel-password", "accepted", "cancel-display", "accepted"} {
+		stages := []string{}
+		result := electronCall(t, c, "backup-"+string(rune('a'+i)), "backupPhrase", struct{}{}, func(p uiprompt.Prompt) uiprompt.Reply {
+			stages = append(stages, p.Kind)
+			r := uiprompt.Reply{Accepted: true}
+			switch p.Kind {
+			case "confirm":
+				if p.Title != "Back up recovery phrase" || strings.Contains(p.Summary, publicPhrase) {
+					t.Fatal("backup confirmation contained unexpected secret or title")
+				}
+				r.Accepted = mode != "cancel-confirm"
+			case "input":
+				if len(p.Labels) != 1 || p.Labels[0] != "App password" {
+					t.Fatal("backup did not request app-password reauthentication")
+				}
+				r.Values = []string{publicPassword}
+				if mode == "wrong-password" {
+					r.Values[0] = "PUBLIC-incorrect-password"
+				}
+				if mode == "cancel-password" {
+					r.Accepted, r.Values = false, nil
+				}
+			case "recoveryBackup":
+				if mode == "wrong-password" || mode == "cancel-password" || mode == "cancel-confirm" || p.Phrase != publicPhrase || p.Title != "Back up recovery phrase" {
+					t.Fatal("backup disclosed an unauthorized or changed recovery phrase")
+				}
+				r.Accepted = mode != "cancel-display"
+			default:
+				t.Fatal("backup issued setup proof or unrelated prompt")
+			}
+			return r
+		})
+		for _, secret := range []string{publicPhrase, publicPassword, "PUBLIC-incorrect-password", `"entropy"`, `"passphrase"`, `"seed"`} {
+			if bytes.Contains(result.Body, []byte(secret)) || strings.Contains(result.Error, secret) {
+				t.Fatal("backup secret escaped its dedicated prompt channel")
+			}
+		}
+		wantStages := "confirm,input,recoveryBackup"
+		if mode == "wrong-password" || mode == "cancel-password" {
+			wantStages = "confirm,input"
+			if result.Error == "" {
+				t.Fatal("backup accepted cancelled or wrong password")
+			}
+		} else {
+			if mode == "cancel-confirm" {
+				wantStages = "confirm"
+			}
+			s := decodeSnapshot(t, result)
+			actual, _ := json.Marshal(s.Accounts)
+			if !s.RecoveryConfirmed || s.Locked || !bytes.Equal(expected, actual) {
+				t.Fatal("backup changed wallet recovery authority or accounts")
+			}
+		}
+		if strings.Join(stages, ",") != wantStages {
+			t.Fatal("backup reused prior authorization or displayed words after rejection")
+		}
+	}
+}
+
 func TestSignerRejectsWrongPromptCorrelationAndObsoleteGoWindowAPI(t *testing.T) {
 	for _, mode := range []string{"request", "session", "method", "prompt", "unknown", "duplicate"} {
 		t.Run(mode, func(t *testing.T) {

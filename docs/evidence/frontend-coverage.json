@@ -16,7 +16,7 @@
     {
       "file": "app/main.js",
       "statements": 100,
-      "branches": 98.53,
+      "branches": 98.55,
       "floors": {
         "statements": 95,
         "branches": 90
@@ -76,7 +76,7 @@
     {
       "file": "ui/renderer.js",
       "statements": 100,
-      "branches": 98.26,
+      "branches": 98.27,
       "floors": {
         "statements": 90,
         "branches": 85
@@ -88,37 +88,37 @@
     "desktop/package-lock.json": "d39ad314765ac8af099d034d426733d66b3895ca1783f17128de3ff7d4db3040",
     "desktop/package.json": "12e65389a8bc4dbfdc901106de0c5c4011376cd47d090b0a6a0a95aad0dee1d8",
     "desktop/src/codec.ts": "8513869e44c4156234199c4e7cf0aa34e0a0bdf44985f078e268940c44e29a70",
-    "desktop/src/main.ts": "0d987fadc860b96af1310d3b233834ad6d0ea14980284b4a98771a30fae977f1",
-    "desktop/src/preload.ts": "31d9276da4e9a9d87b916ec9e58aab3f30a7579485d42d4e55cf88ae9d13b82a",
+    "desktop/src/main.ts": "ab008ce48353c486a6107a829abc57c6ab61bb6133bc95afb9477f90e57310fb",
+    "desktop/src/preload.ts": "35178f5a7b62e1d8d2ddc52a249c2fd48940b3d8553a2f8b9d9f6ed598a2d1ef",
     "desktop/src/prompt-preload.ts": "2acc5b222e6c0382c4dd4bdf0a2180968582a08af4daa63a59e38a348b4f145c",
-    "desktop/src/prompts.ts": "5178a6a216943169b43d93f4836db8f02d3fc7b6a0d89c0f8fbb9189b59e3f25",
-    "desktop/src/validation.ts": "62cab0ca7c3eb4c6420fcd145851c0d71f816a8a42e953c38899220ca9196e61",
+    "desktop/src/prompts.ts": "357eef43b4c4ab5e3b544a34f7d2be71040f9eded794412514b7e288a06f45eb",
+    "desktop/src/validation.ts": "f5dc726896996dec566857a2d84db8d619af24e9b063a5ac94fe04f6b7aad06e",
     "desktop/tests/fixtures/networks-mainnet.json": "ac67c4b7fc20945712b0370989e669310a072271db3a5ddc4a605e42a5d33859",
     "desktop/tests/fixtures/networks-testnet.json": "62d769163226d2fb59a2c6a9edccad9c7f22f161e2850163bbcf70923617f82b",
     "desktop/tests/generate-registry-fixture.py": "76262b69b428079dcfcdbb6caf9a4eca65455a316c27991ee6c309ecee95dd99",
-    "desktop/tests/prompt-security.test.cjs": "bdac998278ad105c341aa676654da72e1ad41cec36f32d0b4292cc2e6345c60c",
-    "desktop/tests/prompt-ui.test.cjs": "60345dd8dbd78ad0cc9aebd1f9591143f357b3068501a7a5b7547019445b2726",
-    "desktop/tests/runtime.test.cjs": "a7aa73c212001a8f04ebb48658693fd8a73a1bd77ae6afe9c0d7d9cbb938e752",
+    "desktop/tests/prompt-security.test.cjs": "b0ac4764225d5807577268905062a8fba4aab24b633f93fbfa90247a13c67ce7",
+    "desktop/tests/prompt-ui.test.cjs": "376cdc60039f10de0ce698bcf9737dd0fc982a7fb9b26eda9e639fcd6cf522b9",
+    "desktop/tests/runtime.test.cjs": "4611077f390f0eb410106641693ca690ee3e405da8ac4ba75a02e40071f9abfe",
     "desktop/tests/security.test.cjs": "1a82b7346298ef4bee03c8a125811e974442eb3459f47c61655923acaffee4b7",
     "desktop/tsconfig.json": "85a9e919aef78351388430a8946cce0a654d1f6888914b25c1c6949d26b7f53b",
-    "desktop/ui/index.html": "682ccdeb9b7ee371a27d0777059e5dd9d4682a10a7aea56ba0bfc687db463790",
+    "desktop/ui/index.html": "5afffb195bdba6c3c72b33cd721d8d3226955cda40bdd33f1f02f349539c7fff",
     "desktop/ui/prompt.css": "e61aa07e40dc7c5471dfed0f359cfe5dd6b525030502e0fd8b6aa3b69368fb52",
-    "desktop/ui/prompt.html": "f81ccfd4fb9570b8fcddce5c2915813e003c2493efcc8290a7174bf3507e5e4e",
-    "desktop/ui/prompt.js": "09d5ec7eec003b9e1b1c4b5b66d44aa514d4a46954cc75385c4c26038f2083a6",
-    "desktop/ui/renderer.js": "435bc2055b90401fa46a759ffd054645263ead42ab498e4db294bf37967ebb66",
+    "desktop/ui/prompt.html": "44b80cee659d67d4ef25c2b16d87fb8df2aa781a30a8bbe1be1dc6ae23a7d2bb",
+    "desktop/ui/prompt.js": "f2bf2eca72477d9ff00e8eedd553f9918e8a3e47102784e44d2af93107315ff5",
+    "desktop/ui/renderer.js": "1f5b51a369747b4f9fd8a22454ab11f230ab4a8a570a84e8184de59068722bdd",
     "desktop/ui/style.css": "c723895c8b8f351c6212fa278b7bbb617e5e5bb2208586a229d203f45906079b",
     "scripts/evidence_binding.py": "9baa7cb6088b519d221e2126c6ffe576a9db27cfd542d9463f75870110e73310",
     "scripts/frontend-coverage.py": "4d248cf57640351597aaab05198cdf4f301023fd1a97f22fce15aae83c9a3a0a"
   },
   "runtimeSHA256": {
     "desktop/app/codec.js": "31dbabf4a5676e83a193216e5dd9e5acf7b74ce67ceab6907c9cb28f42f090a3",
-    "desktop/app/main.js": "c3c0e2427fc36676266a0754457eee299f954eee90e64e5338e438368d108ef3",
-    "desktop/app/preload.js": "847241abe7c04b0755c07a8568f86ed01e064808e3035cb4bb71d60f5d14bd70",
+    "desktop/app/main.js": "53fc244e6ebf98b41bfbed2f1d0c4096591e42c9a0445f8e45e4bd3eaf46c2d3",
+    "desktop/app/preload.js": "d2097406deecb77c59d8f29f40cc654d74596c12bcf95be26d9629c34756b97b",
     "desktop/app/prompt-preload.js": "e3a3acf016f5aca03d708364465c7fcb06bba9278281c3949e6fee6b9f0fafc8",
-    "desktop/app/prompts.js": "fcc68b63aa582caa7f415033fe558054fa2c6c7c8fbff9ef1d1f7e341e21b929",
-    "desktop/app/validation.js": "6cad2830f251dfcf84545a48e8906b362ca9168057ef310d3dbb00856fbb4b38",
-    "desktop/ui/prompt.js": "09d5ec7eec003b9e1b1c4b5b66d44aa514d4a46954cc75385c4c26038f2083a6",
-    "desktop/ui/renderer.js": "435bc2055b90401fa46a759ffd054645263ead42ab498e4db294bf37967ebb66"
+    "desktop/app/prompts.js": "63065e54ccbc212c48c16751c0973bde395eb112c4b777e468e663acdf34c61a",
+    "desktop/app/validation.js": "bc85a3afb0abbe6b8224c3f5139702391936e4c1b3b1fa16d2678eda0f095efd",
+    "desktop/ui/prompt.js": "f2bf2eca72477d9ff00e8eedd553f9918e8a3e47102784e44d2af93107315ff5",
+    "desktop/ui/renderer.js": "1f5b51a369747b4f9fd8a22454ab11f230ab4a8a570a84e8184de59068722bdd"
   },
-  "coverageSummarySHA256": "ae76e988e85887b0c4b13ed869695b0c17b155d86aa0195c7bf7e60671ea0278"
+  "coverageSummarySHA256": "c4868ee229d40371aa70027b638cffdc37f2b3ea037bcc06a053c3d02ae2237e"
 }

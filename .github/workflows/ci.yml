@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.19.0
-      - run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux
+      - run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux apparmor-utils
       - run: npm --prefix desktop ci --ignore-scripts
       - name: Provision pinned offline provenance verifier
         run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
@@ -28,10 +28,15 @@ jobs:
         run: make test-recovery
       - name: Check owned-process crash recovery and secret canaries
         run: make test-crash
+      - name: Permit sandboxed desktop checks in an ephemeral CI AppArmor profile
+        run: python3 scripts/ci-desktop.py setup
       - name: Check Electron phrase setup and recovery through the production desktop
-        run: make test-packaged
+        run: python3 scripts/ci-desktop.py run -- make test-packaged
       - name: Execute one Electron-approved payment on an isolated actual geth chain
-        run: ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
+        run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
+      - name: Remove the ephemeral CI desktop AppArmor profile
+        if: always()
+        run: python3 scripts/ci-desktop.py cleanup
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
