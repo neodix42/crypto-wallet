@@ -4,6 +4,46 @@ Go + Electron multichain desktop wallet for Ubuntu amd64. Implemented domains ar
 
 **Mainnet is the default network profile.** This remains an unsigned development candidate: public funded testnet roundtrips, the complete clean Ubuntu X11/Wayland matrix, the 24-hour soak and independent security review remain production release gates. Selecting mainnet does not establish production readiness. See the [evidence checklist](docs/STATUS.md). Never fund public test fixtures.
 
+## Download and run on Ubuntu 24.04 / 26.04
+
+Use an **amd64/x86_64 Ubuntu desktop** with an X11 or Wayland session. Install the runtime prerequisites with the same command on Ubuntu **24.04 LTS (Noble)** and **26.04 LTS (Resolute)**:
+
+```sh
+sudo apt update
+sudo apt install -y \
+  ca-certificates libseccomp2 libgtk-3-0t64 libnss3 libasound2t64 \
+  libgbm1 libdrm2 libatspi2.0-0t64 libx11-xcb1 libxcomposite1 \
+  libxdamage1 libxrandr2 libxkbcommon0 libxss1 libxtst6 xdg-utils
+```
+
+These are runtime libraries; the downloaded desktop bundles Electron and needs no Go, Node.js, npm, compiler, `.tools/`, blockchain node or test tools. Ubuntu installs the libraries' dependencies automatically. Package names were checked against the official [Noble](https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/) and [Resolute](https://archive.ubuntu.com/ubuntu/dists/resolute/main/binary-amd64/) package indexes; this does not establish the outstanding full OS acceptance matrix.
+
+1. Open [LocalWallet Releases](https://github.com/neodix42/crypto-wallet/releases) and select the desired **development prerelease**. Use the releases list rather than `/releases/latest`, which excludes prereleases. Sign in with a GitHub account that has repository access if required. If no release with **Assets** is visible, the publishing workflow has not produced a downloadable release yet.
+2. Download the release's assets into a dedicated folder. The complete desktop is **`localwallet-<version>-linux-amd64.tar.gz`**. The `localwallet-go-...` archive and individual `wallet-core`, `wallet-signer` and `wallet-launcher` files are backend components, not the complete desktop. GitHub's automatic **Source code** archives are for building from source.
+3. **Authenticate the download before extracting or running it**, using the [release verification instructions](docs/BUILD.md#authenticate-a-downloaded-release-before-running-it). The verifier checks the complete asset set, including `RELEASE-SHA256SUMS` and `release-provenance.sigstore.json`. Python 3 and GitHub CLI **2.103.2+** are verification tools only; obtain them as described there. A checksum alone does not authenticate the publisher.
+
+Alternatively, an authenticated GitHub CLI can download all assets for the selected tag:
+
+```sh
+# Replace vX.Y.Z with an existing release tag from the Releases page.
+release_tag='vX.Y.Z'
+release_dir="$HOME/Downloads/localwallet-$release_tag"
+mkdir -p "$release_dir"
+gh release download "$release_tag" --repo neodix42/crypto-wallet --dir "$release_dir"
+# Complete the linked publisher verification before continuing.
+```
+
+After verification, open a terminal in that download folder and extract the complete desktop archive. Replace the example version with your selected release version:
+
+```sh
+release_version='X.Y.Z'
+tar -xzf "localwallet-$release_version-linux-amd64.tar.gz"
+cd LocalWallet-linux-x64
+./wallet-launcher
+```
+
+Keep the extracted directory intact and launch **`wallet-launcher`** as your ordinary user. No `make`, installation script or Debian package is needed. Start the launcher rather than the internal `LocalWallet` executable so the Go process-isolation boundary is applied. For an explicit display backend, use `./wallet-launcher --ozone-platform=x11` or `./wallet-launcher --ozone-platform=wayland`. If Ubuntu blocks Chromium's sandbox/user namespaces, consult the [sandbox prerequisites](docs/BUILD.md#existing-desktop-without-an-installer); installing libraries alone does not grant that permission. Do not run the wallet with sudo or `--no-sandbox`.
+
 ## Build Go binaries
 
 ```sh
