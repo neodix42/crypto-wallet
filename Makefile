@@ -4,16 +4,22 @@ TOOLS := ./scripts/with-toolchain.sh
 GO_TOOLS := ./scripts/with-go.sh
 FUZZ_SECONDS ?= 60
 SOAK_SECONDS ?= 86400
-.PHONY: build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
+.PHONY: test-recovery-portable test-send-portable test-native-wallet
+.PHONY: test-packaged-desktop test-packaged-send-desktop build-components install-desktop package-portable package-components test-portable build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
 build-go: build
-build-desktop: build
+build-components:
+	./scripts/build.sh --components
+# Retained Electron regression runtime. New releases use package-portable.
+build-desktop: build-components
 	$(TOOLS) npm --prefix desktop ci --ignore-scripts
 	$(TOOLS) npm --prefix desktop run build
 	$(TOOLS) node --check desktop/ui/renderer.js
-install: package-desktop
+install: build
 	python3 scripts/install.py
+install-desktop: package-desktop
+	python3 scripts/install.py --legacy-desktop
 dev: install
 	./cryptowallet
 test:
@@ -35,14 +41,14 @@ test-go:
 	$(GO_TOOLS) go test ./...
 test-exchange:
 	$(GO_TOOLS) go test ./internal/exchange/...
-	$(GO_TOOLS) go test ./internal/signer ./cmd/wallet-signer ./cmd/wallet-core ./internal/chains/evm -run 'Exchange|Bybit|USDT'
+	$(GO_TOOLS) go test ./internal/signer ./internal/walletsigner ./internal/walletcore ./internal/chains/evm -run 'Exchange|Bybit|USDT'
 	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	WALLET_USDT_EVM=1 $(TOOLS) go test ./internal/chains/evm -run USDT -count=1
 	$(TOOLS) npm --prefix desktop run build
 	$(TOOLS) npm --prefix desktop test
 test-security:
-	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./cmd/wallet-core ./cmd/wallet-signer ./cmd/wallet-launcher
+	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./internal/walletcore ./internal/walletsigner ./cmd/wallet-launcher
 	$(TOOLS) python3 scripts/native-input.py
 	$(TOOLS) python3 scripts/mutation.py
 	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
@@ -58,7 +64,7 @@ test-fuzz:
 	$(TOOLS) python3 scripts/fuzz.py
 test-fuzz-long:
 	$(GO_TOOLS) python3 scripts/fuzz.py --seconds $(FUZZ_SECONDS) --exclude-package chains/decred
-test-crash: build
+test-crash: build-components
 	$(GO_TOOLS) python3 scripts/crash-security.py
 test-release-auth:
 	python3 scripts/release-auth-test.py
@@ -72,15 +78,24 @@ test-dialogs:
 	$(TOOLS) npm --prefix desktop test
 test-native:
 	$(TOOLS) python3 scripts/native-input.py
-test-packaged: install
+test-native-wallet: build
+	$(GO_TOOLS) python3 scripts/native-wallet-test.py
+test-packaged: package-portable
+	$(GO_TOOLS) python3 scripts/native-wallet-test.py
+test-packaged-send: test-send-portable
+test-packaged-desktop: install-desktop
 	$(TOOLS) python3 scripts/packaged-recovery.py
 	$(TOOLS) python3 scripts/phrase-backup-packaged.py
 	$(TOOLS) python3 scripts/unlock-layout.py
-test-packaged-send: install
+test-packaged-send-desktop: install-desktop
 	$(TOOLS) python3 scripts/packaged-send.py
-test-recovery: build
+test-recovery: build-components
 	$(GO_TOOLS) python3 scripts/phrase-recovery.py
-test-e2e: test-packaged
+test-recovery-portable: build
+	$(GO_TOOLS) python3 scripts/phrase-recovery.py --portable
+test-send-portable: build
+	$(GO_TOOLS) python3 scripts/portable-send.py
+test-e2e: test-packaged-desktop
 	$(TOOLS) python3 scripts/e2e.py
 test-testnet:
 	python3 scripts/testnet.py
@@ -105,7 +120,13 @@ package-desktop: build-desktop
 	$(TOOLS) node scripts/package.cjs
 	$(TOOLS) python3 scripts/sbom.py
 	$(TOOLS) node scripts/verify-artifact.cjs
-package-go: build
+package-portable: build
+	$(GO_TOOLS) python3 scripts/package-portable.py
+package-go: package-portable
+test-portable: package-portable
+	$(GO_TOOLS) python3 scripts/package-portable.py --verify-only
+# Backend-only legacy archive, retained for explicit development use.
+package-components: build-components
 	$(GO_TOOLS) python3 scripts/sbom.py --go-only
 	$(GO_TOOLS) python3 scripts/package-go.py
 	$(GO_TOOLS) python3 scripts/verify-version.py --go-only

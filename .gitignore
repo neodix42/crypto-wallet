@@ -54,3 +54,6 @@ go.work.sum
 /wallet-runtime/
 **/__pycache__/
 /docs/evidence/
+
+# Local portable Go installer provenance marker
+/.cryptowallet-install.json

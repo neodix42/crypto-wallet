@@ -6,6 +6,40 @@ concurrency:
   group: wallet-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
+  native-wallet:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: 1.27.3
+      - name: Install native build and isolated desktop test prerequisites
+        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux ca-certificates dbus
+      - name: Build and verify the one-file archive with Node and Electron forbidden
+        run: python3 scripts/go-build-test.py
+      - name: Exercise native controller and GTK private dialogs
+        run: |
+          ./scripts/with-go.sh go test -race ./internal/nativewallet ./internal/sessionwatch
+          python3 internal/nativeui/test-x11.py
+      - name: Restore all wallets using only independent copies of cryptowallet
+        run: make test-recovery-portable
+      - name: Exercise the actual native application on a private display
+        run: ./scripts/with-go.sh python3 scripts/native-wallet-test.py
+      - name: Provision the pinned real private-chain node before network isolation
+        run: docker pull ethereum/client-go:v1.17.9@sha256:1ae3571b074ccda207808fd228ade023f62ebdeb1dab6b393093dcc8b5293109
+      - name: Execute Go-approved funds only on an isolated actual geth chain
+        run: make test-send-portable
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: native-wallet-evidence
+          path: |
+            reports/native-*.json
+            reports/portable-*.json
+            reports/go-only-build.json
+            dist/portable-build-verification.json
   checks:
     runs-on: ubuntu-24.04
     steps:
@@ -34,9 +68,9 @@ jobs:
         run: make test-crash
       - name: Permit sandboxed desktop checks in an ephemeral CI AppArmor profile
         run: python3 scripts/ci-desktop.py setup
-      - name: Check Electron phrase setup and recovery through the production desktop
-        run: python3 scripts/ci-desktop.py run -- make test-packaged
-      - name: Execute one Electron-approved payment on an isolated actual geth chain
+      - name: Retain legacy Electron phrase setup and recovery regression
+        run: python3 scripts/ci-desktop.py run -- make test-packaged-desktop
+      - name: Retain legacy Electron-approved payment on an isolated actual geth chain
         run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
       - name: Remove the ephemeral CI desktop AppArmor profile
         if: always()

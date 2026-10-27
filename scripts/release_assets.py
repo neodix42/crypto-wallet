@@ -22,7 +22,7 @@ MIN_GH = (2, 103, 2)
 
 
 # Authentication records are retained as an Actions artifact. Only the portable
-# desktop archive is uploaded to GitHub Releases.
+# one-file native Go archive is uploaded to GitHub Releases.
 def expected_assets(version):
     validate_version(version)
     return sorted(('RELEASE-NOTES.md', METADATA,
@@ -72,7 +72,8 @@ def metadata(version, repo, ref, commit, repo_id=None):
     validate_version(version)
     identity(repo, ref, commit, repo_id)
     return {'schemaVersion': 1, 'version': version, 'tag': version,
-            'platform': 'linux-amd64', 'publisherRepository': repo,
+            'platform': 'linux-amd64', 'packageKind': 'single-native-go-executable',
+            'entrypoint': 'cryptowallet', 'sandbox': 'none', 'publisherRepository': repo,
             'publisherRepositoryId': repo_id,
             'sourceRef': ref, 'sourceCommit': commit, 'signerWorkflow': WORKFLOW,
             'authentication': 'github-oidc-sigstore-provenance',

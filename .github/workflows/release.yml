@@ -25,25 +25,19 @@ jobs:
         with:
           go-version: 1.27.3
           cache: true
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24.19.0
-          cache: npm
-          cache-dependency-path: desktop/package-lock.json
       - name: Install compilation prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential libseccomp2
+        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 ca-certificates
       - name: Choose the next version
         id: version
         run: |
           version=$(python3 scripts/next-version.py)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "WALLET_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Build the versioned portable desktop once
-        run: make package-desktop
-      - name: Verify candidate version and packaged production security
+      - name: Build the versioned one-file Go desktop once
+        run: make package-portable
+      - name: Verify native Go version, embedded licenses and exact archive
         run: |
-          ./scripts/with-toolchain.sh python3 scripts/verify-version.py
-          ./scripts/with-toolchain.sh node scripts/verify-artifact.cjs
+          ./scripts/with-go.sh python3 scripts/package-portable.py --verify-only
       - name: Prepare portable release and private verification records
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
@@ -65,9 +59,9 @@ jobs:
           run=f'https://github.com/{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
           pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''CryptoWallet {v} — development release; mainnet profile by default.
 
-          Download cryptowallet-{v}-linux-amd64.tar.gz, extract it, then run CryptoWallet-linux-x64/cryptowallet as an ordinary user. Keep the extracted runtime intact. Required third-party license texts are included inside the archive. No Debian installer is built.
+          Download cryptowallet-{v}-linux-amd64.tar.gz, extract it, then run ./cryptowallet as an ordinary user. The archive contains exactly one portable Go executable with native GTK3 windows. Install Ubuntu runtime prerequisites with sudo apt install ca-certificates libgtk-3-0t64. No Electron, Chromium, bundled runtime, sandbox helper or Debian installer is included. Third-party notices are embedded: ./cryptowallet --licenses.
 
-          The tag, release name, Electron application and Go executable versions are all {v}.
+          The tag, release name and Go application version are all {v}. This owner-requested native build applies no syscall sandbox; the signer remains a separate child process with inherited private pipes, protected memory and password-authenticated approvals.
           Tests were NOT_RUN in this build workflow; they run independently in ci.yml. Check this exact source commit's results: {checks}
           Reports retained under docs/evidence are historical and do not certify this candidate.
 

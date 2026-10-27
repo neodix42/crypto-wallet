@@ -1,3 +1,5 @@
+//go:build cgo && !portable
+
 // Package isolation protects secret-bearing memory and installs signer IP
 // restrictions. The network core uses memory protection without the IP filter.
 package isolation

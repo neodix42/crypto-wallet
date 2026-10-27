@@ -10,6 +10,9 @@ source = pathlib.Path(__file__).resolve().with_name("go-coverage.py")
 spec = importlib.util.spec_from_file_location("wallet_go_coverage", source)
 coverage = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(coverage)
+binding_spec = importlib.util.spec_from_file_location("wallet_test_evidence_binding", source.with_name("evidence_binding.py"))
+binding = importlib.util.module_from_spec(binding_spec)
+binding_spec.loader.exec_module(binding)
 
 
 class CoverageEvidence(unittest.TestCase):
@@ -36,14 +39,16 @@ class CoverageEvidence(unittest.TestCase):
         self.assertIn("localwallet/internal/vault/vault.go:5.1,6.1 3 0", merged)
 
     def test_only_test_fixture_generators_are_excluded_explicitly(self):
-        profile = self.profile("input.cover", ["localwallet/internal/secureui/native.go:1.1,2.1 1 1", "localwallet/internal/secureui/automation.go:1.1,2.1 1 0", "localwallet/internal/secureui/recovery_automation.go:1.1,2.1 1 0", "localwallet/internal/secureui/other_automation.go:1.1,2.1 1 1", "localwallet/tests/oracles/decred/main.go:1.1,2.1 1 0"])
+        profile = self.profile("input.cover", ["localwallet/internal/secureui/native.go:1.1,2.1 1 1", "localwallet/internal/secureui/automation.go:1.1,2.1 1 0", "localwallet/internal/secureui/recovery_automation.go:1.1,2.1 1 0", "localwallet/internal/secureui/other_automation.go:1.1,2.1 1 1", "localwallet/tests/oracles/decred/main.go:1.1,2.1 1 0", "localwallet/internal/nativeui/automation.go:1.1,2.1 1 0", "localwallet/internal/nativeui/native.go:1.1,2.1 1 0"])
         merged = coverage.merge_profiles([profile]).read_text()
         self.assertIn("secureui/native.go", merged)
         self.assertNotIn("secureui/automation.go:", merged)
         self.assertNotIn("secureui/recovery_automation.go:", merged)
         self.assertIn("secureui/other_automation.go:", merged)
         self.assertNotIn("tests/oracles", merged)
-        self.assertEqual(len(coverage.report["exclusions"]), 3)
+        self.assertEqual(len(coverage.report["exclusions"]), 4)
+        self.assertIn("nativeui/native.go", merged)
+        self.assertNotIn("nativeui/automation.go:", merged)
 
     def test_mixed_modes_and_changed_block_shapes_are_refused(self):
         first = self.profile("first.cover", ["localwallet/internal/vault/vault.go:1.1,2.1 4 1"])
@@ -65,11 +70,14 @@ class CoverageEvidence(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
 
     def test_critical_security_packages_enforce_95_percent(self):
-        for name in ("vault", "secureui", "uiprompt", "supervisor", "wallet-core", "wallet-signer"):
-            profile = self.profile("critical.cover", [f"localwallet/internal/{name}/sample.go:1.1,2.1 94 1", f"localwallet/internal/{name}/sample.go:3.1,4.1 6 0"])
+        for name in ("internal/vault", "internal/secureui", "internal/uiprompt", "internal/supervisor",
+                     "cmd/wallet-core", "cmd/wallet-signer", "internal/walletcore", "internal/walletsigner", "internal/nativeui", "internal/nativewallet", "internal/sessionwatch"):
+            profile = self.profile("critical.cover", [f"localwallet/{name}/sample.go:1.1,2.1 94 1", f"localwallet/{name}/sample.go:3.1,4.1 6 0"])
             result = subprocess.run(["python3", str(source.with_name("coverage.py")), str(profile)], cwd=coverage.root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.assertNotEqual(result.returncode, 0, name)
             self.assertIn("95%", result.stdout)
+            self.assertEqual(binding.go_rows(profile)[0]["floor"], 95, name)
+            self.assertEqual(binding.go_rows(profile)[0]["status"], "FAIL", name)
 
 
 if __name__ == "__main__":

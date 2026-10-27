@@ -30,6 +30,11 @@ type Child struct {
 	counter                 uint64
 	generation              uint64
 	Path, Data, Environment string
+	// SelfRole is a closed internal entry point in the current executable. It
+	// never authorizes an arbitrary executable, argument, or manifest bypass.
+	// The legacy sibling-executable path leaves this empty and remains checked
+	// against its release manifest.
+	SelfRole string
 	// OnActivity receives native key/button activity during an active request.
 	// Set it before the first Call. It receives no credential or event values.
 	OnActivity func()
@@ -40,6 +45,8 @@ type Child struct {
 	promptRequest, promptSession string
 	promptGeneration             uint64
 	seenPrompts                  map[string]bool
+	activityIDs                  map[string]bool
+	activitySent                 time.Time
 }
 
 type processOwner struct {
@@ -105,12 +112,42 @@ func Verify(path string) error {
 	}
 	return nil
 }
+func (c *Child) command() (*exec.Cmd, error) {
+	if c.SelfRole == "" {
+		if err := Verify(c.Path); err != nil {
+			return nil, err
+		}
+		return exec.Command(c.Path, "--data", c.Data, "--environment", c.Environment), nil
+	}
+	if c.SelfRole != "--internal-signer" && c.SelfRole != "--internal-core" {
+		return nil, errors.New("unsupported internal wallet role")
+	}
+	// Execute the already running image through procfs, rather than resolving a
+	// mutable pathname after checking it. This also works when an application
+	// upgrade replaces the downloaded file while the old process remains open.
+	const self = "/proc/self/exe"
+	current, err := os.Stat(self)
+	if err != nil || !current.Mode().IsRegular() {
+		return nil, errors.New("current executable unavailable")
+	}
+	if c.Path != "" {
+		requested, err := os.Stat(c.Path)
+		if err != nil || !os.SameFile(current, requested) {
+			return nil, errors.New("internal wallet must use current executable")
+		}
+	}
+	if c.SelfRole == "--internal-core" {
+		return exec.Command(self, c.SelfRole, "--environment", c.Environment), nil
+	}
+	return exec.Command(self, c.SelfRole, "--data", c.Data, "--environment", c.Environment), nil
+}
+
 func (c *Child) start() error {
-	if e := Verify(c.Path); e != nil {
+	cmd, e := c.command()
+	if e != nil {
 		return e
 	}
-	cmd := exec.Command(c.Path, "--data", c.Data, "--environment", c.Environment)
-	for _, k := range []string{"HOME", "USER", "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY", "LANG", "LC_ALL", "GDK_BACKEND"} {
+	for _, k := range []string{"HOME", "USER", "DISPLAY", "WAYLAND_DISPLAY", "XDG_CONFIG_HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY", "LANG", "LC_ALL", "GDK_BACKEND"} {
 		if v, ok := os.LookupEnv(k); ok {
 			if k == "GDK_BACKEND" && v != "x11" && v != "wayland" {
 				continue
@@ -146,6 +183,8 @@ func (c *Child) start() error {
 	c.channel = &ipc.Channel{R: r, W: w}
 	c.session = hex.EncodeToString(b[:])
 	c.seenPrompts = map[string]bool{}
+	c.activityIDs = map[string]bool{}
+	c.activitySent = time.Time{}
 	return nil
 }
 func (c *Child) Call(method string, body any, out any) error {
@@ -202,7 +241,18 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 		r, e = ch.Read()
 		c.life.Lock()
 		changed := c.generation != generation
+		activityReply := !changed && c.activityIDs[r.ID]
+		if activityReply {
+			delete(c.activityIDs, r.ID)
+		}
 		c.life.Unlock()
+		if e == nil && !changed && activityReply {
+			if r.Session != session || r.Method != "activity" || r.Error != "" || !bytes.Equal(r.Body, []byte("null")) {
+				c.Kill()
+				return errors.New("invalid wallet activity reply")
+			}
+			continue
+		}
 		if e != nil || changed || r.ID != id || r.Session != session {
 			c.Kill()
 			return errors.New("secure child session ended")
@@ -230,7 +280,7 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 			clear(r.Body)
 			continue
 		}
-		if r.Method != "activity" {
+		if r.Method != "activity" || method == "activity" {
 			if r.Method != method {
 				c.Kill()
 				return errors.New("secure child session ended")
@@ -269,6 +319,42 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 	return nil
 }
 
+// SendActivity forwards a value-free native key/button event during an active
+// core prompt without waiting behind Call's operation lock. It cannot start or
+// unlock a child. The exact acknowledgment is consumed by the active/next Call;
+// neither the acknowledgment nor polling generates another activity event.
+func (c *Child) SendActivity() error {
+	c.life.Lock()
+	if c.SelfRole != "--internal-core" || c.cmd == nil || c.channel == nil || c.prompt == nil || c.promptGeneration != c.generation {
+		c.life.Unlock()
+		return errors.New("no active wallet prompt")
+	}
+	now := time.Now()
+	if !c.activitySent.IsZero() && now.Sub(c.activitySent) < time.Second {
+		c.life.Unlock()
+		return nil
+	}
+	if len(c.activityIDs) >= 8 {
+		c.life.Unlock()
+		return errors.New("wallet activity acknowledgment unavailable")
+	}
+	c.counter++
+	id := hex.EncodeToString([]byte{byte(c.counter >> 56), byte(c.counter >> 48), byte(c.counter >> 40), byte(c.counter >> 32), byte(c.counter >> 24), byte(c.counter >> 16), byte(c.counter >> 8), byte(c.counter)})
+	c.activityIDs[id] = true
+	c.activitySent = now
+	channel, session, generation := c.channel, c.session, c.generation
+	c.life.Unlock()
+	if err := channel.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: "activity", Body: []byte("{}")}); err != nil {
+		c.life.Lock()
+		if c.generation == generation {
+			c.killLocked()
+		}
+		c.life.Unlock()
+		return errors.New("wallet activity unavailable")
+	}
+	return nil
+}
+
 // ReplyPrompt deliberately does not take mu: Call is waiting for this answer.
 // Consume the capability before writing so replay and competing replies fail.
 // Never hold life across a pipe write; Kill must remain able to cancel it.
@@ -295,10 +381,16 @@ func (c *Child) ReplyPrompt(raw json.RawMessage) error {
 func (c *Child) Kill() {
 	c.life.Lock()
 	defer c.life.Unlock()
+	c.killLocked()
+}
+
+func (c *Child) killLocked() {
 	c.generation++
 	c.prompt = nil
 	c.promptRequest, c.promptSession = "", ""
 	c.seenPrompts = nil
+	c.activityIDs = nil
+	c.activitySent = time.Time{}
 	if c.cmd != nil {
 		cmd := c.cmd
 		c.owner.kill(cmd)

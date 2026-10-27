@@ -212,14 +212,14 @@ def verify_npm_paths(files, locations):
         require(package in expected, 'Uninventoried npm package in production ASAR')
 
 
-def collect_go(root, components, texts):
+def collect_go(root, components, texts, commands=COMMANDS, portable=False):
     # Check downloaded content against the module checksums before copying text.
     run(root, 'go', 'mod', 'verify')
     cache = Path(run(root, 'go', 'env', 'GOMODCACHE').strip())
     modules = {}
     for package in json_stream(run(root, 'go', 'list', '-deps', '-json',
-                                   '-mod=readonly',
-                                   *('./cmd/' + command for command in COMMANDS))):
+                                   '-mod=readonly', *(['-tags=portable'] if portable else []),
+                                   *('./cmd/' + command for command in commands))):
         module = package.get('Module')
         if module and not module.get('Main'):
             require('Replace' not in module and module.get('Version', '').startswith('v') and
@@ -243,7 +243,7 @@ def collect_go(root, components, texts):
                   dict(kind='go-standard-library', version=tool_version,
                        verification='Selected build toolchain GOROOT license and patent texts'),
                   [(name, read_file(toolchain, name)) for name in ('LICENSE', 'PATENTS')])
-    return dict(commands=list(COMMANDS), dependencySelection='Actual production command dependency closure; excludes graph-only and test-only modules',
+    return dict(commands=list(commands), dependencySelection='Actual production command dependency closure; excludes graph-only and test-only modules',
                 goModSHA256=sha256(read_file(root, 'go.mod')), goSumSHA256=sha256(read_file(root, 'go.sum')),
                 toolchain=tool_version)
 
@@ -359,33 +359,40 @@ def write_output(folder, name, data):
         os.close(descriptor)
 
 
-def generate(root, go_only=False, runtime=None):
+def generate(root, go_only=False, runtime=None, portable=False):
     root = Path(root).absolute()
     components, texts = [], []
-    provenance = collect_go(root, components, texts)
-    if not go_only:
+    provenance = collect_go(root, components, texts, ('cryptowallet',) if portable else COMMANDS, portable)
+    if not go_only and not portable:
         runtime = Path(runtime or root / 'dist/CryptoWallet-linux-x64').absolute()
         provenance['desktop'] = collect_desktop(root, runtime, components, texts)
     scope = 'Actual production Go command dependencies and Go standard-library texts'
-    if not go_only:
+    if not go_only and not portable:
         scope += '; complete packaged Electron/Chromium runtime and exact production npm ASAR notices'
     text, manifest = render(components, texts, scope, provenance)
-    prefix = 'go-' if go_only else ''
+    if portable:
+        value = json.loads(manifest)
+        value['externalRuntimeLibraries'] = 'System GTK3/glib/libc libraries are runtime prerequisites, not bundled libraries; review their use/distribution obligations separately.'
+        manifest = json_bytes(value)
+    prefix = 'portable-' if portable else 'go-' if go_only else ''
     for extension, data in (('txt', text), ('json', manifest)):
         name = prefix + 'THIRD-PARTY-NOTICES.' + extension
         write_output(root / 'dist', name, data)
-        if not go_only:
+        if not go_only and not portable:
             write_output(runtime, 'THIRD-PARTY-NOTICES.' + extension, data)
+    if portable:
+        write_output(root / 'internal/redistribution', 'THIRD-PARTY-NOTICES.txt', text)
     return json.loads(manifest)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--portable', action='store_true', help='Embed the native portable Go command dependency notices; no Electron')
     parser.add_argument('--go-only', action='store_true', help='No npm/Node/Electron access')
     parser.add_argument('--desktop-runtime', type=Path, help='Actual packaged runtime, before archiving')
     arguments = parser.parse_args()
     try:
-        manifest = generate(ROOT, arguments.go_only, arguments.desktop_runtime)
+        manifest = generate(ROOT, arguments.go_only, arguments.desktop_runtime, arguments.portable)
         print('PASS redistribution texts: ' + str(len(manifest['components'])) + ' components; legal review NOT_RUN')
         return 0
     except (NoticeError, OSError, subprocess.SubprocessError, ValueError, KeyError):

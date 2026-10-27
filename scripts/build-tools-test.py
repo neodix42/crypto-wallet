@@ -37,6 +37,7 @@ version = module('tested_version', 'version.py')
 next_release = module('tested_next_release', 'next-version.py')
 installer = module('tested_installer', 'install.py')
 verifier = module('tested_verifier', 'verify-version.py')
+portable = module('tested_portable', 'package-portable.py')
 
 
 def digest(path):
@@ -706,7 +707,7 @@ class BuildTools(unittest.TestCase):
         build, release = text.split('  release:\n', 1)
         self.assertIn('fetch-depth: 0', build)
         self.assertIn('fetch-tags: true', build)
-        self.assertEqual(build.count('make package-desktop'), 1)
+        self.assertEqual(build.count('make package-portable'), 1)
         self.assertIn('needs: build', release)
         self.assertIn('artifact-id: ${{ steps.payload.outputs.artifact-id }}', build)
         self.assertIn('artifact-ids: ${{ needs.build.outputs.artifact-id }}', release)
@@ -718,10 +719,13 @@ class BuildTools(unittest.TestCase):
         self.assertIn("'tests':'NOT_RUN: independent .github/workflows/ci.yml workflow'", build)
         self.assertIn('scripts/release_assets.py check', release)
         self.assertLess(release.index('scripts/release_assets.py check'), release.index('node .github/provenance/attest.mjs'))
-        self.assertLess(text.index('scripts/verify-version.py'), publish)
-        self.assertIn('scripts/verify-version.py\n', text[:publish])
+        self.assertLess(text.index('scripts/package-portable.py --verify-only'), publish)
+        self.assertNotIn('scripts/verify-artifact.cjs', build)
+        self.assertNotIn('setup-node', build)
+        self.assertNotIn('npm ', build)
+        self.assertNotIn('libseccomp', build)
         self.assertNotIn('package-go', text)
-        self.assertIn('make package-desktop', text[:publish])
+        self.assertIn('make package-portable', text[:publish])
         self.assertLess(text.index('scripts/release_assets.py verify'), publish)
         self.assertLess(text.index('node .github/provenance/attest.mjs'), publish)
         self.assertIn('npm --prefix .github/provenance ci --ignore-scripts', text[:publish])
@@ -763,7 +767,11 @@ class BuildTools(unittest.TestCase):
         notes = (self.root / 'dist/RELEASE-NOTES.md').read_text()
         self.assertIn('CryptoWallet 0.1.10', notes)
         self.assertIn('cryptowallet-0.1.10-linux-amd64.tar.gz', notes)
-        self.assertIn('CryptoWallet-linux-x64/cryptowallet', notes)
+        self.assertIn('run ./cryptowallet', notes)
+        self.assertIn('exactly one portable Go executable', notes)
+        self.assertIn('no syscall sandbox', notes)
+        self.assertIn('./cryptowallet --licenses', notes)
+        self.assertNotIn('CryptoWallet-linux-x64', notes)
         self.assertNotIn('LocalWallet', notes)
         self.assertNotIn('localwallet-', notes)
         self.assertIn(report['checksURL'], notes)
@@ -890,6 +898,251 @@ class BuildTools(unittest.TestCase):
         self.assertEqual(go_source['sha256'], manifest['sha256'])
 
 
+class PortableBuildTools(unittest.TestCase):
+    """Public C fixture ELFs test packaging safety; actual Go acceptance is separate."""
+    @classmethod
+    def setUpClass(cls):
+        for command in ('cc', 'readelf'):
+            if not shutil.which(command):
+                raise RuntimeError('BLOCKED: native package fixture prerequisite: ' + command)
+        cls.fixtures = tempfile.TemporaryDirectory(prefix='portable-native-elf-')
+        cls.addClassCleanup(cls.fixtures.cleanup)
+        cls.elf = {}
+        for key, value, marker, license_ok, seccomp in (
+                ('0.1.10', '0.1.10', 'native-gtk3; portable-go; sandbox=none', True, False),
+                ('0.1.11', '0.1.11', 'native-gtk3; portable-go; sandbox=none', True, False),
+                ('foreign-runtime', '0.1.10', 'electron; sandbox=none', True, False),
+                ('missing-notices', '0.1.10', 'native-gtk3; portable-go; sandbox=none', False, False),
+                ('sandbox-library', '0.1.10', 'native-gtk3; portable-go; sandbox=none', True, True)):
+            folder = pathlib.Path(cls.fixtures.name) / key
+            folder.mkdir()
+            source, binary = folder / 'public.c', folder / 'fixture'
+            notices = 'CryptoWallet third-party redistribution texts\ngo-toolchain: PUBLIC FIXTURE\ngo:example.invalid/public\n' + 'public fixture text\n' * 300 if license_ok else 'not been generated'
+            declaration = 'extern void *seccomp_init(unsigned int);' if seccomp else ''
+            reference = 'if(n==99)seccomp_init(0);' if seccomp else ''
+            source.write_text('#include <stdio.h>\n#include <string.h>\nextern const char *gtk_check_version(unsigned int,unsigned int,unsigned int);\n' + declaration + '\nint main(int n,char **v){if(gtk_check_version(3,0,0))return 9;' + reference + 'if(n==2&&!strcmp(v[1],"--version")){puts(' + json.dumps(value) + ');return 0;}if(n==2&&!strcmp(v[1],"--runtime-info")){puts(' + json.dumps(marker) + ');return 0;}if(n==2&&!strcmp(v[1],"--licenses")){fputs(' + json.dumps(notices) + ',stdout);return 0;}return 2;}\n')
+            subprocess.run(['cc', '-O0', '-o', str(binary), str(source), '-l:libgtk-3.so.0'] + (['-l:libseccomp.so.2'] if seccomp else []), check=True, capture_output=True)
+            cls.elf[key] = binary
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix='portable-package-test-')
+        self.addCleanup(self.temporary.cleanup)
+        self.root = pathlib.Path(self.temporary.name)
+        self.addCleanup(mock.patch.stopall)
+        mock.patch.dict(os.environ, {}, clear=False).start()
+        os.environ.pop('WALLET_VERSION', None)
+
+    def candidate(self, key='0.1.10', value='0.1.10'):
+        (self.root / 'bin').mkdir(exist_ok=True)
+        (self.root / 'VERSION').write_text(value + '\n')
+        binary = self.root / 'bin/cryptowallet'
+        shutil.copy2(self.elf[key], binary)
+        manifest = dict(schemaVersion=1, kind='portable-go-wallet', version=value,
+                        platform='linux-amd64', file='cryptowallet', sandbox='none', sha256=digest(binary))
+        (binary.parent / 'portable-build-manifest.json').write_text(json.dumps(manifest))
+        return binary, manifest
+
+    def destination(self):
+        target = self.root / 'installed'
+        target.mkdir()
+        return target
+
+    def install(self, binary, destination):
+        with contextlib.redirect_stdout(io.StringIO()):
+            installer.install_portable(binary, destination)
+
+    def test_native_archive_is_exactly_one_regular_executable_with_embedded_notices(self):
+        binary, manifest = self.candidate()
+        with contextlib.redirect_stdout(io.StringIO()):
+            report = portable.package(self.root)
+        archive = self.root / 'dist' / report['archive']['file']
+        self.assertEqual(report['status'], 'PASS')
+        self.assertEqual(report['checks']['sandbox'], 'none')
+        with tarfile.open(archive) as tar:
+            entries = tar.getmembers()
+            self.assertEqual([entry.name for entry in entries], ['cryptowallet'])
+            self.assertTrue(entries[0].isfile())
+            self.assertEqual(entries[0].mode, 0o755)
+            self.assertEqual(entries[0].mtime, 0)
+            self.assertEqual(entries[0].uid, 0)
+            self.assertEqual(hashlib.file_digest(tar.extractfile(entries[0]), 'sha256').hexdigest(), digest(binary))
+        first = archive.read_bytes()
+        with contextlib.redirect_stdout(io.StringIO()):
+            portable.package(self.root)
+        self.assertEqual(archive.read_bytes(), first)
+
+    def test_foreign_runtime_missing_notices_and_sandbox_library_are_rejected(self):
+        for key in ('foreign-runtime', 'missing-notices', 'sandbox-library'):
+            with self.subTest(key=key):
+                binary, manifest = self.candidate(key)
+                with self.assertRaises(ValueError):
+                    portable.verify_binary(binary, '0.1.10', manifest)
+                self.assertFalse((self.root / 'dist').exists())
+
+    def test_native_version_hash_architecture_and_link_substitution_fail_before_packaging(self):
+        binary, manifest = self.candidate()
+        with self.assertRaisesRegex(ValueError, 'identity/hash'):
+            portable.verify_binary(binary, '0.1.11', manifest)
+        binary.write_bytes(binary.read_bytes() + b'public tamper')
+        with self.assertRaisesRegex(ValueError, 'identity/hash'):
+            portable.verify_binary(binary, '0.1.10', manifest)
+        binary, manifest = self.candidate()
+        os.link(binary, self.root / 'external-hardlink')
+        with self.assertRaisesRegex(ValueError, 'regular executable'):
+            portable.verify_binary(binary, '0.1.10', manifest)
+        (self.root / 'external-hardlink').unlink()
+        binary.unlink()
+        binary.symlink_to(self.elf['0.1.10'])
+        with self.assertRaisesRegex(ValueError, 'regular executable'):
+            portable.verify_binary(binary, '0.1.10', manifest)
+
+    def test_native_archive_extra_traversal_duplicate_and_symlink_members_fail(self):
+        binary, manifest = self.candidate()
+        archive = self.root / 'hostile.tar.gz'
+        for names, kind in ((['cryptowallet', 'extra.json'], tarfile.REGTYPE),
+                            (['cryptowallet', 'cryptowallet'], tarfile.REGTYPE),
+                            (['../cryptowallet'], tarfile.REGTYPE),
+                            (['cryptowallet'], tarfile.SYMTYPE)):
+            with self.subTest(names=names, kind=kind):
+                with tarfile.open(archive, 'w:gz') as tar:
+                    for name in names:
+                        entry = tarfile.TarInfo(name)
+                        entry.mode, entry.type = 0o755, kind
+                        entry.linkname = '/outside-fixture'
+                        tar.addfile(entry)
+                with self.assertRaisesRegex(ValueError, 'only the regular'):
+                    portable.verify_archive(archive, binary, '0.1.10')
+        with tarfile.open(archive, 'w:gz') as tar:
+            data = b'changed public payload'
+            entry = tarfile.TarInfo('cryptowallet')
+            entry.mode, entry.size = 0o755, len(data)
+            tar.addfile(entry, io.BytesIO(data))
+        with self.assertRaisesRegex(ValueError, 'bytes differ'):
+            portable.verify_archive(archive, binary, '0.1.10')
+
+    def test_native_install_and_upgrade_preserve_existing_profile_and_unrelated_runtime(self):
+        binary, manifest = self.candidate()
+        destination = self.destination()
+        runtime = destination / 'wallet-runtime'
+        runtime.mkdir()
+        (runtime / 'unrelated').write_text('preserve this directory')
+        profile = destination / 'public-profile-sentinel'
+        profile.write_bytes(b'public profile fixture')
+        self.install(binary, destination)
+        selected = destination / 'cryptowallet'
+        self.assertFalse(selected.is_symlink())
+        self.assertEqual(digest(selected), digest(binary))
+        self.assertEqual(selected.stat().st_mode & 0o777, 0o755)
+        binary, manifest = self.candidate('0.1.11', '0.1.11')
+        self.install(binary, destination)
+        self.assertEqual(subprocess.check_output([str(selected), '--version'], text=True), '0.1.11\n')
+        self.assertEqual(profile.read_bytes(), b'public profile fixture')
+        self.assertEqual((runtime / 'unrelated').read_text(), 'preserve this directory')
+        marker = destination / '.cryptowallet-install.json'
+        self.assertEqual(marker.stat().st_mode & 0o777, 0o600)
+        self.assertIn(digest(selected), json.loads(marker.read_text())['allowedSHA256'])
+
+    def test_native_install_can_replace_managed_legacy_link_without_deleting_runtime(self):
+        binary, manifest = self.candidate()
+        destination = self.destination()
+        runtime = destination / 'wallet-runtime'
+        runtime.mkdir(mode=0o700)
+        (runtime / '.localwallet-managed').touch(mode=0o600)
+        generation = runtime / ('app-' + 'a' * 32)
+        generation.mkdir()
+        old_launcher = generation / 'cryptowallet'
+        old_launcher.write_bytes(b'public old launcher')
+        (destination / 'cryptowallet').symlink_to(pathlib.Path('wallet-runtime') / generation.name / 'cryptowallet')
+        self.install(binary, destination)
+        self.assertFalse((destination / 'cryptowallet').is_symlink())
+        self.assertEqual(digest(destination / 'cryptowallet'), digest(binary))
+        self.assertEqual(old_launcher.read_bytes(), b'public old launcher')
+
+    def test_native_install_refuses_unrelated_file_symlink_and_modified_managed_binary(self):
+        binary, manifest = self.candidate()
+        destination = self.destination()
+        target = destination / 'cryptowallet'
+        target.write_bytes(b'unrelated executable or user file')
+        target.chmod(0o644)
+        with self.assertRaisesRegex(RuntimeError, 'unrelated'):
+            self.install(binary, destination)
+        self.assertEqual(target.read_bytes(), b'unrelated executable or user file')
+        target.unlink()
+        target.symlink_to('outside-user-file')
+        with self.assertRaisesRegex(RuntimeError, 'unrelated'):
+            self.install(binary, destination)
+        self.assertEqual(os.readlink(target), 'outside-user-file')
+        target.unlink()
+        self.install(binary, destination)
+        target.write_bytes(target.read_bytes() + b'public tamper')
+        before = target.read_bytes()
+        with self.assertRaisesRegex(RuntimeError, 'unrelated'):
+            self.install(binary, destination)
+        self.assertEqual(target.read_bytes(), before)
+
+    def test_native_failed_copy_and_atomic_switch_preserve_old_binary_and_allow_retry(self):
+        binary, manifest = self.candidate()
+        destination = self.destination()
+        self.install(binary, destination)
+        previous = (destination / 'cryptowallet').read_bytes()
+        binary, manifest = self.candidate('0.1.11', '0.1.11')
+        with mock.patch.object(installer.shutil, 'copyfileobj', side_effect=OSError('public fixture copy failure')):
+            with self.assertRaises(OSError):
+                self.install(binary, destination)
+        self.assertEqual((destination / 'cryptowallet').read_bytes(), previous)
+        replace = pathlib.Path.replace
+        def failed_switch(path, target):
+            if path.name.startswith('.cryptowallet-stage-'):
+                raise OSError('public fixture atomic switch failure')
+            return replace(path, target)
+        with mock.patch.object(pathlib.Path, 'replace', failed_switch):
+            with self.assertRaises(OSError):
+                self.install(binary, destination)
+        self.assertEqual((destination / 'cryptowallet').read_bytes(), previous)
+        self.install(binary, destination)
+        self.assertEqual(digest(destination / 'cryptowallet'), digest(binary))
+        self.assertFalse(list(destination.glob('.cryptowallet-stage-*')))
+        self.assertFalse(list(destination.glob('.cryptowallet-marker-*')))
+
+    def test_native_marker_symlink_hardlink_and_group_writable_destination_fail(self):
+        binary, manifest = self.candidate()
+        destination = self.destination()
+        marker = destination / '.cryptowallet-install.json'
+        public = self.root / 'public-marker'
+        public.write_text('{}')
+        marker.symlink_to(public)
+        with self.assertRaisesRegex(RuntimeError, 'Unsafe portable'):
+            self.install(binary, destination)
+        marker.unlink()
+        os.link(public, marker)
+        with self.assertRaisesRegex(RuntimeError, 'Unsafe portable'):
+            self.install(binary, destination)
+        marker.unlink()
+        destination.chmod(0o777)
+        with self.assertRaisesRegex(RuntimeError, 'not writable by others'):
+            self.install(binary, destination)
+        destination.chmod(0o770)
+        shared = installer.grp.struct_group(('shared-fixture', 'x', destination.stat().st_gid, ['other-public-user']))
+        with mock.patch.object(installer.grp, 'getgrgid', return_value=shared):
+            with self.assertRaisesRegex(RuntimeError, 'not writable by others'):
+                self.install(binary, destination)
+        destination.chmod(0o700)
+        self.assertFalse((destination / 'cryptowallet').exists())
+
+    def test_default_build_install_and_package_are_native_without_legacy_runtime(self):
+        script = (ROOT / 'scripts/build-pinned.sh').read_text()
+        native = script.split('[ "$#" -eq 0 ]', 1)[1]
+        for required in ('-tags portable', '-o bin/cryptowallet ./cmd/cryptowallet', 'license-notices.py --portable'):
+            self.assertIn(required, native)
+        for forbidden in ('npm ', 'node ', 'wallet-launcher', 'libseccomp', 'pkg-config', 'dpkg-deb'):
+            self.assertNotIn(forbidden, native)
+        makefile = (ROOT / 'Makefile').read_text()
+        self.assertIn('install: build\n\tpython3 scripts/install.py', makefile)
+        self.assertIn('package-go: package-portable', makefile)
+        self.assertIn('build-desktop: build-components', makefile)
+        self.assertIn('test-packaged-desktop: install-desktop', makefile)
+
+
 class EvidenceResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -917,7 +1170,7 @@ class EvidenceRunner(unittest.TextTestRunner):
 
     def run(self, test):
         result = super().run(test)
-        filenames = ['scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
+        filenames = ['scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/package-portable.py', 'scripts/license-notices.py', 'internal/redistribution/notices.go', 'scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
         report = {
             'status': 'PASS' if result.wasSuccessful() and not result.skipped else 'FAIL' if not result.wasSuccessful() else 'NOT_RUN',
             'command': [sys.executable, 'scripts/build-tools-test.py'],

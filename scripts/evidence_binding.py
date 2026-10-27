@@ -19,7 +19,10 @@ AUTH_INPUTS = ('scripts/release_assets.py', 'scripts/release-auth-test.py',
                '.github/provenance/attest.mjs', '.github/provenance/attest.test.mjs',
                '.github/provenance/package.json', '.github/provenance/package-lock.json',
                'tests/release-auth/provenance.json')
-EVIDENCE_INPUTS = ('scripts/evidence_binding.py', 'scripts/verify-release.py',
+GO_COVERAGE_INPUTS = ('scripts/go-coverage.py', 'scripts/coverage.py',
+                      'scripts/native-input.py', 'scripts/native-wallet-test.py',
+                      'internal/nativeui/test-x11.py', 'tests/e2e/x11.py', 'tests/e2e/phrase.py')
+EVIDENCE_INPUTS = (*GO_COVERAGE_INPUTS, 'scripts/evidence_binding.py', 'scripts/verify-release.py',
                    'scripts/frontend-coverage.py', 'scripts/verify-artifact.cjs',
                    'scripts/release-evidence-test.py')
 EXCLUDED = {'.git', '.tools', 'node_modules', 'dist', 'bin', 'reports', 'wallet-runtime', '__pycache__'}
@@ -90,8 +93,8 @@ def hash_names(root, names):
 
 
 def go_sources(root):
-    names = files_below(root, '.', '.go')
-    return hash_names(root, [*names, 'go.mod', 'go.sum'])
+    names = files_below(root, '.', '.go') + files_below(root, '.', '.c') + files_below(root, '.', '.h')
+    return hash_names(root, [*names, 'go.mod', 'go.sum', *GO_COVERAGE_INPUTS])
 
 
 def frontend_sources(root):
@@ -219,7 +222,7 @@ def go_rows(profile):
         totals[package] = covered + (number if count else 0), total + number
     rows = []
     for package, (covered, total) in sorted(totals.items()):
-        critical = any('/' + name in package for name in ('vault', 'derivation', 'signer', 'amount', 'chains', 'exchange', 'ipc', 'journal', 'qr', 'strictjson', 'isolation', 'secureui', 'uiprompt', 'supervisor', 'wallet-core', 'wallet-signer'))
+        critical = any('/' + name in package for name in ('vault', 'derivation', 'signer', 'amount', 'chains', 'exchange', 'ipc', 'journal', 'qr', 'strictjson', 'isolation', 'secureui', 'uiprompt', 'supervisor', 'wallet-core', 'wallet-signer', 'walletcore', 'walletsigner', 'nativeui', 'nativewallet', 'sessionwatch'))
         floor = 95 if critical else 90
         percent = 100 * covered / total if total else 100
         rows.append({'package': package, 'statements': total, 'covered': covered, 'percent': round(percent, 2), 'floor': floor,
@@ -236,9 +239,21 @@ def validate_go(root, report, floor_report):
     gates = report.get('gates')
     if not isinstance(gates, list) or len(gates) != 3 or {row.get('gate') for row in gates if isinstance(row, dict)} != {'decred-simnet', 'ton-v5r1-emulator', 'usdt-evm-execution'} or any(not isinstance(row, dict) or row.get('status') != 'PASS' for row in gates):
         raise EvidenceError('go-coverage-original-local-gates-incomplete')
+    portable = report.get('portableMemory')
+    memory_tests = {'TestStaticBuildDoesNotPretendLegacySandboxIsInstalled',
+                    'TestTP041MemoryProtectionPreservesCoordinatorNetworking',
+                    'TestTP041MemoryProtectionFailsClosedOnKernelErrors'}
+    if (not isinstance(portable, dict) or portable.get('status') != 'PASS' or
+            not isinstance(portable.get('passedTests'), list) or not memory_tests <= set(portable['passedTests']) or
+            portable.get('skippedTests') != [] or portable.get('failedTests') != []):
+        raise EvidenceError('go-coverage-portable-memory-incomplete')
+    runtime = report.get('nativeRuntime')
+    if (not isinstance(runtime, dict) or runtime.get('status') != 'PASS' or
+            runtime.get('instrumented') is not True or runtime.get('sourceStable') is not True):
+        raise EvidenceError('go-coverage-native-runtime-incomplete')
     profiles = report.get('profiles')
-    required = {'reports/go-base.cover', 'reports/go-native.cover'}
-    if not isinstance(profiles, list) or len(profiles) != 2 or any(not isinstance(row, dict) for row in profiles) or {row.get('file') for row in profiles} != required:
+    required = {'reports/go-base.cover', 'reports/go-native.cover', 'reports/go-nativeui.cover', 'reports/go-native-runtime.cover', 'reports/go-portable-memory.cover'}
+    if not isinstance(profiles, list) or len(profiles) != 5 or any(not isinstance(row, dict) for row in profiles) or {row.get('file') for row in profiles} != required:
         raise EvidenceError('go-coverage-raw-profiles-incomplete')
     for row in profiles:
         if row.get('sha256') != sha256(regular(root, row['file'])):
@@ -258,7 +273,7 @@ def validate_go(root, report, floor_report):
             except ValueError:
                 raise EvidenceError('invalid-go-coverage-block') from None
             source = location.rsplit(':', 1)[0]
-            if source in ('localwallet/internal/secureui/automation.go', 'localwallet/internal/secureui/recovery_automation.go') or source.startswith('localwallet/tests/oracles/'):
+            if source in ('localwallet/internal/secureui/automation.go', 'localwallet/internal/secureui/recovery_automation.go', 'localwallet/internal/nativeui/automation.go') or source.startswith('localwallet/tests/oracles/'):
                 continue
             if number < 0 or count < 0 or (location in sizes and sizes[location] != number):
                 raise EvidenceError('invalid-go-coverage-block')

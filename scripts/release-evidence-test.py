@@ -106,12 +106,14 @@ class ReleaseEvidence(unittest.TestCase):
             'coverageSummarySHA256': binding.sha256(self.root / 'reports/desktop/coverage-summary.json'),
             'files': binding.frontend_rows(self.root, summary)})
         profile = 'mode: atomic\nlocalwallet/internal/vault/vault.go:2.1,2.30 1 1\n'
-        for name in ('go-base.cover', 'go-native.cover', 'go.cover'):
+        for name in ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover', 'go.cover'):
             self.write('reports/' + name, profile)
         self.write_json('reports/go-coverage.json', {'status': 'PASS', 'floors': 'PASS',
             'sourceSHA256': binding.go_sources(self.root),
+            'nativeRuntime': {'status': 'PASS', 'instrumented': True, 'sourceStable': True},
+            'portableMemory': {'status': 'PASS', 'passedTests': ['TestStaticBuildDoesNotPretendLegacySandboxIsInstalled', 'TestTP041MemoryProtectionPreservesCoordinatorNetworking', 'TestTP041MemoryProtectionFailsClosedOnKernelErrors'], 'skippedTests': [], 'failedTests': []},
             'gates': [{'gate': name, 'status': 'PASS'} for name in ('decred-simnet', 'ton-v5r1-emulator', 'usdt-evm-execution')],
-            'profiles': [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in ('go-base.cover', 'go-native.cover')]})
+            'profiles': [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover')]})
         self.write_json('reports/coverage.json', {'packages': binding.go_rows(self.root / 'reports/go.cover')})
 
     def write(self, name, content):
@@ -172,6 +174,13 @@ class ReleaseEvidence(unittest.TestCase):
         self.write('internal/new-package/added.go', 'package newpackage\n')
         self.assert_blocked('go-coverage-stale-or-incomplete-source-set')
 
+    def test_native_c_binding_and_coverage_drivers_invalidate_coverage(self):
+        self.write('internal/nativeui/native.c', '/* public changed C ABI fixture */')
+        self.assert_blocked('go-coverage-stale-or-incomplete-source-set')
+        (self.root / 'internal/nativeui/native.c').unlink()
+        self.write('scripts/native-wallet-test.py', '# changed private-display driver')
+        self.assert_blocked('go-coverage-stale-or-incomplete-source-set')
+
     def test_go_snapshot_subset_is_not_accepted(self):
         report = self.report('go-coverage')
         del report['sourceSHA256']['internal/vault/vault_test.go']
@@ -185,6 +194,17 @@ class ReleaseEvidence(unittest.TestCase):
         report['profiles'] = report['profiles'][:1]
         self.write_json('reports/go-coverage.json', report)
         self.assert_blocked('go-coverage-raw-profiles-incomplete')
+
+    def test_portable_memory_and_native_runtime_cannot_be_skipped_or_reclassified(self):
+        original = self.report('go-coverage')
+        for key, changed, expected in (
+                ('portableMemory', {'status': 'BLOCKED'}, 'portable-memory-incomplete'),
+                ('portableMemory', {**original['portableMemory'], 'skippedTests': ['ptrace-unavailable']}, 'portable-memory-incomplete'),
+                ('nativeRuntime', {**original['nativeRuntime'], 'sourceStable': False}, 'native-runtime-incomplete'),
+                ('nativeRuntime', {**original['nativeRuntime'], 'instrumented': False}, 'native-runtime-incomplete')):
+            self.write_json('reports/go-coverage.json', {**original, key: changed})
+            self.assert_blocked(expected)
+        self.write_json('reports/go-coverage.json', original)
 
     def test_go_merged_profile_cannot_forge_frozen_input_counters(self):
         self.write('reports/go.cover', 'mode: atomic\nlocalwallet/internal/vault/vault.go:2.1,2.30 100 1\n')

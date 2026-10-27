@@ -3,7 +3,7 @@
 import pathlib, re, subprocess
 
 root = pathlib.Path(__file__).resolve().parents[1]
-for name in ['cmd/wallet-signer/main.go', 'cmd/wallet-core/main.go']:
+for name in ['internal/walletsigner/main.go', 'internal/walletcore/main.go']:
     source = (root / name).read_text()
     for forbidden in ['GetMnemonic', 'ExportPrivateKey', 'SignBytes', 'pprof', 'net.Listen', 'http.ListenAndServe']:
         assert forbidden not in source, (name, forbidden)
@@ -22,10 +22,10 @@ expected_snapshot = {'locked', 'walletExists', 'vaultState', 'environment', 'rec
 page_metadata = {'accountsCursor','totalAccounts','totalOperations','revision'}
 for name, typename, expected in [
     ('internal/signer/engine.go', 'Snapshot', expected_snapshot),
-    ('cmd/wallet-core/main.go', 'snapshot', expected_snapshot | page_metadata),
+    ('internal/walletcore/main.go', 'snapshot', expected_snapshot | page_metadata),
     ('internal/signer/engine_public.go', 'SnapshotPage', page_metadata),
     ('internal/signer/engine_public.go', 'JournalPage', {'operations','nextCursor','complete','revision','total'}),
-    ('cmd/wallet-core/public_pages.go', 'journalPage', {'operations','nextCursor','complete','revision','total'}),
+    ('internal/walletcore/public_pages.go', 'journalPage', {'operations','nextCursor','complete','revision','total'}),
     ('internal/model/model.go', 'HistoryPage', {'entries','nextCursor','complete','scope'}),
 ]:
     source = (root / name).read_text()

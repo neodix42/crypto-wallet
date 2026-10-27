@@ -10,6 +10,10 @@ import pathlib
 import shutil
 import subprocess
 import time
+import tempfile
+
+from version import selected_version
+from evidence_binding import go_sources
 
 root = pathlib.Path(__file__).resolve().parents[1]
 reports = root / "reports"
@@ -18,17 +22,9 @@ report = {"status": "NOT_RUN", "measurement": "Go statement coverage, not branch
 
 
 def source_hashes():
-    # Include test source and module pins: changed tests can also invalidate an
-    # evidence claim even when production bytes stayed the same.
-    if shutil.which("rg"):
-        args = ["rg", "--files", "-g", "*.go", "-g", "!**/node_modules/**", "-g", "!.tools/**"]
-    else:
-        args = ["git", "ls-files", "--cached", "--others", "--exclude-standard"]
-    names = subprocess.check_output(args, cwd=root, text=True).splitlines()
-    names += ["go.mod", "go.sum"]
-    return {name: hashlib.sha256((root / name).read_bytes()).hexdigest()
-            for name in sorted(set(names)) if (name.endswith(".go") or name in ("go.mod", "go.sum"))
-            and (root / name).is_file() and not name.startswith((".tools/", "reports/", "dist/", "bin/"))}
+    # The native GTK C ABI and private-display drivers affect the exercised
+    # behavior even though Go statement instrumentation does not measure C.
+    return go_sources(root)
 
 
 def local_gates(env):
@@ -133,6 +129,79 @@ def all_packages(env):
     return code
 
 
+PORTABLE_MEMORY_TESTS = {"TestStaticBuildDoesNotPretendLegacySandboxIsInstalled",
+                         "TestTP041MemoryProtectionPreservesCoordinatorNetworking",
+                         "TestTP041MemoryProtectionFailsClosedOnKernelErrors"}
+
+
+def portable_memory_coverage(env):
+    """Exercise the shipped memory-only implementation and real kernel faults.
+
+    The full base suite still tests legacy seccomp separately. These targeted
+    portable tests prove memory protection, loopback preservation and explicit
+    refusal to pretend a syscall sandbox was installed; no production hook.
+    """
+    profile = reports / "go-portable-memory.cover"
+    profile.unlink(missing_ok=True)
+    command = ["go", "test", "-tags", "portable", "-covermode=atomic",
+               "-coverprofile=" + str(profile), "-run=^(TestTP041MemoryProtection|TestStaticBuild)",
+               "-count=1", "-json", "./internal/isolation"]
+    result = subprocess.run(command, cwd=root, env=env, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, timeout=90)
+    log = reports / "portable-memory-test.jsonl"
+    log.write_text(result.stdout)
+    passed, skipped, failed = set(), [], []
+    for line in result.stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("Test"):
+            if event.get("Action") == "pass":
+                passed.add(event["Test"])
+            elif event.get("Action") == "skip":
+                skipped.append(event["Test"])
+            elif event.get("Action") == "fail":
+                failed.append(event["Test"])
+    status = "PASS" if result.returncode == 0 and PORTABLE_MEMORY_TESTS <= passed and not skipped and not failed else "BLOCKED" if skipped else "FAIL"
+    report["portableMemory"] = {"status": status, "command": command,
+                               "passedTests": sorted(passed), "skippedTests": skipped,
+                               "failedTests": failed, "rawLogSHA256": hashlib.sha256(log.read_bytes()).hexdigest(),
+                               "scope": "Actual memory-only portable code and test-only syscall tracing; no legacy network-denial claim"}
+    print("Portable memory protection coverage:", status, flush=True)
+    return 0 if status == "PASS" else 1
+
+
+def portable_runtime_coverage(env):
+    """Instrumented GUI acceptance stays separate from the shipped candidate."""
+    profile = reports / "go-native-runtime.cover"
+    profile.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(prefix="cryptowallet-coverage-") as temporary:
+        folder = pathlib.Path(temporary)
+        binary = folder / "cryptowallet-instrumented"
+        counters = folder / "counters"
+        counters.mkdir(mode=0o700)
+        subprocess.run(["go", "build", "-tags", "portable", "-cover", "-covermode=atomic",
+                        "-coverpkg=./cmd/cryptowallet,./internal/nativewallet,./internal/nativeui,./internal/isolation",
+                        "-trimpath", "-ldflags=-X localwallet/internal/buildinfo.Version=" + selected_version(root),
+                        "-o", str(binary), "./cmd/cryptowallet"],
+                       cwd=root, env=env, check=True, timeout=180)
+        runtime_env = {**env, "GOCOVERDIR": str(counters)}
+        result = subprocess.run(["python3", "scripts/native-wallet-test.py", "--binary", str(binary),
+                                 "--report-name", "native-wallet-coverage", "--instrumented"],
+                                cwd=root, env=runtime_env, timeout=900)
+        evidence = reports / "native-wallet-coverage.json"
+        report["nativeRuntime"] = json.loads(evidence.read_text()) if evidence.is_file() else {"status": "BLOCKED", "reason": "Instrumented native runtime report missing"}
+        report["nativeRuntime"]["instrumentedBinarySHA256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        if not any(counters.glob("covmeta.*")):
+            raise RuntimeError("Instrumented native runtime produced no Go coverage metadata")
+        subprocess.run(["go", "tool", "covdata", "textfmt", "-i=" + str(counters), "-o=" + str(profile)],
+                       cwd=root, env=env, check=True, timeout=60)
+        if result.returncode or report["nativeRuntime"].get("status") != "PASS" or report["nativeRuntime"].get("instrumented") is not True:
+            return 1
+        return 0
+
+
 def merge_profiles(paths):
     blocks = {}
     sizes = {}
@@ -146,7 +215,8 @@ def merge_profiles(paths):
             location, statements, count = line.rsplit(" ", 2)
             source = location.rsplit(":", 1)[0]
             if source in ("localwallet/internal/secureui/automation.go",
-                          "localwallet/internal/secureui/recovery_automation.go"):
+                          "localwallet/internal/secureui/recovery_automation.go",
+                          "localwallet/internal/nativeui/automation.go"):
                 excluded[source] = "automation build tag: test-only GTK fixture injector, absent from production"
                 continue
             if source.startswith("localwallet/tests/oracles/"):
@@ -201,19 +271,28 @@ def main():
         native = subprocess.run(["python3", "scripts/native-input.py"], cwd=root, timeout=120)
         native_report = reports / "native-input.json"
         report["nativeInput"] = json.loads(native_report.read_text()) if native_report.is_file() else {"status": "BLOCKED", "reason": "Native report missing"}
+        native_ui = subprocess.run(["python3", "internal/nativeui/test-x11.py"], cwd=root, timeout=240)
+        native_ui_report = reports / "native-ui.json"
+        report["nativeDesktopInput"] = json.loads(native_ui_report.read_text()) if native_ui_report.is_file() else {"status": "BLOCKED", "reason": "Native desktop input report missing"}
+        memory_exit = portable_memory_coverage(env)
+        runtime_exit = portable_runtime_coverage(env)
         after = source_hashes()
         if after != before:
             report["changedSources"] = [name for name in sorted(before.keys() | after.keys()) if before.get(name) != after.get(name)]
             raise RuntimeError("Go sources/module pins changed during measurement; rerun on a stable working tree")
         report["sourceSHA256"] = before
         report["sourceCommit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-        if go_exit or native.returncode:
+        if go_exit or native.returncode or native_ui.returncode or memory_exit or runtime_exit:
             raise RuntimeError("A Go/native suite failed; do not reuse old coverage as evidence")
         # Retain the exact input to this measurement: a later standalone native
         # security run rewrites native-input.cover with different counters.
         native_profile = reports / "go-native.cover"
         shutil.copyfile(reports / "native-input.cover", native_profile)
-        profile = merge_profiles([reports / "go-base.cover", native_profile])
+        # Freeze this exact native-application run separately from legacy GTK
+        # regression counters; both must remain available to evidence verification.
+        native_ui_profile = reports / "go-nativeui.cover"
+        shutil.copyfile(reports / "native-ui.cover", native_ui_profile)
+        profile = merge_profiles([reports / "go-base.cover", native_profile, native_ui_profile, reports / "go-native-runtime.cover", reports / "go-portable-memory.cover"])
         uncovered_blocks(profile)
         subprocess.run(["go", "tool", "cover", "-html=" + str(profile), "-o", str(reports / "go.html")], cwd=root, check=True)
         floor = subprocess.run(["python3", "scripts/coverage.py", str(profile)], cwd=root)

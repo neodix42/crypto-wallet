@@ -1,6 +1,23 @@
 # Implementation and release evidence
 
-## Current Copy phrase update — 2026-10-27
+## Current native Go distribution — 2026-10-28
+
+The owner's portable-binary request replaces the default Electron distribution with one Go executable using system GTK3. The old launcher started Chromium, which required a configured sandbox; renaming that launcher did not make it a self-contained Go wallet. The new `cryptowallet` contains the UI, coordinator and signer roles and starts its own child roles through private inherited pipes. It installs no syscall sandbox or SUID helper. The existing vault formats, configuration paths and all nine networks/twelve asset identities remain unchanged. [Build, security boundary and evidence checklist](PORTABLE_GO.md).
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS | Native ELF/version/dependency checks and a single regular `cryptowallet` member in the archive. Actual build succeeds with Node, npm, Electron and Debian packaging executables forbidden. Safe temporary installation and unrelated-file rejection pass. |
+| PASS | Full default Go package tests; focused native controller, private-prompt lifecycle, supervisor and session-monitor race tests. Private-bus lock/suspend/shutdown tests pass; they do not establish real OS acceptance. |
+| PASS | Current native binary: six headless recovery checks across three isolated copies, matching all 27 canonical descriptors on nine networks and three indices. Eight isolated actual-geth execution checks independently verify the approved amount, transaction, receipt, fees, balances, nonce and durable reconciliation. No public-chain funds or user secrets were used. |
+| PASS — scoped adapter | Seven race-enabled native GTK private-dialog adapter tests on an owned Xvfb display. These are instrumented adapter tests, not a replacement for the actual application drill. |
+| PASS — actual native GUI | All nine source-stable scenarios on the uninstrumented installed candidate: generated phrase and recorded-word confirmation, all nine wallet addresses/copy controls, tabs, Receive QR, Send form/units, authenticated numbered phrase backup/copy, an independent fresh-profile restore with a different app password, and locked restart. |
+| PASS floors; aggregate FAIL / BLOCKED | All 31 unchanged Go coverage floors pass across five source-stable profiles. The original pinned Decred simnet prerequisite remains BLOCKED, so the aggregate remains FAIL. TON and actual local USDT execution gates pass. [Exact measurements and skipped cases](COVERAGE.md). |
+| NOT_RUN — unfinished integration | Native production-evidence verifier migration and a combined native-GUI-approved local-node Send campaign. The headless private-node transfer and graphical Send-form checks are separate evidence; neither establishes this combined gate. The retained Electron production verifier cannot certify this executable. |
+| NOT_RUN | Clean Ubuntu 24.04/26.04 X11/Wayland and real OS lifecycle matrix, hosted execution of the changed workflows, public funded testnet/Bybit acceptance, full 24-hour soak, independent security and license review. |
+
+Native reports are `reports/native-wallet.json`, `reports/native-ui.json`, `reports/portable-phrase-recovery.json`, `reports/portable-send.json`, `reports/sessionwatch.json`, `reports/go-coverage.json` and `dist/portable-build-verification.json`. The installed version 0.1.1 executable has SHA256 `bfc3652c18274f807eb823084bfd68b0c94c9fc0cd3e4d12d7e5612bb4dc18dd`; the GUI, recovery, private-node Send, build and temporary-install checks bind those exact bytes. The separate instrumented GUI run is coverage evidence only. A failed attempt is not a passing gate. Production readiness remains unestablished, and a new development build is not an audit claim.
+
+## Historical Electron Copy phrase update — 2026-10-27
 
 The authenticated **Back up recovery phrase** dialog now offers **Copy phrase**. It copies the ordered Go-provided words without numbering. Only this explicit button may export the phrase: setup and keyboard copying remain blocked. The dialog explains that other apps and clipboard history may retain the words and asks the user to clear the clipboard after use. No automatic or guaranteed erasure is claimed.
 

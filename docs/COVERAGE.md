@@ -1,176 +1,145 @@
 # Go coverage and remaining-path review
 
-Current phrase-backup update (2026-10-27): all **25** Go package floors pass against **193** current source/test/module hashes. `Engine.BackupPhrase` and `uiprompt.BackupRecovery` have **100% statements** with explicit authentication/cancellation/session tests and four killed semantic mutants. The aggregate remains **FAIL** because pinned Decred simnet is unavailable; nine skipped aggregate tests remain explicit. Frontend evidence passes **159** tests with all eight JS files at **100% statements**. Full details and limits: [PHRASE_BACKUP.md](PHRASE_BACKUP.md).
+The 2026-10-27 source-stable measurement passes **all 31 package floors**. Native GTK Go code measures **95.61%**, the native wallet controller **96.66%**, OS session monitoring **95.87%**, supervisor **97.47%**, portable/legacy memory protection **100%**, and the application command **97.37%**. The original 90%/95% floors are unchanged; native UI, controller and session monitoring enforce 95%.
 
-The detailed block review below describes the previous hardening baseline. The Exchange extension adds critical 95% floors for `internal/exchange` and its real Bybit client without reducing existing floors. Current regenerated profiles, source hashes and explicit optional-test skips are in `reports/go-coverage.json`, `reports/coverage.json` and `reports/go-uncovered.json`; current results are recorded in [EXCHANGE.md](EXCHANGE.md) and [STATUS.md](STATUS.md). Earlier percentages and block counts below are historical.
+The **aggregate remains FAIL** because the original pinned Decred `dcrd v1.10.9` simnet prerequisite is **BLOCKED** on this machine. This does not turn passing packages or executed tests into failures, and it does not turn the missing integration test into a pass. The TON V5R1 emulator and actual local USDT EVM execution gates both pass. Decred work was excluded from the owner's current implementation scope; its gate remains present.
 
-This is an internal implementation review, not an external audit. Go measures statements, not branches. A passing percentage does not establish network compatibility, a clean-desktop recovery drill or production readiness. Public funded testnets, the full installed OS/display matrix, the 24-hour campaign and independent review retain their separate recorded statuses.
-
-The final source-bound Go campaign passes all 23 measured package floors with 163 stable source/test/module hashes in 64.214 seconds. The actual local TON V5R1 emulator and pinned Decred simnet pass inside that campaign. Installed Electron, physical-machine, funded-network and full supported OS/Wayland/lifecycle acceptance have separate evidence and limits in [STATUS.md](STATUS.md); Go percentages do not pass those gates.
+Go measures statements, not branches, C ABI behavior, cryptographic soundness or independent security review. Passing local coverage does not establish production readiness. Historical Electron reports and narrower initial measurements are superseded for current source by the exact reports below, and are not assigned to the new executable.
 
 ## Reproduction and evidence integrity
 
-Run `python3 scripts/go-coverage.py` or `make coverage`. The wrapper executes the real application/unit/stress tests with atomic cross-package instrumentation, enables the pinned local dcrd simnet and TON contract emulator when available, and runs the retained private-X11 GTK regression suite. GTK is no longer used by production: all current wallet dialogs use the isolated Electron prompt window. Its separate JS/installed-app measurements are not Go coverage. It unions identical production blocks from both profiles, retaining one statement denominator and the maximum observed execution count. This counts real calls across package boundaries rather than treating their own isolated test binaries as the only coverage source.
+Run `make coverage`, or `./scripts/with-toolchain.sh python3 scripts/go-coverage.py`. The wrapper runs all original Go/unit/stress tests with atomic cross-package instrumentation, retained GTK prompt regressions, native GTK adapter tests on a private Xvfb, targeted portable memory tests, and a **separate instrumented native executable** through the real disposable-profile GUI driver. It preserves all original local-node/emulator gates and records every explicit skip.
 
-The wrapper records each source/test/module SHA-256 at the start and refuses changed-source measurements. It checks the pinned dcrd source-module identity before launching its isolated simnet. Missing local prerequisites remain **BLOCKED**; explicit Go skips remain **NOT_RUN** or **BLOCKED**, with reasons. Tests use public synthetic fixtures and disposable OS-random roots. No mainnet payment or real user secret is used.
+The five frozen raw profiles are `go-base.cover`, `go-native.cover`, `go-nativeui.cover`, `go-native-runtime.cover` and `go-portable-memory.cover`. Identical source blocks share one statement denominator and use maximum observed counts. The verifier requires their exact hashes and reconstructs the union. Missing profiles, altered counters, changed source or below-floor packages fail. The portable memory tests exercise production memory-only code, actual kernel-failure tracing, preserved loopback access, and explicit refusal to claim an installed syscall sandbox. The full base suite separately retains real legacy seccomp tests.
 
-Only the exact `internal/secureui/automation.go` and `internal/secureui/recovery_automation.go` paths (both `automation`-tagged GTK fixture injectors absent from production) and independent non-shipped oracle programs are excluded. Their exact paths/reasons are recorded. The coverage-integrity regression also supplies an unknown `other_automation.go` source and requires it to remain included, so this is not a filename-pattern exclusion. All shipped Go prompt validation/transport, signing adapters and application binaries remain included. The retained `internal/secureui` GTK package remains measured as unshipped regression code, separately identified rather than counted as current interface acceptance. Third-party libraries and native C/GTK code are not instrumented by Go's statement counters. They retain independent fixtures, runtime tests and audit obligations.
+Source binding includes every first-party Go/test/module file, C/header bindings and the coverage/private-display drivers. A before/after snapshot rejects concurrent edits. Only the exact tagged `internal/secureui/automation.go`, `internal/secureui/recovery_automation.go` and `internal/nativeui/automation.go` test injectors and independent nonshipped oracle generators are excluded. No shipped path is excluded. Third-party library and native GTK/C statements are not measured by Go.
 
-`reports/coverage.json` is the per-package floor result; `reports/go-coverage.json` records suites, source/profile hashes, local gate outcomes and skipped tests. `reports/go-uncovered.json` contains every unexecuted production block with its exact source excerpt and statement count. `reports/go-functions.txt` and `reports/go.html` provide function and source views. The block index below ties that machine report to the review disposition.
+`reports/go-coverage.json` records the stable source snapshot, all suites, profiles, original gates and skipped tests. `reports/coverage.json` contains per-package floors. `reports/go-uncovered.json` retains every unexecuted block's exact source excerpt; `reports/go-functions.txt` and `reports/go.html` provide function/source views. These local generated reports are not release assets. Source or binary changes require affected checks to run again.
 
-`python3 scripts/coverage-test.py` verifies that profile union does not multiply denominators or invent hits, exclusions remain explicit and limited to non-shipped sources, changed block shapes/modes and negative counters are refused, empty coverage is not passed, and critical security packages enforce 95%. The launcher uses the 90% application-glue floor; core, signer CLI, Go prompt transport and supervisor use the stricter 95% security floor. The retained unshipped GTK package also retains its 95% floor.
+`python3 scripts/coverage-test.py` passes five integrity tests. `python3 scripts/release-evidence-test.py` passes 30 verifier regressions, including source/driver/C changes, forged counters, missing profiles, lowered/missing original gates and reclassified portable-memory/native-runtime evidence.
 
-## Security and funds paths exercised
+## Executed campaigns and limits
 
-The recorded suites cover immutable plans, Go-validated effects and bound Electron approval, changed recipients/fees/networks, signature verification, durable signed artifacts before broadcast, old-identity reconciliation, reservation retention, failed persistence locking, unsigned cancellation, session/generation races and encrypted recovery. A specific coordinator regression changes the epoch after the durable `SUBMITTING` update and proves the adapter never broadcasts while the signed identity remains recoverable.
-
-The current phrase-recovery regressions create real OS-random BIP39 roots across all six required families and restore their exact canonical descriptors in independent empty profiles. They cover 12-word mainnet and 24-word testnet roots, indices 0, 1 and 127, the same or a different app storage password, restart/unlock, and a separate nonempty BIP39-passphrase case. Mainnet still contains nine networks and eleven assets; explicit testnet/local coverage is retained. A restored phrase does not reproduce a lost local journal, undiscovered associations or historical address counters. The former `Engine.Backup`/`Restore` methods now exist only in `_test.go` helpers for retained filesystem hardening regressions, with no product dispatch or UI action. Environment mismatch checks still reject opening a vault under the wrong profile. The production launcher bootstrap verifies mainnet by default, explicit `--profile=testnet`, and rejection of malformed or conflicting profile arguments. Locked snapshots identify their selected environment without exposing accounts or credentials. The public network registry keeps mainnet and test/local networks separate; authenticated Decred settings remain explicitly unconfigured until supplied by the user.
-
-Receive/copy, preparation and signing require recorded recovery completion on both profiles. The pending-root tests preserve the same encrypted root across cancellation, restart and password reauthentication, reject repeated disclosure after confirmation, ignore a former verified-backup flag, and fail closed on missing recovery UI support or failed acknowledgement persistence. Callback faults lock the engine during import confirmation, phrase display, password input and the separate BIP39-passphrase reminder; none can acknowledge a locked or replaced root. A signing regression explicitly revokes the completion flag in test state before Sign, during approval and during password reauthentication. It requires no signature and preserves the original journal or cancels the unsigned operation as appropriate; confirmation-time revocation also prevents opening the password prompt. Restoring authority in that test uses a test-only helper, while separate recovery tests exercise the actual production completion path. No public operation resets completion or reveals a completed root. These tests use local encrypted files and offline plans, with no mainnet broadcast. RPC metadata tests remove credential-bearing paths, queries and userinfo before public IPC, and configuration tests reject foreign-profile networks, missing Decred authentication and plaintext mainnet dcrd transport.
-
-TON pacing tests use a synthetic HTTP transport to enforce spacing for unkeyed official TON Center requests, cancel a queued or delayed request at its context deadline, and preserve the configured API-key/header and custom-node paths. This is a local request limit, not a guarantee against quotas consumed by other applications sharing a provider/IP. It never retries a broadcast. Public mainnet endpoint identity probes have separate evidence in [MAINNET.md](MAINNET.md); this coverage measurement does not establish funded-mainnet execution.
-
-First-run tests require primary and previous generations to be absent before creation or phrase import. Existing, corrupt, unsafe and orphaned entries remain existing/unavailable rather than a new-wallet invitation. Six product-path cases introduce primary, previous or both ciphertext files during Create/phrase-import prompt input, then verify rejection, secret cleanup and unchanged original bytes. Three additional cases retain equivalent checks through a test-only legacy file-restore helper; they are not product restore acceptance. A separate real filesystem test introduces a primary after staging fsync; the kernel's `RENAME_NOREPLACE` preserves that late file. Initialization never copies a previous generation. These are bounded collision tests, not proof of atomic exclusion across two names against an arbitrary same-user filesystem writer.
-
-The current `internal/uiprompt` package owns strict Go prompt/reply decoding, byte limits, fresh prompt IDs and recovery word checks. The portfolio bridge cannot submit a `promptReply`; main accepts it only from the current isolated Electron modal and correlates it with the active Go operation/session. Recovery acknowledgment is followed by a separate masked word challenge verified in Go. Malformed, replayed, stale, wrong-kind and cancelled replies fail closed. Prompt text and words use a narrowly approved transient transport exception: Electron now sees secrets in its dedicated trusted prompt renderer. They never belong in snapshots, diagnostics, persistent files, clipboard or network requests. JavaScript strings and runtime/OS copies prevent any promise of complete erasure. [FRONTEND_SIGNER_TESTS.md](FRONTEND_SIGNER_TESTS.md) describes the expanded trust boundary and current component tests.
-
-The headless restoration driver tests actual prompt frames across three independent application copies with separate HOME/config/processes and no copied vault/keyring. Its six-check scope compares all 27 descriptors across nine mainnet networks at indices 0, 1 and 127, under the same and a different local password; restart begins locked. The generated phrase stays in disposable test memory and scans cover ordinary public-data IPC, process logs and persisted files. The dedicated prompt transport is the explicit transient-secret exception and is not misreported as secret-free. This is same-host protocol integration, not actual Chromium interaction or a second physical machine. Current binary identities and separate packaged statuses belong to their candidate-bound reports and [STATUS.md](STATUS.md).
-
-Electron component tests execute all eight shipped JS files, including the dedicated prompt preload/validator/UI. The current 107 tests pass with zero skips and 100% statement coverage for every file; main branches are 98.41%, the portfolio renderer 98.18%, and the other six files 100%. The source-stable report binds frontend inputs and all eight compiled/runtime JS hashes. Account and journal pagination, null/type/cursor validation, independent history request epochs and out-of-order reply/error rejection are included. Critical main/preload/validation/codec/prompt code, including the prompt UI, enforces 95% statements and 90% branches. Portfolio UI floors remain 90%/85%. Tests cover trusted-frame binding, one-time prompt delivery, malicious/replayed/concurrent messages, DOM clearing, title replacement, exact QR/copy data, file choices and lock/navigation/crash/timeout/EOF cleanup. Electron doubles and jsdom do not establish the production sandbox or installed OS behavior.
-
-The retained GTK suite passes 14 short tests with one optional five-minute test skipped. It checks its old masked input, receive/copy, recovery word challenge, widget clearing and bounded geometry. That package is absent from production signer dependency/linkage results; its native profile remains in the aggregate only as legacy regression evidence. Earlier focused geometry and native phrase reports are historical after the Electron-only policy change. Neither their percentages nor their real XTest events pass current Electron interface acceptance.
-
-The [process-lifetime review](PROCESS_LIFETIME.md) covers the Linux creator-thread parent-death hazard. The launcher keeps one OS thread through child startup and `Exec`; the supervisor retains a dedicated locked creator thread until each signer is killed and reaped. Actual kernel controls reproduce child `SIGKILL` when an unowned caller thread retires. The fixed Child survives caller-thread retirement, answers a subsequent RPC, releases every owner over eight restarts, and receives `SIGKILL` after abrupt parent-process death. The last test independently reaps the child through a private subreaper and makes the peer wait on EOF, so ordinary pipe closure cannot pass it. These regressions confirm the isolated mechanism; they do not attribute an earlier packaged failure without its missing thread trace.
-
-Before accepting secret-bearing prompt traffic, the Go core applies memory protection without disabling its RPC networking. Owned subprocess tests require `RLIMIT_CORE=0` and `PR_GET_DUMPABLE=0` and independently exercise a working loopback connection. The signer retains its network-denying isolation. Electron exec resets its dumpable state; inherited zero core limits and the absence of a crashReporter upload path do not establish Electron `PR_SET_DUMPABLE=0` or immunity to privileged/kernel crash collection. Electron/runtime/OS remain trusted.
-
-The successful isolation helper tests actual TCP/UDP sockets on all Go threads, raw packet/socket families, io_uring, TCP/UDP dials to IPv4/IPv6 loopback and a documentation-range LAN destination, custom-resolver DNS and HTTP without proxies. It requires socket permission denial, not merely an unreachable destination. DNS's underlying resolver dial errors are checked directly because `net.DNSError` does not preserve every wrapped errno.
-
-A test-only Linux/amd64 ptrace parent exercises the compiled startup defenses without changing production code: it changes the result of an actually denied IP socket into harmless fd0, and separately changes a successful `PR_SET_NO_NEW_PRIVS` result into `EPERM`. Both produce the expected fail-closed startup error. No IP socket is opened by this substitution. The helper writes real Go raw coverage counters into the test coverage directory; the tracer never fabricates counters. A platform that blocks ptrace reports the test **BLOCKED**, so it cannot silently meet the floor through a skipped scenario.
-
-The final coverage inputs have been independently rehashed: all 163 source/test/module entries and both frozen raw profiles match with zero mismatches. The report records base HEAD `91ae2e25c32e5ae1f394f903274ce87334f33d7f`; the working-tree fingerprints bind the measured implementation, including its uncommitted changes. The profile inputs are:
-
-| Frozen profile | SHA-256 |
+| State | Campaign |
 | --- | --- |
-| `reports/go-base.cover` | `1093113f59628bbb2b53c16076b496da0c97992c956866c0f9c066c0caf0c769` |
-| `reports/go-native.cover` | `ce97716f171f34d8e9556b751d696a2d593ec8f72a22b12dd4c49eceec5c5964` |
+| PASS | All base Go packages; skipped individual integration/soak tests remain separately listed below. |
+| PASS | Retained private-X11 GTK prompt suite: 14 tests; its optional five-minute campaign is NOT_RUN. This legacy prompt package is not the new UI. |
+| PASS | Native GTK adapter: seven race-enabled tests, including invalid/bounded public trees, unavailable display, dialog cancellation, closed/duplicate private requests and temporary-word cleanup. |
+| PASS | Portable memory: all three required parent tests, including real traced kernel-failure subtests, run without skips. |
+| PASS | Instrumented native GUI: all nine setup, wallet/copy, Receive QR, Send presentation, authenticated backup, independent phrase restore and locked-restart scenarios; sourceStable=true. This executable is distinct from the uninstrumented candidate. |
+| PASS, separate candidate | `reports/native-wallet.json`: ordinary uninstrumented candidate passes the same nine GUI scenarios. Generated secrets remain in disposable memory; no real wallet or mainnet transfer is used. |
+| PASS | Original TON V5R1 emulator and local USDT signed-transaction execution gates. |
+| BLOCKED | Original Decred simnet gate: pinned dcrd executable unavailable. |
+| NOT_RUN | Clean Ubuntu 24.04/26.04 X11/Wayland matrix, separate physical machines, real OS lock/suspend acceptance, public funded testnets, live Bybit operations, full 24-hour soak and independent security/license review. |
 
-Race, mutation, fuzz, stress, packaged and long-duration results retain their own source/artifact bindings in [STATUS.md](STATUS.md). Earlier `electron-*` campaign logs and three-second fuzz reports are historical scopes after the pagination/activation changes. This coverage report does not turn a still-running, skipped or missing campaign into a pass. The local page tests exercise more than 1 MiB of encrypted journal data without overflowing the private pipe, 10,000 account descriptors, exact late-operation lookup and preservation of every reservation; [HISTORY_PAGINATION.md](HISTORY_PAGINATION.md) records the bounds and remaining archival limitations.
+The GUI runs in an owned isolated user/mount/network namespace. Pinned RPC hostnames resolve to unreachable test-only loopback addresses; no RPC service or mocked response is supplied, and host `/etc` is untouched. This makes RPC failures deterministic and fast; it does not establish public RPC acceptance. Synthetic controller replies validate dispatch/state contracts only. The separately reported private-geth transfer is actual headless protocol integration, not graphical Send/approval acceptance. A current native production-evidence verifier and a combined native GUI/local-node Send campaign remain unfinished; the old Electron verifier cannot certify this build.
 
-## Remaining paths and dispositions
+The final measurement binds **226** source/test/module/driver files and takes **318.128 seconds**. Earlier source-changed attempts remain FAIL under `reports/coverage-source-changed-first/` and `reports/coverage-source-changed-second/`; their individually passing scenarios are not current acceptance.
 
-The retained defensive guards remain enabled. An unexecuted error return is still unexecuted; adjacent tests do not convert it into a passing test. The table distinguishes defensive paths from reachable glue that has narrower evidence.
+| Explicit base-test skip | State | Reason |
+| --- | --- | --- |
+| `cmd/wallet-launcher.TestTP041BootstrapWorker` | NOT_RUN | Explicit test skip; inspect go-test.jsonl for prerequisites |
+| `internal/chains/aptos.TestLocalNode` | NOT_RUN | aptos_test.go:263: NOT_RUN: pinned local validator required |
+| `internal/chains/aptos.TestLocalNodeRotation` | NOT_RUN | aptos_test.go:392: NOT_RUN: independent TS SDK rotation setup required |
+| `internal/chains/aptos.TestLocalNodeCommittedFailure` | NOT_RUN | aptos_test.go:462: NOT_RUN: local validator required |
+| `internal/chains/decred.TestDcrdSimnet` | NOT_RUN | decred_test.go:305: NOT_RUN: WALLET_DCRD must point to pinned dcrd v1.10.9 executable |
+| `internal/chains/near.TestNEARPublicBalanceReadOnly` | NOT_RUN | balance_test.go:493: NOT_RUN: explicit public read-only NEAR balance probe not requested |
+| `internal/chains/evm.TestTP050LocalEVMProtocolAcceptance` | NOT_RUN | integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node |
+| `internal/chains/near.TestLocalNode` | NOT_RUN | near_test.go:233: NOT_RUN: pinned sandbox harness required |
+| `tests/stress.TestTP072Soak` | NOT_RUN | stress_test.go:250: NOT_RUN: invoke make test-soak for explicit 24-hour campaign |
 
-| Area | Review of remaining statements |
-|---|---|
-| Vault envelope/files | AEAD/serializer errors after validated fixed parameters, OS read/short-write/close/sync/rename errors, directory-open errors and the portable backup destination metadata-query error after a verified directory open. Stage-by-stage faults, authenticated tampering, unsafe paths, old/new valid generation recovery and failed persistence are covered. Not every filesystem/kernel error is independently induced. Guards return errors and preserve/lock state; filesystem durability remains an OS contract. |
-| Root derivation and amounts | BIP39/library failure after prior entropy validation, invalid scalars and checked conversion failures precluded by preceding canonical bounds. Independent vectors, Unicode/passphrase separation, invalid-child policy and overflow/precision cases are covered. No deterministic production RNG/HMAC override was added. |
-| Signer policy | OS RNG termination, verified encryption/decryption mismatches and prompt/output/library failures following validated inputs; unsupported corrupted descriptors. The fallback that marks an unlocked in-memory root unavailable after both vault files disappear remains unexecuted. The initial-commit write-error and post-commit previous-conflict returns remain unexecuted at the engine call site; lower-level atomic late-primary rejection and the six product-path pre-commit prompt collisions pass with narrower scope. The postcheck preserves both files and locks the current session; it does not establish durable conflict quarantine after restart. Pending recovery, UI-callback lock faults, cancellation, acknowledgement persistence failure and completed-root disclosure denial are covered. A cryptographic API failure must return no artifact; offline metadata never proves current chain authority. |
-| Supervisor/launcher | Pipe/descriptor allocation exhaustion, CSPRNG failure, diagnostic OS-path failures, sanitized optional-environment skips and process startup/exec failure variants. Real manifest tampering, private-frame validation, child death, generation-bound queued calls and lock interruption are tested. No globally weakened sandbox or production fault hook is used. The launcher entry-point `os.Exit` wrapper is subprocess exercised separately from its in-process `run` counters. |
-| Core | Startup failures, worker/ticker scheduling and queue-full fallback, already-inactive context cleanup, separate NEAR/Aptos association routing, unreachable-after-marshalling JSON errors, unsupported provider states and adapter expiry defaults. The association implementations and encrypted signer association checks have direct tests; earlier local-node reports retain their own source-bound scope. Current optional NEAR/Aptos node cases are skipped, and a complete packaged association workflow remains unrun. Session cancellation, Go idle, queue epochs, final pre-broadcast guard, reserves and atomic settings have explicit regressions. |
-| NEAR/Aptos | SDK serializer/signature failures after the signer reconstructs fixed validated transaction types, secondary parse guards and some history-entry provider failure returns. Current SDKs cannot produce most of these failures from the allowlisted bounded inputs. Public helper/authority failures are exercised on balance/preparation/submission routes, but not each identical history call site. Exact independent bytes/signatures and adverse authority/key-rotation cases have direct tests. Earlier actual-node execution/history reports are separate source-bound evidence; the current aggregate explicitly skips the optional validator/sandbox cases. |
-| EVM/HyperCore | Invalid BIP32 master/child scalars, signer/serializer self-check failures, strict parser states precluded by complete preceding parses, endpoint/request construction errors and explicit history saturation bounds. Known fee/authority/domain/asset/finality/replay mutations and independent fixtures pass. A history limit returns an error rather than an invented complete history. See `docs/EVM_CORE.md` for the adapter owner's review. |
-| Decred | Official child/script/key/serialization failure after validated fixed inputs, request construction, bounded-wallet record saturation, a late tip-change and selected repeated ancestor/synchronization failures. Guards preserve unknown/spendability state and refuse incomplete scans. Real simnet send/receive/send-back, maturity/disapproval, fee/change, tree-aware inputs, official signature engine, wire allocation and independent HD tests cover the fund-preservation invariants. |
-| TON | Fixed Wallet V5R1 builder/cell/signature failures, secondary validated-BOC parse errors, repeated trace-query errors and a nil outgoing-message dictionary guard which the current official TLB decoder materializes even for an empty dictionary. Invalid BOCs, authorities, seqnos, expiry, recipient traces and real TVM first deployment/send-back/history are exercised. Seqno advancement alone never becomes payment success. The final cancellation check immediately after a pacing timer/token wait remains unexecuted; cancellation before waiting, during token acquisition and during the timer wait has passing tests. |
-| Go prompt transport | Serializer errors for fixed string/slice DTOs, a redundant second strict map decode after successful typed decoding, CSPRNG failure when allocating a prompt ID, and post-validation serialization failure guards remain unexecuted. The signer command's own prompt-write/read-failure branches also remain unexecuted at that exact call site; lower-level malformed/truncated/EOF/session/replay paths have direct tests. Guards return fixed errors and no artifact. No production RNG or serializer fault hook was added to inflate coverage. |
-| Strict JSON/transport | Closing-delimiter states excluded by the standard decoder's earlier complete token parse. Duplicate/trailing/deep/oversized/unknown data and malformed numeric inputs are covered; the redundant fail-closed guards remain. |
-| QR and retained legacy GTK | The image-to-bitmap constructor's nil/error guard cannot be produced by the current library after valid nonzero bounded image decoding. The legacy GTK initialization-failure return at `native.go:109`, input partial-result wiping at `native.go:161` and recovery `malloc` failure at `native.go:218` remain unexecuted in the merged profile; no production allocator-fault hook was added. These are retained unshipped GTK guards; their direct tests do not cover Electron. Current Go/JS receive validation, exact copy, cancellation, phrase-format checks and masked recovery success/cancel/wrong-word paths have separate tests. Native C pixbuf/scale/allocation failures and volatile wiping are not measured by Go or independently fault-injected; runtime tests inspect nonselectable labels and cleared widget text, not every GTK/Pango/allocator buffer. Mutable Go/C staging inputs are cleared, while GTK/runtime/OS copies cannot be promised complete erasure. |
+The launcher bootstrap-worker skip is its unused parent role outside the dedicated worker subprocess. Optional Aptos/NEAR/public-balance/private-geth integration tests require their named harnesses or explicit opt-in; separate reports retain their own scope. The 24-hour soak and five-minute native typing campaigns are explicit runs and are never inferred from faster stress or UI tests.
 
-### Current critical-path additions
+## Measured package floors
 
-- `cmd/wallet-core/history.go:162` and `public_pages.go:48` retain unexecuted CSPRNG-error returns when creating public capabilities. Success, replay, context/session/epoch/filter binding, expiry, memory/record limits and changed generations are exercised. No production RNG override was added to force these two call sites.
-- `history.go:184` is the final serialization/page-size fallback after the separately enforced candidate-page budget and reserved cursor/envelope space. It returns an error, not a truncated response; that exact fallback remains unexecuted. The tests serialize actual framed pages and require them to fit the 1 MiB IPC limit.
-- The Decred compatibility wrapper at `history.go:59,67,75,77` has unexecuted continuation-denial, successful-report serialization/return and oversized-report paths (six statements excluding the separate RNG/size fallbacks). The authenticated adapter's simnet evidence is separate; it does not execute these coordinator branches. Decred synchronization changes were excluded by the owner and no successful full coordinator Decred-history workflow is claimed.
-- `internal/signer/engine_public.go:68` is the two-statement fallback that marks a still-unlocked in-memory root present/unavailable after both vault files disappear. The equivalent `Engine.Snapshot` fallback also remains unexecuted. Neither fallback permits creation. Current paging tests cover account/journal limits, stale/cross-kind/filter positions, null/type rejection, artifact redaction and preservation of exact private signed operations and reservations.
-- HyperCore's `history.go:108` duplicate-receipt guard and `:143` source-address-validation error remain unexecuted at these exact call sites. The underlying bounded ledger parser, duplicate/saturated time windows, changed-page commitments, recipient-address errors and shared address validator have separate positive/negative tests. Those neighboring passes do not label these two returns executed. Activation fee/owner/domain and equal-timestamp continuation behavior retain their adapter-specific review in [EVM_CORE.md](EVM_CORE.md).
-- All statements in the new TON archival cursor/link/search implementation and the new `strictjson.Text` decoder are exercised. Existing TON builder/cell/BOC/library error returns remain listed below. The complete local TVM roundtrip initially failed against a fixture that concatenated forward/return histories oldest-first and combined two alternative emulator forks. The fixture now orders actual BOCs newest-first, honors the requested `lt`/`hash`/limit and keeps the failed branch separate. Production link verification was preserved. The earlier failure remains recorded in `reports/go-coverage-before-ton-fixture-fix.json`; the final source-stable run passes the actual emulator, not a skip.
+Legacy launchers/helpers and the retained GTK prompt package are measured for regressions; they do not ship in the default one-file archive. `internal/buildinfo`, `internal/model` and embedded redistribution text have no executable statement denominator, so no percentage is invented for them.
 
-Each remaining block is indexed by its exact current line/column below and inherits the applicable source/area disposition above. “Unexecuted” is retained even when a guard is redundant after prior validation or a library failure is not expected for the fixed allowlisted inputs. No uncovered block is excluded merely to pass a floor.
-
-Native C and cryptographic library behavior require external review in addition to these source and runtime checks. The retained guards are intentionally conservative. Future dependency changes must rerun fixtures and review newly reachable outcomes, not discard them as permanently unreachable.
-
-## Measured package table and block index
-
-The final run passes all 23 measured package floors: 22 shipped Go packages plus the retained, unshipped GTK regression package. `internal/buildinfo` and `internal/model` declare data/types/interfaces without executable statement counters, so no percentage is invented for them; their compiled uses are exercised by the application tests. It freezes 163 source/test/module hashes and completes in 64.214 seconds. Go measures statements, not branches. Machine reports bind the exact source/profile hashes and remain authoritative for reruns.
-
-The wrapper freezes the native profile before merging, so a standalone legacy GTK run cannot overwrite its measurement input. The pinned `dcrd v1.10.9` simnet and `@ton/sandbox 0.45.0` V5R1 emulator pass. The native suite records 14 passes and one optional five-minute skip; it is retained GTK evidence, not current Electron acceptance.
-
-| Explicit skip in this Go campaign | Status and reason |
-| --- | --- |
-| `cmd/wallet-launcher.TestTP041BootstrapWorker` | **NOT_RUN** — Explicit test skip; inspect go-test.jsonl for prerequisites |
-| `internal/chains/aptos.TestLocalNode` | **NOT_RUN** — aptos_test.go:263: NOT_RUN: pinned local validator required |
-| `internal/chains/aptos.TestLocalNodeRotation` | **NOT_RUN** — aptos_test.go:392: NOT_RUN: independent TS SDK rotation setup required |
-| `internal/chains/aptos.TestLocalNodeCommittedFailure` | **NOT_RUN** — aptos_test.go:462: NOT_RUN: local validator required |
-| `internal/chains/near.TestLocalNode` | **NOT_RUN** — near_test.go:233: NOT_RUN: pinned sandbox harness required |
-| `internal/chains/evm.TestTP050LocalEVMProtocolAcceptance` | **NOT_RUN** — integration_test.go:44: NOT_RUN: set LOCALWALLET_EVM_NODE to explicit loopback test node |
-| `tests/stress.TestTP072Soak` | **NOT_RUN** — stress_test.go:250: NOT_RUN: invoke make test-soak for explicit 24-hour campaign |
-
-The launcher bootstrap-worker skip is its unused parent role outside the worker subprocess, not a claim that bootstrap acceptance is absent. Optional Aptos/NEAR/geth tests need their named local harnesses; earlier node reports retain their own source-bound scope. The complete 24-hour soak is a separate explicit campaign. The three additional native not-run scopes are real Wayland input, sustained five-minute wall-clock typing and the clean installed OS lock/suspend matrix.
-
-| Package | Statements covered/total | Go statement coverage | Floor | Scope |
+| Package | Covered/total statements | Coverage | Floor | State |
 | --- | --- | --- | --- | --- |
-| `cmd/wallet-core` | 698/732 | 95.36% | 95% | Shipped Go |
-| `cmd/wallet-launcher` | 87/93 | 93.55% | 90% | Shipped Go |
-| `cmd/wallet-signer` | 180/186 | 96.77% | 95% | Shipped Go |
-| `internal/amount` | 45/47 | 95.74% | 95% | Shipped Go |
-| `internal/chains` | 1/1 | 100.00% | 95% | Shipped Go |
-| `internal/chains/aptos` | 453/469 | 96.59% | 95% | Shipped Go |
-| `internal/chains/chainutil` | 93/94 | 98.94% | 95% | Shipped Go |
-| `internal/chains/decred` | 790/819 | 96.46% | 95% | Shipped Go |
-| `internal/chains/evm` | 782/810 | 96.54% | 95% | Shipped Go |
-| `internal/chains/hypercore` | 636/656 | 96.95% | 95% | Shipped Go |
-| `internal/chains/near` | 399/403 | 99.01% | 95% | Shipped Go |
-| `internal/chains/ton` | 694/721 | 96.26% | 95% | Shipped Go |
-| `internal/derivation` | 74/76 | 97.37% | 95% | Shipped Go |
-| `internal/ipc` | 49/49 | 100.00% | 95% | Shipped Go |
-| `internal/isolation` | 12/12 | 100.00% | 95% | Shipped Go |
-| `internal/journal` | 16/16 | 100.00% | 95% | Shipped Go |
-| `internal/qr` | 26/27 | 96.30% | 95% | Shipped Go |
-| `internal/secureui` | 213/216 | 98.61% | 95% | Retained, unshipped GTK regression |
-| `internal/signer` | 641/657 | 97.56% | 95% | Shipped Go |
-| `internal/strictjson` | 45/46 | 97.83% | 95% | Shipped Go |
-| `internal/supervisor` | 177/183 | 96.72% | 95% | Shipped Go |
-| `internal/uiprompt` | 152/160 | 95.00% | 95% | Shipped Go |
-| `internal/vault` | 235/244 | 96.31% | 95% | Shipped Go |
+| `cmd/cryptowallet` | 37/38 | 97.37% | 90% | PASS |
+| `cmd/wallet-core` | 1/1 | 100.00% | 95% | PASS |
+| `cmd/wallet-launcher` | 147/156 | 94.23% | 90% | PASS |
+| `cmd/wallet-signer` | 1/1 | 100.00% | 95% | PASS |
+| `internal/amount` | 45/47 | 95.74% | 95% | PASS |
+| `internal/chains` | 1/1 | 100.00% | 95% | PASS |
+| `internal/chains/aptos` | 453/469 | 96.59% | 95% | PASS |
+| `internal/chains/chainutil` | 93/94 | 98.94% | 95% | PASS |
+| `internal/chains/decred` | 787/819 | 96.09% | 95% | PASS |
+| `internal/chains/evm` | 793/820 | 96.71% | 95% | PASS |
+| `internal/chains/hypercore` | 636/656 | 96.95% | 95% | PASS |
+| `internal/chains/near` | 447/456 | 98.03% | 95% | PASS |
+| `internal/chains/ton` | 694/721 | 96.26% | 95% | PASS |
+| `internal/derivation` | 74/76 | 97.37% | 95% | PASS |
+| `internal/exchange` | 30/30 | 100.00% | 95% | PASS |
+| `internal/exchange/bybit` | 429/431 | 99.54% | 95% | PASS |
+| `internal/ipc` | 49/49 | 100.00% | 95% | PASS |
+| `internal/isolation` | 20/20 | 100.00% | 95% | PASS |
+| `internal/journal` | 16/16 | 100.00% | 95% | PASS |
+| `internal/nativeui` | 370/387 | 95.61% | 95% | PASS |
+| `internal/nativewallet` | 810/838 | 96.66% | 95% | PASS |
+| `internal/qr` | 26/27 | 96.30% | 95% | PASS |
+| `internal/secureui` | 213/216 | 98.61% | 95% | PASS |
+| `internal/sessionwatch` | 116/121 | 95.87% | 95% | PASS |
+| `internal/signer` | 992/1024 | 96.88% | 95% | PASS |
+| `internal/strictjson` | 45/46 | 97.83% | 95% | PASS |
+| `internal/supervisor` | 231/237 | 97.47% | 95% | PASS |
+| `internal/uiprompt` | 156/164 | 95.12% | 95% | PASS |
+| `internal/vault` | 284/293 | 96.93% | 95% | PASS |
+| `internal/walletcore` | 1355/1400 | 96.79% | 95% | PASS |
+| `internal/walletsigner` | 232/238 | 97.48% | 95% | PASS |
 
-The exact remaining 203 blocks contain 219 unexecuted statements across 35 source files. They are unexecuted, not passed by adjacent tests. Every block is mapped to the reviewed source/area disposition above; full spans and excerpts are in `reports/go-uncovered.json`.
+## Remaining-path review
+
+Unexecuted counters remain unexecuted even if nearby tests pass. The table below indexes every remaining production block; full spans and excerpts are in `reports/go-uncovered.json`. Conservative validation, cryptographic-library errors, serialization/storage failures, cancellation/lifecycle races, native callback boundaries and RPC rejection paths retain their guards. No guard is removed or declared impossible merely to improve coverage.
+
+The CLI's remaining failure path is inspected without exposing raw internal errors. Native UI/controller/session-monitoring counters require both negative-state tests and actual event-loop scenarios; C allocation/widget behavior still needs native runtime testing and independent review. Core/signer/chain uncovered failures require their specific fault or node harness, rather than fabricated transactions. Retained legacy component paths remain regression scope only. Changes to these areas must rerun meaningful scenarios and review new outcomes before release.
+
+There are **277 unexecuted blocks**, containing **309 statements**, across **45 files**. Their inclusion is deliberate; the floor permits some unexecuted code, not an audit exemption.
 
 | Source | Unexecuted block start line.column | Statements |
 | --- | --- | --- |
-| [cmd/wallet-core/history.go](../cmd/wallet-core/history.go) | `59.4`, `67.3`, `75.4`, `77.3`, `162.4`, `184.3` | 8 |
-| [cmd/wallet-core/main.go](../cmd/wallet-core/main.go) | `222.4`, `223.5`, `225.4`, `267.3`, `274.3`, `278.3`, `296.5`, `315.5`, `339.5`, `345.4`, `365.5`, `490.4`, `492.4`, `496.3`, `497.4`, `499.3`, `502.4`, `504.3`, `523.4`, `585.4`, `591.4`, `823.5`, `894.3` | 25 |
-| [cmd/wallet-core/public_pages.go](../cmd/wallet-core/public_pages.go) | `48.3` | 1 |
-| [cmd/wallet-launcher/main.go](../cmd/wallet-launcher/main.go) | `31.15`, `45.3`, `79.5`, `95.4`, `106.3`, `168.3` | 6 |
-| [cmd/wallet-signer/main.go](../cmd/wallet-signer/main.go) | `34.3`, `38.3`, `61.6`, `67.6` | 6 |
+| [cmd/cryptowallet/main.go](../cmd/cryptowallet/main.go) | `35.3` | 1 |
+| [cmd/wallet-launcher/main.go](../cmd/wallet-launcher/main.go) | `108.4`, `119.3`, `181.3`, `31.15`, `39.3`, `48.3`, `92.5` | 7 |
+| [cmd/wallet-launcher/stderr_process.go](../cmd/wallet-launcher/stderr_process.go) | `22.3`, `55.3` | 2 |
 | [internal/amount/amount.go](../internal/amount/amount.go) | `47.4`, `55.3` | 2 |
 | [internal/chains/aptos/aptos.go](../internal/chains/aptos/aptos.go) | `338.3`, `415.3`, `420.3`, `424.3`, `439.3`, `452.3`, `456.3`, `514.3`, `518.3`, `523.3`, `527.3`, `549.3`, `560.3` | 13 |
 | [internal/chains/aptos/history.go](../internal/chains/aptos/history.go) | `67.3`, `70.3`, `74.3` | 3 |
 | [internal/chains/chainutil/util.go](../internal/chains/chainutil/util.go) | `135.3` | 1 |
 | [internal/chains/decred/decred.go](../internal/chains/decred/decred.go) | `153.114`, `179.3`, `245.3`, `255.4`, `272.3`, `278.3`, `296.3`, `309.3`, `329.3`, `334.3`, `599.4`, `637.3`, `642.4`, `647.4`, `653.4`, `659.4`, `664.3`, `668.3`, `703.3` | 19 |
-| [internal/chains/decred/sync.go](../internal/chains/decred/sync.go) | `143.3`, `151.5`, `155.5`, `210.5`, `301.3`, `316.4`, `421.3`, `439.4`, `451.5` | 10 |
-| [internal/chains/evm/adapter.go](../internal/chains/evm/adapter.go) | `66.3`, `290.3`, `303.3`, `311.4`, `318.4`, `327.3`, `460.3`, `467.3`, `475.3`, `479.3`, `483.3`, `509.3` | 12 |
-| [internal/chains/evm/history.go](../internal/chains/evm/history.go) | `90.4`, `121.4`, `163.5`, `197.5`, `219.6`, `243.6` | 6 |
+| [internal/chains/decred/sync.go](../internal/chains/decred/sync.go) | `143.3`, `151.5`, `155.5`, `186.6`, `210.5`, `301.3`, `316.4`, `326.5`, `363.2`, `421.3`, `439.4`, `451.5` | 13 |
+| [internal/chains/evm/adapter.go](../internal/chains/evm/adapter.go) | `308.3`, `321.3`, `329.4`, `345.3`, `478.3`, `485.3`, `493.3`, `497.3`, `501.3`, `527.3`, `66.3` | 11 |
+| [internal/chains/evm/history.go](../internal/chains/evm/history.go) | `121.4`, `163.5`, `197.5`, `219.6`, `243.6`, `90.4` | 6 |
 | [internal/chains/evm/keys.go](../internal/chains/evm/keys.go) | `54.3`, `67.5`, `79.4`, `87.4` | 7 |
-| [internal/chains/evm/rpc.go](../internal/chains/evm/rpc.go) | `83.5`, `119.3`, `164.3` | 3 |
+| [internal/chains/evm/rpc.go](../internal/chains/evm/rpc.go) | `119.3`, `164.3`, `83.5` | 3 |
 | [internal/chains/hypercore/adapter.go](../internal/chains/hypercore/adapter.go) | `131.4`, `143.3`, `429.3`, `471.3`, `496.3`, `503.3`, `514.3`, `518.3`, `526.3`, `548.3` | 10 |
 | [internal/chains/hypercore/history.go](../internal/chains/hypercore/history.go) | `108.4`, `143.3` | 2 |
 | [internal/chains/hypercore/keys.go](../internal/chains/hypercore/keys.go) | `39.3`, `49.3`, `62.5`, `74.4`, `82.4` | 8 |
-| [internal/chains/near/history.go](../internal/chains/near/history.go) | `101.6` | 1 |
-| [internal/chains/near/near.go](../internal/chains/near/near.go) | `492.3`, `497.3`, `511.3` | 3 |
+| [internal/chains/near/balance.go](../internal/chains/near/balance.go) | `18.48`, `19.48`, `31.3`, `94.3` | 4 |
+| [internal/chains/near/history.go](../internal/chains/near/history.go) | `101.6`, `56.3` | 2 |
+| [internal/chains/near/near.go](../internal/chains/near/near.go) | `507.3`, `512.3`, `526.3` | 3 |
 | [internal/chains/ton/history.go](../internal/chains/ton/history.go) | `63.4`, `64.5` | 2 |
 | [internal/chains/ton/network.go](../internal/chains/ton/network.go) | `114.3`, `163.4`, `314.4`, `358.3`, `362.3`, `373.3`, `377.3`, `431.4`, `436.4`, `443.4` | 10 |
 | [internal/chains/ton/pacing.go](../internal/chains/ton/pacing.go) | `39.3` | 1 |
 | [internal/chains/ton/ton.go](../internal/chains/ton/ton.go) | `136.3`, `321.3`, `339.3`, `345.4`, `411.3`, `415.3`, `420.3`, `434.3`, `441.3`, `445.3`, `452.3`, `456.3`, `461.3`, `468.3` | 14 |
-| [internal/derivation/derivation.go](../internal/derivation/derivation.go) | `98.4`, `118.3` | 2 |
+| [internal/derivation/derivation.go](../internal/derivation/derivation.go) | `118.3`, `98.4` | 2 |
+| [internal/exchange/bybit/client.go](../internal/exchange/bybit/client.go) | `89.3` | 1 |
+| [internal/exchange/bybit/fees.go](../internal/exchange/bybit/fees.go) | `100.3` | 1 |
+| [internal/nativeui/native.go](../internal/nativeui/native.go) | `162.22`, `374.3`, `400.5`, `407.5`, `423.3`, `439.4`, `522.4`, `546.5`, `646.3`, `86.3` | 17 |
+| [internal/nativewallet/app.go](../internal/nativewallet/app.go) | `1004.4`, `1241.4`, `1247.4`, `1251.3`, `127.5`, `153.5`, `155.6`, `156.7`, `163.5`, `165.6`, `166.7`, `181.5`, `186.4`, `195.3`, `463.4`, `681.3`, `725.3`, `731.4`, `734.4`, `903.3` | 28 |
 | [internal/qr/qr.go](../internal/qr/qr.go) | `32.3` | 1 |
 | [internal/secureui/native.go](../internal/secureui/native.go) | `109.3`, `161.4`, `218.3` | 3 |
-| [internal/signer/engine.go](../internal/signer/engine.go) | `67.3`, `103.3`, `151.3`, `155.3`, `165.4`, `170.4`, `226.4`, `499.3`, `560.3`, `609.4`, `693.5`, `757.3`, `804.3`, `873.3` | 14 |
+| [internal/sessionwatch/watch.go](../internal/sessionwatch/watch.go) | `103.3`, `130.4`, `149.3`, `172.4` | 5 |
+| [internal/signer/engine.go](../internal/signer/engine.go) | `105.3`, `154.3`, `158.3`, `168.4`, `173.4`, `229.4`, `569.3`, `630.3`, `679.4`, `69.3`, `763.5`, `827.3`, `874.3`, `943.3` | 14 |
 | [internal/signer/engine_public.go](../internal/signer/engine_public.go) | `68.3` | 2 |
+| [internal/signer/exchange.go](../internal/signer/exchange.go) | `149.3`, `182.3`, `280.4`, `285.5`, `300.3`, `368.3`, `384.3`, `388.3`, `393.4`, `404.5`, `410.3`, `415.4`, `462.4`, `473.4`, `490.3`, `80.3` | 16 |
 | [internal/strictjson/json.go](../internal/strictjson/json.go) | `69.3` | 1 |
-| [internal/supervisor/child.go](../internal/supervisor/child.go) | `116.5`, `125.3`, `129.3`, `141.3` | 6 |
-| [internal/uiprompt/prompt.go](../internal/uiprompt/prompt.go) | `48.3`, `55.3`, `59.3`, `88.3`, `163.3`, `196.3`, `202.3`, `214.3` | 8 |
+| [internal/supervisor/child.go](../internal/supervisor/child.go) | `131.3`, `162.3`, `166.3`, `178.3` | 6 |
+| [internal/uiprompt/prompt.go](../internal/uiprompt/prompt.go) | `163.3`, `196.3`, `202.3`, `214.3`, `48.3`, `55.3`, `59.3`, `88.3` | 8 |
 | [internal/vault/backup.go](../internal/vault/backup.go) | `65.3` | 1 |
 | [internal/vault/envelope.go](../internal/vault/envelope.go) | `60.3`, `79.3` | 2 |
 | [internal/vault/files.go](../internal/vault/files.go) | `103.3`, `122.3`, `143.3`, `149.3`, `159.3`, `165.3` | 6 |
-
-A historical five-minute GTK campaign passed with 63 actual XTest key events over 5m11.962s (`reports/native-input-long.json`). It predates the current Electron interface and is not a current-source long-duration result. Separate physical machines, clean supported OS/Wayland/lifecycle testing, public funded acceptance, the complete 24-hour soak and independent review remain outside this local coverage result; separate current campaign statuses are recorded in [STATUS.md](STATUS.md). No automated mainnet payment is attempted.
+| [internal/walletcore/exchange.go](../internal/walletcore/exchange.go) | `1074.6`, `1112.5`, `523.3`, `530.3`, `561.4`, `577.3`, `690.3`, `748.3`, `911.4`, `933.6` | 10 |
+| [internal/walletcore/history.go](../internal/walletcore/history.go) | `162.4`, `184.3`, `59.4`, `67.3`, `75.4`, `77.3` | 8 |
+| [internal/walletcore/main.go](../internal/walletcore/main.go) | `223.4`, `224.5`, `226.4`, `267.23`, `280.3`, `287.3`, `291.3`, `309.5`, `328.5`, `352.5`, `358.4`, `378.5`, `518.4`, `520.4`, `524.3`, `525.4`, `527.3`, `530.4`, `532.3`, `551.4`, `613.4`, `619.4`, `851.5`, `922.3` | 26 |
+| [internal/walletcore/public_pages.go](../internal/walletcore/public_pages.go) | `48.3` | 1 |
+| [internal/walletsigner/main.go](../internal/walletsigner/main.go) | `52.3`, `56.3`, `79.6`, `85.6` | 6 |
