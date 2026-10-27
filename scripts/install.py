@@ -25,9 +25,9 @@ def _unique_members(pairs):
 
 def verify_binaries(source):
     source = pathlib.Path(source)
-    for filename in ('LocalWallet', 'resources/app.asar'):
+    for filename in ('cryptowallet-ui', 'resources/app.asar'):
         entry = source / filename
-        if entry.is_symlink() or not entry.is_file() or (filename == 'LocalWallet' and not entry.stat().st_mode & 0o111):
+        if entry.is_symlink() or not entry.is_file() or (filename == 'cryptowallet-ui' and not entry.stat().st_mode & 0o111):
             raise RuntimeError('Incomplete packaged runtime: ' + filename)
     manifest = json.loads((source / 'resources/bin/manifest.json').read_text(), object_pairs_hook=_unique_members)
     if not isinstance(manifest, dict) or set(manifest) != set(_COMPONENTS):
@@ -35,7 +35,7 @@ def verify_binaries(source):
     for name in _COMPONENTS:
         paths = [source / 'resources/bin' / name]
         if name == 'wallet-launcher':
-            paths.append(source / name)
+            paths.append(source / 'cryptowallet')
         expected = manifest[name]
         if not isinstance(expected, str) or not re.fullmatch(r'[0-9a-f]{64}', expected):
             raise RuntimeError('Invalid built binary digest')
@@ -72,10 +72,10 @@ def _check_managed_launcher(target, runtime):
     if not target.exists() and not target.is_symlink():
         return
     if not target.is_symlink():
-        raise RuntimeError('Refusing to replace an unrelated ./wallet file')
+        raise RuntimeError('Refusing to replace an unrelated ./cryptowallet file')
     link = os.readlink(target)
-    if not re.fullmatch(r'wallet-runtime/app-[0-9a-f]{32}/wallet-launcher', link):
-        raise RuntimeError('Refusing to replace an unrelated ./wallet symlink')
+    if not re.fullmatch(r'wallet-runtime/app-[0-9a-f]{32}/cryptowallet', link):
+        raise RuntimeError('Refusing to replace an unrelated ./cryptowallet symlink')
     if not runtime.exists():
         # A cleanup can remove the runtime while leaving our canonical link.
         # install() already rejected unsafe runtime paths. Keep this dangling
@@ -93,7 +93,7 @@ def install(source, destination):
     verify_binaries(source)
     if not destination.is_dir() or destination.is_symlink():
         raise RuntimeError('Installation destination must be an existing directory')
-    target, runtime = destination / 'wallet', destination / 'wallet-runtime'
+    target, runtime = destination / 'cryptowallet', destination / 'wallet-runtime'
     _check_managed_runtime(runtime)
     _check_managed_launcher(target, runtime)
     runtime.mkdir(mode=0o700, exist_ok=True)
@@ -101,18 +101,18 @@ def install(source, destination):
     with tempfile.TemporaryDirectory(prefix='.staging-', dir=runtime) as temporary:
         staged = pathlib.Path(temporary) / 'app'
         shutil.copytree(source, staged)
-        # Reverify the completed copy before making it reachable through ./wallet.
+        # Reverify the completed copy before making it reachable through ./cryptowallet.
         verify_binaries(staged)
         generation = 'app-' + uuid.uuid4().hex
         staged.rename(runtime / generation)
     link = destination / ('.wallet-link-' + uuid.uuid4().hex)
     try:
-        link.symlink_to(pathlib.Path('wallet-runtime') / generation / 'wallet-launcher')
+        link.symlink_to(pathlib.Path('wallet-runtime') / generation / 'cryptowallet')
         link.replace(target)
     finally:
         if link.is_symlink():
             link.unlink()
-    print('Installed complete wallet at ' + str(target) + '; run ./wallet as an ordinary user.')
+    print('Installed complete wallet at ' + str(target) + '; run ./cryptowallet as an ordinary user.')
     print('Runtime and resources: ' + str(runtime / generation))
 
 

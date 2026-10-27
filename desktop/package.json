@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "check": "tsc --noEmit --project tsconfig.json",
-    "start": "../dist/LocalWallet-linux-x64/wallet-launcher",
+    "start": "../dist/LocalWallet-linux-x64/cryptowallet",
     "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {

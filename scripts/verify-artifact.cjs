@@ -12,7 +12,7 @@ const write=report=>{fs.mkdirSync(path.dirname(reportPath),{recursive:true});fs.
  const fuse=await import('../desktop/node_modules/@electron/fuses/dist/index.js');
  const asar=await import('../desktop/node_modules/@electron/asar/lib/asar.js');
  const appdir=path.join(root,'dist/LocalWallet-linux-x64');
- const wire=await fuse.getCurrentFuseWire(path.join(appdir,'LocalWallet'));
+ const wire=await fuse.getCurrentFuseWire(path.join(appdir,'cryptowallet-ui'));
  const expected=new Map([[fuse.FuseV1Options.RunAsNode,false],[fuse.FuseV1Options.EnableNodeOptionsEnvironmentVariable,false],[fuse.FuseV1Options.EnableNodeCliInspectArguments,false],[fuse.FuseV1Options.OnlyLoadAppFromAsar,true],[fuse.FuseV1Options.EnableCookieEncryption,true]]);
  if(wire.version!=='1')throw new Error('unexpected-fuse-schema');
  for(const [key,value]of expected)if(wire[key]!==String(Number(value)).charCodeAt(0))throw new Error('unsafe-electron-fuse');
@@ -35,10 +35,10 @@ const write=report=>{fs.mkdirSync(path.dirname(reportPath),{recursive:true});fs.
   if(typeof binaryManifest[name]!=='string'||!/^[0-9a-f]{64}$/.test(binaryManifest[name]))throw new Error('invalid-binary-hash');
   if(hash(read('bin/'+name))!==binaryManifest[name]||hash(read('dist/LocalWallet-linux-x64/resources/bin/'+name))!==binaryManifest[name])throw new Error('candidate-binary-hash-mismatch');
  }
- if(hash(read('dist/LocalWallet-linux-x64/wallet-launcher'))!==binaryManifest['wallet-launcher'])throw new Error('candidate-launcher-hash-mismatch');
+ if(hash(read('dist/LocalWallet-linux-x64/cryptowallet'))!==binaryManifest['wallet-launcher'])throw new Error('candidate-launcher-hash-mismatch');
  const metadata=JSON.parse(asar.extractFile(archive,'package.json').toString());
  if(metadata.version!==manifest.version)throw new Error('candidate-version-mismatch');
- const artifact={version:manifest.version,binaryManifest,asarSHA256:hash(read('dist/LocalWallet-linux-x64/resources/app.asar')),electronSHA256:hash(read('dist/LocalWallet-linux-x64/LocalWallet'))};
+ const artifact={version:manifest.version,binaryManifest,asarSHA256:hash(read('dist/LocalWallet-linux-x64/resources/app.asar')),electronSHA256:hash(read('dist/LocalWallet-linux-x64/cryptowallet-ui'))};
  write({status:'PASS',scope:'Actual packaged Electron fuses, exact 12 production files and Go binary identities; no publisher authentication or OS sandbox acceptance claim',artifact,fuses:wire,files,payloadSHA256,productionSourceSHA256,productionPayloadMatchesSource:true,productionFilesCompared:production.length});
  console.log('PASS packaged fuses and 12 production payloads bound to current ASAR and Go binaries');
 })().catch(()=>{write({status:'FAIL',reason:'packaged-artifact-verification-failed'});console.error('FAIL packaged artifact verification failed');process.exitCode=1;});

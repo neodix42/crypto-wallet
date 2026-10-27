@@ -240,7 +240,7 @@ def inside(parent_namespace, owned_directory):
                 x11.X.XFlush(self.d)
                 time.sleep(.1)
         binary = node_fixture.cached_geth(ROOT)
-        launcher = (ROOT / 'wallet').resolve() if (ROOT / 'wallet').exists() else ROOT / 'dist/LocalWallet-linux-x64/wallet-launcher'
+        launcher = (ROOT / 'cryptowallet').resolve() if (ROOT / 'cryptowallet').exists() else ROOT / 'dist/LocalWallet-linux-x64/cryptowallet'
         runtime = launcher.parent
         report['artifact'] = {'version': subprocess.check_output([str(launcher), '--version'], text=True, timeout=10).strip(),
             'binaryManifest': verify_binaries(runtime), 'asarSHA256': hashlib.sha256((runtime / 'resources/app.asar').read_bytes()).hexdigest()}

@@ -63,7 +63,7 @@ func init() {
 		var b [1]byte
 		io.ReadFull(os.Stdin, b[:])
 		os.Exit(0)
-	case "LocalWallet":
+	case "cryptowallet-ui":
 		for _, atom := range []string{"_NET_WM_STATE_MODAL", "application/vnd.portal.filetransfer", "application/vnd.portal.files"} {
 			fmt.Fprintf(os.Stderr, "[163420:1025/143139.802842:ERROR:ui/gfx/x/atom_cache.cc:236] Add %s to kAtomsToCache\n", atom)
 		}
@@ -108,7 +108,7 @@ func TestTP041LauncherExecInheritanceAndFixedPipes(t *testing.T) {
 	if e = os.MkdirAll(bin, 0700); e != nil {
 		t.Fatal(e)
 	}
-	for _, name := range []string{"launcher-test-entry", "LocalWallet", "resources/bin/wallet-core", "resources/bin/wallet-signer"} {
+	for _, name := range []string{"launcher-test-entry", "cryptowallet-ui", "resources/bin/wallet-core", "resources/bin/wallet-signer"} {
 		if e = os.WriteFile(filepath.Join(dir, name), binary, 0700); e != nil {
 			t.Fatal(e)
 		}

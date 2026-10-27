@@ -18,31 +18,26 @@ sudo apt install -y \
 
 These are runtime libraries; the downloaded desktop bundles Electron and needs no Go, Node.js, npm, compiler, `.tools/`, blockchain node or test tools. Ubuntu installs the libraries' dependencies automatically. Package names were checked against the official [Noble](https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/) and [Resolute](https://archive.ubuntu.com/ubuntu/dists/resolute/main/binary-amd64/) package indexes; this does not establish the outstanding full OS acceptance matrix.
 
-1. Open [LocalWallet Releases](https://github.com/neodix42/crypto-wallet/releases) and select the desired **development prerelease**. Use the releases list rather than `/releases/latest`, which excludes prereleases. Sign in with a GitHub account that has repository access if required. If no release with **Assets** is visible, the publishing workflow has not produced a downloadable release yet.
-2. Download the release's assets into a dedicated folder. The complete desktop is **`localwallet-<version>-linux-amd64.tar.gz`**. The `localwallet-go-...` archive and individual `wallet-core`, `wallet-signer` and `wallet-launcher` files are backend components, not the complete desktop. GitHub's automatic **Source code** archives are for building from source.
-3. **Authenticate the download before extracting or running it**, using the [release verification instructions](docs/BUILD.md#authenticate-a-downloaded-release-before-running-it). The verifier checks the complete asset set, including `RELEASE-SHA256SUMS` and `release-provenance.sigstore.json`. Python 3 and GitHub CLI **2.103.2+** are verification tools only; obtain them as described there. A checksum alone does not authenticate the publisher.
+1. Open [LocalWallet Releases](https://github.com/neodix42/crypto-wallet/releases) and select the desired **development release**. New publications are regular GitHub Releases and appear under [Latest release](https://github.com/neodix42/crypto-wallet/releases/latest). Sign in with a GitHub account that has repository access if required. If no release with **Assets** is visible, the publishing workflow has not produced a downloadable release yet.
+2. Download **`localwallet-0.1.1-linux-amd64.tar.gz`** from release **`0.1.1`** (or the matching archive for a later version). This is the only uploaded release asset. GitHub's automatic **Source code** archives are for building from source.
+3. **Authenticate the archive before extracting or running it**, following [release verification](docs/BUILD.md#authenticate-a-downloaded-release-before-running-it). Detached signing records are available separately in the release run's **`wallet-release-verification-<version>`** Actions artifact for 90 days, subject to earlier repository cleanup. Save them if you need verification later. Python 3 and GitHub CLI **2.103.2+** are verification tools only; they are not runtime dependencies.
 
-Alternatively, an authenticated GitHub CLI can download all assets for the selected tag:
+An authenticated GitHub CLI can download the portable wallet:
 
 ```sh
-# Replace vX.Y.Z with an existing release tag from the Releases page.
-release_tag='vX.Y.Z'
-release_dir="$HOME/Downloads/localwallet-$release_tag"
+release_version='0.1.1'
+release_dir="$HOME/Downloads/localwallet-$release_version"
 mkdir -p "$release_dir"
-gh release download "$release_tag" --repo neodix42/crypto-wallet --dir "$release_dir"
+gh release download "$release_version" --repo neodix42/crypto-wallet \
+  --pattern "localwallet-$release_version-linux-amd64.tar.gz" --dir "$release_dir"
 # Complete the linked publisher verification before continuing.
-```
-
-After verification, open a terminal in that download folder and extract the complete desktop archive. Replace the example version with your selected release version:
-
-```sh
-release_version='X.Y.Z'
+cd "$release_dir"
 tar -xzf "localwallet-$release_version-linux-amd64.tar.gz"
 cd LocalWallet-linux-x64
-./wallet-launcher
+./cryptowallet
 ```
 
-Keep the extracted directory intact and launch **`wallet-launcher`** as your ordinary user. No `make`, installation script or Debian package is needed. Start the launcher rather than the internal `LocalWallet` executable so the Go process-isolation boundary is applied. For an explicit display backend, use `./wallet-launcher --ozone-platform=x11` or `./wallet-launcher --ozone-platform=wayland`. If Ubuntu blocks Chromium's sandbox/user namespaces, consult the [sandbox prerequisites](docs/BUILD.md#existing-desktop-without-an-installer); installing libraries alone does not grant that permission. Do not run the wallet with sudo or `--no-sandbox`.
+Keep the extracted directory intact and launch **`cryptowallet`** as your ordinary user. It applies the Go process-isolation boundary before starting the internal `cryptowallet-ui` runtime. No `make`, installation script or Debian package is needed. Explicit display backends are `./cryptowallet --ozone-platform=x11` and `./cryptowallet --ozone-platform=wayland`. If Ubuntu blocks Chromium's sandbox/user namespaces, consult the [sandbox prerequisites](docs/BUILD.md#existing-desktop-without-an-installer). Do not run the wallet with sudo or `--no-sandbox`.
 
 ## Build Go binaries
 
@@ -64,21 +59,21 @@ bin/wallet-core --version
 # raw dist/wallet-{core,signer,launcher}, GO-SHA256SUMS and manifests.
 ```
 
-Go releases also include `go-sbom.cdx.json`, `go-dependency-licenses.json` and `go-source-manifest.json`, with hashes in `GO-SHA256SUMS`. The SBOM lists Go modules only; inventory and hashes do not complete the outstanding license or independent security reviews.
+Local `make package-go` outputs also include `go-sbom.cdx.json`, `go-dependency-licenses.json` and `go-source-manifest.json`, with hashes in `GO-SHA256SUMS`. The SBOM lists Go modules only; inventory and hashes do not complete the outstanding license or independent security reviews.
 
 The Go executables are backend/signing components. The existing main wallet screen is Electron; the Go launcher alone cannot supply that interface. To build the complete portable desktop separately, without a Debian installer:
 
 ```sh
 make install
-./wallet
+./cryptowallet
 # Alternative explicit steps: make build-desktop / make package-desktop
 ```
 
-`make install` uses no sudo and creates the ready-to-run `./wallet` launcher plus its complete `wallet-runtime/` directory. It retains previous managed generations and refuses unrelated files/symlinks. If cleanup removed `wallet-runtime/` but left the managed `./wallet` link, rerun `make install` or `make dev` to rebuild it safely. Runtime users need neither `.tools/` nor system Node/npm; the desktop runtime is bundled. A complete downloaded desktop archive similarly needs its bundled files kept together. Replacing this interface with a purely Go application is not achieved by shipping backend binaries.
+`make install` uses no sudo and creates the ready-to-run `./cryptowallet` launcher plus its complete `wallet-runtime/` directory. It retains previous managed generations and refuses unrelated files/symlinks. A legacy `./wallet` entry is left intact; use `./cryptowallet` for the new build. The executable rename does not move your profile or keys. If cleanup removed `wallet-runtime/` but left the managed `./cryptowallet` link, rerun `make install` or `make dev` to rebuild it safely. Runtime users need neither `.tools/` nor system Node/npm; the desktop runtime is bundled. A complete downloaded desktop archive similarly needs its bundled files kept together. Replacing this interface with a purely Go application is not achieved by shipping backend binaries.
 
-Node 24.19.0/npm 11.17.0 are needed only for desktop builds/tests and are bootstrapped into `.tools/` when missing. Explicit display backends are `./wallet --ozone-platform=x11` and `./wallet --ozone-platform=wayland`. Always use the Go launcher for the desktop security boundary. Application execution as root and `--no-sandbox` are rejected.
+Node 24.19.0/npm 11.17.0 are needed only for desktop builds/tests and are bootstrapped into `.tools/` when missing. Explicit display backends are `./cryptowallet --ozone-platform=x11` and `./cryptowallet --ozone-platform=wayland`. Always use the Go launcher for the desktop security boundary. Application execution as root and `--no-sandbox` are rejected.
 
-The default profile stores data in `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, separately from build caches/runtime files. Existing testnet data stays in its original directory and can be opened explicitly with `./wallet --profile=testnet`. There is no automatic conversion, copying or replacement of an existing vault. An empty mainnet profile requires its own explicit create/import/restore action. Outputs and dependencies are explained in [BUILD.md](docs/BUILD.md). Nothing in these targets creates a `.deb` package.
+The default profile stores data in `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, separately from build caches/runtime files. Existing testnet data stays in its original directory and can be opened explicitly with `./cryptowallet --profile=testnet`. There is no automatic conversion, copying or replacement of an existing vault. An empty mainnet profile requires its own explicit create/import/restore action. Outputs and dependencies are explained in [BUILD.md](docs/BUILD.md). Nothing in these targets creates a `.deb` package.
 
 Public mainnet connections are configured for Ethereum, HyperEVM, HyperCore, Base, Horizen, NEAR, Aptos and TON. Decred remains available and requires an authenticated TLS `dcrd` connection configured through the **Configure trusted RPC** wallet dialog. See [mainnet connection setup](docs/MAINNET.md) for exact endpoints, API-key/rate-limit considerations and Decred setup. An unavailable connection displays an unknown balance; it is never treated as a verified zero.
 
@@ -185,19 +180,17 @@ The recovery phrase reconstructs wallet keys, including the Ethereum address use
 
 ## Automatic versioned releases
 
-[The release workflow](.github/workflows/release.yml) runs on pushes to `main`/`master` when that branch is the repository default, and can be run manually from GitHub Actions. Its **build** job increments the greatest canonical `vX.Y.Z` tag/[VERSION](VERSION), compiles and packages once, and checks versions and production payload security. Go and npm caches reduce repeat download/compilation work. Its separate **release** job downloads that exact immutable build artifact, checks its hashes and source/version, authenticates it and publishes a **development prerelease** named/tagged `vX.Y.Z`. Publishing does not rebuild the wallet; a pinned Node runtime is used only for provenance signing. Electron and all Go executables display the same version. Releases include the complete ready-to-run Electron/Go portable wallet, separate Go components, checksums, dependency/source inventories and actual third-party license texts. No Debian package is built or uploaded.
+[The release workflow](.github/workflows/release.yml) runs on default-branch pushes or manual dispatch. The **build** job compiles/packages the portable desktop once and checks its version, fuses and production payloads. The **release** job downloads that exact immutable artifact, verifies integrity and publisher provenance, and publishes one asset: **`localwallet-<version>-linux-amd64.tar.gz`**. Separate Go executables, launchers, JSON files, evidence archives and notices are not uploaded as release assets. Required runtime files and redistribution notices remain inside the portable archive.
 
-[Wallet tests](.github/workflows/ci.yml) run independently on pushes/pull requests, including security, coverage, recovery, packaged UI and actual local-chain Send checks. They do not block this development prerelease. Release notes link the exact commit's checks and explicitly record tests as **NOT_RUN in the build workflow**. The evidence archive contains build status/artifact inspection and documentation; retained reports under `docs/evidence` are historical, not passing evidence for a newly built candidate. See the [pipeline and verification checklist](docs/RELEASE_PIPELINE.md).
+Publications are regular GitHub Releases (not marked **Pre-release**). The release name, tag and displayed app version are identical, with no `v` prefix: **`0.1.1`**. [VERSION](VERSION) is the minimum version; the next run increments the greatest existing bare numeric tag. For example, after `0.1.1`, the next run selects `0.1.2`. Legacy `v...` tags belong to the old naming scheme and do not consume the initial `0.1.1` tag. Existing remote releases are left intact. A failed build creates no release/tag; publishing never overwrites an existing tag.
 
-Electron is the desktop framework used by this app's existing main window and password/recovery/approval dialogs. References to an Electron wallet test mean testing this LocalWallet interface; no separate wallet application is required.
+[Wallet tests](.github/workflows/ci.yml) run independently and do not block development releases. Release notes mark tests **NOT_RUN in the build workflow** and link the exact commit's checks. No scheduled soak workflow is enabled; `make test-soak` remains available manually. See [the build/publication pipeline](docs/RELEASE_PIPELINE.md).
 
-The workflow authenticates the exact complete checksum manifest using GitHub OIDC/Sigstore provenance and verifies its publisher repository, immutable repository ID, workflow, branch and full source commit before publication. Missing authentication or payloads fail the job. Follow [publisher verification instructions](docs/BUILD.md) before extracting or running a downloaded wallet. Local builds remain unsigned and need no publishing credentials. Actions and the verification CLI are pinned; remote workflow/signing/publication has not been run by this implementation. Private repositories can publish releases. The workflow uses GitHub's official signing library in detached-bundle mode (`skipWrite: true`) with GitHub's private Sigstore service, so it does not require GitHub attestation-storage access or publish private metadata to the public transparency log. The signed bundle is attached to the private release and verified before publication. Only job-scoped GitHub contents and OIDC permissions are needed; no personal token or long-lived signing key is required. See the [private-repository fix and evidence](docs/PRIVATE_RELEASES.md). [License notice collection](docs/LICENSE_NOTICES.md) is technical evidence, while independent legal review remains separate.
-
-For example, after `v0.1.4`, the next successful workflow publishes `v0.1.5`. A failed build creates no release or tag. Raising `VERSION` sets a new minimum before the next increment. No workflow was remotely triggered by implementing this file. The production release gate remains separate and cannot be satisfied by publishing a development prerelease. GitHub documents [manual workflow dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) and [workflow token permissions](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token).
+The workflow authenticates the archive and release identity with GitHub OIDC/Sigstore before publication. The detached verification records are retained in an Actions artifact linked from the release notes, rather than extra release assets. Private repositories use the official toolkit's `skipWrite: true` mode and private Sigstore service, avoiding unsupported attestation storage and public transparency uploads. Signing or verification failure blocks publication. Local builds remain unsigned and need no publishing credentials. See [verification instructions](docs/BUILD.md) and [private-repository signing](docs/PRIVATE_RELEASES.md). The production acceptance gates remain separate.
 
 ## Security and recovery
 
-The launcher filters three known Chromium X11 atom-cache messages (`_NET_WM_STATE_MODAL`, `application/vnd.portal.filetransfer` and `application/vnd.portal.files`). These report successful lazy registration of modal/clipboard identifiers. Other diagnostics remain visible; modal dialogs and sandboxing remain enabled. Run `make install` and restart `./wallet` to update an older installation. See the [X11 diagnostic explanation and measured checks](docs/X11_DIAGNOSTICS.md).
+The launcher filters three known Chromium X11 atom-cache messages (`_NET_WM_STATE_MODAL`, `application/vnd.portal.filetransfer` and `application/vnd.portal.files`). These report successful lazy registration of modal/clipboard identifiers. Other diagnostics remain visible; modal dialogs and sandboxing remain enabled. Run `make install` and restart `./cryptowallet` to update an older installation. See the [X11 diagnostic explanation and measured checks](docs/X11_DIAGNOSTICS.md).
 
 Go generates the root, checks passwords/recovery words, validates plans and signs. Every application window now uses Electron. A dedicated temporary prompt has a separate origin, preload and nonpersistent session; the ordinary portfolio never receives secrets. Prompted passwords/phrases pass through the coordinator and Electron main to that dialog, expanding the trusted secret boundary. Compromised Electron main or prompt code can capture them; generating the phrase in Go does not remove that risk. Binary seeds, entropy and private/extended keys remain in Go. Inputs are masked, and secret fields clear before reply/cancel/lock. No secret QR, browser storage, plaintext files, logs or network requests are allowed. Clipboard export is limited to the authenticated backup dialog’s explicit Copy phrase action; other secrets and setup remain noncopyable. The local vault remains encrypted with Argon2id (256 MiB/3/4 default) and XChaCha20-Poly1305. Phrase recovery replaces encrypted-file backup/export/restore. OS/display compromise and whole-directory rollback remain limitations; see the [threat model](docs/THREAT_MODEL.md), [vault format](docs/VAULT_FORMAT.md) and [evidence](docs/STATUS.md).
 

@@ -219,7 +219,7 @@ func TestTP041BootstrapWorker(t *testing.T) {
 		t.Fatal("bootstrap failed", status)
 	}
 	defer l.stop()
-	if l.electron != filepath.Join(base, "LocalWallet") || !reflect.DeepEqual(l.args, append([]string{l.electron}, expectedArgs...)) {
+	if l.electron != filepath.Join(base, "cryptowallet-ui") || !reflect.DeepEqual(l.args, append([]string{l.electron}, expectedArgs...)) {
 		t.Fatal("fixed executable or approved arguments changed")
 	}
 	values := map[string]string{}

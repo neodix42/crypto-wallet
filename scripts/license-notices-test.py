@@ -62,7 +62,7 @@ class NoticeTests(unittest.TestCase):
         runtime = self.root / 'runtime'
         self.put('runtime/LICENSE', b'Public Electron copyright and license.\n')
         self.put('runtime/LICENSES.chromium.html', b'<html>Public Chromium redistribution notices</html>\n')
-        self.put('runtime/LocalWallet', b'\x00\xffsynthetic executable bytes')
+        self.put('runtime/cryptowallet-ui', b'\x00\xffsynthetic executable bytes')
         self.put('runtime/resources/app.asar', b'\x00\xffsynthetic ASAR bytes')
         packages = {'': dict(name='localwallet-test', version='1.0.0'),
                     'node_modules/electron': dict(version='45.0.0', dev=True, integrity=INTEGRITY),
@@ -187,7 +187,7 @@ class NoticeTests(unittest.TestCase):
             provenance = notices.collect_desktop(self.root, runtime, components, texts)
         self.assertEqual(provenance['productionNpmPackages'], 0)
         self.assertEqual([path for _, path, _ in texts], ['LICENSE', 'LICENSES.chromium.html'])
-        self.assertEqual(components[0]['provenance']['runtimeSHA256'], notices.sha256((runtime / 'LocalWallet').read_bytes()))
+        self.assertEqual(components[0]['provenance']['runtimeSHA256'], notices.sha256((runtime / 'cryptowallet-ui').read_bytes()))
         (runtime / 'LICENSES.chromium.html').unlink()
         with mock.patch.object(notices.subprocess, 'check_output', self.inspect(inspected)), self.assertRaises(notices.NoticeError):
             notices.collect_desktop(self.root, runtime, [], [])

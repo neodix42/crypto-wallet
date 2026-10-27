@@ -61,8 +61,8 @@ class ReleaseEvidence(unittest.TestCase):
             self.write('bin/' + name, content)
             self.write('dist/LocalWallet-linux-x64/resources/bin/' + name, content)
             hashes[name] = binding.sha256(self.root / 'bin' / name)
-        self.write('dist/LocalWallet-linux-x64/wallet-launcher', 'Public executable byte fixture: wallet-launcher')
-        self.write('dist/LocalWallet-linux-x64/LocalWallet', 'Public Electron byte fixture')
+        self.write('dist/LocalWallet-linux-x64/cryptowallet', 'Public executable byte fixture: wallet-launcher')
+        self.write('dist/LocalWallet-linux-x64/cryptowallet-ui', 'Public Electron byte fixture')
         self.write('dist/LocalWallet-linux-x64/resources/app.asar', 'Public opaque archive byte fixture; not an actual ASAR')
         self.write_json('dist/LocalWallet-linux-x64/resources/bin/manifest.json', hashes)
         self.write_json('dist/build-manifest.json', {'version': '1.2.3', 'binaryManifest': hashes})
@@ -277,7 +277,7 @@ class ReleaseEvidence(unittest.TestCase):
         self.assert_blocked('packaged-recovery-not-bound-to-candidate')
 
     def test_electron_binary_or_manifest_tampering_blocks(self):
-        self.write('dist/LocalWallet-linux-x64/LocalWallet', 'Public changed Electron')
+        self.write('dist/LocalWallet-linux-x64/cryptowallet-ui', 'Public changed Electron')
         self.assert_blocked('artifact-security-not-bound-to-candidate')
         self.write('bin/wallet-signer', 'Public changed signer')
         self.assert_blocked('candidate-binary-hash-mismatch')

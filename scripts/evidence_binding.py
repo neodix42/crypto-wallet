@@ -128,14 +128,14 @@ def candidate(root):
         for prefix in ('bin/', 'dist/LocalWallet-linux-x64/resources/bin/'):
             if sha256(regular(root, prefix + name)) != binaries[name]:
                 raise EvidenceError('candidate-binary-hash-mismatch')
-    if sha256(regular(root, 'dist/LocalWallet-linux-x64/wallet-launcher')) != binaries['wallet-launcher']:
+    if sha256(regular(root, 'dist/LocalWallet-linux-x64/cryptowallet')) != binaries['wallet-launcher']:
         raise EvidenceError('candidate-launcher-hash-mismatch')
     version = manifest.get('version')
     if not isinstance(version, str) or not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', version):
         raise EvidenceError('invalid-candidate-version')
     return {'version': version, 'binaryManifest': binaries,
             'asarSHA256': sha256(regular(root, 'dist/LocalWallet-linux-x64/resources/app.asar')),
-            'electronSHA256': sha256(regular(root, 'dist/LocalWallet-linux-x64/LocalWallet'))}
+            'electronSHA256': sha256(regular(root, 'dist/LocalWallet-linux-x64/cryptowallet-ui'))}
 
 
 def validate_artifact(root, report, current):

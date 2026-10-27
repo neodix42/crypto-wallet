@@ -303,7 +303,7 @@ def collect_desktop(root, runtime, components, texts):
     add_component(components, texts, 'electron:' + electron['version'],
                   dict(kind='electron-runtime', version=electron['version'], npmIntegrity=electron['integrity'],
                        verification='Pinned Electron package version; actual packaged runtime license bytes',
-                       runtimeSHA256=sha256(read_file(runtime, 'LocalWallet', maximum=256 << 20, text=False))),
+                       runtimeSHA256=sha256(read_file(runtime, 'cryptowallet-ui', maximum=256 << 20, text=False))),
                   [(name, read_file(runtime, name)) for name in ('LICENSE', 'LICENSES.chromium.html')])
     return dict(electron=electron['version'], npmLockSHA256=sha256(lock_bytes), productionNpmPackages=len(npm),
                 asarSHA256=sha256(read_file(runtime, 'resources/app.asar', maximum=64 << 20, text=False)))

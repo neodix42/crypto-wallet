@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Increment the greatest bounded canonical tag/base patch; never create a tag."""
+"""Select the version floor or increment the greatest bare numeric release tag; never create a tag."""
 import pathlib
 import subprocess
 from version import MAX_COMPONENT, validate_version
@@ -9,15 +9,18 @@ root = pathlib.Path(__file__).resolve().parents[1]
 
 def next_version(base, tags):
     validate_version(base)
-    versions = [tuple(map(int, base.split('.')))]
+    # Bare numeric tags are the current release namespace. Legacy v-prefixed
+    # tags do not consume its first version during the naming migration.
+    minimum = tuple(map(int, base.split('.')))
+    versions = []
     for tag in tags:
-        if not isinstance(tag, str) or not tag.startswith('v'):
-            continue
         try:
-            value = validate_version(tag[1:])
-        except ValueError:
+            value = validate_version(tag)
+        except (ValueError, TypeError):
             continue
         versions.append(tuple(map(int, value.split('.'))))
+    if not versions or max(versions) < minimum:
+        return base
     major, minor, patch = max(versions)
     if patch >= MAX_COMPONENT:
         raise ValueError('Version patch exhausted; update major/minor explicitly')

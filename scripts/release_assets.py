@@ -19,20 +19,13 @@ BUNDLE = 'release-provenance.sigstore.json'
 METADATA = 'release.json'
 WORKFLOW = '.github/workflows/release.yml'
 MIN_GH = (2, 103, 2)
-COMPONENTS = ('wallet-core', 'wallet-signer', 'wallet-launcher')
-INVENTORIES = ('manifest.json', 'go-build-manifest.json', 'GO-SHA256SUMS',
-               'go-sbom.cdx.json', 'go-dependency-licenses.json', 'go-source-manifest.json',
-               'build-manifest.json', 'SHA256SUMS', 'sbom.cdx.json', 'dependency-licenses.json',
-               'source-manifest.json', 'go-modules.json', 'npm-package-lock.json',
-               'THIRD-PARTY-NOTICES.txt', 'THIRD-PARTY-NOTICES.json',
-               'go-THIRD-PARTY-NOTICES.txt', 'go-THIRD-PARTY-NOTICES.json',
-               'test-evidence.tar.gz', 'RELEASE-NOTES.md', METADATA)
 
 
+# Authentication records are retained as an Actions artifact. Only the portable
+# desktop archive is uploaded to GitHub Releases.
 def expected_assets(version):
     validate_version(version)
-    return sorted((*COMPONENTS, *INVENTORIES,
-                   f'localwallet-go-{version}-linux-amd64.tar.gz',
+    return sorted(('RELEASE-NOTES.md', METADATA,
                    f'localwallet-{version}-linux-amd64.tar.gz'))
 
 
@@ -78,7 +71,7 @@ def unique_json(content):
 def metadata(version, repo, ref, commit, repo_id=None):
     validate_version(version)
     identity(repo, ref, commit, repo_id)
-    return {'schemaVersion': 1, 'version': version, 'tag': 'v' + version,
+    return {'schemaVersion': 1, 'version': version, 'tag': version,
             'platform': 'linux-amd64', 'publisherRepository': repo,
             'publisherRepositoryId': repo_id,
             'sourceRef': ref, 'sourceCommit': commit, 'signerWorkflow': WORKFLOW,

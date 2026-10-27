@@ -47,12 +47,12 @@ class InventoryTests(unittest.TestCase):
     def rewrite_manifest(self):
         (self.dist / release.MANIFEST).write_text(''.join(release.digest(self.dist / name) + '  ' + name + '\n' for name in release.expected_assets(VERSION)))
 
-    def test_complete_desktop_and_go_inventory_is_required(self):
+    def test_portable_and_detached_verification_inventory_is_required(self):
         entries = self.check()
         self.assertEqual(set(entries), set(release.expected_assets(VERSION)))
         self.assertIn(f'localwallet-{VERSION}-linux-amd64.tar.gz', entries)
-        self.assertIn(f'localwallet-go-{VERSION}-linux-amd64.tar.gz', entries)
-        self.assertTrue(set(release.COMPONENTS).issubset(entries))
+        self.assertEqual(len(entries), 3)
+        self.assertEqual(json.loads((self.dist / release.METADATA).read_text())['tag'], VERSION)
 
     def test_every_missing_or_tampered_payload_fails(self):
         for name in release.expected_assets(VERSION):
@@ -81,14 +81,14 @@ class InventoryTests(unittest.TestCase):
                         original + '0' * 64 + '  ../outside\n',
                         original + '0' * 64 + '  surprise.exe\n',
                         '\n'.join(original.splitlines()[1:]) + '\n',
-                        original.replace('  wallet-core\n', ' *wallet-core\n')):
+                        original.replace('  release.json\n', ' *release.json\n')):
             with self.subTest(content=content[-100:]):
                 path.write_text(content)
                 with self.assertRaises(ValueError):
                     self.check()
 
     def test_symlink_and_hardlink_assets_are_not_accepted(self):
-        path = self.dist / 'wallet-core'
+        path = self.dist / f'localwallet-{VERSION}-linux-amd64.tar.gz'
         path.unlink()
         outside = self.dist / 'public-outside'
         outside.write_text('Public fixture')

@@ -157,7 +157,7 @@ def main():
     parser.add_argument('--backend', choices=['all', 'x11', 'wayland'], default='all')
     args = parser.parse_args()
     reports.mkdir(exist_ok=True)
-    launcher = (root / 'wallet').resolve() if (root / 'wallet').exists() else root / 'dist/LocalWallet-linux-x64/wallet-launcher'
+    launcher = (root / 'cryptowallet').resolve() if (root / 'cryptowallet').exists() else root / 'dist/LocalWallet-linux-x64/cryptowallet'
     report = {'status': 'NOT_RUN', 'scope': 'Uninstrumented portable startup on owned disposable displays; no wallet creation, secret input or user profile access', 'notRun': ['actual host hardware/display reproduction', 'native Wayland credential/backup workflows', 'stock Ubuntu OS/display acceptance matrix'], 'rendererPolicy': 'Expected hardware acceleration disabled before ready; separately enforced by frontend startup tests alongside sandbox retention', 'electronAPI': 'https://www.electronjs.org/docs/latest/api/app#appdisablehardwareacceleration', 'backends': []}
     try:
         runtime = launcher.parent

@@ -29,8 +29,8 @@ try:
    if pathlib.Path('/tmp/.X11-unix/X'+display[1:]).exists():break
    time.sleep(.05)
   d=m.Desktop(display.encode())
-  report['launcherSHA256']=hashlib.sha256((root/'wallet').resolve().read_bytes()).hexdigest()
-  app=subprocess.Popen([str(root/'wallet'),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
+  report['launcherSHA256']=hashlib.sha256((root/'cryptowallet').resolve().read_bytes()).hexdigest()
+  app=subprocess.Popen([str(root/'cryptowallet'),'--ozone-platform=x11'],env=env,stdout=log,stderr=log,start_new_session=True)
   d.wait('LocalWallet',20);time.sleep(1);control(d,'Import')
   w,_=d.wait('Create local wallet');d.focus(w);x,y,_,_=d.geometry(w)
   password='public-synthetic-duration-password-79326';phrase='abandon '*11+'about'

@@ -15,7 +15,7 @@ build-desktop: build
 install: package-desktop
 	python3 scripts/install.py
 dev: install
-	./wallet
+	./cryptowallet
 test:
 	python3 scripts/build-tools-test.py
 	python3 scripts/mutation-test.py

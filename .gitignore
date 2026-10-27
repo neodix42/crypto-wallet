@@ -50,6 +50,7 @@ go.work.sum
 
 # Complete repository-local runtime installed by make install
 /wallet
+/cryptowallet
 /wallet-runtime/
 **/__pycache__/
 /docs/evidence/

@@ -299,7 +299,7 @@ def launch(profile,env,environment=None):
  global app,launch_started_at
  env={**env,'XDG_CONFIG_HOME':str(profile)}
  log=tempfile.TemporaryFile(mode='w+');logs.append(log)
- launcher=root/'wallet' if (root/'wallet').exists() else root/'dist/LocalWallet-linux-x64/wallet-launcher'
+ launcher=root/'cryptowallet' if (root/'cryptowallet').exists() else root/'dist/LocalWallet-linux-x64/cryptowallet'
  runtime=launcher.resolve().parent
  identity={'version':subprocess.check_output([str(launcher),'--version'],env=env,text=True,timeout=10).strip(),'binaryManifest':verify_binaries(runtime),'asarSHA256':hashlib.sha256((runtime/'resources/app.asar').read_bytes()).hexdigest()}
  if 'artifact' in report and report['artifact']!=identity:raise RuntimeError('Portable runtime changed between recovery steps')

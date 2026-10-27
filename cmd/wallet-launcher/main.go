@@ -118,7 +118,7 @@ func prepareLaunch(base string, args []string) (_ *launch, status int) {
 	if os.Getuid() == 0 {
 		return nil, 2
 	}
-	l := &launch{electron: filepath.Join(base, "LocalWallet")}
+	l := &launch{electron: filepath.Join(base, "cryptowallet-ui")}
 	l.args = []string{l.electron}
 	backend, environment := "", "mainnet"
 	profileSelected := false

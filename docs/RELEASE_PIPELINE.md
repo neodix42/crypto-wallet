@@ -1,20 +1,22 @@
 # Independent tests, build and publishing
 
-Owner policy: development prereleases build and publish independently of tests. Production-readiness requirements remain separate.
+Owner policy: development releases build and publish independently of tests. Production-readiness requirements remain separate.
 
 | Workflow/job | Work performed | Dependency |
 | --- | --- | --- |
 | `ci.yml` / checks | Existing unit, security, mutation, race, interoperability, node integration, fuzz, coverage, dependency, fresh recovery, crash and packaged UI/Send tests | Push/pull request; superseded runs on the same branch/PR are cancelled |
-| `release.yml` / build | Select auto-incremented version; compile Go and TypeScript; package desktop and Go archives once; verify versions, production fuses/payloads and complete inventory | Default-branch push or manual dispatch; no test workflow dependency |
-| `release.yml` / release | Download the exact build artifact ID; reject digest mismatch; check all payload hashes/version/source; authenticate and verify publisher provenance; publish matching development prerelease | Successful build job in the same workflow run; no compilation or test suite |
+| `release.yml` / build | Select auto-incremented version; compile Go and TypeScript; package the portable desktop once; verify versions, production fuses/payloads and complete inventory | Default-branch push or manual dispatch; no test workflow dependency |
+| `release.yml` / release | Download the exact build artifact ID; reject digest mismatch; check all payload hashes/version/source; authenticate and verify publisher provenance; publish one portable archive with matching bare numeric tag/name/version | Successful build job in the same workflow run; no compilation or test suite |
 
 The build job has read-only repository permissions and uses the pinned Go and npm dependency/build caches. Only the publishing job receives contents/OIDC write permissions. Its pinned Node runtime signs a detached bundle through GitHub's private Sigstore service; no attestation-storage permission, compiler or wallet rebuild is involved. See [PRIVATE_RELEASES.md](PRIVATE_RELEASES.md). The artifact transfer uses no recompression for already compressed wallet archives and does not download an artifact from a different test run or branch. Publishing preserves the existing immutable publisher/repository/workflow/branch/source policy. No wallet sandbox or secret-handling requirement changes.
 
-Release notes and `reports/release-build.json` record **NOT_RUN** for tests in this build workflow and link the exact source commit's independent checks. No old PASS is assigned to a rebuilt candidate. The required `test-evidence.tar.gz` contains build status, artifact inspection and source documentation; reports retained under `docs/evidence` are explicitly historical. Full production release verification continues to reject missing or stale mandatory evidence.
+Release notes and `reports/release-build.json` record **NOT_RUN** for tests in this build workflow and link the exact source commit's independent checks. No old PASS is assigned to a rebuilt candidate. No evidence or metadata file is uploaded to the release. Reports retained under `docs/evidence` are historical. The four detached verification records are stored in the run’s `wallet-release-verification-<version>` Actions artifact for 90 days (subject to earlier cleanup); preserve them for later verification. Full production release verification continues to reject missing or stale mandatory evidence.
 
 Electron is the framework for LocalWallet's current desktop interface and isolated password/recovery/approval/receive dialogs. An “Electron wallet” test operates this application, not a separate wallet product. Go generates and protects keys, validates operations and signs. No external wallet installation or account is needed for these tests.
 
-## Failure and verification checklist — 2026-10-27
+The only uploaded release asset is `localwallet-<version>-linux-amd64.tar.gz`. `VERSION` is a minimum; the next version increments the greatest bare `X.Y.Z` tag when one exists at or above it. Legacy `vX.Y.Z` tags are ignored during migration. The initial new tag/title/version is `0.1.1`; later runs advance to `0.1.2`, and so on. Existing releases are not rewritten. The safe desktop entry point and local installed link are `cryptowallet`; bundled `cryptowallet-ui`, Go resources, Chromium files and license texts stay inside the archive. See [the current evidence checklist](PORTABLE_RELEASE.md).
+
+## Historical split-pipeline verification — 2026-10-27
 
 The [reported release job](https://github.com/neodix42/crypto-wallet/actions/runs/40492654091/job/122150179830), source `39e70b48eee9349bfcafbe9a8c6174c4888b0638`, passed compilation and all preceding core/security/coverage/recovery gates. After approximately 45 minutes, a packaged UI test failed with `Public feedback timing observation started too late`. This was an automation timing failure while checking a seven-second status message, not a Go/TypeScript compilation failure.
 

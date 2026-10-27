@@ -108,8 +108,8 @@ fill_rectangles = selected_helper('publicfillrectangles')
 save()
 try:
     from install import verify_binaries
-    runtime = (ROOT / 'wallet').resolve().parent
-    launcher = runtime / 'wallet-launcher'
+    runtime = (ROOT / 'cryptowallet').resolve().parent
+    launcher = runtime / 'cryptowallet'
     report['artifact'] = {'version': subprocess.check_output([str(launcher), '--version'], text=True, timeout=10).strip(),
                           'binaryManifest': verify_binaries(runtime),
                           'asarSHA256': hashlib.sha256((runtime / 'resources/app.asar').read_bytes()).hexdigest()}

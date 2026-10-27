@@ -7,7 +7,7 @@ sleep 1
 # Exercise actual packaged native initialization under production seccomp.
 /opt/localwallet/resources/bin/wallet-signer --data /home/wallet/native-probe --environment testnet </dev/null
 # No sandbox bypass flags, root application launch, or host policy changes.
-dbus-run-session -- /opt/localwallet/wallet-launcher --ozone-platform=x11 >/tmp/wallet.log 2>&1 &
+dbus-run-session -- /opt/localwallet/cryptowallet --ozone-platform=x11 >/tmp/wallet.log 2>&1 &
 app_pid=$!
 sleep 8
 if ! kill -0 "$app_pid" 2>/dev/null; then

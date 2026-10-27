@@ -33,7 +33,7 @@ def verify_go_versions(base, version, packaged=True):
     binaries = [base / 'bin' / name for name in _COMPONENTS]
     if packaged:
         binaries += [appdir / 'resources/bin' / name for name in _COMPONENTS]
-        binaries.append(appdir / 'wallet-launcher')
+        binaries.append(appdir / 'cryptowallet')
     for binary in binaries:
         actual = subprocess.check_output([str(binary), '--version'], text=True, timeout=10)
         if actual != version + '\n':
@@ -151,7 +151,7 @@ def verify_go_archive(filename, source, manifest):
 
 
 def verify_portable_payload(archive_path, appdir):
-    required = {'wallet-launcher', 'LocalWallet', 'resources/app.asar', 'resources/bin/manifest.json'}
+    required = {'cryptowallet', 'cryptowallet-ui', 'resources/app.asar', 'resources/bin/manifest.json'}
     required.update('resources/bin/' + name for name in _COMPONENTS)
     seen = set()
     with tarfile.open(archive_path, 'r:gz') as archive:

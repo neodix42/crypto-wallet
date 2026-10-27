@@ -80,8 +80,8 @@ class BuildTools(unittest.TestCase):
         (app / 'resources/bin').mkdir(parents=True)
         for name in ('wallet-core', 'wallet-signer', 'wallet-launcher'):
             shutil.copy2(self.elf[value], app / 'resources/bin' / name)
-        shutil.copy2(self.elf[value], app / 'wallet-launcher')
-        shutil.copy2(self.elf[value], app / 'LocalWallet')
+        shutil.copy2(self.elf[value], app / 'cryptowallet')
+        shutil.copy2(self.elf[value], app / 'cryptowallet-ui')
         (app / 'resources/app.asar').write_text(json.dumps({'version': value}))
         (app / 'resources/public-fixture.txt').write_text('Complete application resource for ' + value)
         manifest = {name: digest(app / 'resources/bin' / name) for name in ('wallet-core', 'wallet-signer', 'wallet-launcher')}
@@ -98,15 +98,15 @@ class BuildTools(unittest.TestCase):
             installer.install(app, destination)
 
     def runtime_version(self, destination):
-        return subprocess.check_output([str(destination / 'wallet')], text=True).strip()
+        return subprocess.check_output([str(destination / 'cryptowallet')], text=True).strip()
 
     def orphaned_install(self):
         app, destination = self.app(), self.destination()
         self.install(app, destination)
-        original = os.readlink(destination / 'wallet')
+        original = os.readlink(destination / 'cryptowallet')
         shutil.rmtree(destination / 'wallet-runtime')
-        self.assertTrue((destination / 'wallet').is_symlink())
-        self.assertFalse((destination / 'wallet').exists())
+        self.assertTrue((destination / 'cryptowallet').is_symlink())
+        self.assertFalse((destination / 'cryptowallet').exists())
         return destination, original
 
     def project(self, metadata='0.1.1', binaries=None):
@@ -183,23 +183,25 @@ class BuildTools(unittest.TestCase):
             (self.root / folder / 'go-build-manifest.json').write_text(json.dumps(manifest))
 
     def test_numeric_semver_maximum_is_not_lexical(self):
-        self.assertEqual(next_release.next_version('0.1.0', ['v1.9.99', 'v1.10.2', 'v1.2.999', 'v0.99.999']), '1.10.3')
-        self.assertEqual(next_release.next_version('2.0.0', ['v1.99.999']), '2.0.1')
-        self.assertEqual(next_release.next_version('0.1.0', []), '0.1.1')
+        self.assertEqual(next_release.next_version('0.1.1', ['1.9.99', '1.10.2', '1.2.999', '0.99.999']), '1.10.3')
+        self.assertEqual(next_release.next_version('2.0.0', ['1.99.999']), '2.0.0')
+        self.assertEqual(next_release.next_version('0.1.1', []), '0.1.1')
+        self.assertEqual(next_release.next_version('0.1.1', ['0.1.1']), '0.1.2')
+        self.assertEqual(next_release.next_version('0.1.1', ['v0.1.1']), '0.1.1')
 
     def test_invalid_and_out_of_policy_tags_are_ignored(self):
-        tags = ['v01.2.3', '1.2.3', 'v1.2', 'v1.2.3-beta', 'v1.2.3+build', 'v1.2.3\nINJECT=1', 'v2147483648.0.0', 'v0.2147483648.0', 'v0.0.' + '9' * 5000, 'v-1.0.0', None, 1]
-        self.assertEqual(next_release.next_version('0.1.0', tags), '0.1.1')
+        tags = ['01.2.3', 'v1.2.3', '1.2', '1.2.3-beta', '1.2.3+build', '1.2.3\nINJECT=1', '2147483648.0.0', '0.2147483648.0', '0.0.' + '9' * 5000, '-1.0.0', None, 1]
+        self.assertEqual(next_release.next_version('0.1.1', tags), '0.1.1')
         for base in ('01.1.0', '1.2', '1.2.3;touch injected', '2147483648.0.0'):
             with self.subTest(base=base), self.assertRaises(ValueError):
                 next_release.next_version(base, [])
 
     def test_component_and_patch_exhaustion_bounds(self):
         self.assertEqual(version.validate_version('2147483647.2147483647.2147483647'), '2147483647.2147483647.2147483647')
-        self.assertEqual(next_release.next_version('0.0.0', ['v1.2.2147483646']), '1.2.2147483647')
+        self.assertEqual(next_release.next_version('0.0.0', ['1.2.2147483646']), '1.2.2147483647')
         with self.assertRaises(ValueError):
-            next_release.next_version('0.0.0', ['v1.2.2147483647'])
-        self.assertEqual(next_release.next_version('2.0.0', ['v1.2.2147483647']), '2.0.1')
+            next_release.next_version('0.0.0', ['1.2.2147483647'])
+        self.assertEqual(next_release.next_version('2.0.0', ['1.2.2147483647']), '2.0.0')
 
     def test_version_override_rejects_shell_and_github_environment_injection(self):
         sentinel = self.root / 'MUST-NOT-EXIST'
@@ -221,7 +223,7 @@ class BuildTools(unittest.TestCase):
         (self.root / 'VERSION').write_text('0.1.0\n')
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
         subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Public Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'public fixture'], check=True)
-        for tag in ('v1.9.9', 'v1.10.1', 'v01.99.99', 'v3.0.0-beta'):
+        for tag in ('1.9.9', '1.10.1', 'v9.99.99', '01.99.99', '3.0.0-beta'):
             subprocess.run(['git', '-C', str(self.root), 'tag', tag], check=True)
         before = subprocess.check_output(['git', '-C', str(self.root), 'tag', '--list'])
         result = subprocess.check_output([sys.executable, str(scripts / 'next-version.py')], text=True)
@@ -230,7 +232,7 @@ class BuildTools(unittest.TestCase):
 
     def test_install_preserves_unrelated_wallet_file(self):
         app, destination = self.app(), self.destination()
-        target = destination / 'wallet'
+        target = destination / 'cryptowallet'
         target.write_text('public foreign-file sentinel')
         with self.assertRaises(RuntimeError):
             self.install(app, destination)
@@ -243,9 +245,9 @@ class BuildTools(unittest.TestCase):
         profile.write_bytes(b'not an actual profile or secret')
         app = self.app('0.1.1', 'new')
         self.install(app, destination)
-        self.assertNotEqual(os.readlink(destination / 'wallet'), original)
+        self.assertNotEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertEqual(self.runtime_version(destination), '0.1.1')
-        runtime = (destination / 'wallet').resolve().parent
+        runtime = (destination / 'cryptowallet').resolve().parent
         installer.verify_binaries(runtime)
         self.assertEqual((runtime / 'resources/public-fixture.txt').read_text(), 'Complete application resource for 0.1.1')
         self.assertTrue((destination / 'wallet-runtime/.localwallet-managed').is_file())
@@ -256,7 +258,7 @@ class BuildTools(unittest.TestCase):
         app = self.app('0.1.1', 'new')
         with mock.patch.object(installer.shutil, 'copytree', side_effect=OSError('public injected copy failure')), self.assertRaises(OSError):
             self.install(app, destination)
-        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertFalse(list((destination / 'wallet-runtime').glob('.staging-*')))
         self.install(app, destination)
         self.assertEqual(self.runtime_version(destination), '0.1.1')
@@ -266,7 +268,7 @@ class BuildTools(unittest.TestCase):
         app = self.app('0.1.1', 'new')
         with mock.patch.object(pathlib.Path, 'replace', side_effect=OSError('public injected atomic switch failure')), self.assertRaises(OSError):
             self.install(app, destination)
-        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertFalse(list(destination.glob('.wallet-link-*')))
         self.assertFalse(list((destination / 'wallet-runtime').glob('.staging-*')))
         self.install(app, destination)
@@ -274,8 +276,8 @@ class BuildTools(unittest.TestCase):
 
     def test_install_refuses_unrelated_dangling_launcher_without_runtime(self):
         app, destination = self.app(), self.destination()
-        target = destination / 'wallet'
-        for link in ('unrelated/wallet-launcher', 'wallet-runtime/../../foreign/wallet-launcher', 'wallet-runtime/app-not-an-id/wallet-launcher', '/wallet-runtime/app-' + '0' * 32 + '/wallet-launcher'):
+        target = destination / 'cryptowallet'
+        for link in ('unrelated/cryptowallet', 'wallet-runtime/../../foreign/cryptowallet', 'wallet-runtime/app-not-an-id/cryptowallet', '/wallet-runtime/app-' + '0' * 32 + '/cryptowallet'):
             with self.subTest(link=link):
                 target.symlink_to(link)
                 with self.assertRaises(RuntimeError):
@@ -286,8 +288,8 @@ class BuildTools(unittest.TestCase):
 
     def test_orphan_recovery_refuses_unsafe_runtime_paths(self):
         app, destination = self.app(), self.destination()
-        target = destination / 'wallet'
-        original = 'wallet-runtime/app-' + '0' * 32 + '/wallet-launcher'
+        target = destination / 'cryptowallet'
+        original = 'wallet-runtime/app-' + '0' * 32 + '/cryptowallet'
         target.symlink_to(original)
         runtime = destination / 'wallet-runtime'
         outside = self.root / 'outside'
@@ -324,7 +326,7 @@ class BuildTools(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.install(app, destination)
         self.assertEqual(list(runtime.iterdir()), [sentinel])
-        self.assertFalse((destination / 'wallet').exists())
+        self.assertFalse((destination / 'cryptowallet').exists())
 
     def test_install_refuses_runtime_symlink_even_with_external_managed_marker(self):
         app, destination = self.app(), self.destination()
@@ -338,7 +340,7 @@ class BuildTools(unittest.TestCase):
             self.install(app, destination)
         self.assertEqual(sorted(path.name for path in outside.iterdir()), before)
         self.assertEqual((outside / 'foreign').read_bytes(), b'public external sentinel')
-        self.assertFalse((destination / 'wallet').exists())
+        self.assertFalse((destination / 'cryptowallet').exists())
 
     def test_install_refuses_traversal_launcher_and_symlinked_marker(self):
         app, destination = self.app(), self.destination()
@@ -346,8 +348,8 @@ class BuildTools(unittest.TestCase):
         runtime.mkdir(mode=0o700)
         marker = runtime / '.localwallet-managed'
         marker.touch(mode=0o600)
-        target = destination / 'wallet'
-        original = 'wallet-runtime/../../foreign/wallet-launcher'
+        target = destination / 'cryptowallet'
+        original = 'wallet-runtime/../../foreign/cryptowallet'
         target.symlink_to(original)
         with self.assertRaises(RuntimeError):
             self.install(app, destination)
@@ -364,12 +366,12 @@ class BuildTools(unittest.TestCase):
     def test_manifest_mismatch_never_switches_existing_install(self):
         old, destination = self.app(), self.destination()
         self.install(old, destination)
-        original = os.readlink(destination / 'wallet')
+        original = os.readlink(destination / 'cryptowallet')
         new = self.app('0.1.1', 'new')
         (new / 'resources/bin/wallet-core').write_bytes(b'public tampered executable')
         with self.assertRaises(RuntimeError):
             self.install(new, destination)
-        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertEqual(self.runtime_version(destination), '0.1.0')
 
     def test_incomplete_runtime_or_ambiguous_manifest_never_creates_launcher(self):
@@ -385,18 +387,18 @@ class BuildTools(unittest.TestCase):
         manifest.write_text(original[:-1] + ',"wallet-core":"' + digest(app / 'resources/bin/wallet-core') + '"}')
         with self.assertRaisesRegex(RuntimeError, 'Duplicate binary manifest member'):
             self.install(app, destination)
-        self.assertFalse((destination / 'wallet').exists())
+        self.assertFalse((destination / 'cryptowallet').exists())
 
     def test_copy_failure_preserves_selected_version_and_profile_files(self):
         old, destination = self.app(), self.destination()
         self.install(old, destination)
-        original = os.readlink(destination / 'wallet')
+        original = os.readlink(destination / 'cryptowallet')
         profile = destination / 'public-profile-sentinel'
         profile.write_bytes(b'not an actual profile or secret')
         new = self.app('0.1.1', 'new')
         with mock.patch.object(installer.shutil, 'copytree', side_effect=OSError('public injected copy failure')), self.assertRaises(OSError):
             self.install(new, destination)
-        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertEqual(self.runtime_version(destination), '0.1.0')
         self.assertEqual(profile.read_bytes(), b'not an actual profile or secret')
         self.assertFalse(list((destination / 'wallet-runtime').glob('.staging-*')))
@@ -404,7 +406,7 @@ class BuildTools(unittest.TestCase):
     def test_completed_copy_is_reverified_before_commit(self):
         old, destination = self.app(), self.destination()
         self.install(old, destination)
-        original = os.readlink(destination / 'wallet')
+        original = os.readlink(destination / 'cryptowallet')
         new = self.app('0.1.1', 'new')
         copy = shutil.copytree
         def corrupt(source, target, *args, **kwargs):
@@ -414,19 +416,19 @@ class BuildTools(unittest.TestCase):
             return result
         with mock.patch.object(installer.shutil, 'copytree', side_effect=corrupt), self.assertRaises(RuntimeError):
             self.install(new, destination)
-        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertEqual(self.runtime_version(destination), '0.1.0')
 
     def test_upgrade_switches_one_complete_version_atomically_and_retains_old_generation(self):
         old, destination = self.app(), self.destination()
         self.install(old, destination)
-        original = os.readlink(destination / 'wallet')
+        original = os.readlink(destination / 'cryptowallet')
         new = self.app('0.1.1', 'new')
         replace = pathlib.Path.replace
         seen = []
         def commit(link, target):
             if link.name.startswith('.wallet-link-'):
-                self.assertEqual(os.readlink(destination / 'wallet'), original)
+                self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
                 self.assertEqual(self.runtime_version(destination), '0.1.0')
                 staged = link.resolve().parent
                 self.assertEqual((staged / 'resources/public-fixture.txt').read_text(), 'Complete application resource for 0.1.1')
@@ -437,7 +439,7 @@ class BuildTools(unittest.TestCase):
         with mock.patch.object(pathlib.Path, 'replace', commit):
             self.install(new, destination)
         self.assertEqual(seen, [True])
-        self.assertNotEqual(os.readlink(destination / 'wallet'), original)
+        self.assertNotEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertEqual(self.runtime_version(destination), '0.1.1')
         self.assertTrue((destination / original).is_file())
         self.assertEqual(subprocess.check_output([str(destination / original)], text=True), '0.1.0\n')
@@ -446,11 +448,11 @@ class BuildTools(unittest.TestCase):
     def test_failed_atomic_link_switch_preserves_previous_runtime(self):
         old, destination = self.app(), self.destination()
         self.install(old, destination)
-        original = os.readlink(destination / 'wallet')
+        original = os.readlink(destination / 'cryptowallet')
         new = self.app('0.1.1', 'new')
         with mock.patch.object(pathlib.Path, 'replace', side_effect=OSError('public injected commit failure')), self.assertRaises(OSError):
             self.install(new, destination)
-        self.assertEqual(os.readlink(destination / 'wallet'), original)
+        self.assertEqual(os.readlink(destination / 'cryptowallet'), original)
         self.assertEqual(self.runtime_version(destination), '0.1.0')
         self.assertFalse(list(destination.glob('.wallet-link-*')))
 
@@ -478,10 +480,10 @@ class BuildTools(unittest.TestCase):
             self.verify()
         portable.write_bytes(original)
         # A self-consistent archive digest must still bind the actual runtime.
-        (app / 'LocalWallet').write_bytes(b'PUBLIC wrong archived Electron runtime')
+        (app / 'cryptowallet-ui').write_bytes(b'PUBLIC wrong archived Electron runtime')
         with tarfile.open(portable, 'w:gz') as archive:
             archive.add(app, arcname='LocalWallet-linux-x64')
-        shutil.copy2(self.elf['0.1.1'], app / 'LocalWallet')
+        shutil.copy2(self.elf['0.1.1'], app / 'cryptowallet-ui')
         manifest['portable']['sha256'] = digest(portable)
         (self.root / 'dist/build-manifest.json').write_text(json.dumps(manifest))
         with self.assertRaisesRegex(RuntimeError, 'Portable runtime payload differs'):
@@ -664,7 +666,7 @@ class BuildTools(unittest.TestCase):
         for forbidden in ('make test', 'scripts/provision-tests.py', 'scripts/ci-desktop.py', 'scripts/record-evidence.py', 'test-security', 'test-race', 'xvfb', 'tesseract'):
             self.assertNotIn(forbidden, text)
         build, release = text.split('  release:\n', 1)
-        self.assertEqual(build.count('make package-desktop package-go'), 1)
+        self.assertEqual(build.count('make package-desktop'), 1)
         self.assertIn('needs: build', release)
         self.assertIn('artifact-id: ${{ steps.payload.outputs.artifact-id }}', build)
         self.assertIn('artifact-ids: ${{ needs.build.outputs.artifact-id }}', release)
@@ -678,8 +680,8 @@ class BuildTools(unittest.TestCase):
         self.assertLess(release.index('scripts/release_assets.py check'), release.index('node .github/provenance/attest.mjs'))
         self.assertLess(text.index('scripts/verify-version.py'), publish)
         self.assertIn('scripts/verify-version.py\n', text[:publish])
-        self.assertIn('scripts/verify-version.py --go-only', text[:publish])
-        self.assertIn('make package-desktop package-go', text[:publish])
+        self.assertNotIn('package-go', text)
+        self.assertIn('make package-desktop', text[:publish])
         self.assertLess(text.index('scripts/release_assets.py verify'), publish)
         self.assertLess(text.index('node .github/provenance/attest.mjs'), publish)
         self.assertIn('npm --prefix .github/provenance ci --ignore-scripts', text[:publish])
@@ -687,14 +689,18 @@ class BuildTools(unittest.TestCase):
         self.assertNotIn('attestations: write', text)
         self.assertNotIn('actions/attest-build-provenance@', text)
         self.assertIn('dist/localwallet-$RELEASE_VERSION-linux-amd64.tar.gz', text[publish:])
-        self.assertIn('dist/RELEASE-SHA256SUMS dist/release-provenance.sigstore.json', text[publish:])
-        self.assertIn('dist/wallet-core dist/wallet-signer dist/wallet-launcher', text[publish:])
-        for inventory in ('go-sbom.cdx.json', 'go-dependency-licenses.json', 'go-source-manifest.json'):
-            self.assertIn('dist/' + inventory, text[publish:])
+        publication = text[publish:].split('      - uses:', 1)[0]
+        self.assertIn('gh release create "$RELEASE_VERSION"', publication)
+        self.assertIn('--title "$RELEASE_VERSION"', publication)
+        for forbidden in ('dist/wallet-', 'dist/test-evidence', 'dist/THIRD-PARTY', 'dist/release.json', 'dist/release-provenance', 'dist/RELEASE-SHA256SUMS', 'localwallet-go-'):
+            self.assertNotIn(forbidden, publication)
+        self.assertIn('name: wallet-release-verification-${{ needs.build.outputs.version }}', text[:publish])
+        self.assertIn('retention-days: 90', text[:publish])
         self.assertNotIn('.deb', text[publish:])
         self.assertNotIn('git tag ', text[:publish])
         self.assertNotIn('git push ', text[:publish])
-        self.assertIn('--prerelease', text[publish:])
+        self.assertNotIn('--prerelease', text[publish:])
+        self.assertNotIn('--draft', text[publish:])
         self.assertIn('--target "$GITHUB_SHA"', text[publish:])
         self.assertIn('cancel-in-progress: false', text)
 
@@ -705,7 +711,7 @@ class BuildTools(unittest.TestCase):
         (self.root / 'dist').mkdir()
         commit = 'a' * 40
         subprocess.run([sys.executable, '-c', program], cwd=self.root, check=True,
-                       env={'WALLET_VERSION': '0.1.10', 'RELEASE_REPOSITORY': 'fixture/wallet', 'GITHUB_SHA': commit},
+                       env={'WALLET_VERSION': '0.1.10', 'RELEASE_REPOSITORY': 'fixture/wallet', 'GITHUB_SHA': commit, 'GITHUB_RUN_ID': '123456'},
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         report = json.loads((self.root / 'reports/release-build.json').read_text())
         self.assertEqual(report['status'], 'BUILD_ONLY')
@@ -715,10 +721,37 @@ class BuildTools(unittest.TestCase):
         self.assertEqual(report['productionReadiness'], 'NOT_RUN')
         self.assertEqual(report['checksURL'], f'https://github.com/fixture/wallet/commit/{commit}/checks')
         notes = (self.root / 'dist/RELEASE-NOTES.md').read_text()
-        self.assertIn('LocalWallet v0.1.10', notes)
+        self.assertIn('LocalWallet 0.1.10', notes)
         self.assertIn(report['checksURL'], notes)
         self.assertIn('NOT_RUN', notes)
         self.assertIn('historical', notes)
+        self.assertIn('wallet-release-verification-0.1.10', notes)
+        self.assertIn('https://github.com/fixture/wallet/actions/runs/123456', notes)
+
+    def test_publication_command_uploads_only_archive_and_uses_exact_version(self):
+        workflow = (ROOT / '.github/workflows/release.yml').read_text()
+        block = workflow.split('          gh release create ', 1)[1].split('      - uses:', 1)[0]
+        command = 'gh release create ' + block.replace('            ', '').strip()
+        fakebin = self.root / 'fake-bin'
+        fakebin.mkdir()
+        capture = self.root / 'arguments.json'
+        transport = fakebin / 'gh'
+        transport.write_text('#!' + sys.executable + '\nimport json,os,sys\nopen(os.environ["CAPTURE"],"w").write(json.dumps(sys.argv[1:]))\n')
+        transport.chmod(0o755)
+        subprocess.run(['bash', '-eu', '-c', command], cwd=self.root, check=True,
+                       env={**os.environ, 'PATH': str(fakebin) + os.pathsep + os.environ['PATH'], 'CAPTURE': str(capture), 'RELEASE_VERSION': '0.1.1', 'GITHUB_SHA': 'a' * 40})
+        self.assertEqual(json.loads(capture.read_text()), ['release', 'create', '0.1.1', '--target', 'a' * 40, '--title', '0.1.1', '--notes-file', 'dist/RELEASE-NOTES.md', 'dist/localwallet-0.1.1-linux-amd64.tar.gz'])
+
+    def test_new_install_preserves_legacy_wallet_entry_and_existing_data(self):
+        destination = self.destination()
+        legacy = destination / 'wallet'
+        legacy.symlink_to('wallet-runtime/app-' + 'a' * 32 + '/wallet-launcher')
+        sentinel = destination / 'public-existing-data'
+        sentinel.write_text('public fixture data')
+        self.install(self.app('0.1.1'), destination)
+        self.assertEqual(self.runtime_version(destination), '0.1.1')
+        self.assertEqual(os.readlink(legacy), 'wallet-runtime/app-' + 'a' * 32 + '/wallet-launcher')
+        self.assertEqual(sentinel.read_text(), 'public fixture data')
 
     def test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap(self):
         scripts = self.root / 'scripts'

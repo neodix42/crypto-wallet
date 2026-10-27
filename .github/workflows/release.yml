@@ -37,14 +37,13 @@ jobs:
           version=$(python3 scripts/next-version.py)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "WALLET_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Build the same version into complete desktop and Go component artifacts
-        run: make package-desktop package-go
+      - name: Build the versioned portable desktop once
+        run: make package-desktop
       - name: Verify candidate version and packaged production security
         run: |
           ./scripts/with-toolchain.sh python3 scripts/verify-version.py
-          ./scripts/with-toolchain.sh python3 scripts/verify-version.py --go-only
           ./scripts/with-toolchain.sh node scripts/verify-artifact.cjs
-      - name: Prepare complete release payload and exact checksum inventory
+      - name: Prepare portable release and private verification records
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
           RELEASE_REPOSITORY_ID: ${{ github.repository_id }}
@@ -62,20 +61,21 @@ jobs:
             'tests':'NOT_RUN: independent .github/workflows/ci.yml workflow',
             'checksURL':checks,'productionReadiness':'NOT_RUN'
           },indent=2)+'\n')
-          pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet v{v} — development prerelease; mainnet profile by default.
+          run=f'https://github.com/{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
+          pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''LocalWallet {v} — development release; mainnet profile by default.
 
-          The tag, release, Electron application and Go executable versions use {v}.
-          Included: the complete ready-to-run Linux amd64 Electron/Go portable wallet, separate Go component executables/archive and dependency/source inventories. No Debian installer is built.
+          Download localwallet-{v}-linux-amd64.tar.gz, extract it, then run LocalWallet-linux-x64/cryptowallet as an ordinary user. Keep the extracted runtime intact. Required third-party license texts are included inside the archive. No Debian installer is built.
 
-          Tests run independently in ci.yml and do not block this development prerelease. They were NOT_RUN in this build workflow. Check this exact source commit's test results: {checks}
-          test-evidence.tar.gz contains this build's status/artifact inspection and source documentation. Any retained test reports under docs/evidence are historical and are not certification of this release candidate.
+          The tag, release name, Electron application and Go executable versions are all {v}.
+          Tests were NOT_RUN in this build workflow; they run independently in ci.yml. Check this exact source commit's results: {checks}
+          Reports retained under docs/evidence are historical and do not certify this candidate.
 
-          RELEASE-SHA256SUMS covers every payload and is authenticated with GitHub OIDC/Sigstore build provenance. The bundle is release-provenance.sigstore.json. Verify the expected repository, release workflow, protected source branch and full source commit before extracting or executing anything; see docs/BUILD.md in a separately trusted source checkout. This authenticates the publishing workflow; it is not an OS executable signature or independent audit.
+          Publisher authentication is verified before publication. Detached verification records (RELEASE-SHA256SUMS, release-provenance.sigstore.json, release.json and RELEASE-NOTES.md) are in the wallet-release-verification-{v} Actions artifact for this run: {run}
+          Download and retain those records within 90 days (or earlier repository cleanup), alongside the portable archive, if you need independent/offline verification later. See docs/BUILD.md in a separately trusted source checkout. These records are not runtime dependencies.
 
-          Public funded testnet roundtrips, the full installed X11/Wayland OS matrix,24-hour soak and independent security review remain separate production gates. Mainnet spending is never automated. Local make install remains unsigned and needs no publishing identity.
+          Public funded testnet roundtrips, the full installed X11/Wayland OS matrix, 24-hour soak and independent security review remain separate production gates. Mainnet spending is never automated. Local make install remains unsigned and needs no publishing identity.
           ''')
           PY
-          tar -czf dist/test-evidence.tar.gz reports/release-build.json reports/artifact-security.json docs
           python3 scripts/release_assets.py prepare --version "$WALLET_VERSION" --repo "$RELEASE_REPOSITORY" --repo-id "$RELEASE_REPOSITORY_ID" --ref "$RELEASE_SOURCE_REF" --commit "$GITHUB_SHA"
       - name: Hand off the built release payload without recompression
         id: payload
@@ -86,8 +86,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/
-            !dist/LocalWallet-linux-x64/
+            dist/localwallet-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
+            dist/RELEASE-NOTES.md
+            dist/release.json
+            dist/RELEASE-SHA256SUMS
 
   release:
     needs: build
@@ -135,18 +137,24 @@ jobs:
           RELEASE_SOURCE_REF: ${{ github.ref }}
         run: |
           python3 scripts/release_assets.py verify --version "$WALLET_VERSION" --repo "$RELEASE_REPOSITORY" --repo-id "$RELEASE_REPOSITORY_ID" --ref "$RELEASE_SOURCE_REF" --commit "$GITHUB_SHA"
-      - name: Publish matching tag and authenticated development prerelease
+      - name: Retain detached verification records outside the release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wallet-release-verification-${{ needs.build.outputs.version }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            dist/RELEASE-SHA256SUMS
+            dist/release-provenance.sigstore.json
+            dist/release.json
+            dist/RELEASE-NOTES.md
+      - name: Publish only the portable wallet with matching version, tag and name
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
-          gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --title "v$RELEASE_VERSION" --prerelease --notes-file dist/RELEASE-NOTES.md \
-            "dist/localwallet-$RELEASE_VERSION-linux-amd64.tar.gz" "dist/localwallet-go-$RELEASE_VERSION-linux-amd64.tar.gz" \
-            dist/wallet-core dist/wallet-signer dist/wallet-launcher dist/manifest.json dist/GO-SHA256SUMS dist/go-build-manifest.json \
-            dist/go-sbom.cdx.json dist/go-dependency-licenses.json dist/go-source-manifest.json \
-            dist/build-manifest.json dist/SHA256SUMS dist/sbom.cdx.json dist/dependency-licenses.json dist/source-manifest.json dist/go-modules.json dist/npm-package-lock.json \
-            dist/THIRD-PARTY-NOTICES.txt dist/THIRD-PARTY-NOTICES.json dist/go-THIRD-PARTY-NOTICES.txt dist/go-THIRD-PARTY-NOTICES.json \
-            dist/test-evidence.tar.gz dist/RELEASE-NOTES.md dist/release.json dist/RELEASE-SHA256SUMS dist/release-provenance.sigstore.json
+          gh release create "$RELEASE_VERSION" --target "$GITHUB_SHA" --title "$RELEASE_VERSION" --notes-file dist/RELEASE-NOTES.md \
+            "dist/localwallet-$RELEASE_VERSION-linux-amd64.tar.gz"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

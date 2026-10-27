@@ -49,4 +49,4 @@ These results concern the changed launcher. Older [Settings evidence](evidence/s
 | Full supported X11/Wayland OS matrix, 24-hour soak and independent review | NOT_RUN — the narrow workaround does not close these release gates |
 | Private Bybit acceptance or funded mainnet transactions | NOT_RUN — no real API credentials or mainnet funds used |
 
-The current scoped report is [x11-diagnostics.json](evidence/x11-diagnostics.json), with source and artifact identities and referenced measurements. Its interface and isolation PASS results do not override the failing full Go aggregate or establish production readiness. The launcher remains the supported way to start the complete wallet: run `./wallet` after `make install`.
+The current scoped report is [x11-diagnostics.json](evidence/x11-diagnostics.json), with source and artifact identities and referenced measurements. Its interface and isolation PASS results do not override the failing full Go aggregate or establish production readiness. The launcher remains the supported way to start the complete wallet: run `./cryptowallet` after `make install`.
