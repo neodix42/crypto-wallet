@@ -72,7 +72,7 @@ sudo apt-get install xvfb libxtst6 python3-pil tesseract-ocr
 make test-dialogs        # isolated Electron prompt, bridge and portfolio tests
 make test-native         # retained non-shipped GTK regression tests only
 make test-recovery       # headless real Go protocol recovery across fresh app copies
-make test-packaged       # actual packaged app: Electron phrase setup, validation, restart/restore
+make test-packaged       # actual packaged app: phrase setup/recovery plus internal Unlock overflow and plain status text
 make test-packaged-send  # actual Electron Send on an isolated real local geth chain
 ```
 

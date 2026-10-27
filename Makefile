@@ -68,6 +68,7 @@ test-native:
 	$(TOOLS) python3 scripts/native-input.py
 test-packaged: install
 	$(TOOLS) python3 scripts/packaged-recovery.py
+	$(TOOLS) python3 scripts/unlock-layout.py
 test-packaged-send: install
 	$(TOOLS) python3 scripts/packaged-send.py
 test-recovery: build

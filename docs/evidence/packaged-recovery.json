@@ -175,11 +175,11 @@
   "artifact": {
     "version": "0.1.0",
     "binaryManifest": {
-      "wallet-core": "513678e14c3617103dc18eee45294d65b399d8b20d2f052c86e73d52dcb876d9",
-      "wallet-launcher": "e5f1c776320773785eed778f11d6c46fb576f390d651c383e232e6e8772bef0c",
-      "wallet-signer": "5e0813e04e064fda987bea762e597681924e96e3481b5b5656b84c46a0c84ae4"
+      "wallet-core": "cd0ff703d2d08509f4748d431022e8a2a5bb90c3a7c3ecb748d52a547f04c923",
+      "wallet-launcher": "2361f3735485f79613da2532b15d60b6830a41bd2c8a153ae47a5acacc3feca7",
+      "wallet-signer": "16d87d959abda4566885a788fae98168690fc7400ecc872a7b722748714b1a60"
     },
-    "asarSHA256": "6d909d73641191991807ffb5b37c7ebcb19c2bfc2a90087e36e42041d84374eb"
+    "asarSHA256": "f3c9341f32986f7a6ba1fc760000839e4eba59329749b468fbae1497ce5e9a00"
   },
   "initialWindowObservations": [
     {
@@ -245,7 +245,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.005,
+      "firstAbsentSecondsAfterNativeAction": 8.017,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": true
     },
@@ -276,7 +276,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.033,
+      "firstAbsentSecondsAfterNativeAction": 8.054,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": false
     },
@@ -307,7 +307,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 8.007,
+      "firstAbsentSecondsAfterNativeAction": 8.058,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": false
     },
@@ -338,7 +338,7 @@
         992
       ],
       "lastVisibleSecondsAfterNativeAction": 6.8,
-      "firstAbsentSecondsAfterNativeAction": 7.793,
+      "firstAbsentSecondsAfterNativeAction": 7.814,
       "dismissControl": "absent",
       "remainsAbsentAcrossLaterPoll": true
     }
@@ -361,7 +361,7 @@
         681,
         598,
         1147,
-        622
+        623
       ]
     }
   ],
@@ -460,7 +460,7 @@
       "inputBoundsRelativeToWindow": [
         27,
         163,
-        578,
+        593,
         211
       ],
       "okBoundsRelativeToWindow": [
@@ -480,7 +480,7 @@
       "inputBoundsRelativeToWindow": [
         27,
         163,
-        578,
+        593,
         211
       ],
       "okBoundsRelativeToWindow": [

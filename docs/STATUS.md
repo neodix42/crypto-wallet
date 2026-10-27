@@ -1,8 +1,25 @@
 # Implementation and release evidence
 
-The current **2026-10-27** interface update uses a larger display-bounded main window, compact masked Unlock dialog, a **52-pixel** status bar and **seven-second** automatic notice expiry without a Dismiss button. Bybit configuration remains in **Settings → Exchange**; the main Exchange page no longer has its settings shortcut. Secret, authorization, network and recovery rules are unchanged.
+The current correction makes the compact **Unlock local wallet** form fit without its internal scrollbar and renders status messages without a rectangular focus highlight. Input-only bottom spacing is reduced; longer prompts keep their scrolling and reachable controls. Secret handling, authorization and seven-second notice expiry are unchanged.
 
-## Current compact-window verification — 2026-10-27
+## Current Unlock/status correction — 2026-10-27
+
+| Status | Measured scope and limit |
+| --- | --- |
+| FAIL — reproduced before correction | The old installed artifact has a **14-pixel** internal rail, asymmetric input clearances and input movement under a wheel event. Its focused public error has long outline rows. The existing **620×304** size and **32–33-pixel** input/button gap still pass, exposing the previous test gap. Numeric credential geometry only; no private pixels retained. |
+| PASS | **154 frontend tests**, zero skipped; all eight shipped JS files at **100% statements**. Error alerts retain focus/announcements without an outline/border/box. Wrapped long labels, full-size masked fields and reachable keyboard controls remain covered. |
+| PASS | **Eight focused installed checks**: **zero** internal rail columns, symmetric **27/27-pixel** input clearances and identical input/button bounds under both wheel directions. Compact **620×304** size and **32-pixel** button gap preserved. No public status-outline runs; notice timing, cancellation byte preservation and log canaries pass. Private pixels stayed in memory. |
+| PASS | Build/install, all **12** payload comparisons/fuses and matching versions; **42** build-tool tests; **seven** actual isolated-geth Send checks, **six** headless recovery and **seven** owned-process crash/canary checks bound to final installed binaries. |
+| PASS | Full **39-check** source-stable packaged regression on the same final artifact. The targeted test supplements the existing workflow and is now required by `make test-packaged`, including its CI/release callers. |
+| FAIL — existing release gates | `make verify-release` still reports incomplete required acceptance, blocked Go aggregate and unrun external gates. No new frontend, artifact, packaged recovery or isolated Send binding failure. |
+| FAIL / BLOCKED — unchanged | Required pinned Decred prerequisite and other existing production acceptance gates remain incomplete. |
+| NOT_RUN | Real user secrets, mainnet spending, private/funded Bybit acceptance, full installed X11/Wayland/lifecycle matrix, complete soak and independent review. |
+
+The current scoped report is [unlock-scroll.json](evidence/unlock-scroll.json), with [focused installed checks](evidence/unlock-layout.json) and the [old failing reproduction](evidence/unlock-layout-before-fix.json). Detailed generated evidence remains under the repository’s existing ignored report/evidence directories; the ignore policy is unchanged. These passes cover the named local scopes, not the missing production gates.
+
+The earlier **2026-10-27** interface update uses a larger display-bounded main window, compact masked Unlock dialog, a **52-pixel** status bar and **seven-second** automatic notice expiry without a Dismiss button. Bybit configuration remains in **Settings → Exchange**; the main Exchange page no longer has its settings shortcut. Secret, authorization, network and recovery rules are unchanged.
+
+## Previous compact-window verification — 2026-10-27
 
 | Status | Measured scope and limit |
 | --- | --- |

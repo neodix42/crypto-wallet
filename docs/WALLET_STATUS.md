@@ -1,8 +1,8 @@
 # Wallet amounts, addresses and status feedback
 
-The main window initially opens at **1440×960**, bounded by the display work area. Masked input dialogs use compact content sizing: Unlock is **620×304** content pixels, with action buttons directly below the input. Longer inputs expand and then scroll; recovery, Receive and approval dialogs retain their larger layouts.
+The main window initially opens at **1440×960**, bounded by the display work area. Masked input dialogs use compact content sizing: Unlock is **620×304** content pixels, with action buttons directly below the input. The single-password view fits without an internal scrollbar; input-area spacing leaves enough room for full-size controls. Longer inputs expand and then scroll; recovery, Receive and approval dialogs retain their larger layouts.
 
-The main window reserves a **52-pixel status bar** across its bottom edge. Ordinary information and errors clear automatically after **seven seconds**, without a Dismiss button or page movement. Each new message starts a fresh interval; obsolete timeouts cannot clear a newer message, and idle lock polling cannot revive expired notices. Pending Receive setup remains actionable until cancelled or completed; it does not expire with ordinary notices. Long text scrolls inside the bar. Informational Go notices no longer open an additional window. The isolated password, phrase, transaction approval and verified Receive QR dialogs retain their separate origin/session and Go authorization checks; no secret is moved into the portfolio or status bar.
+The main window reserves a **52-pixel status bar** across its bottom edge. Ordinary information and errors clear automatically after **seven seconds**, without a Dismiss button or page movement. Each new message starts a fresh interval; obsolete timeouts cannot clear a newer message, and idle lock polling cannot revive expired notices. Pending Receive setup remains actionable until cancelled or completed; it does not expire with ordinary notices. Status messages use plain text without a focus rectangle, border or box; alert announcements and focus restoration remain available. Long text scrolls inside the bar. Informational Go notices no longer open an additional window. The isolated password, phrase, transaction approval and verified Receive QR dialogs retain their separate origin/session and Go authorization checks; no secret is moved into the portfolio or status bar.
 
 Switching main tabs focuses the selected navigation control. It does not focus or draw a green rectangle around the page heading. Keyboard focus indicators remain on interactive controls.
 
@@ -22,7 +22,13 @@ Bybit provides authenticated [spot-order](https://bybit-exchange.github.io/docs/
 
 Bybit connection settings are reached through **Settings → Exchange**. The main Exchange page has no Exchange Settings shortcut.
 
-## Current compact-window verification — 2026-10-27
+## Current Unlock/status correction — 2026-10-27
+
+The previous packaged test checked the dialog's outer size and input-to-OK gap, but did not check internal overflow. The old installed package reproduced a 14-pixel rail, unequal input clearances and movement under a real wheel event, while still passing the outer geometry checks. Its focused public error also had long outline rows. The new focused regression records those defects against the old artifact before validating the correction. Empty credential pixels remain only in memory; reports contain numeric geometry, never secret screenshots.
+
+Final-artifact checks **PASS**: 154 frontend tests, eight focused installed regressions, all 39 existing packaged checks, seven isolated-geth Send checks, six headless recovery and seven crash/canary checks. Unlock has zero rail columns and identical controls under wheel input, while status text has no outline runs. See [the scoped report](evidence/unlock-scroll.json) and [current checklist](STATUS.md) for source/artifact bindings and blocked/unrun production gates. Longer/multi-field prompts retain scrolling, full-size controls and masked inputs. The fix does not change secret transport, authorization or notice timing.
+
+## Previous compact-window verification — 2026-10-27
 
 **PASS:** 154 frontend tests, all eight shipped JS files at 100% statements; 39 actual packaged X11 checks; seven isolated-geth Send, six headless recovery and seven owned-process crash checks. The packaged Unlock view measures 620×304 with a 32-pixel input-to-OK gap; the locked main window has no observed horizontal scrollbar on the tested private X11 display. See [the scoped report](evidence/window-compact.json) and [current checklist](STATUS.md) for source/artifact bindings, retained earlier attempts and unrun production gates.
 
