@@ -58,6 +58,7 @@ jobs:
             reports/native-*.json
             reports/wails-*.json
             reports/wails-*-near-public-contract.png
+            reports/wails-*-main-row-public-controls.png
             reports/portable-*.json
             reports/go-only-build.json
             dist/portable-build-verification.json

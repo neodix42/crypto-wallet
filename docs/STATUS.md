@@ -1,5 +1,19 @@
 # Implementation and release evidence
 
+## Hosted table-copy and race-stress follow-up — 2026-10-28
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, hosted NEAR checks at `ece6768` | [Run 40695614368](https://github.com/neodix42/crypto-wallet/actions/runs/40695614368) recognizes the exact 25-byte public contract at native resolution and passes every staking assertion. This establishes the prior OCR repair on the hosted runner. |
+| FAIL, hosted GUI | The next main-table copy step receives no verified dialog. Its fixed window-edge click did not observe the actual button. The evidence cannot establish a product defect or successful copy; subsequent GUI steps are skipped. |
+| PASS, diagnosis only | Actual guarded public pixels at the hosted window geometry show a partly clipped button. The first whole-button locator probe rejects it; that failed probe remains failed. A bounded horizontal table reveal must precede measurement. No private pixels are retained or public-network funds used. |
+| FAIL, hosted race stress | The same run completes its functional stress workloads without a reported data race but measures signer-lifecycle p99 at 60.440580 seconds, above the unchanged 60-second budget. The stress and signer packages compete under two-package race execution. Subsequent checks-job steps are skipped. |
+| PASS, local race isolation | The full uncached race stress package passes under two-CPU affinity: lifecycle p99 28.834226 seconds against 60 seconds, production-KDF p99 2.470457 seconds against 15 seconds, all 1,000 signed fake-ledger payments reconciled and no unresolved payments. Existing workload/resource limits and source files are unchanged. Seven routing regressions require every package exactly once, sequential execution, fresh stress measurement and both phases even after failure. `reports/ci-race-stress-two-cpu.json`. |
+| PASS, focused actual GUI | Final Ubuntu 24 OCR run at the hosted window geometry uses one ordinary horizontal table reveal and one measured-button click, copies the exact independent fixture address and keeps the account overview open. Stable sources. The failure crop is only a public row region, including an address suffix; it contains no private window pixels. `reports/wails-main-row-copy-final-ubuntu24.json`. |
+| PASS, local current checks | `make test-ci`, 52 current-interface helper regressions on both OCR versions, all 67 local helper regressions, 23 CI routing/privacy checks, pinned workflow lint and root specification checksums. Narrow public-row failure artifacts remain guard-checked; no general screenshot glob is uploaded. |
+| PASS, complete actual local GUI | Final `make test-wails-wallet` with Ubuntu 24 OCR passes all 20 steps with stable sources: generated phrase, NEAR staking, measured table copy matching the independently opened Ethereum wallet, all eight addresses, token controls, authenticated backup/copy, Appearance/Bybit geometry, fresh independent phrase restore and Enter unlock. `reports/wails-wallet.json`. Local rendering is not a clean Ubuntu 24 OS matrix. |
+| NOT_RUN at commit checkpoint | Next hosted execution. Separate public funded operations, clean supported OS matrix and independent review remain outstanding. |
+
 ## Hosted contract-text observation follow-up — 2026-10-28
 
 | State | Evidence and limits |

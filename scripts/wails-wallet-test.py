@@ -35,6 +35,7 @@ mode.add_argument("--staking-only", action="store_true", help="Targeted actual N
 mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
 mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
+mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and verified receive/copy using a public disposable phrase; no wallet opening, RPC service or payment")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
     raise SystemExit("Report name must be a simple owned test name")
@@ -55,6 +56,9 @@ if args.decred_copy_only:
 if args.appearance_only:
     report["scope"]="Targeted actual Light/18 px defaults, selected Settings tabs, Dark/24 px rendering and persistence after graceful restart, Enter-only unlock, and private two-field Bybit/footer layout. Disposable public fixture and API canaries only; custody confirmation is cancelled before encrypted credentials or any Bybit observation. No private pixels or values are retained."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (appearance-only mode)")
+if args.main_row_copy_only:
+    report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and real Go-authored receive approval using the public disposable abandon/about phrase. The icon must keep the account overview open and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
+    report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
 if args.instrumented:
     report["scope"] = "Instrumented Go statement-coverage run. " + report["scope"].replace("Uninstrumented", "Instrumented")
 report_path = REPORTS / (args.report_name+".json")
@@ -311,7 +315,7 @@ def private_primary(prefix):
     report.setdefault("privateFooterFailures",[]).append({"title":prefix,"window":[w,h],"expectedPrimary":list(palette()["primary"]),"commonColors":[[list(color),count] for color,count in counts.most_common(6)]})
     raise RuntimeError("Private prompt did not finish rendering its enabled footer action")
 
-def public_rows(contrast=False, with_picture=False):
+def public_rows(contrast=False, with_picture=False, with_geometry=False):
     # Make classification and pixel capture one X11 operation. An async Go
     # prompt cannot become visible between the allowlist check and image read.
     # This is only the owned private :18x test server; release it before OCR.
@@ -320,6 +324,11 @@ def public_rows(contrast=False, with_picture=False):
         mod.X.XSync(desktop.d,0)
         if desktop.secret_window():
             raise PrivateWindowVisible("Refusing public OCR while a private dialog is open")
+        geometry=None
+        if with_geometry:
+            windows=[window for window,title in desktop.windows() if title=="CryptoWallet" or title.startswith("CryptoWallet · ")]
+            if len(windows)!=1:raise RuntimeError("Public wallet window was not unique during capture")
+            geometry=desktop.geometry(windows[0])
         picture=desktop.image()
     finally:
         desktop.ungrab_server()
@@ -338,6 +347,7 @@ def public_rows(contrast=False, with_picture=False):
         if len(fields) == 12 and fields[11].strip():
             for position in (6,7,8,9):fields[position]=str(int(fields[position])//2)
             rows.append(fields)
+    if with_geometry:return rows,captured,geometry
     return (rows,captured) if with_picture else rows
 
 def private_rows(prefix):
@@ -628,6 +638,155 @@ def request_receive_copy(seconds=30):
         # until its exact verified title appears. Never click or OCR it.
         time.sleep(.05)
     raise RuntimeError("Verified receive dialog did not appear within its bounded deadline")
+
+def main_row_copy_target(rows,picture,geometry):
+    # Bind the point to the actual Ethereum row and complete rendered button,
+    # not a distance from the application window's unrelated outer edge.
+    window,_=desktop.wait("CryptoWallet")
+    if desktop.geometry(window)!=geometry:raise RuntimeError("Main-row wallet geometry changed after public capture")
+    x,y,w,h=geometry
+    if x<0 or y<0 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Main-row public capture did not contain its complete wallet bounds")
+    visible=" ".join(row[11] for row in rows)
+    if "Account group" not in visible or public_words_position("Copy address",rows):
+        raise RuntimeError("Main-row address copy left the account overview")
+    matches=[row for row in rows if row[11]=="Ethereum" and y+145<int(row[7])<y+h-55]
+    if len(matches)!=1:raise RuntimeError("Main-account Ethereum row was not uniquely visible")
+    row=matches[0]
+    row_y=int(row[7])+int(row[9])//2
+    expected=palette()
+    def color(point,wanted,tolerance=0):
+        return max(abs(a-b) for a,b in zip(picture.getpixel(point),wanted))<=tolerance
+    centers={"enabled":set(),"disabled":set()}
+    disabled_border=tuple(round(.45*a+.55*b) for a,b in zip(expected["border"],expected["surface"]))
+    states=(("enabled",expected["button"],expected["border"]),("disabled",expected["disabled"],disabled_border))
+    clipped=False
+    fill_runs=[]
+    for state,button_color,border_color in states:
+        for scan_y in range(row_y+9,row_y+14):
+            runs=[]
+            for xx in range(x+w//2,x+w-32):
+                if color((xx,scan_y),button_color):
+                    if not runs or xx!=runs[-1][-1]+1:runs.append([])
+                    runs[-1].append(xx)
+            for run in runs:
+                if 8<=len(run)<=35 and run[-1]>=x+w-35:
+                    clipped=True
+                if not 26<=len(run)<=36:continue
+                fill_runs.append([state,run[0],scan_y,len(run)])
+                cx=(run[0]+run[-1])//2
+                fill=[yy for yy in range(row_y-23,row_y+24)
+                      if color((cx-11,yy),button_color) and color((cx+11,yy),button_color)]
+                groups=[]
+                for yy in fill:
+                    if not groups or yy!=groups[-1][-1]+1:groups.append([])
+                    groups[-1].append(yy)
+                for group in groups:
+                    cy=(group[0]+group[-1])//2
+                    if not 22<=len(group)<=34 or abs(cy-row_y)>8:continue
+                    # Require all four sides of the small rectangular control.
+                    # The identically colored circular network avatar is outside
+                    # this half of the row and cannot satisfy this border test.
+                    vertical=lambda xx:all(color((xx,cy+dy),border_color,8) for dy in (-6,0,6))
+                    horizontal=lambda yy:all(color((cx+dx,yy),border_color,8) for dx in (-6,0,6))
+                    if (any(vertical(xx) for xx in range(cx-18,cx-14)) and any(vertical(xx) for xx in range(cx+15,cx+19))
+                        and any(horizontal(yy) for yy in range(cy-18,cy-14)) and any(horizontal(yy) for yy in range(cy+15,cy+19))):
+                        centers[state].add((cx,cy))
+    observed=report.setdefault("mainRowCopy",{})
+    observed.update(window=[x,y,w,h],ethereumRow=[int(row[6]),int(row[7]),int(row[8]),int(row[9])])
+    if not centers["enabled"] and not centers["disabled"] and clipped:
+        observed["controlState"]="clipped"
+        return None
+    if len(centers["disabled"])==1 and not centers["enabled"]:
+        observed["controlState"]="disabled"
+        return None
+    if len(centers["enabled"])!=1 or centers["disabled"]:
+        bounds=(x+w//2,row_y-25,x+w-32,row_y+26)
+        path=REPORTS/(args.report_name+"-main-row-public-controls.png")
+        picture.crop(bounds).save(path)
+        report["mainRowCopyGeometryFailure"]={"window":list(geometry),"ethereumRow":[int(row[6]),int(row[7]),int(row[8]),int(row[9])],"fillRuns":fill_runs,"centers":{state:[list(point) for point in points] for state,points in centers.items()},"publicRegion":list(bounds),"artifact":path.name,"artifactSHA256":hashlib.sha256(path.read_bytes()).hexdigest()}
+        raise RuntimeError("Ethereum row copy icon was not uniquely identified by its rendered rectangle")
+    point=next(iter(centers["enabled"]))
+    observed.update(controlState="enabled",buttonCenter=list(point))
+    return point
+
+def reveal_main_row_copy(geometry):
+    # A normal horizontal wheel gesture reveals the table's clipped rightmost
+    # column. The next capture must independently re-find the same Ethereum
+    # row and whole button; no coordinates survive this scroll operation.
+    if desktop.secret_window():raise PrivateWindowVisible("Refusing table scrolling while a private prompt is visible")
+    window,_=desktop.wait("CryptoWallet")
+    if desktop.geometry(window)!=geometry:raise RuntimeError("Main-row wallet geometry changed before horizontal reveal")
+    x,y,w,h=geometry
+    row=report["mainRowCopy"]["ethereumRow"]
+    mod.T.XTestFakeMotionEvent(desktop.d,-1,x+w-50,row[1]+row[3]//2,0)
+    mod.T.XTestFakeButtonEvent(desktop.d,7,1,0);mod.T.XTestFakeButtonEvent(desktop.d,7,0,0)
+    mod.X.XFlush(desktop.d)
+    time.sleep(.25)
+    desktop.park_pointer()
+
+def request_main_row_copy(seconds=30):
+    deadline=time.monotonic()+seconds
+    requested=starting=False
+    next_click=0
+    desktop.park_pointer()
+    while time.monotonic()<deadline:
+        state=receive_dialog_state(desktop.windows())
+        if state=="ready":
+            if not requested:raise RuntimeError("Unexpected receive dialog before main-row address request")
+            return
+        if state=="starting":
+            if not requested:raise RuntimeError("Unexpected native dialog before main-row address request")
+            starting=True
+        elif starting:
+            raise RuntimeError("Main-row receive dialog closed before showing its verified title")
+        elif time.monotonic()>=next_click:
+            try:
+                rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
+                point=main_row_copy_target(rows,picture,geometry)
+            except PrivateWindowVisible:
+                if not requested:raise
+            else:
+                if point is None:
+                    if report["mainRowCopy"]["controlState"]=="clipped":
+                        reveals=report["mainRowCopy"].get("horizontalReveals",0)
+                        if reveals>=3:raise RuntimeError("Ethereum copy icon remained clipped after bounded horizontal reveal")
+                        reveal_main_row_copy(geometry)
+                        report["mainRowCopy"]["horizontalReveals"]=reveals+1
+                    # The actual row can be disabled while Go starts its
+                    # verified prompt. Wait; never replace a pending click.
+                elif desktop.secret_window():
+                    if not requested:raise PrivateWindowVisible("Private prompt appeared before main-row address input")
+                else:
+                    if desktop.geometry(desktop.wait("CryptoWallet")[0])!=geometry:
+                        raise RuntimeError("Main-row wallet geometry changed before address input")
+                    desktop.focus(desktop.wait("CryptoWallet")[0])
+                    desktop.click(*point)
+                    requested=True
+                    report.setdefault("mainRowCopy",{}).setdefault("attempts",0)
+                    report["mainRowCopy"]["attempts"]+=1
+                    desktop.park_pointer()
+                    next_click=time.monotonic()+.75
+        # A mapped private loading/ready window is inspected only by title.
+        # No public pixel capture or replacement click is allowed while open.
+        time.sleep(.05)
+    raise RuntimeError("Main-row verified receive dialog did not appear within its bounded deadline")
+
+def main_row_copy(expected_address=None):
+    stage("Main-account Ethereum row icon and verified receive request")
+    request_main_row_copy()
+    stage("Main row verified receive dialog")
+    desktop.wait("Verify receive address",30)
+    desktop.accept("Verify receive address")
+    stage("Main row copy returns to main account")
+    wait(lambda:not desktop.secret_window())
+    wait(lambda:"Account group" in text())
+    if "Copy address" in text():raise RuntimeError("Main-row copy opened a wallet page")
+    copied=wait(lambda:value if re.fullmatch(r"0x[0-9a-fA-F]{40}",value:=clipboard()) else None)
+    if expected_address is not None and copied!=expected_address:
+        raise RuntimeError("Main-row copy differed from the independently derived Ethereum fixture address")
+    report["mainRowCopy"]["clipboardSHA256"]=hashlib.sha256(copied.encode()).hexdigest()
+    passed("Main-account row copy icon opens verified receive details without opening that wallet tab")
+    return copied
 
 def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON")):
     result = {}
@@ -1193,7 +1352,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only:
             recorded=b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -1216,6 +1375,10 @@ try:
                 passed("Three repeated actual Decred receive/copy prompts completed without ambiguous mapped windows")
             if args.appearance_only:
                 appearance_campaign(installations[0],home,different_password)
+            if args.main_row_copy_only:
+                observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
+                report["mainRowCopy"]["matchesIndependentFixture"]=True
+                passed("Actual main-row icon copies the exact independently derived public-fixture Ethereum address")
             close_gracefully()
             passed("Targeted public-fixture import reaches all-wallet overview and closes successfully")
             if args.quick_import:
@@ -1238,18 +1401,11 @@ try:
             wait(lambda: "Main account" in text(), 30)
             passed("Single Go executable generates a random phrase after masked app-password entry and verifies recorded words in separate private WebKitGTK windows")
             staking_page()
-            stage("Main account row copy action")
-            row = next(r for r in public_rows() if r[11].lower()=="ethereum" and int(r[7])>100)
-            main_x,_,main_width,_=desktop.geometry(desktop.wait("CryptoWallet")[0])
-            desktop.click(main_x+main_width-55,int(row[7])+int(row[9])//2)
-            stage("Main row verified receive dialog")
-            desktop.wait("Verify receive address",30);desktop.accept("Verify receive address")
-            stage("Main row copy returns to main account")
-            wait(lambda:not desktop.secret_window())
-            wait(lambda:"Account group" in text())
-            if not re.fullmatch(r"0x[0-9a-fA-F]{40}",clipboard()):raise RuntimeError("Main row copy did not serve a verified Ethereum address")
-            passed("Main-account row copy icon opens verified receive details without opening that wallet tab")
+            main_row_address=main_row_copy()
             expected = addresses()
+            if main_row_address!=expected.get("Ethereum"):
+                raise RuntimeError("Main-row copy differed from the independently opened Ethereum wallet")
+            report["mainRowCopy"]["matchesOpenedWallet"]=True
             if len(expected) != 8:
                 raise RuntimeError("Native account table lost network coverage")
             report["walletsCompared"] = len(expected)

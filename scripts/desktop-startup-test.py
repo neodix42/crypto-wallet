@@ -14,7 +14,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageDraw
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CURRENT_UI = '--current-ui' in sys.argv
@@ -161,6 +161,172 @@ class WailsPrivateStartup(unittest.TestCase):
         self.desktop.image.assert_not_called()
         self.desktop.windows.assert_not_called()
         self.assertEqual(self.clock.now, .15)
+
+
+class WailsMainRowCopy(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('main_row_copy_target','request_main_row_copy','main_row_copy','reveal_main_row_copy','receive_dialog_state','public_words_position','palette')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.folder=tempfile.TemporaryDirectory(prefix='wallet-main-row-')
+        self.addCleanup(self.folder.cleanup)
+        self.geometry=(80,100,1440,900)
+        self.clock=SimpleNamespace(now=0)
+        self.clock.monotonic=lambda:self.clock.now
+        self.clock.sleep=lambda seconds:setattr(self.clock,'now',self.clock.now+seconds)
+        self.main=[(1,'CryptoWallet · 0.1.1 · mainnet')]
+        self.desktop=SimpleNamespace(windows=mock.Mock(return_value=self.main),
+                                     wait=mock.Mock(return_value=self.main[0]),
+                                     geometry=mock.Mock(side_effect=lambda window:self.geometry),
+                                     focus=mock.Mock(),click=mock.Mock(),accept=mock.Mock(),park_pointer=mock.Mock(),
+                                     secret_window=mock.Mock(return_value=False),d=object())
+        self.report={}
+        self.rows=mock.Mock()
+        self.scope={'time':self.clock,'re':re,'desktop':self.desktop,'report':self.report,
+                    'public_rows':self.rows,'appearance':{'theme':'light'},
+                    'REPORTS':pathlib.Path(self.folder.name),'args':SimpleNamespace(report_name='owned-row'),
+                    'hashlib':hashlib,'stage':mock.Mock(),
+                    'PrivateWindowVisible':type('PrivateWindowVisible',(RuntimeError,),{})}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'wails-main-row-copy-helper','exec'),self.scope)
+
+    def row(self,word,x,y,line=1):
+        return ['5','1',str(line),'1','1','1',str(x),str(y),'95','14','99',word]
+
+    def overview(self):
+        return [self.row('Account',180,300,1),self.row('group',240,300,1),self.row('Ethereum',178,552,2)]
+
+    def button_picture(self,button_x=1400,button_y=542,state='enabled'):
+        picture=Image.new('RGB',(1600,1100),'white')
+        colors=self.scope['palette']()
+        fill=colors['button'] if state=='enabled' else colors['disabled']
+        border=colors['border'] if state=='enabled' else tuple(round(.45*a+.55*b) for a,b in zip(colors['border'],colors['surface']))
+        ImageDraw.Draw(picture).rounded_rectangle((button_x,button_y,button_x+33,button_y+33),radius=7,fill=fill,outline=border)
+        return picture
+
+    def test_measures_complete_copy_button_at_hosted_origin_instead_of_window_edge(self):
+        picture=self.button_picture()
+        point=self.scope['main_row_copy_target'](self.overview(),picture,self.geometry)
+        self.assertEqual(point,(1416,558))
+        self.assertNotEqual(point,(1465,559))
+        self.assertEqual(self.report['mainRowCopy']['controlState'],'enabled')
+
+    def test_new_window_offset_and_width_remeasure_actual_row_and_button(self):
+        self.geometry=(20,60,1540,950)
+        rows=[self.row('Account',120,260),self.row('group',180,260),self.row('Ethereum',118,512,2)]
+        picture=self.button_picture(1470,502)
+        self.assertEqual(self.scope['main_row_copy_target'](rows,picture,self.geometry),(1486,518))
+
+    def test_disabled_copy_is_observed_as_pending_without_an_enabled_point(self):
+        self.assertIsNone(self.scope['main_row_copy_target'](self.overview(),self.button_picture(state='disabled'),self.geometry))
+        self.assertEqual(self.report['mainRowCopy']['controlState'],'disabled')
+
+    def test_right_clipping_requires_reveal_and_never_exposes_a_partial_click_target(self):
+        picture=self.button_picture(1462)
+        ImageDraw.Draw(picture).rectangle((1487,500,1519,600),fill='white')
+        self.assertIsNone(self.scope['main_row_copy_target'](self.overview(),picture,self.geometry))
+        self.assertEqual(self.report['mainRowCopy']['controlState'],'clipped')
+
+    def test_wrong_public_context_or_wallet_page_is_rejected_before_pixels(self):
+        picture=mock.Mock(width=1600,height=1100)
+        for rows in ([self.row('Ethereum',178,552)],self.overview()+[self.row('Copy',900,400,3),self.row('address',950,400,3)]):
+            with self.subTest(rows=rows),self.assertRaisesRegex(RuntimeError,'left the account overview'):
+                self.scope['main_row_copy_target'](rows,picture,self.geometry)
+        picture.getpixel.assert_not_called()
+
+    def test_other_row_controls_fill_patches_and_ambiguous_buttons_cannot_supply_a_point(self):
+        pictures=[self.button_picture(button_y=616),Image.new('RGB',(1600,1100),'white')]
+        plain=Image.new('RGB',(1600,1100),'white')
+        ImageDraw.Draw(plain).rectangle((1400,542,1433,575),fill=self.scope['palette']()['button'])
+        pictures.append(plain)
+        multiple=self.button_picture(1360)
+        ImageDraw.Draw(multiple).rounded_rectangle((1440,542,1473,575),radius=7,fill=self.scope['palette']()['button'],outline=self.scope['palette']()['border'])
+        pictures.append(multiple)
+        for picture in pictures:
+            with self.subTest(),self.assertRaisesRegex(RuntimeError,'not uniquely identified'):
+                self.scope['main_row_copy_target'](self.overview(),picture,self.geometry)
+
+    def test_geometry_drift_is_rejected_before_any_pixel_or_pointer_use(self):
+        picture=mock.Mock()
+        with self.assertRaisesRegex(RuntimeError,'geometry changed'):
+            self.scope['main_row_copy_target'](self.overview(),picture,(0,0,1440,900))
+        picture.getpixel.assert_not_called()
+        self.desktop.click.assert_not_called()
+
+    def targets(self,*states):
+        pending=iter(states)
+        last=states[-1]
+        def target(*values):
+            nonlocal last
+            last=next(pending,last)
+            self.report.setdefault('mainRowCopy',{}).update(controlState=last,ethereumRow=[178,552,95,14])
+            return (1416,558) if last=='enabled' else None
+        self.scope['main_row_copy_target']=mock.Mock(side_effect=target)
+        self.rows.return_value=(self.overview(),object(),self.geometry)
+
+    def test_slow_prompt_start_waits_through_disabled_state_without_replacement_click(self):
+        self.targets('enabled','disabled')
+        self.desktop.windows.side_effect=lambda:self.main if self.clock.now<.8 else self.main+[(2,'cryptowallet' if self.clock.now<1 else 'Verify receive address')]
+        self.scope['request_main_row_copy'](seconds=2)
+        self.desktop.click.assert_called_once_with(1416,558)
+        self.assertEqual(self.rows.call_count,2)
+        self.assertEqual(self.report['mainRowCopy']['attempts'],1)
+
+    def test_disabled_control_cannot_become_success_without_its_verified_prompt(self):
+        self.targets('disabled')
+        with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+            self.scope['request_main_row_copy'](seconds=.2)
+        self.desktop.click.assert_not_called()
+
+    def test_only_readonly_icon_can_be_retried_before_any_private_window(self):
+        self.targets('enabled')
+        with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+            self.scope['request_main_row_copy'](seconds=1.6)
+        self.assertEqual(self.desktop.click.call_args_list,[mock.call(1416,558)]*3)
+
+    def test_private_or_loading_window_never_permits_public_pixels(self):
+        self.targets('enabled')
+        for title in ('Unlock local wallet','Verify receive address','cryptowallet'):
+            self.desktop.windows.return_value=self.main+[(2,title)]
+            with self.subTest(title=title),self.assertRaisesRegex(RuntimeError,'Unexpected'):
+                self.scope['request_main_row_copy'](seconds=.2)
+        self.rows.assert_not_called()
+        self.desktop.click.assert_not_called()
+        self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
+
+    def test_reveal_is_horizontal_only_and_next_capture_rechecks_full_target(self):
+        self.targets('clipped','enabled')
+        reveal=mock.Mock()
+        self.scope['reveal_main_row_copy']=reveal
+        self.desktop.windows.side_effect=lambda:self.main if self.clock.now<.1 else self.main+[(2,'Verify receive address')]
+        self.scope['request_main_row_copy'](seconds=1)
+        reveal.assert_called_once_with(self.geometry)
+        self.desktop.click.assert_called_once_with(1416,558)
+        self.assertEqual(self.rows.call_count,2)
+
+    def test_actual_reveal_uses_only_owned_horizontal_wheel_and_rejects_private_window(self):
+        motion,button,flush=mock.Mock(),mock.Mock(),mock.Mock()
+        self.scope['mod']=SimpleNamespace(T=SimpleNamespace(XTestFakeMotionEvent=motion,XTestFakeButtonEvent=button),X=SimpleNamespace(XFlush=flush))
+        self.report['mainRowCopy']={'ethereumRow':[178,552,95,14]}
+        self.scope['reveal_main_row_copy'](self.geometry)
+        self.assertEqual(button.call_args_list,[mock.call(self.desktop.d,7,1,0),mock.call(self.desktop.d,7,0,0)])
+        self.desktop.click.assert_not_called()
+        self.desktop.secret_window.return_value=True
+        with self.assertRaises(self.scope['PrivateWindowVisible']):self.scope['reveal_main_row_copy'](self.geometry)
+        self.assertEqual(button.call_count,2)
+
+    def test_exact_fixture_address_is_required_after_real_dialog_acknowledgment(self):
+        self.scope.update(request_main_row_copy=mock.Mock(),text=lambda:'Account group',
+                          wait=lambda predicate:predicate(),clipboard=lambda:'0x1111111111111111111111111111111111111111')
+        self.report['mainRowCopy']={}
+        for expected,succeeds in [('0x1111111111111111111111111111111111111111',True),('0x2222222222222222222222222222222222222222',False)]:
+            with self.subTest(expected=expected):
+                if succeeds:
+                    self.scope['passed']=mock.Mock()
+                    self.assertEqual(self.scope['main_row_copy'](expected),expected)
+                else:
+                    with self.assertRaisesRegex(RuntimeError,'independently derived'):
+                        self.scope['main_row_copy'](expected)
+        self.assertEqual(self.desktop.accept.call_count,2)
 
 
 class WailsNearNavigation(unittest.TestCase):
@@ -500,6 +666,42 @@ class WailsOwnedServerGuard(unittest.TestCase):
         self.x.XGrabServer.assert_called_once_with(self.desktop.d)
         self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
 
+    def test_geometry_and_original_public_pixels_are_captured_under_the_same_guard(self):
+        def geometry(window):
+            self.assertEqual(window,1)
+            self.assertEqual(self.desktop._server_grab_depth,1)
+            self.assertNotIn('ungrab',self.events)
+            self.events.append('geometry')
+            return (0,0,4,4)
+        self.desktop.geometry=mock.Mock(side_effect=geometry)
+        rows,picture,geometry=self.scope['public_rows'](contrast=True,with_picture=True,with_geometry=True)
+        self.assertEqual(rows,[])
+        self.assertEqual(geometry,(0,0,4,4))
+        self.assertEqual(picture.mode,'RGB','the returned immutable picture must precede any contrast transform')
+        self.assertEqual(self.events,['grab','enumerate','enumerate','geometry','pixels','ungrab'])
+        self.assertEqual(self.desktop._server_grab_depth,0)
+
+    def test_geometry_capture_never_reads_private_pixels_or_window_geometry(self):
+        self.desktop.secret_window=mock.Mock(return_value=True)
+        self.desktop.geometry=mock.Mock()
+        with self.assertRaises(self.scope['PrivateWindowVisible']):
+            self.scope['public_rows'](with_picture=True,with_geometry=True)
+        self.desktop.geometry.assert_not_called()
+        self.desktop.image.assert_not_called()
+        self.scope['subprocess'].check_output.assert_not_called()
+        self.assertEqual(self.events,['grab','ungrab'])
+        self.assertEqual(self.desktop._server_grab_depth,0)
+
+    def test_geometry_capture_rejects_ambiguous_public_windows_before_pixels(self):
+        self.desktop.windows=mock.Mock(return_value=[(1,'CryptoWallet'),(2,'CryptoWallet · another')])
+        self.desktop.geometry=mock.Mock()
+        with self.assertRaisesRegex(RuntimeError,'not unique'):
+            self.scope['public_rows'](with_picture=True,with_geometry=True)
+        self.desktop.geometry.assert_not_called()
+        self.desktop.image.assert_not_called()
+        self.assertEqual(self.events,['grab','ungrab'])
+        self.assertEqual(self.desktop._server_grab_depth,0)
+
     def test_enumeration_failure_releases_only_its_depth_and_outer_finally_releases_once(self):
         self.fail_enumeration = True
         self.desktop.grab_server()
@@ -768,7 +970,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsPrivateStartup, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
+    for case in (WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

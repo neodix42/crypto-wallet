@@ -4,6 +4,10 @@
 Package discovery remains dynamic: new current packages are included by default.
 The exact legacy launcher package is the sole exclusion. Local make test and
 test-race still exercise their original complete package sets.
+
+Race-instrumented stress runs after the other race packages have completed. Its
+production-KDF latency budgets measure an isolated workload rather than competing
+with the signer suite for the hosted runner's two CPUs and memory bandwidth.
 """
 import argparse
 from pathlib import Path
@@ -12,9 +16,11 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_PACKAGE = 'localwallet/cmd/wallet-launcher'
+STRESS_PACKAGE = 'localwallet/tests/stress'
 REQUIRED = {'localwallet/cmd/cryptowallet', 'localwallet/internal/webui',
             'localwallet/internal/nativewallet', 'localwallet/internal/walletcore',
-            'localwallet/internal/walletsigner', 'localwallet/internal/signer'}
+            'localwallet/internal/walletsigner', 'localwallet/internal/signer',
+            STRESS_PACKAGE}
 
 
 def packages(root=ROOT):
@@ -27,10 +33,24 @@ def packages(root=ROOT):
 
 
 def run(action, root=ROOT):
-    commands = {'test': ['go', 'test'], 'race': ['go', 'test', '-race', '-p', '2'],
-                'vet': ['go', 'vet']}
-    command = commands[action] + packages(root)
-    return subprocess.run(command, cwd=root, check=False).returncode
+    selected = packages(root)
+    if action == 'race':
+        commands = [
+            ['go', 'test', '-race', '-p', '2'] + [name for name in selected if name != STRESS_PACKAGE],
+            # Keep the complete stress package and every existing budget. A
+            # fresh execution is required for meaningful performance evidence.
+            ['go', 'test', '-race', '-p', '1', '-count=1', STRESS_PACKAGE],
+        ]
+    else:
+        commands = [{'test': ['go', 'test'], 'vet': ['go', 'vet']}[action] + selected]
+    failure = 0
+    for command in commands:
+        result = subprocess.run(command, cwd=root, check=False).returncode
+        # Like the previous single go-test invocation, still attempt every
+        # selected package after a test failure, while preserving a failing exit.
+        if result and not failure:
+            failure = result
+    return failure
 
 
 def main():
