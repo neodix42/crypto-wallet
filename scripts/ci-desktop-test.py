@@ -252,27 +252,25 @@ class CIDesktop(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 ci.main(arguments)
 
-    def test_workflows_install_utils_wrap_both_checks_and_cleanup_even_on_failure(self):
+    def test_current_gui_checks_keep_scoped_permissions_and_cleanup_even_on_failure(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
-        wails, legacy = workflow.split('  checks:\n', 1)
-        for text, gui, payment in [
-                (wails, 'make test-wails-wallet', 'make test-send-portable'),
-                (legacy, 'make test-packaged-desktop', './scripts/with-toolchain.sh python3 scripts/packaged-send.py')]:
-            setup = text.index('run: python3 scripts/ci-desktop.py setup')
-            packaged = text.index('run: python3 scripts/ci-desktop.py run -- ' + gui)
-            send = text.index('run: python3 scripts/ci-desktop.py run -- ' + payment)
-            cleanup = text.index('run: python3 scripts/ci-desktop.py cleanup')
-            upload = text.index('uses: actions/upload-artifact@')
-            self.assertLess(text.index('util-linux apparmor-utils'), setup)
-            self.assertLess(setup, packaged)
-            self.assertLess(packaged, send)
-            self.assertLess(send, cleanup)
-            self.assertLess(cleanup, upload)
-            self.assertIn('if: always()', text[text.rfind('      - name:', 0, cleanup):cleanup])
-            self.assertNotIn('run: ' + gui, text)
-            self.assertNotIn('run: ' + payment, text)
-            self.assertIn(tuple(gui.split()), ci.COMMANDS)
-            self.assertIn(tuple(payment.split()), ci.COMMANDS)
+        text, checks = workflow.split('  checks:\n', 1)
+        gui, payment = 'make test-wails-wallet', 'make test-send-portable'
+        setup = text.index('run: python3 scripts/ci-desktop.py setup')
+        packaged = text.index('run: python3 scripts/ci-desktop.py run -- ' + gui)
+        send = text.index('run: python3 scripts/ci-desktop.py run -- ' + payment)
+        cleanup = text.index('run: python3 scripts/ci-desktop.py cleanup')
+        upload = text.index('uses: actions/upload-artifact@')
+        self.assertLess(text.index('util-linux apparmor-utils'), setup)
+        self.assertLess(setup, packaged)
+        self.assertLess(packaged, send)
+        self.assertLess(send, cleanup)
+        self.assertLess(cleanup, upload)
+        self.assertIn('if: always()', text[text.rfind('      - name:', 0, cleanup):cleanup])
+        self.assertNotIn('scripts/ci-desktop.py', checks)
+        for command in [gui, payment]:
+            self.assertNotIn('run: ' + command, text)
+            self.assertIn(tuple(command.split()), ci.COMMANDS)
         for forbidden in ['--no-sandbox', 'chmod 4755', 'sysctl ', 'apparmor_restrict_unprivileged_userns=0']:
             self.assertNotIn(forbidden, workflow)
         release = (ROOT / '.github/workflows/release.yml').read_text()
@@ -280,24 +278,50 @@ class CIDesktop(unittest.TestCase):
             self.assertNotIn(test_only, release)
         self.assertIn('\tpython3 scripts/ci-desktop-test.py\n', (ROOT / 'Makefile').read_text())
 
-    def test_coverage_runs_under_the_loaded_profile_before_guaranteed_cleanup(self):
+    def test_hosted_checks_use_current_product_targets_without_coverage_or_electron(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         checks = workflow.split('  checks:\n', 1)[1]
-        setup = checks.index('run: python3 scripts/ci-desktop.py setup')
-        coverage = checks.index('run: python3 scripts/ci-desktop.py run -- make coverage\n')
-        cleanup = checks.index('run: python3 scripts/ci-desktop.py cleanup')
-        self.assertLess(setup, coverage)
-        self.assertLess(coverage, cleanup)
-        self.assertEqual(checks.count('run: python3 scripts/ci-desktop.py setup'), 1)
-        self.assertIn('if: always()', checks[checks.rfind('      - name:', 0, cleanup):cleanup])
-        self.assertIn(('make', 'coverage'), ci.COMMANDS)
-        self.assertNotIn('run: make coverage', checks)
-        self.assertNotIn('test-fuzz coverage', checks)
-        for target in ['test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'test-fuzz']:
+        for target in ['test-ci', 'test-security-ci', 'test-race-ci', 'test-interop',
+                       'test-integration', 'test-fuzz', 'check-deps-ci']:
             self.assertIn('run: make ' + target + '\n', checks)
-        release = (ROOT / '.github/workflows/release.yml').read_text()
-        self.assertNotIn('run: make coverage', release)
-        self.assertNotIn('scripts/ci-desktop.py', release)
+        for file in (ROOT / '.github/workflows').glob('*.yml'):
+            with self.subTest(workflow=file.name):
+                text = file.read_text()
+                for forbidden in ['make coverage', '-coverprofile', 'go tool cover',
+                                  'scripts/go-coverage.py', 'scripts/frontend-coverage.py',
+                                  'test-packaged-desktop', 'test-packaged-send-desktop',
+                                  'scripts/packaged-send.py', 'npm --prefix desktop',
+                                  'scripts/coverage-test.py', 'scripts/native-input.py']:
+                    self.assertNotIn(forbidden, text)
+
+
+class HostedTestScope(unittest.TestCase):
+    def dry_run(self, *targets):
+        result = subprocess.run(['make', '--no-print-directory', '-n', *targets],
+                                cwd=ROOT, text=True, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
+    def test_expanded_hosted_targets_do_not_run_legacy_or_collect_coverage(self):
+        commands = self.dry_run('test-ci', 'test-security-ci', 'test-race-ci', 'check-deps-ci')
+        for forbidden in ['npm --prefix desktop', 'scripts/coverage-test.py',
+                          'scripts/go-coverage.py', 'scripts/frontend-coverage.py',
+                          'scripts/native-input.py', 'scripts/desktop-ocr-test.py',
+                          'scripts/release-evidence-test.py', '-coverprofile', 'go tool cover',
+                          './cmd/wallet-launcher']:
+            self.assertNotIn(forbidden, commands)
+        self.assertIn('npm --prefix internal/webui/frontend test', commands)
+        self.assertIn('scripts/surface-check.py --current-ui', commands)
+        self.assertIn('scripts/ci-go.py race', commands)
+        self.assertIn('scripts/ci-go.py vet', commands)
+
+    def test_local_coverage_and_legacy_commands_remain_available(self):
+        coverage = self.dry_run('coverage')
+        self.assertIn('scripts/go-coverage.py', coverage)
+        self.assertIn('scripts/frontend-coverage.py', coverage)
+        legacy = self.dry_run('test-packaged-desktop', 'test-packaged-send-desktop')
+        self.assertIn('scripts/packaged-recovery.py', legacy)
+        self.assertIn('scripts/packaged-send.py', legacy)
 
 
 class ProfileCapture(unittest.TestCase):
@@ -343,12 +367,12 @@ class ProfileCapture(unittest.TestCase):
 
 if __name__ == '__main__':
     suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(case)
-                               for case in [CIDesktop, ProfileCapture])
+                               for case in [CIDesktop, HostedTestScope, ProfileCapture])
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     sources = ['scripts/ci-desktop.py', 'scripts/ci-desktop-test.py', 'Makefile',
                '.github/workflows/ci.yml', '.github/workflows/release.yml']
     report = {'status': 'PASS' if result.wasSuccessful() else 'FAIL',
-              'scope': 'Offline policy compilation, CI-only guards, exact intercepted privileged commands and workflow wiring; no host policy was loaded',
+              'scope': 'Offline policy compilation, CI-only guards, exact intercepted privileged commands, workflow routing and expanded hosted/local Make targets; no host policy was loaded',
               'testsRun': result.testsRun, 'failures': len(result.failures),
               'errors': len(result.errors), 'skipped': len(result.skipped),
               'kernelProfileLoad': 'NOT_RUN: never change host policy in these offline tests',

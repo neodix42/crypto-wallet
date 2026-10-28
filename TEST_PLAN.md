@@ -14,6 +14,8 @@ Use the stable requirement IDs below in test names, issue references, CI reports
 
 ## 2. Coverage and quality gates
 
+Owner CI scope amendment (2026-10-28): GitHub jobs no longer run legacy Electron tests or collect/enforce Go/frontend coverage. Full local commands, coverage thresholds and their production-evidence requirements remain unchanged. Hosted current-product unit/security, race, fuzz, integration, interoperability and recovery checks remain required by the test workflow. A missing hosted coverage result is NOT_RUN, never PASS. This narrow exception supersedes earlier hosted coverage/Electron requirements; see [START_HERE.txt](START_HERE.txt).
+
 **TP-010 — Enforced coverage.** Aim for 100% of meaningful reachable critical logic, with a written review of every uncovered security/funds path. The numbers below are minimum release floors, not a reason to stop adding necessary tests. Measure first-party code; report exclusions and generated/vendor files separately. Apply floors per critical package, not only to an aggregate that can hide an untested adapter.
 
 | Area | Minimum gate |

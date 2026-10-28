@@ -1,5 +1,18 @@
 # Implementation and release evidence
 
+## Hosted test scope update — 2026-10-28
+
+The owner removed legacy Electron tests and Go/frontend coverage measurement/enforcement from GitHub jobs. Explicit CI targets retain current Go/Wails/React tests and shared security/recovery protocols while full local targets and coverage thresholds remain available. No application code, network support, signing policy or release publication check is relaxed. See [the CI scope and historical results](CI_DESKTOP.md).
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, local current targets | `make test-ci`, `make test-security-ci`, `make test-race-ci` and `make check-deps-ci`. Dynamic Go discovery retains 37 packages, excluding only the legacy Electron launcher. All 55 current React tests pass; security runs kill all 24 general, five Bybit transport and five Exchange authorization mutants. Module verification, vet, reachable-vulnerability checks and current frontend/provenance npm audits pass. |
+| PASS, scoped tooling | Pinned actionlint v1.7.12 accepts all three workflows; 12 build-input, 23 CI namespace/routing, three Go package-selection and three surface-routing regressions pass. Current helper modes run 22 build, 16 Wails startup and 12 notice tests. |
+| PASS, local retention | Full default helper modes: 58 build, 31 startup and 15 notice tests; the default legacy surface check still builds/tests its 163 Electron cases locally. Local coverage collectors/thresholds and explicit legacy GUI commands remain unchanged and resolve in dry-runs. No new full graphical or coverage campaign is claimed. |
+| PASS, read-only audit | All three workflows and their expanded command graph contain no legacy Electron test execution or Go/frontend coverage measurement. Current Wails GUI isolation/cleanup, chain integrations, shared recovery/crash security and release provenance checks remain. Local aggregate: `reports/ci-current-scope.json`; command logs are retained beside it. |
+| NOT_RUN | Hosted execution of the revised workflow follows push. Prior coverage or legacy Electron results remain tied to their original source commits. |
+| NOT_RUN, outside this change | New coverage, graphical acceptance, funded network/Bybit tests, full OS matrix and independent review. Removing a hosted gate records no passing evidence for it. |
+
 ## Appearance, unlock, Bybit and Base update — 2026-10-28
 
 The owner request adds Light/Dark and public font preferences (Light/18px by default), distinct selected Settings tabs, Enter-based unlock, a larger Bybit credential prompt and a Connect-only exception to repeated password entry. It explicitly removes active Horizen support while retaining authenticated historical encrypted records and every other family. Base retains canonical ZEN and gains exact-contract ERC-20 import plus bounded read-only candidate discovery. See [APPEARANCE.md](APPEARANCE.md) and [ERC20.md](ERC20.md).

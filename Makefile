@@ -10,6 +10,7 @@ SOAK_SECONDS ?= 86400
 .PHONY: test-install-portable
 .PHONY: test-near-staking test-near-staking-local test-near-staking-gui test-near-staking-testnet
 .PHONY: test-erc20
+.PHONY: test-ci test-security-ci test-race-ci check-deps-ci
 .PHONY: test-packaged-desktop test-packaged-send-desktop build-components install-desktop package-portable package-components test-portable build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
@@ -18,7 +19,7 @@ frontend:
 	$(TOOLS) ./scripts/build-frontend.sh
 # Fresh checkouts contain frontend sources, not an outdated embedded bundle.
 # Build once per make invocation before Go tools load the webui go:embed files.
-test test-go test-security test-race test-interop test-integration test-fuzz test-fuzz-long test-exchange check-deps coverage: frontend
+test test-go test-security test-race test-interop test-integration test-fuzz test-fuzz-long test-exchange check-deps coverage test-ci test-security-ci test-race-ci check-deps-ci: frontend
 build-components:
 	./scripts/build.sh --components
 # Retained Electron regression runtime. New releases use package-portable.
@@ -35,6 +36,8 @@ dev: install
 test:
 	$(TOOLS) npm --prefix internal/webui/frontend test
 	python3 scripts/build-tools-test.py
+	python3 scripts/ci-go-test.py
+	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
 	python3 scripts/ci-desktop-test.py
 	python3 scripts/desktop-startup-test.py
@@ -48,6 +51,22 @@ test:
 	$(GO_TOOLS) go test ./...
 	$(TOOLS) npm --prefix desktop run build
 	$(TOOLS) npm --prefix desktop test
+# Hosted checks exercise the shipped Wails UI and shared Go protocols. Full
+# historical Electron/GTK suites and coverage remain available through the
+# unchanged local targets above/below; these targets never depend on them.
+test-ci:
+	$(TOOLS) npm --prefix internal/webui/frontend test
+	python3 scripts/build-tools-test.py --current-ui
+	python3 scripts/ci-go-test.py
+	python3 scripts/surface-check-test.py
+	python3 scripts/mutation-test.py
+	python3 scripts/ci-desktop-test.py
+	python3 scripts/desktop-startup-test.py --current-ui
+	python3 scripts/campaign-test.py
+	python3 scripts/release-auth-test.py
+	$(TOOLS) npm --prefix .github/provenance test
+	python3 scripts/license-notices-test.py --current-ui
+	$(GO_TOOLS) python3 scripts/ci-go.py test
 test-go:
 	$(GO_TOOLS) go test ./...
 test-near-staking: frontend
@@ -80,8 +99,16 @@ test-security:
 	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	$(TOOLS) python3 scripts/surface-check.py
+test-security-ci:
+	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./internal/walletcore ./internal/walletsigner ./internal/webui
+	$(TOOLS) python3 scripts/mutation.py
+	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
+	$(GO_TOOLS) python3 scripts/exchange-mutation.py
+	$(TOOLS) python3 scripts/surface-check.py --current-ui
 test-race:
 	$(GO_TOOLS) go test -race -p 2 ./...
+test-race-ci:
+	$(GO_TOOLS) python3 scripts/ci-go.py race
 test-interop:
 	$(GO_TOOLS) go test ./internal/derivation ./internal/chains/... -run 'TP020|TP021|TP022|TP050|Independent|Oracle|Fixture|Vector|Interop'
 test-integration:
@@ -151,6 +178,14 @@ check-deps:
 	$(TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/fuzz.yml
 	$(TOOLS) go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 	$(TOOLS) npm --prefix desktop audit --audit-level=high
+	$(TOOLS) npm --prefix internal/webui/frontend audit --audit-level=high
+	$(TOOLS) npm --prefix .github/provenance audit --audit-level=high
+check-deps-ci:
+	$(GO_TOOLS) go mod verify
+	$(GO_TOOLS) python3 scripts/ci-go.py vet
+	$(GO_TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/release.yml
+	$(GO_TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/fuzz.yml
+	$(GO_TOOLS) go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 	$(TOOLS) npm --prefix internal/webui/frontend audit --audit-level=high
 	$(TOOLS) npm --prefix .github/provenance audit --audit-level=high
 package-desktop: build-desktop

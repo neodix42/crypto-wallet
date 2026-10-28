@@ -2,6 +2,8 @@
 
 This is the earlier 17-run review snapshot. The subsequent timing failure and owner-requested independent build/publication workflow are recorded in [RELEASE_PIPELINE.md](RELEASE_PIPELINE.md).
 
+The 2026-10-28 owner update removes legacy Electron tests and Go/frontend coverage measurement/enforcement from hosted jobs while retaining local commands. See [the current CI scope](CI_DESKTOP.md); the results below keep their historical scope.
+
 Reviewed all 17 available repository runs and the logs of all 12 failed jobs. The newest failed CI and release jobs use source commit `d9f6a95f057612978df30e6f0a1a020b6688c3e7`. No user credentials, vaults or mainnet payments are used in this review or its local tests.
 
 | Status | Finding and evidence |

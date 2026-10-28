@@ -1,6 +1,14 @@
-# Isolated desktop and coverage checks in GitHub Actions
+# Current desktop checks in GitHub Actions
 
-## Status expiry observation repair — 2026-10-28
+## Hosted scope update — 2026-10-28
+
+The owner removed legacy Electron tests and Go/frontend coverage collection and enforcement from GitHub jobs. The checks job now uses explicit `test-ci`, `test-security-ci`, `test-race-ci` and `check-deps-ci` targets. These avoid the legacy desktop dependency install, launcher unit suite, GTK input coverage collector, Electron surface tests and Electron build/license fixtures. Shared core/signer protocol tests, semantic security mutants, current Wails startup/appearance guards and current React tests remain hosted, alongside integration, interoperability, fuzz and recovery checks.
+
+The Wails GUI job retains its real uninstrumented application checks, disposable profiles, namespace guards and always-run cleanup. The one-file archive still rejects Electron payloads; that verifies the current package. Build/publication remain separate from tests. The checks job no longer loads an unused desktop test profile.
+
+Local `make test`, `make test-security`, `make test-race`, `make check-deps`, explicit Electron targets and `make coverage` remain available. Local coverage thresholds are unchanged. Prior coverage and Electron results below are historical evidence for their recorded commits; removing a hosted gate does not pass it. See [the current evidence checklist](STATUS.md).
+
+## Historical status expiry observation repair — 2026-10-28
 
 Run [40653531321](https://github.com/neodix42/crypto-wallet/actions/runs/40653531321)
 passed the complete Wails job, security/race/interoperability/integration/fuzz
@@ -34,11 +42,11 @@ Generated reports are `reports/ci-unlock-layout-fixed.json`,
 `reports/ci-unlock-remaining-legacy-send.json`. The failed hosted evidence is
 retained separately under `reports/hosted-4ae8a144/checks/`.
 
-## Current Wails coverage prerequisite — 2026-10-28
+## Historical Wails coverage prerequisite — 2026-10-28
 
 The [reported test run](https://github.com/neodix42/crypto-wallet/actions/runs/40632779639) passed its Wails application job, but the separate checks job failed while starting the instrumented Wails coverage workflow: `Private network namespace preserving ordinary UID unavailable`. The hosted Ubuntu runner denied the coverage driver's user/network namespace. The temporary CI permission was configured only after the combined test-and-coverage step, so that step could never inherit it. This was a test-infrastructure ordering error, not evidence of a wallet startup failure or a passing coverage gate.
 
-Coverage now has its own named step, after `scripts/ci-desktop.py setup`, and runs through the exact allowlisted command `python3 scripts/ci-desktop.py run -- make coverage`. Unit, security, race, interoperability, local integration and fuzz checks retain separate named steps. The same permission remains available to the explicitly retained Electron regression checks, and an `always()` cleanup removes it before artifact upload even when a check fails. Build/publication remain separate and load no profiles or tests.
+At that source checkpoint, coverage had its own named step, after `scripts/ci-desktop.py setup`, and ran through the exact allowlisted command `python3 scripts/ci-desktop.py run -- make coverage`. Unit, security, race, interoperability, local integration and fuzz checks retained separate named steps. The same permission was available to the then-retained Electron regression checks, with an `always()` cleanup before artifact upload. The owner scope update above removes those hosted coverage and Electron steps. Build/publication remain separate and load no profiles or tests.
 
 This named profile permits only the owned test namespaces required to keep disposable wallets away from public networks. It does not change the installed application's confinement, load policy on a developer machine, grant namespace permission to unrelated host processes, or alter a kernel setting. The portable Wails application still uses the owner-requested unconfined Go roles and explicitly disabled WebKit renderer sandbox. The helper rejects arbitrary commands and additional Make arguments.
 

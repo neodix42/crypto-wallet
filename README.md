@@ -93,7 +93,9 @@ Use public synthetic fixtures only. No test automatically spends mainnet funds. 
 
 CI-only signing regressions require `./scripts/with-toolchain.sh npm --prefix .github/provenance ci --ignore-scripts` once before `make test` or `make test-release-auth`. Those dependencies are not shipped with or needed by the wallet.
 
-The public-pixel OCR regression in `make test` requires `python3-pil` and `tesseract-ocr` (`sudo apt-get install python3-pil tesseract-ocr`). It uses a committed public tooltip fixture and does not open a wallet or display.
+GitHub Actions runs current Go/Wails/React tests through `make test-ci`, `make test-security-ci`, `make test-race-ci` and `make check-deps-ci`, alongside interoperability, integration, fuzz, recovery and actual Wails GUI checks. These targets exclude legacy Electron tests and do not measure or enforce Go/frontend coverage. `make test`, the other full local targets below, and `make coverage` remain available locally with their existing thresholds. Removing a hosted check does not record it as passing.
+
+The retained local public-pixel OCR regression in `make test` requires `python3-pil` and `tesseract-ocr` (`sudo apt-get install python3-pil tesseract-ocr`). It uses a committed public tooltip fixture and does not open a wallet or display.
 
 ```sh
 python3 scripts/check-build-inputs-test.py # missing/untracked source and lockfile regressions
@@ -102,8 +104,11 @@ make frontend             # prepare embedded assets before direct go test ./...
 make test-exchange        # Bybit/signing/IPC/UI guards, mutations and explicit local USDT integration
 make test-erc20           # token import/policy/UI guards and real two-token local EVM transfers
 make test                 # Go plus current React and retained desktop tests
+make test-ci              # current Go/React/helper tests; excludes legacy Electron
 make test-security        # vault/prompt/IPC/lifecycle, mutations, API surface checks
+make test-security-ci     # current security/mutations/API checks; no coverage collection
 make test-race            # Go race detector
+make test-race-ci         # current Go packages under the race detector
 make test-interop         # independent derivation/serialization/signing fixtures
 make test-recovery        # independent fresh app copies; phrase-only restore of all wallets
 make test-crash           # owned-process termination, restart and synthetic secret canaries
@@ -112,6 +117,7 @@ make test-release-evidence # exact candidate/source/coverage evidence checks
 make test-license-notices # redistribution-text provenance and path/byte checks
 make coverage             # current Go/Wails/frontend floors; run on unchanged sources
 make check-deps           # checksums, vet, reachable Go vulnerabilities, npm audit
+make check-deps-ci        # current product/provenance dependency checks
 make test-stress          # bounded malformed input, concurrent scheduling, production KDF lifecycle
 ```
 
@@ -225,7 +231,7 @@ The recovery phrase reconstructs wallet keys, including the Ethereum address use
 
 Publications are regular GitHub Releases without the **Pre-release** flag. Release name, tag, archive version and displayed app version always match. The workflow fetches all tags and increments above the greatest numeric version across both `X.Y.Z` and legacy `vX.Y.Z` tags, with [VERSION](VERSION) as a floor. A numeric version is consumed regardless of its old prefix; changing archive/UI implementation never resets numbering. New tags have no `v` prefix. Existing releases are left intact; failed builds create no release/tag and publication does not overwrite one.
 
-[Wallet tests](.github/workflows/ci.yml) run independently and do not block development releases. Release notes mark tests **NOT_RUN in the build workflow** and link the exact commit's checks. No scheduled soak workflow is enabled; `make test-soak` remains available manually. See [the build/publication pipeline](docs/RELEASE_PIPELINE.md).
+[Wallet tests](.github/workflows/ci.yml) run independently and do not block development releases. Hosted jobs exclude legacy Electron tests and Go/frontend coverage collection/enforcement; the full local commands remain available. Release notes mark tests **NOT_RUN in the build workflow** and link the exact commit's checks. No scheduled soak workflow is enabled; `make test-soak` remains available manually. See [the build/publication pipeline](docs/RELEASE_PIPELINE.md).
 
 The workflow authenticates the archive and release identity with GitHub OIDC/Sigstore before publication. The detached verification records are retained in an Actions artifact linked from the release notes, rather than extra release assets. Private repositories use the official toolkit's `skipWrite: true` mode and private Sigstore service, avoiding unsupported attestation storage and public transparency uploads. Signing or verification failure blocks publication. Local builds remain unsigned and need no publishing credentials. See [verification instructions](docs/BUILD.md) and [private-repository signing](docs/PRIVATE_RELEASES.md). The production acceptance gates remain separate.
 

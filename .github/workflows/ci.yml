@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: internal/webui/frontend/package-lock.json
       - name: Install native build and isolated desktop test prerequisites
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux apparmor-utils ca-certificates dbus
-      - name: Build embedded React UI and verify the one-file archive with Electron forbidden
+      - name: Build embedded React UI and verify the one-file Go archive
         run: python3 scripts/go-build-test.py
       - name: Exercise controller, Wails bridge and frontend security regressions
         run: |
@@ -77,41 +77,29 @@ jobs:
         with:
           node-version: 24.19.0
       - run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libseccomp2 libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux apparmor-utils
-      - run: npm --prefix desktop ci --ignore-scripts
       - run: npm --prefix .github/provenance ci --ignore-scripts
       - name: Provision pinned offline provenance verifier
         run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
       - run: ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
       - name: Exercise unit, frontend and developer-tool regressions
-        run: make test
+        run: make test-ci
       - name: Exercise security boundaries and semantic mutants
-        run: make test-security
+        run: make test-security-ci
       - name: Detect Go data races
-        run: make test-race
+        run: make test-race-ci
       - name: Compare independent interoperability fixtures
         run: make test-interop
       - name: Exercise actual local chain integrations
         run: make test-integration
       - name: Exercise bounded fuzz campaigns
         run: make test-fuzz
-      - name: Permit owned test namespaces in an ephemeral CI-only profile
-        run: python3 scripts/ci-desktop.py setup
-      - name: Measure and enforce current Go and frontend coverage
-        run: python3 scripts/ci-desktop.py run -- make coverage
       - name: Execute Go-signed USDT transfers on isolated pinned EVM
         run: WALLET_USDT_EVM=1 ./scripts/with-toolchain.sh go test ./internal/chains/evm -run USDT -count=1
-      - run: make check-deps
+      - run: make check-deps-ci
       - name: Restore all wallets in independent fresh application copies
         run: make test-recovery
       - name: Check owned-process crash recovery and secret canaries
         run: make test-crash
-      - name: Retain legacy Electron phrase setup and recovery regression
-        run: python3 scripts/ci-desktop.py run -- make test-packaged-desktop
-      - name: Retain legacy Electron-approved payment on an isolated actual geth chain
-        run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/packaged-send.py
-      - name: Remove the ephemeral CI desktop AppArmor profile
-        if: always()
-        run: python3 scripts/ci-desktop.py cleanup
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

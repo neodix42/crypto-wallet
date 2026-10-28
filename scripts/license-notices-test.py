@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -14,6 +15,12 @@ specification = importlib.util.spec_from_file_location('license_notices', Path(_
 notices = importlib.util.module_from_spec(specification)
 specification.loader.exec_module(notices)
 INTEGRITY = 'sha512-' + base64.b64encode(bytes(64)).decode()
+CURRENT_UI = '--current-ui' in sys.argv
+LEGACY_DESKTOP_TESTS = {
+    'test_complete_electron_texts_and_zero_production_npm',
+    'test_production_npm_requires_exact_bundled_notices_and_metadata',
+    'test_unknown_npm_packages_and_nested_injections_fail',
+}
 
 
 class NoticeTests(unittest.TestCase):
@@ -293,5 +300,14 @@ class NoticeTests(unittest.TestCase):
         self.assertFalse((self.root / 'dist/THIRD-PARTY-NOTICES.txt').exists())
 
 
+def load_tests(loader, tests, pattern):
+    if not CURRENT_UI:
+        return tests
+    return unittest.TestSuite(NoticeTests(name) for name in loader.getTestCaseNames(NoticeTests)
+                              if name not in LEGACY_DESKTOP_TESTS)
+
+
 if __name__ == '__main__':
+    if CURRENT_UI:
+        sys.argv.remove('--current-ui')
     unittest.main()

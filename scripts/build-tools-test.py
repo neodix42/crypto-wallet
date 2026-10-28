@@ -24,6 +24,23 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
+CURRENT_UI = '--current-ui' in sys.argv
+# Explicitly shared release/version/compiler checks. The other BuildTools
+# methods exercise the historical Electron runtime or component-only archive.
+CURRENT_SHARED_TESTS = (
+    'test_numeric_semver_maximum_is_not_lexical',
+    'test_old_and_new_tag_formats_share_one_incrementing_history',
+    'test_invalid_and_out_of_policy_tags_are_ignored',
+    'test_component_and_patch_exhaustion_bounds',
+    'test_version_override_rejects_shell_and_github_environment_injection',
+    'test_next_version_reads_git_tags_without_creating_or_mutating_them',
+    'test_consecutive_cli_selections_from_real_mixed_git_tags_do_not_repeat',
+    'test_release_build_and_publish_are_separate_from_complete_ci_tests',
+    'test_release_build_metadata_marks_tests_not_run_for_exact_source',
+    'test_publication_command_uploads_only_archive_and_uses_exact_version',
+    'test_unsupported_platform_is_rejected_before_toolchain_or_bootstrap',
+    'test_node_archive_hash_mismatch_never_extracts_or_installs',
+)
 
 
 def module(name, filename):
@@ -701,10 +718,13 @@ class BuildTools(unittest.TestCase):
         runs = [shlex.split(line.split('run: ', 1)[1]) for line in tests.splitlines() if 'run: ' in line]
         wrapper = ['python3', 'scripts/ci-desktop.py', 'run', '--']
         gates = [command[len(wrapper):] if command[:len(wrapper)] == wrapper else command for command in runs]
-        for target in ('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'test-fuzz', 'coverage', 'check-deps'):
+        for target in ('test-ci', 'test-security-ci', 'test-race-ci', 'test-interop', 'test-integration', 'test-fuzz', 'check-deps-ci'):
             self.assertIn(['make', target], gates)
-        for required in ('make test-packaged', 'scripts/packaged-send.py', 'make test-recovery', 'make test-crash', 'WALLET_USDT_EVM=1'):
+        for required in ('make test-wails-wallet', 'make test-send-portable', 'make test-recovery', 'make test-crash', 'WALLET_USDT_EVM=1'):
             self.assertIn(required, tests)
+        for forbidden in ('make coverage', 'scripts/go-coverage.py', 'scripts/frontend-coverage.py',
+                          'make test-packaged-desktop', 'scripts/packaged-send.py', 'npm --prefix desktop'):
+            self.assertNotIn(forbidden, tests)
         for forbidden in ('make test', 'scripts/provision-tests.py', 'scripts/ci-desktop.py', 'scripts/record-evidence.py', 'test-security', 'test-race', 'xvfb', 'tesseract'):
             self.assertNotIn(forbidden, text)
         build, release = text.split('  release:\n', 1)
@@ -1184,15 +1204,29 @@ class EvidenceRunner(unittest.TextTestRunner):
         filenames = ['scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/build-frontend.sh', 'scripts/with-go.sh', 'scripts/native-env.sh', 'scripts/package-portable.py', 'scripts/license-notices.py', 'internal/redistribution/notices.go', 'scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
         report = {
             'status': 'PASS' if result.wasSuccessful() and not result.skipped else 'FAIL' if not result.wasSuccessful() else 'NOT_RUN',
-            'command': [sys.executable, 'scripts/build-tools-test.py'],
+            'command': [sys.executable, 'scripts/build-tools-test.py'] + (['--current-ui'] if CURRENT_UI else []),
             'tests': result.outcomes,
             'scope': 'Hermetic public fixture ELFs, real temporary portable archives and Git repository; ASAR fixture reader and SBOM inventory tool outputs are substituted. No wallet profiles, network, funding or remote publication.',
             'sourceSHA256': {name: digest(ROOT / name) for name in filenames},
         }
+        if CURRENT_UI:
+            report['scope'] = 'Current Wails single-file packaging/install and shared version/release/compiler regressions, using public C fixture ELFs and disposable archives/Git repositories. Legacy Electron installer/ASAR/SBOM and component archive suites are excluded; no coverage is measured.'
+            report['excludedScope'] = ['historical Electron build/install/ASAR/SBOM fixtures', 'component-only archive fixtures']
         (ROOT / 'reports').mkdir(exist_ok=True)
-        (ROOT / 'reports/build-tools.json').write_text(json.dumps(report, indent=2) + '\n')
+        name = 'build-tools-current.json' if CURRENT_UI else 'build-tools.json'
+        (ROOT / 'reports' / name).write_text(json.dumps(report, indent=2) + '\n')
         return result
 
 
+def load_tests(loader, tests, pattern):
+    if not CURRENT_UI:
+        return tests
+    current = loader.loadTestsFromTestCase(PortableBuildTools)
+    current.addTests(BuildTools(name) for name in CURRENT_SHARED_TESTS)
+    return current
+
+
 if __name__ == '__main__':
+    if CURRENT_UI:
+        sys.argv.remove('--current-ui')
     unittest.main(verbosity=2, testRunner=EvidenceRunner)

@@ -14,11 +14,13 @@ from unittest import mock
 from PIL import Image, ImageOps
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-tree = ast.parse((ROOT / 'scripts/packaged-recovery.py').read_text())
-node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'wait_for_startup')
-scope = {'time': time}
-exec(compile(ast.Module(body=[node], type_ignores=[]), 'startup-test-helper', 'exec'), scope)
-wait_for_startup = scope['wait_for_startup']
+CURRENT_UI = '--current-ui' in sys.argv
+if not CURRENT_UI:
+    tree = ast.parse((ROOT / 'scripts/packaged-recovery.py').read_text())
+    node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'wait_for_startup')
+    scope = {'time': time}
+    exec(compile(ast.Module(body=[node], type_ignores=[]), 'startup-test-helper', 'exec'), scope)
+    wait_for_startup = scope['wait_for_startup']
 
 
 class StartupDiagnostics(unittest.TestCase):
@@ -526,5 +528,16 @@ class PublicStatusTiming(unittest.TestCase):
         self.desktop.image.assert_not_called()
 
 
+def load_tests(loader, tests, pattern):
+    if not CURRENT_UI:
+        return tests
+    current = unittest.TestSuite()
+    for case in (WailsPrivateStartup, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
+        current.addTests(loader.loadTestsFromTestCase(case))
+    return current
+
+
 if __name__ == '__main__':
+    if CURRENT_UI:
+        sys.argv.remove('--current-ui')
     unittest.main()
