@@ -87,11 +87,53 @@ func TestPrivateInputGeometryIsBoundedWithoutChangingRoleAuthority(t *testing.T)
 			t.Fatal("private input sizing changed authority or exceeded bounded workarea")
 		}
 	}
-	for _, kind := range []string{"recovery", "recoveryBackup", "receive", "confirm", "notice"} {
+	for _, kind := range []string{"receive", "confirm", "notice"} {
 		p := uiprompt.Prompt{ID: strings.Repeat("a", 32), Kind: kind, Title: "Private view"}
 		options := privateAppOptions(p)
 		if options.Height != 440 && options.Height != 660 {
 			t.Fatal("private presentation has unbounded height")
+		}
+	}
+}
+
+func TestRecoveryWindowsFitWordCountAndFontWithoutChangingPromptAuthority(t *testing.T) {
+	for _, font := range []int{14, 16, 18, 20, 22, 24} {
+		for _, words := range []int{12, 15, 18, 21, 24} {
+			p := uiprompt.Prompt{ID: strings.Repeat("a", 32), Kind: "recoveryBackup", Title: "Back up recovery phrase", Phrase: strings.TrimSpace(strings.Repeat("abandon ", words))}
+			backup := privateAppOptions(p, Appearance{"light", font})
+			p.Kind = "recovery"
+			setup := privateAppOptions(p, Appearance{"dark", font})
+			if backup.Width < 840 || backup.Width > 1040 || backup.Height < 750 || backup.Height > 1100 || backup.Height <= setup.Height || backup.Width != setup.Width {
+				t.Fatal("recovery content lacks bounded dedicated geometry", font, words, backup.Width, backup.Height)
+			}
+			if backup.Title != p.Title || backup.MinHeight != 260 || len(backup.Bind) != 0 || len(setup.Bind) != 0 {
+				t.Fatal("recovery sizing changed private authority")
+			}
+			width, height := windowSizeForMonitor(backup.Width, backup.Height, 640, 480)
+			if width != 608 || height != 416 {
+				t.Fatal("recovery view escaped a small monitor")
+			}
+		}
+	}
+	for _, test := range []struct{ words, height int }{{12, 830}, {24, 980}} {
+		p := uiprompt.Prompt{Kind: "recoveryBackup", Phrase: strings.TrimSpace(strings.Repeat("abandon ", test.words))}
+		if got := privateAppOptions(p); got.Width != 920 || got.Height != test.height {
+			t.Fatal("default phrase geometry regressed", test.words, got.Width, got.Height)
+		}
+	}
+}
+
+func TestMainWindowKeepsOverviewHeightWithinMonitorBounds(t *testing.T) {
+	opts := appOptions(false)
+	if opts.Width != 1440 || opts.Height != 1120 || opts.MinHeight != 640 || opts.MinWidth != 1000 {
+		t.Fatal("main overview geometry changed unexpectedly")
+	}
+	for _, monitor := range []struct{ width, height, expectedWidth, expectedHeight int }{
+		{1920, 1200, 1440, 1120}, {1920, 1080, 1440, 1016}, {1366, 768, 1334, 704}, {640, 480, 608, 416}, {0, 0, 1440, 1120},
+	} {
+		width, height := windowSizeForMonitor(opts.Width, opts.Height, monitor.width, monitor.height)
+		if width != monitor.expectedWidth || height != monitor.expectedHeight {
+			t.Fatal("main window exceeded logical monitor", monitor, width, height)
 		}
 	}
 }

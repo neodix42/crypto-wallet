@@ -172,13 +172,13 @@ func TestPrivatePresentationIsBoundedAndCannotChangePromptAuthority(t *testing.T
 			if count == 2 && font >= 18 && a.Height < 474 {
 				t.Fatal("Bybit credential footer has insufficient space")
 			}
-			width, height := privateWindowSize(a.Width, a.Height, 640, 480)
+			width, height := windowSizeForMonitor(a.Width, a.Height, 640, 480)
 			if width != 608 || height > 416 || height > a.Height {
 				t.Fatal("private view exceeds logical monitor bounds")
 			}
 		}
 	}
-	if width, height := privateWindowSize(680, 474, 0, 0); width != 680 || height != 474 {
+	if width, height := windowSizeForMonitor(680, 474, 0, 0); width != 680 || height != 474 {
 		t.Fatal("invalid monitor dimensions changed window")
 	}
 }

@@ -15,6 +15,21 @@ unknown/duplicate JSON fields and unsafe ownership/permissions. Replacement uses
 an owner-checked directory handle, private temporary file, fsync and atomic rename.
 The frontend does not store preferences or secrets in browser storage.
 
+The main window now requests 1440 × 1120 logical pixels and fits its size to the
+current monitor's logical bounds, reserving a margin for desktop decoration.
+It centers after GTK allocates the fitted size. The default 18px
+eight-wallet overview uses closer table spacing so it fits the tested
+1440 × 1016 viewport without vertical scrolling. Receive addresses retain their
+full single-line width; horizontal table scrolling remains available when needed.
+
+Recovery views use wider, word-count/font-aware windows and four word columns
+when space permits. At 18px, the backup requests 920 × 830 for 12 words and
+920 × 980 for 24 words, including the Copy phrase action and its explanation.
+Windows remain bounded by the monitor; small displays and large text retain a
+scrollable body with reachable footer actions instead of clipping content.
+Window and task-switcher icons are embedded in the executable. Optional desktop
+menu/icon registration is described in [the installation instructions](../README.md#optional-application-menu-and-desktop-installation).
+
 Private child processes receive only validated public presentation settings.
 The existing one-use prompt carries its theme/font alongside the exact Go-authored
 request. Signer IPC, secret reply fields and approval authority remain unchanged.

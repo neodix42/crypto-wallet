@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -562,7 +563,7 @@ func runPrivate(read, write, image *os.File) error {
 	a := privateAppOptions(p, appearance)
 	a.Bind = []interface{}{b}
 	a.OnStartup = func(ctx context.Context) {
-		fitPrivateWindow(ctx, a.Width, a.Height)
+		fitWindow(ctx, a.Width, a.Height, a.MinWidth, a.MinHeight)
 		b.mu.Lock()
 		b.ctx = ctx
 		b.mu.Unlock()
@@ -636,16 +637,16 @@ func readPrivatePrompt(channel *ipc.Channel) (uiprompt.Prompt, string, error) {
 
 func privateAppOptions(p uiprompt.Prompt, presentation ...Appearance) *options.App {
 	a := appOptions(true)
+	appearance := DefaultAppearance()
+	if len(presentation) == 1 {
+		appearance = presentation[0].Normalized()
+	}
 	a.Title = p.Title
 	a.Width = 680
 	a.Height = 440
 	a.MinWidth = 560
 	a.MinHeight = 260
 	if p.Kind == "input" {
-		appearance := DefaultAppearance()
-		if len(presentation) == 1 {
-			appearance = presentation[0].Normalized()
-		}
 		// Header, each wrapped label/input and the pinned footer must fit at
 		// the selected font. Startup caps the window to the current monitor;
 		// the body scrolls on smaller screens while footer actions stay visible.
@@ -657,37 +658,23 @@ func privateAppOptions(p uiprompt.Prompt, presentation ...Appearance) *options.A
 			a.Height = 850
 		}
 	}
-	if p.Kind == "recovery" || p.Kind == "recoveryBackup" || p.Kind == "receive" {
+	if p.Kind == "receive" {
 		a.Height = 660
 	}
-	return a
-}
-
-func privateWindowSize(width, height, monitorWidth, monitorHeight int) (int, int) {
-	// Wails reports logical monitor geometry, not panel workarea. Leave room
-	// for desktop chrome and decorations; the OS may impose further limits.
-	if monitorWidth > 64 && monitorHeight > 80 {
-		width = min(width, monitorWidth-32)
-		height = min(height, monitorHeight-64)
-	}
-	return width, height
-}
-
-func fitPrivateWindow(ctx context.Context, width, height int) {
-	screens, err := wruntime.ScreenGetAll(ctx)
-	if err != nil || len(screens) == 0 {
-		return
-	}
-	screen := screens[0]
-	for _, candidate := range screens {
-		if candidate.IsCurrent {
-			screen = candidate
-			break
+	if p.Kind == "recovery" || p.Kind == "recoveryBackup" {
+		// Four readable columns keep the complete numbered phrase, copy warning
+		// and pinned footer visible. Count words only to size the private view;
+		// the phrase stays on its existing private transport and is never logged.
+		rows := (len(strings.Fields(p.Phrase)) + 3) / 4
+		rows = min(6, max(3, rows))
+		a.Width = 920 + (appearance.FontSize-18)*20
+		a.Height = 500 + rows*50
+		if p.Kind == "recoveryBackup" {
+			a.Height += 180
 		}
+		a.Height += (appearance.FontSize - 18) * 20
 	}
-	width, height = privateWindowSize(width, height, screen.Size.Width, screen.Size.Height)
-	wruntime.WindowSetMinSize(ctx, min(560, width), min(260, height))
-	wruntime.WindowSetSize(ctx, width, height)
+	return a
 }
 
 // Decode private replies here as well as in the signer. Keeping an explicit

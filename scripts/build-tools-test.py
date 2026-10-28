@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -968,6 +969,10 @@ class PortableBuildTools(unittest.TestCase):
         manifest = dict(schemaVersion=1, kind='portable-go-wallet', version=value,
                         platform='linux-amd64', file='cryptowallet', sandbox='none', sha256=digest(binary))
         (binary.parent / 'portable-build-manifest.json').write_text(json.dumps(manifest))
+        for relative, _mode in portable.RESOURCES.values():
+            destination = self.root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, destination)
         return binary, manifest
 
     def destination(self):
@@ -979,7 +984,7 @@ class PortableBuildTools(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             installer.install_portable(binary, destination)
 
-    def test_native_archive_is_exactly_one_regular_executable_with_embedded_notices(self):
+    def test_native_archive_is_exact_executable_installer_icons_with_embedded_notices(self):
         binary, manifest = self.candidate()
         with contextlib.redirect_stdout(io.StringIO()):
             report = portable.package(self.root)
@@ -988,12 +993,15 @@ class PortableBuildTools(unittest.TestCase):
         self.assertEqual(report['checks']['sandbox'], 'none')
         with tarfile.open(archive) as tar:
             entries = tar.getmembers()
-            self.assertEqual([entry.name for entry in entries], ['cryptowallet'])
-            self.assertTrue(entries[0].isfile())
-            self.assertEqual(entries[0].mode, 0o755)
-            self.assertEqual(entries[0].mtime, 0)
-            self.assertEqual(entries[0].uid, 0)
-            self.assertEqual(hashlib.file_digest(tar.extractfile(entries[0]), 'sha256').hexdigest(), digest(binary))
+            expected = portable.payloads(self.root, binary)
+            self.assertEqual([entry.name for entry in entries], list(expected))
+            for entry in entries:
+                source, mode = expected[entry.name]
+                self.assertTrue(entry.isfile())
+                self.assertEqual(entry.mode, mode)
+                self.assertEqual(entry.mtime, 0)
+                self.assertEqual(entry.uid, 0)
+                self.assertEqual(hashlib.file_digest(tar.extractfile(entry), 'sha256').hexdigest(), digest(source))
         first = archive.read_bytes()
         with contextlib.redirect_stdout(io.StringIO()):
             portable.package(self.root)
@@ -1038,15 +1046,69 @@ class PortableBuildTools(unittest.TestCase):
                         entry.mode, entry.type = 0o755, kind
                         entry.linkname = '/outside-fixture'
                         tar.addfile(entry)
-                with self.assertRaisesRegex(ValueError, 'only the regular'):
-                    portable.verify_archive(archive, binary, '0.1.10')
+                with self.assertRaisesRegex(ValueError, 'only the exact'):
+                    portable.verify_archive(archive, binary, '0.1.10', self.root)
         with tarfile.open(archive, 'w:gz') as tar:
-            data = b'changed public payload'
-            entry = tarfile.TarInfo('cryptowallet')
-            entry.mode, entry.size = 0o755, len(data)
-            tar.addfile(entry, io.BytesIO(data))
+            for name, (path, mode) in portable.payloads(self.root, binary).items():
+                data = path.read_bytes()
+                if name == 'cryptowallet':
+                    data = bytes([data[0] ^ 1]) + data[1:]
+                entry = tarfile.TarInfo(name)
+                entry.mode, entry.size = mode, len(data)
+                tar.addfile(entry, io.BytesIO(data))
         with self.assertRaisesRegex(ValueError, 'bytes differ'):
-            portable.verify_archive(archive, binary, '0.1.10')
+            portable.verify_archive(archive, binary, '0.1.10', self.root)
+
+    def test_portable_exact_inventory_refuses_links_modes_owners_and_timestamps(self):
+        binary, _manifest = self.candidate()
+        archive = self.root / 'hostile-metadata.tar.gz'
+        for kind in ('symlink', 'hardlink', 'mode', 'owner', 'timestamp'):
+            with self.subTest(kind=kind):
+                with tarfile.open(archive, 'w:gz') as tar:
+                    for name, (path, mode) in portable.payloads(self.root, binary).items():
+                        data = path.read_bytes()
+                        entry = tarfile.TarInfo(name)
+                        entry.mode, entry.size = mode, len(data)
+                        if name == 'install-user.sh':
+                            if kind in ('symlink', 'hardlink'):
+                                entry.type = tarfile.SYMTYPE if kind == 'symlink' else tarfile.LNKTYPE
+                                entry.linkname = '/outside-public-fixture'
+                                entry.size = 0
+                            elif kind == 'mode':
+                                entry.mode = 0o4755
+                            elif kind == 'owner':
+                                entry.uid = 1000
+                            else:
+                                entry.mtime = 1
+                        tar.addfile(entry, io.BytesIO(data) if entry.isfile() else None)
+                with self.assertRaisesRegex(ValueError, 'metadata differs.*install-user.sh'):
+                    portable.verify_archive(archive, binary, '0.1.10', self.root)
+
+    def test_portable_resources_are_required_and_cannot_be_linked_or_substituted_in_archive(self):
+        binary, _manifest = self.candidate()
+        icon = self.root / 'internal/branding/cryptowallet.png'
+        original = icon.read_bytes()
+        icon.unlink()
+        with self.assertRaises(OSError):
+            portable.package(self.root)
+        icon.symlink_to(ROOT / 'internal/branding/cryptowallet.png')
+        with self.assertRaisesRegex(ValueError, 'Unsafe portable resource'):
+            portable.package(self.root)
+        icon.unlink()
+        icon.write_bytes(original)
+        with contextlib.redirect_stdout(io.StringIO()):
+            report = portable.package(self.root)
+        archive = self.root / 'dist' / report['archive']['file']
+        with tarfile.open(archive, 'w:gz') as tar:
+            for name, (path, mode) in portable.payloads(self.root, binary).items():
+                data = path.read_bytes()
+                if name == 'install-user.sh':
+                    data = data.replace(b'python3', b'python2', 1)
+                entry = tarfile.TarInfo(name)
+                entry.mode, entry.size = mode, len(data)
+                tar.addfile(entry, io.BytesIO(data))
+        with self.assertRaisesRegex(ValueError, 'bytes differ.*install-user.sh'):
+            portable.verify_archive(archive, binary, '0.1.10', self.root)
 
     def test_native_install_and_upgrade_preserve_existing_profile_and_unrelated_runtime(self):
         binary, manifest = self.candidate()
@@ -1174,6 +1236,236 @@ class PortableBuildTools(unittest.TestCase):
         self.assertIn('test-packaged-desktop: install-desktop', makefile)
 
 
+class UserDesktopInstaller(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fixtures = tempfile.TemporaryDirectory(prefix='wallet-user-install-public-')
+        cls.addClassCleanup(cls.fixtures.cleanup)
+        source = pathlib.Path(cls.fixtures.name) / 'public.c'
+        cls.binary = source.with_suffix('')
+        source.write_text('#include <stdio.h>\n#include <stdlib.h>\nint main(int n,char**v){char*p=getenv("CRYPTO_WALLET_PUBLIC_FIXTURE_LAUNCH");if(p){FILE*f=fopen(p,"w");if(!f)return 2;fputs(v[0],f);fclose(f);}return 0;}\n')
+        subprocess.run(['cc', '-o', str(cls.binary), str(source)], check=True, capture_output=True)
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix='wallet-user-desktop-test-')
+        self.addCleanup(self.temporary.cleanup)
+        self.root = pathlib.Path(self.temporary.name)
+        self.home = self.root / 'home space " quote $ dollar ` tick % percent'
+        self.home.mkdir()
+        self.data = self.home / 'user data'
+        self.desktop = self.home / 'Desktop space'
+        self.desktop.mkdir()
+        self.profile = self.home / '.config/localwallet/mainnet'
+        self.profile.mkdir(parents=True)
+        (self.profile / 'public-preservation-sentinel').write_bytes(b'PUBLIC FIXTURE; no secrets')
+        self.release = self.root / 'downloaded space'
+        self.release.mkdir()
+        shutil.copy2(self.binary, self.release / 'cryptowallet')
+        shutil.copy2(ROOT / 'scripts/install-user.sh', self.release / 'install-user.sh')
+        for name in ('cryptowallet.png', 'cryptowallet.svg'):
+            shutil.copy2(ROOT / 'internal/branding' / name, self.release / name)
+        self.log = self.root / 'public-launch-log'
+        self.env = {**os.environ, 'HOME': str(self.home), 'XDG_DATA_HOME': str(self.data),
+                    'XDG_CONFIG_HOME': str(self.home / '.config'), 'XDG_CACHE_HOME': str(self.home / '.cache'),
+                    'XDG_DESKTOP_DIR': str(self.desktop), 'CRYPTO_WALLET_PUBLIC_FIXTURE_LAUNCH': str(self.log)}
+        for name in ('DBUS_SESSION_BUS_ADDRESS', 'DISPLAY', 'WAYLAND_DISPLAY'):
+            self.env.pop(name, None)
+        self.app = self.data / 'cryptowallet-app'
+        self.menu = self.data / 'applications/cryptowallet.desktop'
+
+    def run_installer(self, *arguments, fail=False, installed=False):
+        script = (self.app if installed else self.release) / 'install-user.sh'
+        result = subprocess.run([str(script), *arguments], env=self.env, capture_output=True, text=True, timeout=30)
+        if fail:
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+        else:
+            self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.profile / 'public-preservation-sentinel').read_bytes(), b'PUBLIC FIXTURE; no secrets')
+        return result
+
+    def test_install_copies_app_menu_icons_with_safe_modes_and_never_launches(self):
+        self.run_installer()
+        self.assertFalse(self.log.exists())
+        for name in ('cryptowallet', 'install-user.sh', 'cryptowallet.png', 'cryptowallet.svg'):
+            self.assertEqual(digest(self.app / name), digest(self.release / name))
+            self.assertFalse((self.app / name).is_symlink())
+        self.assertEqual((self.app / 'cryptowallet').stat().st_mode & 0o777, 0o755)
+        self.assertEqual((self.app / '.cryptowallet-user-install.json').stat().st_mode & 0o777, 0o600)
+        self.assertEqual(digest(self.menu), digest(self.desktop / 'cryptowallet.desktop'))
+        self.assertEqual(digest(self.app / 'cryptowallet.png'), digest(self.data / 'icons/hicolor/512x512/apps/cryptowallet.png'))
+        self.assertEqual(digest(self.app / 'cryptowallet.svg'), digest(self.data / 'icons/hicolor/scalable/apps/cryptowallet.svg'))
+
+    def test_real_desktop_launch_handles_spaces_quotes_dollars_backticks_and_percent(self):
+        self.run_installer()
+        self.assertFalse(self.log.exists())
+        # Launch only the tiny public C fixture, proving GIO parses the installed
+        # Exec path exactly. The installer itself never starts even this fixture.
+        result = subprocess.run(['gio', 'launch', str(self.menu)], env=self.env, capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        limit = time.monotonic() + 3
+        while not self.log.exists() and time.monotonic() < limit:
+            time.sleep(0.02)
+        self.assertTrue(self.log.exists(), 'GIO did not launch the public fixture')
+        self.assertEqual(self.log.read_text(), str(self.app / 'cryptowallet'))
+        if shutil.which('desktop-file-validate'):
+            subprocess.run(['desktop-file-validate', str(self.menu)], check=True, capture_output=True)
+
+    def test_repeat_upgrade_and_uninstall_work_after_extracted_folder_is_removed(self):
+        self.run_installer()
+        self.run_installer()
+        with (self.release / 'cryptowallet').open('ab') as stream:
+            stream.write(b'PUBLIC UPGRADE FIXTURE')
+        self.run_installer()
+        self.assertEqual(digest(self.release / 'cryptowallet'), digest(self.app / 'cryptowallet'))
+        unrelated = self.app / 'unrelated-user-note'
+        unrelated.write_bytes(b'preserve me')
+        shutil.rmtree(self.release)
+        self.run_installer('--dry-run', installed=True)
+        self.run_installer('--uninstall', installed=True)
+        self.assertFalse(self.menu.exists())
+        self.assertFalse((self.desktop / 'cryptowallet.desktop').exists())
+        self.assertFalse((self.app / 'cryptowallet').exists())
+        self.assertEqual(unrelated.read_bytes(), b'preserve me')
+
+    def test_dry_run_and_menu_only_install_do_not_create_desktop_or_profile_changes(self):
+        self.run_installer('--dry-run')
+        self.assertFalse(self.data.exists())
+        self.run_installer('--no-desktop')
+        self.assertTrue(self.menu.exists())
+        self.assertFalse((self.desktop / 'cryptowallet.desktop').exists())
+        self.run_installer('--desktop')
+        self.assertTrue((self.desktop / 'cryptowallet.desktop').exists())
+        self.run_installer('--uninstall')
+
+    def test_explicit_desktop_can_create_missing_desktop_directory(self):
+        self.desktop.rmdir()
+        self.run_installer('--desktop')
+        self.assertTrue((self.desktop / 'cryptowallet.desktop').exists())
+
+    def test_disabled_xdg_desktop_is_respected_by_default_but_explicit_request_creates_desktop(self):
+        self.env['XDG_DESKTOP_DIR'] = str(self.home)
+        self.run_installer()
+        self.assertTrue(self.menu.exists())
+        self.assertFalse((self.home / 'cryptowallet.desktop').exists())
+        self.assertFalse((self.home / 'Desktop').exists())
+        self.run_installer('--desktop')
+        self.assertTrue((self.home / 'Desktop/cryptowallet.desktop').is_file())
+        self.assertFalse((self.home / 'cryptowallet.desktop').exists())
+        self.run_installer('--uninstall')
+        self.assertFalse((self.home / 'Desktop/cryptowallet.desktop').exists())
+
+    def test_unrelated_menu_desktop_and_binary_are_preserved(self):
+        for target in (self.menu, self.desktop / 'cryptowallet.desktop', self.app / 'cryptowallet'):
+            with self.subTest(target=target):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(b'PUBLIC UNRELATED FILE')
+                self.run_installer(fail=True)
+                self.assertEqual(target.read_bytes(), b'PUBLIC UNRELATED FILE')
+                self.assertFalse((self.app / '.cryptowallet-user-install.json').exists())
+                target.unlink()
+
+    def test_modified_managed_file_blocks_upgrade_and_uninstall_without_partial_changes(self):
+        self.run_installer()
+        original_binary = digest(self.app / 'cryptowallet')
+        self.menu.write_text(self.menu.read_text() + '# user modification\n')
+        before = digest(self.menu)
+        self.run_installer(fail=True)
+        self.run_installer('--uninstall', fail=True)
+        self.assertEqual(digest(self.menu), before)
+        self.assertEqual(digest(self.app / 'cryptowallet'), original_binary)
+
+    def test_failed_upgrade_rolls_back_all_managed_files_then_allows_retry(self):
+        self.run_installer()
+        before = {path: digest(path) for path in self.data.rglob('*') if path.is_file()}
+        with (self.release / 'cryptowallet').open('ab') as stream:
+            stream.write(b'PUBLIC UPGRADE FAILURE FIXTURE')
+        script = self.release / 'install-user.sh'
+        program = script.read_text().split("<<'PY'\n", 1)[1].rsplit('\nPY', 1)[0]
+        harness = ('import os\nreal_replace=os.replace\nfailed=False\n'
+                   'def fail_once(source,destination):\n'
+                   ' global failed\n'
+                   ' if str(destination).endswith("applications/cryptowallet.desktop") and not failed:\n'
+                   '  failed=True\n  raise OSError("PUBLIC FIXTURE atomic switch failure")\n'
+                   ' return real_replace(source,destination)\n'
+                   'os.replace=fail_once\n' + program)
+        result = subprocess.run([sys.executable, '-c', harness, str(script)], env=self.env,
+                                capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('PUBLIC FIXTURE atomic switch failure', result.stderr)
+        self.assertEqual({path: digest(path) for path in self.data.rglob('*') if path.is_file()}, before)
+        self.assertFalse(self.log.exists())
+        self.run_installer()
+        self.assertEqual(digest(self.app / 'cryptowallet'), digest(self.release / 'cryptowallet'))
+
+    def test_symlink_destination_marker_and_icon_are_refused(self):
+        outside = self.home / 'public-outside'
+        outside.mkdir()
+        self.data.mkdir()
+        self.app.symlink_to(outside, target_is_directory=True)
+        self.run_installer(fail=True)
+        self.assertEqual(list(outside.iterdir()), [])
+        self.app.unlink()
+        self.run_installer()
+        marker = self.app / '.cryptowallet-user-install.json'
+        original = marker.read_bytes()
+        marker.unlink()
+        note = outside / 'public-note'
+        note.write_bytes(original)
+        marker.symlink_to(note)
+        self.run_installer('--uninstall', fail=True)
+        self.assertEqual(note.read_bytes(), original)
+        marker.unlink()
+        marker.write_bytes(original)
+        marker.chmod(0o600)
+        icon = self.data / 'icons/hicolor/512x512/apps/cryptowallet.png'
+        original_icon = icon.read_bytes()
+        icon.unlink()
+        external_icon = outside / 'public-icon.png'
+        external_icon.write_bytes(original_icon)
+        icon.symlink_to(external_icon)
+        self.run_installer('--uninstall', fail=True)
+        self.assertEqual(external_icon.read_bytes(), original_icon)
+
+    def test_relative_xdg_and_missing_release_payload_fail_before_install(self):
+        original = self.env['XDG_DATA_HOME']
+        self.env['XDG_DATA_HOME'] = 'relative-fixture'
+        self.run_installer(fail=True)
+        self.env['XDG_DATA_HOME'] = original
+        (self.release / 'cryptowallet.svg').unlink()
+        self.run_installer(fail=True)
+        self.assertFalse(self.data.exists())
+
+    def test_world_writable_ancestor_cannot_hide_behind_private_owned_destination(self):
+        unsafe = self.home / 'unsafe-public-ancestor'
+        unsafe.mkdir(mode=0o777)
+        unsafe.chmod(0o777)
+        data = unsafe / 'owned-private-data'
+        data.mkdir(mode=0o700)
+        self.env['XDG_DATA_HOME'] = str(data)
+        result = self.run_installer(fail=True)
+        self.assertIn('Unsafe destination ancestor ownership/permissions', result.stderr)
+        self.assertEqual(list(data.iterdir()), [])
+
+    def test_new_destination_parents_are_revalidated_before_any_atomic_copy(self):
+        script = self.release / 'install-user.sh'
+        program = script.read_text().split("<<'PY'\n", 1)[1].rsplit('\nPY', 1)[0]
+        harness = ('from pathlib import Path\nreal_mkdir=Path.mkdir\n'
+                   'def unsafe_new_parent(path,*args,**kwargs):\n'
+                   ' result=real_mkdir(path,*args,**kwargs)\n'
+                   ' if str(path)== ' + repr(str(self.app)) + ':\n'
+                   '  path.chmod(0o777)\n'
+                   ' return result\n'
+                   'Path.mkdir=unsafe_new_parent\n' + program)
+        result = subprocess.run([sys.executable, '-c', harness, str(script)], env=self.env,
+                                capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Unsafe destination ancestor ownership/permissions', result.stderr)
+        self.assertTrue(self.app.is_dir(), 'Public fixture did not create the unsafe parent')
+        self.assertEqual(list(self.app.iterdir()), [], 'A payload was copied before checking its created parent')
+        self.assertFalse(self.menu.exists())
+        self.assertFalse(self.log.exists())
+
+
 class EvidenceResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1201,7 +1493,7 @@ class EvidenceRunner(unittest.TextTestRunner):
 
     def run(self, test):
         result = super().run(test)
-        filenames = ['scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/build-frontend.sh', 'scripts/with-go.sh', 'scripts/native-env.sh', 'scripts/package-portable.py', 'scripts/license-notices.py', 'internal/redistribution/notices.go', 'scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
+        filenames = ['scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/build-frontend.sh', 'scripts/with-go.sh', 'scripts/native-env.sh', 'scripts/package-portable.py', 'scripts/install-user.sh', 'internal/branding/cryptowallet.png', 'internal/branding/cryptowallet.svg', 'scripts/license-notices.py', 'internal/redistribution/notices.go', 'scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
         report = {
             'status': 'PASS' if result.wasSuccessful() and not result.skipped else 'FAIL' if not result.wasSuccessful() else 'NOT_RUN',
             'command': [sys.executable, 'scripts/build-tools-test.py'] + (['--current-ui'] if CURRENT_UI else []),
@@ -1210,7 +1502,7 @@ class EvidenceRunner(unittest.TextTestRunner):
             'sourceSHA256': {name: digest(ROOT / name) for name in filenames},
         }
         if CURRENT_UI:
-            report['scope'] = 'Current Wails single-file packaging/install and shared version/release/compiler regressions, using public C fixture ELFs and disposable archives/Git repositories. Legacy Electron installer/ASAR/SBOM and component archive suites are excluded; no coverage is measured.'
+            report['scope'] = 'Current Wails executable/optional desktop installer/icon packaging and shared version/release/compiler regressions, using public C fixture ELFs, disposable HOME/XDG locations, real GIO desktop parsing and temporary archives/Git repositories. Legacy Electron installer/ASAR/SBOM and component archive suites are excluded; no coverage is measured.'
             report['excludedScope'] = ['historical Electron build/install/ASAR/SBOM fixtures', 'component-only archive fixtures']
         (ROOT / 'reports').mkdir(exist_ok=True)
         name = 'build-tools-current.json' if CURRENT_UI else 'build-tools.json'
@@ -1222,6 +1514,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = loader.loadTestsFromTestCase(PortableBuildTools)
+    current.addTests(loader.loadTestsFromTestCase(UserDesktopInstaller))
     current.addTests(BuildTools(name) for name in CURRENT_SHARED_TESTS)
     return current
 

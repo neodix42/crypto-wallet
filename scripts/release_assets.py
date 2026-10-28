@@ -22,7 +22,7 @@ MIN_GH = (2, 103, 2)
 
 
 # Authentication records are retained as an Actions artifact. Only the portable
-# one-file native Go archive is uploaded to GitHub Releases.
+# portable native Go archive (including its optional installer/icons) is uploaded.
 def expected_assets(version):
     validate_version(version)
     return sorted(('RELEASE-NOTES.md', METADATA,

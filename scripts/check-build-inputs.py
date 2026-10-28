@@ -17,7 +17,7 @@ REQUIRED = (
     'scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/build-frontend.sh',
     'scripts/native-env.sh', 'scripts/with-go.sh', 'scripts/with-toolchain.sh',
     'scripts/check-build-inputs.py', 'scripts/verify-wails-fork.py',
-    'scripts/license-notices.py', 'scripts/package-portable.py',
+    'scripts/license-notices.py', 'scripts/package-portable.py', 'scripts/install-user.sh',
     'internal/webui/window.go', 'internal/webui/prompt.go',
     'internal/webui/frontend/package.json', 'internal/webui/frontend/package-lock.json',
     'internal/webui/frontend/tsconfig.json', 'internal/webui/frontend/vite.config.ts',
@@ -26,7 +26,7 @@ REQUIRED = (
     'third_party/wails/go.mod', 'third_party/wails/WALLET-UPSTREAM.json',
     'third_party/wails/WALLET-PATCHES.json', '.github/provenance/package-lock.json',
 )
-SOURCE_TREES = ('internal/webui', 'third_party/wails')
+SOURCE_TREES = ('internal/webui', 'internal/branding', 'third_party/wails')
 GENERATED = ('internal/webui/frontend/dist', 'internal/webui/frontend/node_modules')
 
 

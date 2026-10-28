@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">CryptoWallet</title>
+  <desc id="description">An ivory wallet with a mint folded edge and a hexagonal coin clasp on a rounded navy tile.</desc>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="#13283F"/>
+  <polygon points="58,82 165,53 177,91 58,106" fill="#53DFC0"/>
+  <rect x="44" y="86" width="166" height="120" rx="25" fill="#F4FCF9"/>
+  <rect x="64" y="109" width="45" height="9" rx="4.5" fill="#53DFC0"/>
+  <rect x="133" y="121" width="93" height="58" rx="18" fill="#13283F"/>
+  <polygon points="180,128 200,140 200,161 180,173 160,161 160,140" fill="#53DFC0"/>
+  <polygon points="180,140 190,151 180,162 170,151" fill="#13283F"/>
+</svg>

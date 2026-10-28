@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"io/fs"
+	"localwallet/internal/branding"
 	"path"
 	"strings"
 	"sync"
@@ -59,13 +60,16 @@ func (silentLogger) Error(string)   {}
 func (silentLogger) Fatal(string)   {}
 
 func appOptions(private bool) *options.App {
-	return &options.App{Title: "CryptoWallet", Width: 1440, Height: 900, MinWidth: 1000, MinHeight: 640,
+	return &options.App{Title: "CryptoWallet", Width: 1440, Height: 1120, MinWidth: 1000, MinHeight: 640,
 		BackgroundColour: options.NewRGB(13, 18, 27), AssetServer: &assetserver.Options{Assets: roleAssets{private}},
-		Logger: silentLogger{}, LogLevel: logger.ERROR, LogLevelProduction: logger.ERROR,
+		// The initial GTK allocation may exceed a smaller monitor before
+		// startup fitting. Center only after its requested size is allocated.
+		OnDomReady: func(ctx context.Context) { wruntime.WindowCenter(ctx) },
+		Logger:     silentLogger{}, LogLevel: logger.ERROR, LogLevelProduction: logger.ERROR,
 		ErrorFormatter:           func(error) any { return "Wallet request unavailable." },
 		EnableDefaultContextMenu: false, EnableFraudulentWebsiteDetection: false,
 		DragAndDrop: &options.DragAndDrop{DisableWebViewDrop: true},
-		Linux:       &linux.Options{ProgramName: "cryptowallet", WebviewGpuPolicy: linux.WebviewGpuPolicyNever}}
+		Linux:       &linux.Options{ProgramName: "cryptowallet", Icon: branding.WindowIcon(), WebviewGpuPolicy: linux.WebviewGpuPolicyNever}}
 }
 
 // Window serializes controller transitions independently of WebKit's GTK
@@ -183,6 +187,7 @@ func (w *Window) Run() error {
 	a := appOptions(false)
 	a.Bind = []interface{}{&PublicBridge{window: w}}
 	a.OnStartup = func(ctx context.Context) {
+		fitWindow(ctx, a.Width, a.Height, a.MinWidth, a.MinHeight)
 		w.mu.Lock()
 		w.ctx = ctx
 		closed := w.closed
@@ -218,6 +223,33 @@ func (w *Window) Run() error {
 		return errDesktop
 	}
 	return nil
+}
+
+func windowSizeForMonitor(width, height, monitorWidth, monitorHeight int) (int, int) {
+	// Wails reports logical monitor geometry, not panel workarea. Leave room
+	// for desktop chrome and decorations; the OS may impose further limits.
+	if monitorWidth > 64 && monitorHeight > 80 {
+		width = min(width, monitorWidth-32)
+		height = min(height, monitorHeight-64)
+	}
+	return width, height
+}
+
+func fitWindow(ctx context.Context, width, height, minWidth, minHeight int) {
+	screens, err := wruntime.ScreenGetAll(ctx)
+	if err != nil || len(screens) == 0 {
+		return
+	}
+	screen := screens[0]
+	for _, candidate := range screens {
+		if candidate.IsCurrent {
+			screen = candidate
+			break
+		}
+	}
+	width, height = windowSizeForMonitor(width, height, screen.Size.Width, screen.Size.Height)
+	wruntime.WindowSetMinSize(ctx, min(minWidth, width), min(minHeight, height))
+	wruntime.WindowSetSize(ctx, width, height)
 }
 
 // PublicBridge contains no secret/prompt method or generic backend transport.

@@ -52,7 +52,7 @@ The [current evidence checklist](STATUS.md) separates local validation from the 
 
 The owner removed legacy Electron tests and Go/frontend coverage collection and enforcement from GitHub jobs. The checks job now uses explicit `test-ci`, `test-security-ci`, `test-race-ci` and `check-deps-ci` targets. These avoid the legacy desktop dependency install, launcher unit suite, GTK input coverage collector, Electron surface tests and Electron build/license fixtures. Shared core/signer protocol tests, semantic security mutants, current Wails startup/appearance guards and current React tests remain hosted, alongside integration, interoperability, fuzz and recovery checks.
 
-The Wails GUI job retains its real uninstrumented application checks, disposable profiles, namespace guards and always-run cleanup. The one-file archive still rejects Electron payloads; that verifies the current package. Build/publication remain separate from tests. The checks job no longer loads an unused desktop test profile.
+The Wails GUI job retains its real uninstrumented application checks, disposable profiles, namespace guards and always-run cleanup. The portable archive rejects Electron payloads and allows only the Go executable, optional per-user installer and PNG/SVG icons. Build/publication remain separate from tests. The checks job no longer loads an unused desktop test profile.
 
 Local `make test`, `make test-security`, `make test-race`, `make check-deps`, explicit Electron targets and `make coverage` remain available. Local coverage thresholds are unchanged. Prior coverage and Electron results below are historical evidence for their recorded commits; removing a hosted gate does not pass it. See [the current evidence checklist](STATUS.md).
 

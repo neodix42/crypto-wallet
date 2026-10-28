@@ -35,6 +35,7 @@ mode.add_argument("--staking-only", action="store_true", help="Targeted actual N
 mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
 mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
+mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
 mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and verified receive/copy using a public disposable phrase; no wallet opening, RPC service or payment")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
@@ -59,6 +60,9 @@ if args.appearance_only:
 if args.main_row_copy_only:
     report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and real Go-authored receive approval using the public disposable abandon/about phrase. The icon must keep the account overview open and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
+if args.recovery_layout_only:
+    report["scope"]="Actual uninstrumented default 18px eight-wallet overview and authenticated 24-word backup on a disposable 1100px-high X11 display, including monitor clamping, initial Copy phrase visibility, wheel stability, static application icon and storage-location label. Public zero-entropy BIP39 fixture only; no RPC service or transaction."
+    report["notRun"].append("Generated-root creation and independent fresh-copy restore (targeted 24-word layout mode)")
 if args.instrumented:
     report["scope"] = "Instrumented Go statement-coverage run. " + report["scope"].replace("Uninstrumented", "Instrumented")
 report_path = REPORTS / (args.report_name+".json")
@@ -90,7 +94,7 @@ def source_identity():
     digest = hashlib.sha256()
     paths = [pathlib.Path(__file__), ROOT / "tests/e2e/x11.py", ROOT / "tests/e2e/phrase.py", wordlist_path, ROOT / "go.mod", ROOT / "go.sum"]
     for directory in (ROOT / "internal", ROOT / "cmd/cryptowallet", ROOT / "third_party/wails"):
-        paths.extend(path for path in directory.rglob("*") if path.is_file() and "node_modules" not in path.parts and path.suffix in (".go", ".c", ".h", ".tsx", ".ts", ".css", ".html", ".js", ".json"))
+        paths.extend(path for path in directory.rglob("*") if path.is_file() and "node_modules" not in path.parts and path.suffix in (".go", ".c", ".h", ".tsx", ".ts", ".css", ".html", ".js", ".json", ".png", ".svg"))
     for path in sorted(set(paths)):
         digest.update(str(path.relative_to(ROOT)).encode() + b"\0")
         digest.update(hashlib.sha256(path.read_bytes()).digest())
@@ -155,7 +159,7 @@ class Desktop(mod.Desktop):
 
     def park_pointer(self):
         # The owned server is 1600x1100; its bottom-right corner lies outside
-        # the 1440x900 wallet and centered private prompts. Move only, without
+        # the monitor-fitted 1440px-wide wallet and centered private prompts. Move only, without
         # clicking, focusing a window or inspecting any private pixels. This
         # retires WebKit's native public-hover tooltip before a slow prompt
         # (notably a persisted Decred receive advance) finishes starting.
@@ -392,32 +396,33 @@ def private_click(prefix, words):
         time.sleep(.2)
     raise RuntimeError("Private control could not be identified; no private OCR diagnostic retained")
 
-def numbered_phrase(prefix="Record recovery phrase"):
+def numbered_phrase(prefix="Record recovery phrase", count=12):
     # Phrase pixels and OCR remain exclusively in RAM on the owned display.
     # Only ordinals and a word count may enter a failure report.
-    if prefix not in ("Record recovery phrase","Back up recovery phrase"):
+    if prefix not in ("Record recovery phrase","Back up recovery phrase") or count not in (12,24):
         raise RuntimeError("Unexpected private phrase view")
     for _ in range(8):
         rows=private_rows(prefix)
         raw=" ".join(r[11] for r in rows).encode()
         found={int(i):word for i,word in re.findall(rb"\b(\d{1,2})[.),:]?\s+([a-z]+)\b",raw)}
-        if set(found)==set(range(1,13)):
-            phrase=b" ".join(found[i] for i in range(1,13))
+        if set(found)==set(range(1,count+1)):
+            phrase=b" ".join(found[i] for i in range(1,count+1))
             if valid_mnemonic(phrase):return phrase
         time.sleep(.2)
     window,_=desktop.wait(prefix,30)
     x,y,w,h=desktop.geometry(window)
     picture=desktop.image().crop((x,y,x+w,y+h)).convert("RGB")
     from PIL import ImageOps
-    cell=(w-58-16)//3
-    lefts=[29+i*(cell+8) for i in range(3)]
+    columns=4 if w>=760 else 3
+    cell=(w-58-(columns-1)*8)//columns
+    lefts=[29+i*(cell+8) for i in range(columns)]
     candidates=[yy for yy in range(h-75) if all(max(abs(v-t) for v,t in zip(picture.getpixel((xx,yy)),palette()["border"]))<8 for xx in lefts)]
     groups=[]
     for yy in candidates:
         if not groups or yy!=groups[-1][-1]+1:groups.append([])
         groups[-1].append(yy)
     groups=[group for group in groups if 15<=len(group)<=60]
-    if len(groups)==4:
+    if len(groups)==(count+columns-1)//columns:
         parsed={}
         for row,group in enumerate(groups):
             center=group[len(group)//2]
@@ -426,9 +431,9 @@ def numbered_phrase(prefix="Record recovery phrase"):
                 if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
                 data=io.BytesIO();crop.resize((crop.width*4,crop.height*4),Image.Resampling.LANCZOS).save(data,format="PNG")
                 value=subprocess.check_output(["tesseract","stdin","stdout","--psm","7","-c","tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz"],input=data.getvalue(),stderr=subprocess.DEVNULL).strip().lower()
-                if re.fullmatch(rb"[a-z]+",value):parsed[row*3+column+1]=value
-        if len(parsed)==12:
-            phrase=b" ".join(parsed[i] for i in range(1,13))
+                if re.fullmatch(rb"[a-z]+",value):parsed[row*columns+column+1]=value
+        if len(parsed)==count:
+            phrase=b" ".join(parsed[i] for i in range(1,count+1))
             if valid_mnemonic(phrase):return phrase
     raise RuntimeError("Disposable private phrase OCR incomplete: "+str(len(found))+" ordinals; "+str(len(groups))+" grid rows; no words or pixels retained")
 
@@ -592,6 +597,7 @@ def launch(installation, home):
     desktop.wait("CryptoWallet", 30)
     report["currentStep"]="Wait for initial Wails public wallet state"
     wait(lambda: "Create your app password" in text() or "Your encrypted wallet is on this device" in text())
+    verify_window_icon()
 
 def receive_dialog_state(windows):
     # A private GTK window can be mapped under its executable name before
@@ -846,6 +852,120 @@ def scroll_public(button, count=5):
         mod.T.XTestFakeButtonEvent(desktop.d,button,0,0)
     mod.X.XFlush(desktop.d)
     time.sleep(.25)
+
+def verify_window_icon():
+    # Read only this public window's static icon property, never private pixels.
+    desktop.grab_server()
+    try:
+        if desktop.secret_window():raise PrivateWindowVisible("Unexpected private prompt during application icon check")
+        window,_=desktop.wait("CryptoWallet")
+        actual,format,count,remaining,data=C.c_ulong(),C.c_int(),C.c_ulong(),C.c_ulong(),C.c_void_p()
+        atom=mod.X.XInternAtom(desktop.d,b"_NET_WM_ICON",0)
+        status=mod.X.XGetWindowProperty(desktop.d,window,atom,0,16386,0,6,C.byref(actual),C.byref(format),C.byref(count),C.byref(remaining),C.byref(data))
+        try:
+            if status or actual.value!=6 or format.value!=32 or count.value!=16386 or remaining.value or not data.value:raise RuntimeError("Public application icon property is missing or malformed")
+            values=C.cast(data,C.POINTER(C.c_ulong))
+            expected=Image.open(ROOT/"internal/branding/window-icon.png").convert("RGBA")
+            pixels=[(a<<24)|(r<<16)|(g<<8)|b for r,g,b,a in expected.getdata()]
+            # Xlib stores 32-bit CARDINALs in native unsigned longs; some
+            # backends sign-extend the upper 32 bits on 64-bit systems.
+            observed=[value&0xffffffff for value in values[2:16386]]
+            if (values[0],values[1])!=(128,128) or observed!=pixels:
+                mismatches=[index for index,(a,b) in enumerate(zip(observed,pixels)) if a!=b]
+                report["staticIconMismatch"]={"count":len(mismatches),"first":[[i,observed[i],pixels[i]] for i in mismatches[:8]]}
+                raise RuntimeError("Public application icon differs from its embedded 128px PNG")
+            report["mainWindowIcon"]={"dimensions":[128,128],"matchesEmbeddedPNG":True}
+        finally:
+            if data.value:mod.X.XFree(data)
+    finally:
+        desktop.ungrab_server()
+
+def overview_layout():
+    stage("Verify complete default 18px overview without vertical scrolling")
+    expected={"ethereum","near","hyperevm","hypercore","aptos","base","decred","ton"}
+    def positions():
+        rows,_,bounds=public_rows(with_picture=True,with_geometry=True)
+        x,y,w,h=bounds
+        headers=[r for r in rows if r[11].lower()=="network" and x+20<int(r[6])<x+400 and int(r[7])>y+145]
+        if len(headers)!=1:return None
+        top=int(headers[0][7])+int(headers[0][9])
+        found={r[11].lower():int(r[7]) for r in rows if r[11].lower() in expected and x+20<int(r[6])<x+400 and top<int(r[7])<y+h-45}
+        return (found,bounds) if set(found)==expected else None
+    before,bounds=wait(positions)
+    scroll_public(5,8)
+    after,after_bounds=wait(positions)
+    if before!=after or bounds!=after_bounds:raise RuntimeError("Default eight-wallet overview moved after vertical wheel input")
+    x,y,w,h=bounds
+    if x<0 or y<0 or x+w>1600 or y+h>1100:raise RuntimeError("Fitted main window extends outside the owned logical monitor")
+    report["overviewLayout"]={"window":[w,h],"origin":[x,y],"withinOwnedDisplay":True,"visibleNetworks":len(before),"wheelStable":True,"fontSize":appearance["fontSize"]}
+    passed("Default 18px overview shows all eight network rows without vertical wheel movement")
+
+def verify_storage_location(home):
+    click("Wallet")
+    visible=wait(lambda:(v if "Encrypted storage directory" in (v:=text()) else None))
+    compact="".join(visible.split())
+    if "/localwallet/mainnet" not in compact or "vault.lwv" not in compact:raise RuntimeError("Settings Wallet did not display its profile directory and vault filename")
+    report["storageLocation"]={"directoryLabelVisible":True,"mainnetProfileSuffixVisible":True,"vaultFilenameVisible":True,"temporaryProfileFileExists":(home/"config/localwallet/mainnet/vault.lwv").is_file()}
+    if not report["storageLocation"]["temporaryProfileFileExists"]:raise RuntimeError("Disposable profile vault was not found at its configured location")
+    passed("Settings Wallet displays the encrypted profile location and vault filename")
+
+def backup_phrase(expected,secret):
+    click("Back up recovery phrase")
+    desktop.wait("Back up recovery phrase",30)
+    desktop.accept("Back up recovery phrase")
+    desktop.wait("Confirm app password",30)
+    desktop.inputs("Confirm app password",[secret])
+    desktop.accept("Confirm app password")
+    words=len(expected.split())
+    if numbered_phrase("Back up recovery phrase",words)!=expected:raise RuntimeError("Authenticated backup changed the recovery phrase")
+    rows=private_rows("Back up recovery phrase")
+    if not any([r[11].lower() for r in rows[i:i+2]]==["copy","phrase"] and rows[i][1:5]==rows[i+1][1:5] for i in range(len(rows)-1)):raise RuntimeError("Initial backup view does not show Copy phrase without scrolling")
+    window,_=desktop.wait("Back up recovery phrase");x,y,w,h=desktop.geometry(window)
+    if x<0 or y<0 or x+w>1600 or y+h>1100:raise RuntimeError("Fitted recovery backup extends outside the owned logical monitor")
+    desktop.park_pointer()
+    before=desktop.image().crop((x,y+175,x+w,y+h-80)).tobytes()
+    mod.T.XTestFakeMotionEvent(desktop.d,-1,x+w-15,y+h//2,0)
+    for _ in range(8):
+        mod.T.XTestFakeButtonEvent(desktop.d,5,1,0);mod.T.XTestFakeButtonEvent(desktop.d,5,0,0)
+    mod.X.XFlush(desktop.d);desktop.park_pointer()
+    stable=before==desktop.image().crop((x,y+175,x+w,y+h-80)).tobytes()
+    del before,rows
+    if not stable:raise RuntimeError("Default backup body scrolled instead of fitting its complete phrase and Copy control")
+    report["backupLayout"]={"wordCount":words,"window":[w,h],"origin":[x,y],"withinOwnedDisplay":True,"copyInitiallyVisible":True,"wheelStable":True,"privatePixelsRetained":False}
+    private_click("Back up recovery phrase","Copy phrase")
+    wait(lambda:clipboard().encode()==expected)
+    desktop.accept("Back up recovery phrase")
+    wait(lambda:not desktop.secret_window())
+    if clipboard().encode()!=expected:raise RuntimeError("Explicit phrase copy was lost when its private view closed")
+    passed("Authenticated numbered backup and Copy phrase fit initially without scrolling and copy only on explicit private click")
+
+def evm_asset_button_target(symbol,rows,picture,bounds,heading_y,require_enabled=False):
+    # An exact glyph alone is insufficient: the balance repeats the symbol.
+    # Require an independently observed Unknown balance and its bounded filled
+    # button to the left. Never substitute balance text or repair OCR glyphs.
+    if symbol not in ("ETH","USDT"):raise RuntimeError("Unexpected asset selector target")
+    x,y,w,h=bounds
+    if x<0 or y<0 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Asset selector capture exceeds owned bounds")
+    balances=[r for i,r in enumerate(rows[:-1]) if r[11]=="Unknown" and rows[i+1][11]==symbol and r[1:5]==rows[i+1][1:5] and int(r[7])>heading_y]
+    found=set()
+    for row in rows:
+        if row[11]!=symbol:continue
+        left,top,width,height=(int(row[index]) for index in (6,7,8,9))
+        cx,cy=left+width//2,top+height//2
+        if not (x<left and left+width<x+w and y<top-4 and top+height+4<y+h):continue
+        if not any(left+width<int(balance[6])-7 and abs(cy-int(balance[7])-int(balance[9])//2)<16 for balance in balances):continue
+        fill=picture.getpixel((cx,top-4))
+        if fill!=palette()["button"] and (require_enabled or fill!=palette()["disabled"]):continue
+        if any(picture.getpixel(point)!=fill for point in ((cx,top+height+4),(left-5,cy),(left+width+5,cy))):continue
+        run_left=run_right=cx
+        while run_left>x and picture.getpixel((run_left-1,top-4))==fill:run_left-=1
+        while run_right<x+w-1 and picture.getpixel((run_right+1,top-4))==fill:run_right+=1
+        edge_x=run_left+5
+        run_top=run_bottom=top-4
+        while run_top>y and picture.getpixel((edge_x,run_top-1))==fill:run_top-=1
+        while run_bottom<y+h-1 and picture.getpixel((edge_x,run_bottom+1))==fill:run_bottom+=1
+        if 36<=run_right-run_left+1<=180 and 30<=run_bottom-run_top+1<=70 and run_left<left and left+width<run_right and run_top<top and top+height<run_bottom:found.add((cx,cy))
+    return next(iter(found)) if len(found)==1 else None
 
 def public_words_position(words, rows=None):
     wanted=[word.lower() for word in words.split()]
@@ -1174,15 +1294,13 @@ def ethereum_tokens(expected_address=None):
     report["ethereumAssetPublicOCR"]=[{"word":row[11],"line":row[1:5],"box":[int(row[index]) for index in (6,7,8,9)]} for row in rows if row[11].strip("·.,:") in ("ETH","USDT","Unknown","Decimals","18","6")]
     asset_heading=public_words_position("Assets on Ethereum",rows)
     if not asset_heading:raise RuntimeError("Ethereum asset list heading was not visible")
-    def asset_button(symbol):
-        candidates=[row for row in public_rows() if row[11]==symbol and int(row[7])>asset_heading[1]]
-        if not candidates:raise RuntimeError("Configured Ethereum asset button was not visible: "+symbol)
-        first_y=min(int(row[7]) for row in candidates)
-        # The first matching asset line contains its selector and balance.
-        # Explanatory paragraphs farther below also mention ETH/USDT; those
-        # words cannot be used as buttons or substituted for a balance row.
-        row=min((row for row in candidates if int(row[7])<=first_y+20),key=lambda value:int(value[6]))
-        return int(row[6])+int(row[8])//2,int(row[7])+int(row[9])//2
+    def asset_button(symbol,require_enabled=False):
+        desktop.park_pointer()
+        observed,picture,bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
+        point=evm_asset_button_target(symbol,observed,picture,bounds,asset_heading[1],require_enabled)
+        if point is None:raise RuntimeError("Exact Ethereum asset button was not identified independently of its balance: "+symbol)
+        report.setdefault("ethereumAssetButtonTargets",[]).append({"symbol":symbol,"center":list(point),"requireEnabled":require_enabled})
+        return point
     for symbol in ("ETH","USDT"):
         _,button_y=asset_button(symbol)
         lines={}
@@ -1211,10 +1329,13 @@ def ethereum_tokens(expected_address=None):
         raise RuntimeError("Complete pinned USDT contract was not readable in Ethereum public pixels")
     passed("Actual Ethereum wallet displays separate unknown ETH and USDT balances, full token contract and 18/6 decimal metadata without mocked RPC or zero-balance claims")
     stage("Select USDT and inspect its ordinary Send presentation")
-    desktop.click(*asset_button("USDT"))
+    desktop.click(*asset_button("USDT",require_enabled=True))
     time.sleep(.3)
     scroll_public(4,35)
+    stage("Verify selected Ethereum USDT heading before opening Send")
+    wait(lambda:bool(re.search(r"Ethereum\s+[^\w]*USDT\b",text())))
     click("Send")
+    stage("Verify whole-USDT units in its ordinary Send form")
     wait(lambda:bool(re.search(r"Amount.*1 means 1 USDT",text())))
     if desktop.secret_window() or "Prepared payment" in text():
         raise RuntimeError("Token selection or opening Send requested authority or prepared a payment")
@@ -1231,7 +1352,7 @@ def ethereum_tokens(expected_address=None):
     scroll_public(4,35)
     heading=scroll_to_public_words("Assets on Ethereum")
     asset_heading=heading
-    desktop.click(*asset_button("ETH"))
+    desktop.click(*asset_button("ETH",require_enabled=True))
     time.sleep(.3)
     scroll_public(4,35)
     if desktop.secret_window() or "Prepared payment" in text() or "Recipient address" in text():
@@ -1352,8 +1473,8 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only:
-            recorded=b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only:
+            recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
             observe_appearance("Fresh isolated profile default Light/18")
@@ -1365,6 +1486,11 @@ try:
             desktop.accept("Imported account recovery limits")
             wait(lambda:not desktop.secret_window())
             wait(lambda:"Main account" in text())
+            if args.recovery_layout_only:
+                overview_layout()
+                click("Settings",top=True)
+                verify_storage_location(home)
+                backup_phrase(recorded,different_password)
             if args.staking_only:
                 staking_page()
             if args.tokens_only:
@@ -1400,6 +1526,7 @@ try:
             wait(lambda: not desktop.secret_window(), 30)
             wait(lambda: "Main account" in text(), 30)
             passed("Single Go executable generates a random phrase after masked app-password entry and verifies recorded words in separate private WebKitGTK windows")
+            overview_layout()
             staking_page()
             main_row_address=main_row_copy()
             expected = addresses()
@@ -1423,23 +1550,8 @@ try:
                 raise RuntimeError("Removed QR scan returned to send form")
             passed("Send stays hidden until requested and uses whole-asset Amount wording")
             click("Settings",top=True)
-            click("Back up recovery phrase")
-            desktop.wait("Back up recovery phrase", 30)
-            desktop.accept("Back up recovery phrase")
-            desktop.wait("Confirm app password",30)
-            desktop.inputs("Confirm app password",[password])
-            desktop.accept("Confirm app password")
-            backup = numbered_phrase("Back up recovery phrase")
-            if backup != recorded:
-                raise RuntimeError("Authenticated WebKitGTK backup changed generated phrase")
-            window,_=desktop.wait("Back up recovery phrase")
-            x,y,w,h=desktop.geometry(window)
-            private_click("Back up recovery phrase","Copy phrase")
-            wait(lambda: clipboard().encode()==recorded)
-            desktop.accept("Back up recovery phrase")
-            wait(lambda:not desktop.secret_window())
-            if clipboard().encode()!=recorded:raise RuntimeError("Explicit phrase copy was lost when its private view closed")
-            passed("Settings backup requires confirmation and app password, shows numbered words, and copies only on explicit private Copy phrase click")
+            verify_storage_location(folder / "machine-a/home")
+            backup_phrase(recorded,password)
             appearance_campaign(installations[0],folder/"machine-a/home",password)
             close_gracefully()
             launch(installations[1], folder / "machine-b/home")

@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: internal/webui/frontend/package-lock.json
       - name: Install native build and isolated desktop test prerequisites
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libxtst6 xvfb python3-pil python3-tk tesseract-ocr iproute2 util-linux apparmor-utils ca-certificates dbus
-      - name: Build embedded React UI and verify the one-file Go archive
+      - name: Build embedded React UI and verify the portable Go archive
         run: python3 scripts/go-build-test.py
       - name: Exercise controller, Wails bridge and frontend security regressions
         run: |

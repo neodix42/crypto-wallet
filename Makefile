@@ -139,7 +139,7 @@ test-wails-security: build
 	$(GO_TOOLS) go -C third_party/wails test -race ./internal/frontend/walletpolicy ./internal/logger ./pkg/assetserver ./internal/frontend/dispatcher
 	$(GO_TOOLS) python3 scripts/test-wails-security.py
 	$(GO_TOOLS) python3 scripts/wails-inspector-test.py
-test-install-portable: build
+test-install-portable: package-portable
 	$(GO_TOOLS) python3 scripts/portable-install-test.py
 test-native-wallet-legacy:
 	$(GO_TOOLS) python3 scripts/native-wallet-test.py

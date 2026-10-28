@@ -1144,11 +1144,55 @@ class PublicStatusTiming(unittest.TestCase):
         self.desktop.image.assert_not_called()
 
 
+class WailsEVMAssetSelector(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        definition=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='evm_asset_button_target')
+        self.colors={'button':(233,238,245),'disabled':(245,247,250)}
+        scope={'palette':lambda:self.colors}
+        exec(compile(ast.Module(body=[definition],type_ignores=[]),'asset-selector-helper','exec'),scope)
+        self.target=scope['evm_asset_button_target']
+        self.picture=Image.new('RGB',(400,240),'white')
+        for yy in range(100,144):
+            for xx in range(40,126):self.picture.putpixel((xx,yy),self.colors['button'])
+        def word(text,left,width):return ['5','1','1','1','1','1',str(left),'114',str(width),'14','95',text]
+        self.rows=[word('USDT',55,45),word('Unknown',145,75),word('USDT',230,45)]
+        self.bounds=(20,20,360,200)
+
+    def locate(self,require_enabled=True):
+        return self.target('USDT',self.rows,self.picture,self.bounds,80,require_enabled)
+
+    def test_exact_symbol_in_bounded_button_left_of_balance_is_selected(self):
+        self.assertEqual(self.locate(),(77,121))
+
+    def test_balance_glyph_cannot_replace_missing_button_text(self):
+        self.rows=self.rows[1:]
+        self.assertIsNone(self.locate())
+
+    def test_wrong_symbol_is_not_repaired_or_substituted(self):
+        self.rows[0][11]='usSDT'
+        self.assertIsNone(self.locate())
+
+    def test_candidate_outside_owned_bounds_is_rejected(self):
+        self.rows[0][7]='4'
+        self.assertIsNone(self.locate())
+
+    def test_disabled_selector_can_be_observed_but_not_clicked(self):
+        for yy in range(100,144):
+            for xx in range(40,126):self.picture.putpixel((xx,yy),self.colors['disabled'])
+        self.assertIsNone(self.locate())
+        self.assertEqual(self.locate(False),(77,121))
+
+    def test_unbounded_fill_is_not_a_button(self):
+        self.picture=Image.new('RGB',(400,240),self.colors['button'])
+        self.assertIsNone(self.locate())
+
+
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
+    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

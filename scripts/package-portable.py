@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package and verify the one-file Wails Go desktop. No Electron/Chromium."""
+"""Verify one Wails Go executable plus its optional desktop installer and icons."""
 import argparse
 import gzip
 import hashlib
@@ -14,6 +14,9 @@ import tempfile
 from version import selected_version
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+RESOURCES = {'install-user.sh': ('scripts/install-user.sh', 0o755),
+             'cryptowallet.png': ('internal/branding/cryptowallet.png', 0o644),
+             'cryptowallet.svg': ('internal/branding/cryptowallet.svg', 0o644)}
 
 
 def sha256(path):
@@ -62,16 +65,37 @@ def verify_binary(binary, version, manifest=None):
                 dynamicLibraries=needed, licenses='embedded', sandbox='none')
 
 
-def verify_archive(archive, binary, version):
+def payloads(root, binary):
+    entries = {'cryptowallet': (pathlib.Path(binary), 0o755)}
+    for name, (relative, mode) in RESOURCES.items():
+        path = pathlib.Path(root) / relative
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and not info.st_mode & 0o6000,
+                'Unsafe portable resource: ' + name)
+        require(0 < info.st_size < 1024 * 1024, 'Missing/oversized portable resource: ' + name)
+        entries[name] = (path, mode)
+    require(entries['install-user.sh'][0].read_bytes().startswith(b'#!/usr/bin/env bash\n'),
+            'Desktop installer is not the expected Bash entrypoint')
+    require(entries['cryptowallet.png'][0].read_bytes().startswith(b'\x89PNG\r\n\x1a\n'), 'Invalid PNG icon')
+    require(b'<svg' in entries['cryptowallet.svg'][0].read_bytes(), 'Invalid SVG icon')
+    return entries
+
+
+def verify_archive(archive, binary, version, root=ROOT):
     require(not archive.is_symlink() and archive.is_file(), 'Missing portable archive')
+    expected = payloads(root, binary)
     with tarfile.open(archive, 'r:gz') as package:
         members = package.getmembers()
-        require(len(members) == 1 and members[0].name == 'cryptowallet' and
-                members[0].isfile() and members[0].mode == 0o755,
-                'Portable archive must contain only the regular cryptowallet executable')
-        member = package.extractfile(members[0])
-        require(member is not None and hashlib.file_digest(member, 'sha256').hexdigest() == sha256(binary),
-                'Portable archive bytes differ from the built executable')
+        require([member.name for member in members] == list(expected),
+                'Portable archive must contain only the exact executable, installer and icon inventory')
+        for info in members:
+            path, mode = expected[info.name]
+            require(info.isfile() and info.mode == mode and info.uid == info.gid == info.mtime == 0 and
+                    not info.uname and not info.gname and not info.linkname and info.size == path.stat().st_size,
+                    'Portable archive member metadata differs: ' + info.name)
+            member = package.extractfile(info)
+            require(member is not None and hashlib.file_digest(member, 'sha256').hexdigest() == sha256(path),
+                    'Portable archive bytes differ from the source payload: ' + info.name)
     return archive
 
 
@@ -81,32 +105,36 @@ def package(root=ROOT, verify_only=False):
     binary = root / 'bin/cryptowallet'
     manifest = json.loads((root / 'bin/portable-build-manifest.json').read_text())
     checked = verify_binary(binary, version, manifest)
+    entries = payloads(root, binary)
     dist = root / 'dist'
     require(not dist.is_symlink(), 'Portable output directory must not be a symlink')
     dist.mkdir(exist_ok=True)
     require(dist.is_dir(), 'Portable output must be a real directory')
     archive = dist / f'cryptowallet-{version}-linux-amd64.tar.gz'
     if not verify_only:
-        # Fixed archive metadata: no path/build-user leakage or helper files.
+        # Fixed explicit inventory/metadata: no path/build-user leakage, browser
+        # runtime or incidental build reports. The owner requested these extras.
         with tempfile.NamedTemporaryFile(prefix='.cryptowallet-', dir=dist, delete=False) as temporary:
             temporary_path = pathlib.Path(temporary.name)
             try:
                 with gzip.GzipFile(filename='', fileobj=temporary, mode='wb', mtime=0) as zipped:
                     with tarfile.open(fileobj=zipped, mode='w', format=tarfile.USTAR_FORMAT) as package:
-                        info = tarfile.TarInfo('cryptowallet')
-                        info.mode, info.size, info.mtime = 0o755, binary.stat().st_size, 0
-                        with binary.open('rb') as payload:
-                            package.addfile(info, payload)
+                        for name, (path, mode) in entries.items():
+                            info = tarfile.TarInfo(name)
+                            info.mode, info.size, info.mtime = mode, path.stat().st_size, 0
+                            with path.open('rb') as payload:
+                                package.addfile(info, payload)
                 temporary.flush()
                 temporary_path.replace(archive)
             finally:
                 temporary_path.unlink(missing_ok=True)
-    verify_archive(archive, binary, version)
-    report = dict(schemaVersion=1, status='PASS', scope='Local Wails Go ELF/version, embedded frontend/notices, system WebKitGTK dependencies and exact single-file archive',
+    verify_archive(archive, binary, version, root)
+    report = dict(schemaVersion=1, status='PASS', scope='Local Wails Go ELF/version, embedded frontend/notices, system WebKitGTK dependencies and exact executable/installer/icon archive',
                   checks=checked, archive=dict(file=archive.name, sha256=sha256(archive)),
+                  payloads={name: {'mode': oct(mode), 'sha256': sha256(path)} for name, (path, mode) in entries.items()},
                   notRun=['clean Ubuntu X11/Wayland OS matrix', 'live funded testnets', 'independent security and redistribution review'])
     (dist / 'portable-build-verification.json').write_text(json.dumps(report, indent=2) + '\n')
-    print('PASS one-file Wails Go portable: ' + str(archive))
+    print('PASS portable Wails Go executable with optional desktop installer/icons: ' + str(archive))
     return report
 
 

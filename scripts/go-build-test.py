@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Actual Wails Go build; permit frontend compilation, prohibit Electron/Debian tools."""
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -13,6 +14,9 @@ import time
 root = pathlib.Path(__file__).resolve().parents[1]
 reports = root / 'reports'
 reports.mkdir(exist_ok=True)
+spec = importlib.util.spec_from_file_location('portable_package', root / 'scripts/package-portable.py')
+portable = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(portable)
 
 
 def digest(path):
@@ -50,9 +54,8 @@ with tempfile.TemporaryDirectory(prefix='wallet-go-only-proof-') as temporary:
         extracted = folder / 'downloaded'
         extracted.mkdir()
         with tarfile.open(archive) as package:
+            portable.verify_archive(archive, root / 'bin/cryptowallet', version)
             members = package.getmembers()
-            if len(members) != 1 or members[0].name != 'cryptowallet' or not members[0].isfile() or members[0].mode != 0o755:
-                raise ValueError('Archive must contain only one regular cryptowallet executable')
             package.extractall(extracted, members=members, filter='data')
         binary = extracted / 'cryptowallet'
         isolated_env = {'PATH': '/usr/bin:/bin', 'HOME': str(folder / 'empty-home'),
@@ -71,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='wallet-go-only-proof-') as temporary:
             raise ValueError('Extracted executable hash differs from built candidate')
         checks = {'versionWithoutCacheOrToolchain': version, 'runtimeInfo': runtime_info.strip(),
                   'sha256': digest(binary), 'archive': archive.name,
-                  'singleRegularExecutable': True, 'embeddedNoticeBytes': len(licenses),
+                  'singleGoRuntimeExecutable': True, 'desktopInstallerAndIcons': True, 'embeddedNoticeBytes': len(licenses),
                   'privateProfileCreated': (folder / 'empty-config').exists()}
         if checks['privateProfileCreated']:
             raise ValueError('Inspection unexpectedly opened a profile')
@@ -82,7 +85,7 @@ with tempfile.TemporaryDirectory(prefix='wallet-go-only-proof-') as temporary:
               'checks': checks, 'forbiddenToolsInvoked': unexpected,
               'debianArtifactsUnchanged': before == debian_artifacts(),
               'seconds': round(time.monotonic() - started, 3),
-              'scope': 'Actual compiled Wails Go executable/one-file archive, with embedded React frontend, inspected from isolated extraction without developer cache or toolchain; Node/npm build-time only; GUI/recovery/blockchain acceptance is separate',
+              'scope': 'Actual compiled Wails Go executable/archive with optional desktop installer/icons and embedded React frontend, inspected from isolated extraction without developer cache or toolchain; Node/npm build-time only; GUI/recovery/blockchain acceptance is separate',
               'notRun': ['clean Ubuntu OS/display matrix', 'live funded testnets', 'independent security/license review']}
     if reason:
         report['reason'] = reason

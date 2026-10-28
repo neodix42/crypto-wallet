@@ -1363,6 +1363,9 @@ func (a *App) settingsPage() []webui.Node {
 	if selected == "Appearance" {
 		return append(nodes, a.appearancePage()...)
 	}
+	if selected == "Wallet" {
+		nodes = append(nodes, heading("Wallet settings"), a.storageLocation())
+	}
 	if a.state.Locked {
 		return append(nodes, label("Unlock the local wallet to configure wallet, exchange and journal settings."))
 	}
@@ -1407,7 +1410,7 @@ func (a *App) settingsPage() []webui.Node {
 			nodes = append(nodes, label(a.result))
 		}
 	default:
-		nodes = append(nodes, heading("Wallet settings"), row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels or the local payment/exchange journal."))
+		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels or the local payment/exchange journal."))
 	}
 	return nodes
 }
