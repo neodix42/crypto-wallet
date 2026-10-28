@@ -12,7 +12,7 @@ root=pathlib.Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--profile',choices=['mainnet','testnet'],default='mainnet')
 selected_profile=parser.parse_args().profile
-vault_relative=pathlib.Path('localwallet')/selected_profile/'vault.lwv'
+vault_relative=pathlib.Path('cryptowallet')/selected_profile/'vault.lwv'
 spec=importlib.util.spec_from_file_location('test_x11',root/'tests/e2e/x11.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 reports=root/'reports';reports.mkdir(exist_ok=True)
 phrase_spec=importlib.util.spec_from_file_location('test_phrase',root/'tests/e2e/phrase.py');phrase_ui=importlib.util.module_from_spec(phrase_spec);phrase_spec.loader.exec_module(phrase_ui)
@@ -915,7 +915,7 @@ try:
   if selected_profile=='mainnet':
    saved=hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest();launch(profile,env,environment='testnet')
    words=' '.join(a[11] for a in textboxes())
-   if 'Testnet profile' not in words or 'Create your app password' not in words or (profile/'localwallet/testnet/vault.lwv').exists():raise RuntimeError('Explicit testnet reused mainnet state')
+   if 'Testnet profile' not in words or 'Create your app password' not in words or (profile/'cryptowallet/testnet/vault.lwv').exists():raise RuntimeError('Explicit testnet reused mainnet state')
    if hashlib.sha256((profile/vault_relative).read_bytes()).hexdigest()!=saved:raise RuntimeError('Explicit testnet modified mainnet ciphertext')
    passed('Explicit testnet remains isolated from the restored mainnet profile')
    stopapp();launch(profile,env);clickprimary('Unlock wallet');waitprompt('Unlock local wallet');compactunlockgeometry();desktop.inputs('Unlock local wallet',[password]);desktop.accept('Unlock local wallet');time.sleep(2)

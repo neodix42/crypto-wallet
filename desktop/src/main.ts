@@ -8,7 +8,7 @@ import {parseResponse} from './codec';
 import {Prompt,PromptReply,validatePrompt,validatePromptReply,clearPrompt} from './prompts';
 
 // Branding must not relocate an existing Electron profile or its session files.
-// Wallet vaults independently retain their Go-owned ~/.config/localwallet paths.
+// Wallet vaults use Go-owned ~/.config/cryptowallet paths with guarded legacy-directory migration.
 const legacyUserData=path.join(app.getPath('appData'),'LocalWallet Development');
 fs.mkdirSync(legacyUserData,{recursive:true,mode:0o700});
 app.setPath('userData',legacyUserData);app.setPath('sessionData',legacyUserData);

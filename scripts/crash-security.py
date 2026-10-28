@@ -210,7 +210,7 @@ class Client:
                 time.sleep(.05)
             else:
                 raise DrillFailure('Signer remained live after parent death')
-        lock = self.home / 'config/localwallet/mainnet/writer.lock'
+        lock = self.home / 'config/cryptowallet/mainnet/writer.lock'
         if lock.exists():
             deadline = time.monotonic() + 5
             while True:
@@ -307,7 +307,7 @@ def main():
                     prompt = c.expect_prompt('recovery')
                     phrase = prompt['phrase'].encode()
                     add_root_canaries(phrase, canaries, words)
-                    require((home / 'config/localwallet/mainnet/vault.lwv').is_file(),
+                    require((home / 'config/cryptowallet/mainnet/vault.lwv').is_file(),
                             'Recovery display preceded durable encrypted storage')
                     if stage == 'challenge':
                         c.reply()

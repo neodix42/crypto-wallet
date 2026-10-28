@@ -176,7 +176,7 @@ try:
         def state():
             # These are encrypted vault generations only. Observing their exact
             # bytes also proves no hidden recovery/generation write occurred.
-            folder = profile / 'localwallet/mainnet'
+            folder = profile / 'cryptowallet/mainnet'
             return {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                     for path in folder.glob('vault*.lwv')}
 

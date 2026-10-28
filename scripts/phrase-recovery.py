@@ -101,12 +101,30 @@ try:
   first=machine('machine-a');a=Client(*first,password);initial=a.call('accounts');check(initial['vaultState']=='missing' and initial['accounts'] is None,'Initial installation is not empty')
   pending=a.call('create',{'words':12},inputs=[password,password],wrong=True);phrase=a.phrase
   check(phrase is not None and not pending['locked'] and not pending['recoveryConfirmed'],'Incorrect words enabled the wallet')
-  check((first[2]/'localwallet/mainnet/vault.lwv').exists(),'Generated root was not encrypted durably')
+  check((first[2]/'cryptowallet/mainnet/vault.lwv').exists(),'Generated root was not encrypted durably')
   passed('Headless Go backend persists a random root and rejects wrong recorded words through typed signer prompts')
   ready=a.call('confirmRecovery',expected_phrase=phrase);check(ready['recoveryConfirmed'] and len(ready['accounts'])==8,'Phrase confirmation did not enable all networks')
   for index in [1,127]:a.call('addAccount',{'index':index})
   expected=descriptors(a.call('accounts'));check(len(expected)==24,'Canonical account groups missing');a.stop()
   passed('Password reauthentication and correct words enable all eight networks at indices0,1,127')
+  # Reconstruct only the old directory layout of this disposable installation.
+  # Migration must preserve ciphertext before unlock and every derived identity.
+  current=first[2]/'cryptowallet';legacy=first[2]/'localwallet'
+  (current/'ui').mkdir(mode=0o700)
+  (current/'ui/appearance.json').write_text('{"theme":"dark","fontSize":20}')
+  (current/'ui/appearance.json').chmod(0o600)
+  before={str(p.relative_to(current)):hashlib.sha256(p.read_bytes()).hexdigest() for p in current.rglob('*') if p.is_file()}
+  current.rename(legacy)
+  a=Client(*first,password)
+  migrated=a.call('accounts')
+  check(migrated['locked'] and migrated['walletExists'],'Legacy directory became a new or unlocked wallet')
+  check(current.is_dir() and not legacy.exists(),'Legacy directory did not migrate to cryptowallet')
+  after={str(p.relative_to(current)):hashlib.sha256(p.read_bytes()).hexdigest() for p in current.rglob('*') if p.is_file()}
+  check(before==after,'Storage migration changed an encrypted file or public preference')
+  a.call('unlock')
+  check(descriptors(a.call('accounts'))==expected,'Storage migration changed recovered wallet identities')
+  a.stop()
+  passed('Legacy directory migrates atomically with identical ciphertext/preferences and unlocks all24 unchanged descriptors')
   second=machine('machine-b');b=Client(*second,password);check(b.call('accounts')['vaultState']=='missing','Destination inherited a vault')
   check(b.call('import',{'words':12},inputs=[password,password,phrase.decode(),''])['recoveryConfirmed'],'Imported phrase remains pending')
   for index in [1,127]:b.call('addAccount',{'index':index})

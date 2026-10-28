@@ -3,11 +3,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"localwallet/internal/buildinfo"
 	"localwallet/internal/isolation"
 	"localwallet/internal/nativewallet"
+	"localwallet/internal/profilepath"
 	"localwallet/internal/redistribution"
 	"localwallet/internal/walletcore"
 	"localwallet/internal/walletsigner"
@@ -88,7 +90,16 @@ func run(args []string, runtime commandRuntime) int {
 		return 2
 	}
 	if err := runtime.desktop(environment); err != nil {
-		fmt.Fprintln(runtime.stderr, "CryptoWallet could not open the desktop. Check the WebKitGTK runtime libraries and your desktop display.")
+		switch {
+		case errors.Is(err, profilepath.ErrConflict):
+			fmt.Fprintln(runtime.stderr, "CryptoWallet found both localwallet and cryptowallet storage directories. Keep both intact and resolve their locations before restarting; see README.md.")
+		case errors.Is(err, profilepath.ErrBusy):
+			fmt.Fprintln(runtime.stderr, "CryptoWallet storage is busy. Close other wallet processes before restarting.")
+		case errors.Is(err, profilepath.ErrStorage):
+			fmt.Fprintln(runtime.stderr, "CryptoWallet could not prepare storage. Check storage ownership, private permissions and configuration paths; see README.md.")
+		default:
+			fmt.Fprintln(runtime.stderr, "CryptoWallet could not open the desktop. Check the WebKitGTK runtime libraries and your desktop display.")
+		}
 		return 4
 	}
 	return 0

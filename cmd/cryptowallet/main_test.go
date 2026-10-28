@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"localwallet/internal/buildinfo"
+	"localwallet/internal/profilepath"
 	"localwallet/internal/redistribution"
 	"os"
 	"reflect"
@@ -119,5 +121,22 @@ func TestActualMainPublicVersionUsesProductionDependenciesWithoutOpeningWallet(t
 	result.ReadFrom(read)
 	if result.String() != buildinfo.Version+"\n" {
 		t.Fatal("actual public main version changed")
+	}
+}
+
+func TestStorageStartupFailuresHaveSpecificPublicGuidanceWithoutPrivateDetails(t *testing.T) {
+	for _, row := range []struct {
+		err      error
+		guidance string
+	}{
+		{profilepath.ErrConflict, "both localwallet and cryptowallet"},
+		{profilepath.ErrBusy, "Close other wallet"},
+		{profilepath.ErrStorage, "storage ownership"},
+	} {
+		r, out, diagnostic := testRuntime(t)
+		r.desktop = func(string) error { return fmt.Errorf("private-storage-canary: %w", row.err) }
+		if run([]string{"cryptowallet"}, r) != 4 || out.Len() != 0 || !strings.Contains(diagnostic.String(), row.guidance) || strings.Contains(diagnostic.String(), "canary") || strings.Contains(diagnostic.String(), "WebKitGTK") {
+			t.Fatal("storage failure was hidden or disclosed private error details")
+		}
 	}
 }

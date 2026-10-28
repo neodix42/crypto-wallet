@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"localwallet/internal/profilepath"
 	"localwallet/internal/strictjson"
 	"os"
 	"path/filepath"
@@ -40,11 +41,14 @@ func appearanceDirectory(create bool) (*os.File, error) {
 	if err != nil || !filepath.IsAbs(config) {
 		return nil, errPreferences
 	}
+	if profilepath.Prepare(config) != nil {
+		return nil, errPreferences
+	}
 	fd, err := unix.Open("/", unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, errPreferences
 	}
-	for _, part := range strings.Split(strings.TrimPrefix(filepath.Join(config, "localwallet", "ui"), "/"), "/") {
+	for _, part := range strings.Split(strings.TrimPrefix(filepath.Join(config, profilepath.Name, "ui"), "/"), "/") {
 		next, e := unix.Openat(fd, part, unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 		if e == unix.ENOENT && create {
 			if e = unix.Mkdirat(fd, part, 0700); e == nil || e == unix.EEXIST {

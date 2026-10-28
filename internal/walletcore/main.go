@@ -30,6 +30,7 @@ import (
 	"localwallet/internal/isolation"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
+	"localwallet/internal/profilepath"
 	"localwallet/internal/strictjson"
 	"localwallet/internal/supervisor"
 	"localwallet/internal/vault"
@@ -287,7 +288,7 @@ func run(portable bool) {
 		os.Exit(3)
 	}
 	home, e := os.UserConfigDir()
-	if e != nil {
+	if e != nil || profilepath.Prepare(home) != nil {
 		os.Exit(3)
 	}
 	c := &core{child: signerChild(exe, home, *environment, portable), adapters: chains.All(), last: time.Now()}
@@ -383,7 +384,7 @@ func run(portable bool) {
 }
 
 func signerChild(executable, configuration, environment string, portable bool) *supervisor.Child {
-	child := &supervisor.Child{Data: filepath.Join(configuration, "localwallet", environment), Environment: environment}
+	child := &supervisor.Child{Data: profilepath.Profile(configuration, environment), Environment: environment}
 	if portable {
 		// Pin the running image rather than the mutable download/install path.
 		child.Path = "/proc/self/exe"

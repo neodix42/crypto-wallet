@@ -1,11 +1,33 @@
 package nativewallet
 
 import (
+	"errors"
+	"localwallet/internal/profilepath"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestStorageConflictStopsStartupBeforePreferencesOrBackend(t *testing.T) {
+	config := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", config)
+	t.Setenv("DISPLAY", ":invalid-owned-test-display")
+	for _, name := range []string{"localwallet", "cryptowallet"} {
+		if err := os.Mkdir(filepath.Join(config, name), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := Run("mainnet"); !errors.Is(err, profilepath.ErrConflict) {
+		t.Fatal("startup selected a root or hid its storage conflict", err)
+	}
+	for _, name := range []string{"localwallet", "cryptowallet"} {
+		entries, err := os.ReadDir(filepath.Join(config, name))
+		if err != nil || len(entries) != 0 {
+			t.Fatal("failed startup created preferences or a replacement wallet")
+		}
+	}
+}
 
 func TestWalletSettingsShowsExactProfileStorageWithoutOpeningIt(t *testing.T) {
 	configuration := filepath.Join(t.TempDir(), "configuration with spaces")
@@ -19,7 +41,7 @@ func TestWalletSettingsShowsExactProfileStorageWithoutOpeningIt(t *testing.T) {
 		for _, locked := range []bool{false, true} {
 			a.environment, a.state.Locked = environment, locked
 			n, ok := findNode(a.settingsPage(), "storageLocation")
-			expected := filepath.Join(configuration, "localwallet", environment)
+			expected := filepath.Join(configuration, "cryptowallet", environment)
 			if !ok || n.Kind != "label" || !strings.Contains(n.Text, "\n"+expected+"\nVault file: vault.lwv") {
 				t.Fatal("settings did not show its exact selected storage profile", environment, locked)
 			}
@@ -35,7 +57,7 @@ func TestStorageLocationUsesHomeFallbackAndRejectsUnavailableConfiguration(t *te
 	home := filepath.Join(t.TempDir(), "home")
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", "")
-	if !strings.Contains(a.storageLocation().Text, filepath.Join(home, ".config", "localwallet", "mainnet")) {
+	if !strings.Contains(a.storageLocation().Text, filepath.Join(home, ".config", "cryptowallet", "mainnet")) {
 		t.Fatal("default HOME configuration path not displayed")
 	}
 	for _, configuration := range []string{"relative/configuration", string([]byte{'/', 0xff})} {

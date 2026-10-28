@@ -319,7 +319,7 @@ def inside(parent_namespace, owned_directory):
             desktop.accept('Create local wallet')
             gui.prompt('Imported account recovery limits')
             desktop.accept('Imported account recovery limits')
-            wait(lambda: (config / 'localwallet/testnet/vault.lwv').is_file())
+            wait(lambda: (config / 'cryptowallet/testnet/vault.lwv').is_file())
             passed('Fresh explicit testnet profile restores the public BIP39 fixture through masked Electron input')
             gui.click('Ethereum Sepolia')
             gui.click('Configure trusted RPC')

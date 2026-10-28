@@ -26,7 +26,7 @@ REQUIRED = (
     'third_party/wails/go.mod', 'third_party/wails/WALLET-UPSTREAM.json',
     'third_party/wails/WALLET-PATCHES.json', '.github/provenance/package-lock.json',
 )
-SOURCE_TREES = ('internal/webui', 'internal/branding', 'third_party/wails')
+SOURCE_TREES = ('internal/webui', 'internal/branding', 'internal/profilepath', 'third_party/wails')
 GENERATED = ('internal/webui/frontend/dist', 'internal/webui/frontend/node_modules')
 
 

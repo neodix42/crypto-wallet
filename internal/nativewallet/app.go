@@ -15,6 +15,7 @@ import (
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
+	"localwallet/internal/profilepath"
 	"localwallet/internal/sessionwatch"
 	"localwallet/internal/supervisor"
 	"localwallet/internal/uiprompt"
@@ -114,6 +115,13 @@ func Run(environment string) error {
 	// display is configured; its development build returns an error instead.
 	if strings.TrimSpace(os.Getenv("DISPLAY")) == "" && strings.TrimSpace(os.Getenv("WAYLAND_DISPLAY")) == "" {
 		return errors.New("wallet desktop unavailable: no X11 or Wayland display configured")
+	}
+	configuration, err := os.UserConfigDir()
+	if err != nil {
+		return profilepath.ErrStorage
+	}
+	if err := profilepath.Prepare(configuration); err != nil {
+		return err
 	}
 	app := &App{environment: environment, state: snapshot{Locked: true, VaultState: "checking"}, fields: map[string]string{"region": "https://api.bybit.com", "side": "Sell", "slippage": "0.5", "index": "1", "from": "0", "count": "10", "gap": "20", "limit": "1000", "birthday": "0", "blockBudget": "1000"}, balances: map[string][]model.Balance{}, balanceErrors: map[string]bool{}, sendForms: map[string]bool{}, active: "group/0", lastActivity: time.Now()}
 	child := &supervisor.Child{Path: "/proc/self/exe", SelfRole: "--internal-core", Environment: environment}

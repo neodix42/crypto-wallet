@@ -1255,7 +1255,7 @@ class UserDesktopInstaller(unittest.TestCase):
         self.data = self.home / 'user data'
         self.desktop = self.home / 'Desktop space'
         self.desktop.mkdir()
-        self.profile = self.home / '.config/localwallet/mainnet'
+        self.profile = self.home / '.config/cryptowallet/mainnet'
         self.profile.mkdir(parents=True)
         (self.profile / 'public-preservation-sentinel').write_bytes(b'PUBLIC FIXTURE; no secrets')
         self.release = self.root / 'downloaded space'

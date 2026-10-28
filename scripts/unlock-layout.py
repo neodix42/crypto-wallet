@@ -223,7 +223,7 @@ try:
         desktop.accept('Imported account recovery limits')
         wait(lambda: not desktop.secret_window())
         wait(lambda: 'your wallets' in gui.text().lower())
-        vault = profile / 'localwallet/mainnet/vault.lwv'
+        vault = profile / 'cryptowallet/mainnet/vault.lwv'
         vault_before = hashlib.sha256(vault.read_bytes()).hexdigest()
         check('Fresh disposable public-fixture phrase restore completes with an encrypted vault', True)
         stop(app, group=True)

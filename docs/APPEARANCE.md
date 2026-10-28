@@ -7,8 +7,8 @@ Appearance is available before unlocking and applies to both the portfolio and
 temporary private wallet dialogs.
 
 Go persists only the allowlisted theme and integer font size in
-`$XDG_CONFIG_HOME/localwallet/ui/appearance.json`, normally
-`~/.config/localwallet/ui/appearance.json`. It is independent of both profile
+`$XDG_CONFIG_HOME/cryptowallet/ui/appearance.json`, normally
+`~/.config/cryptowallet/ui/appearance.json`. It is independent of both profile
 vaults and contains no password, recovery words, API credentials or wallet data.
 Loading/saving rejects symlinks, nonregular/hardlinked or excessively large files,
 unknown/duplicate JSON fields and unsafe ownership/permissions. Replacement uses

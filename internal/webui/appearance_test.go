@@ -18,7 +18,7 @@ func appearanceHome(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", root)
-	return filepath.Join(root, "localwallet", "ui")
+	return filepath.Join(root, "cryptowallet", "ui")
 }
 
 func TestAppearanceDefaultsDoNotCreateAProfileAndPublicPreferencesSurviveRestart(t *testing.T) {

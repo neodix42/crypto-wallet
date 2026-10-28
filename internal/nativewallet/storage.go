@@ -1,6 +1,7 @@
 package nativewallet
 
 import (
+	"localwallet/internal/profilepath"
 	"localwallet/internal/webui"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ func (a *App) storageLocation() webui.Node {
 	text := "Encrypted storage directory is unavailable. Check your HOME and XDG_CONFIG_HOME settings."
 	configuration, err := os.UserConfigDir()
 	if err == nil && filepath.IsAbs(configuration) && (a.environment == "mainnet" || a.environment == "testnet") {
-		directory := filepath.Join(configuration, "localwallet", a.environment)
+		directory := profilepath.Profile(configuration, a.environment)
 		if len(directory) <= 4096 && utf8.ValidString(directory) && !strings.ContainsRune(directory, 0) {
 			text = "Encrypted storage directory\n" + directory + "\nVault file: vault.lwv"
 		}

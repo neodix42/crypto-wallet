@@ -238,7 +238,7 @@ def inside(parent_namespace, directory):
         require(restored['recoveryConfirmed'] and not restored['locked'], 'Public phrase import did not complete recovery')
         accounts = restored['accounts']
         ethereum = next(account for account in accounts if account['network'] == NETWORK and account['index'] == 0)
-        require(ethereum['address'] == node_fixture.SOURCE and (config / 'localwallet/testnet/vault.lwv').is_file(),
+        require(ethereum['address'] == node_fixture.SOURCE and (config / 'cryptowallet/testnet/vault.lwv').is_file(),
                 'Restored public fixture identity or encrypted profile differs')
         passed('Fresh single-file Go installation restores the public fixture through private typed prompts')
         report['phase'] = 'configure-loopback'

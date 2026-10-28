@@ -11,7 +11,7 @@ func TestPortableSignerRetainsStorageProfileAndUsesOnlyCurrentImage(t *testing.T
 	for _, environment := range []string{"mainnet", "testnet"} {
 		for _, portable := range []bool{false, true} {
 			child := signerChild(executable, configuration, environment, portable)
-			if child.Data != filepath.Join(configuration, "localwallet", environment) || child.Environment != environment {
+			if child.Data != filepath.Join(configuration, "cryptowallet", environment) || child.Environment != environment {
 				t.Fatal("existing wallet profile changed", child.Data, child.Environment)
 			}
 			if portable {

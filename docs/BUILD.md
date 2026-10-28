@@ -1,6 +1,6 @@
 # Build, runtime and cache dependencies
 
-The default application is now the [one-file Wails Go wallet](PORTABLE_GO.md). Ubuntu 24.04/26.04 amd64 runtime prerequisites are `ca-certificates libgtk-3-0t64 libwebkit2gtk-4.1-0`; there is no Electron, Chromium or sandbox helper. The Go roles deliberately apply no syscall sandbox under the latest owner instruction. Existing profile paths and encrypted keys remain unchanged.
+The default application is now the [one-file Wails Go wallet](PORTABLE_GO.md). Ubuntu 24.04/26.04 amd64 runtime prerequisites are `ca-certificates libgtk-3-0t64 libwebkit2gtk-4.1-0`; there is no Electron, Chromium or sandbox helper. The Go roles deliberately apply no syscall sandbox under the latest owner instruction. Encrypted keys remain unchanged; current application startup atomically migrates the legacy storage root to `cryptowallet`. See [storage paths and upgrade safeguards](STORAGE_DIRECTORY.md).
 
 ```sh
 sudo apt update

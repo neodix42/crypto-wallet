@@ -64,7 +64,7 @@ def desktop_install_drill(parent, source, expected, report):
     home.mkdir(mode=0o700)
     desktop = home / 'Desktop'
     data = home / 'data'
-    profile = home / '.config/localwallet/mainnet'
+    profile = home / '.config/cryptowallet/mainnet'
     profile.mkdir(parents=True, mode=0o700)
     sentinel = profile / 'public-profile-preservation-fixture'
     sentinel.write_bytes(b'PUBLIC DISPOSABLE PRESERVATION FIXTURE; no wallet secrets')

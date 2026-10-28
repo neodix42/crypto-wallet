@@ -438,7 +438,7 @@ func TestTP041CoreMainInheritedPipes(t *testing.T) {
 	t.Cleanup(func() { os.Remove(childPath); os.Remove(manifestPath) })
 	config := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", config)
-	profile := filepath.Join(config, "localwallet", "testnet")
+	profile := filepath.Join(config, "cryptowallet", "testnet")
 	if e = os.MkdirAll(profile, 0700); e != nil {
 		t.Fatal(e)
 	}

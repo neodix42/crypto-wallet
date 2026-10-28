@@ -44,7 +44,7 @@ func TestAppearanceIsAvailableLockedAndPersistsOnlyPublicValidatedPreferences(t 
 	if a.view().Appearance != got {
 		t.Fatal("unvalidated presentation reached view")
 	}
-	if raw, err := os.ReadFile(filepath.Join(root, "localwallet/ui/appearance.json")); err != nil || strings.Contains(string(raw), "account") {
+	if raw, err := os.ReadFile(filepath.Join(root, "cryptowallet/ui/appearance.json")); err != nil || strings.Contains(string(raw), "account") {
 		t.Fatal("public preference storage changed wallet state", err)
 	}
 	a.event(webui.Event{ID: "settingsWallet"})
@@ -57,10 +57,10 @@ func TestFailedAppearanceWritePreservesCurrentPresentation(t *testing.T) {
 	a, _, _ := fixture(t)
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", root)
-	if err := os.MkdirAll(filepath.Join(root, "localwallet"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "cryptowallet"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(t.TempDir(), filepath.Join(root, "localwallet/ui")); err != nil {
+	if err := os.Symlink(t.TempDir(), filepath.Join(root, "cryptowallet/ui")); err != nil {
 		t.Fatal(err)
 	}
 	a.changeAppearance("appearanceTheme", "dark")

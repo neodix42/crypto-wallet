@@ -904,8 +904,8 @@ def verify_storage_location(home):
     click("Wallet")
     visible=wait(lambda:(v if "Encrypted storage directory" in (v:=text()) else None))
     compact="".join(visible.split())
-    if "/localwallet/mainnet" not in compact or "vault.lwv" not in compact:raise RuntimeError("Settings Wallet did not display its profile directory and vault filename")
-    report["storageLocation"]={"directoryLabelVisible":True,"mainnetProfileSuffixVisible":True,"vaultFilenameVisible":True,"temporaryProfileFileExists":(home/"config/localwallet/mainnet/vault.lwv").is_file()}
+    if "/cryptowallet/mainnet" not in compact or "vault.lwv" not in compact:raise RuntimeError("Settings Wallet did not display its profile directory and vault filename")
+    report["storageLocation"]={"directoryLabelVisible":True,"mainnetProfileSuffixVisible":True,"vaultFilenameVisible":True,"temporaryProfileFileExists":(home/"config/cryptowallet/mainnet/vault.lwv").is_file()}
     if not report["storageLocation"]["temporaryProfileFileExists"]:raise RuntimeError("Disposable profile vault was not found at its configured location")
     passed("Settings Wallet displays the encrypted profile location and vault filename")
 
@@ -1227,7 +1227,7 @@ def appearance_campaign(installation, home, secret):
     changed=observe_appearance("Selected Dark/24")
     if changed["brandGlyphHeight"]<baseline["brandGlyphHeight"]*1.15:
         raise RuntimeError("Increasing the selected font did not enlarge actual public text")
-    preferences=home/"config/localwallet/ui/appearance.json"
+    preferences=home/"config/cryptowallet/ui/appearance.json"
     wait(lambda:preferences.is_file() and json.loads(preferences.read_text())==appearance)
     assert_selected_subtab("Appearance","Wallet")
     stage("Inspect actual private Bybit key/secret and visible footer at 24 px")

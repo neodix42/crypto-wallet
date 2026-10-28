@@ -1,5 +1,19 @@
 # Implementation and release evidence
 
+## Storage directory rename — 2026-10-28
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, migration/security units | Shared `cryptowallet` path for coordinator, preferences and Settings. Atomic no-replace whole-root migration preserves both profiles, current/previous/interrupted ciphertext, permissions/inodes and public preferences. Tests authenticate moved ciphertext, reject busy writers on either network, simultaneous roots, unsafe links/files/modes and relative configuration, and exercise 20 concurrent migrations. Startup conflict stops before preferences/backend creation; public diagnostics redact private error details. |
+| PASS, current units/race/build | `make test-ci`, focused race checks across migration/core/controller/Wails/CLI, checkout-input regressions and a fresh Go build/extraction/package pass. All unchanged secret-handling, derivation and chain policies remain. First draft tests exposed an overly restrictive check on ordinary Ubuntu configuration parents (0775); compatibility is retained while wallet roots/profiles remain owner-only and no permissions are rewritten. |
+| PASS, actual portable migration/recovery | Seven headless steps on the built executable: disposable generated legacy layout migrates with exact ciphertext/preferences before unlock, then unlocks all 24 unchanged descriptors across eight networks at indices 0, 1 and 127. Separate installations restore the same descriptors from the phrase with the original or a different local password. Public IPC/files/logs pass secret-canary checks. `reports/portable-phrase-recovery.json`. |
+| PASS, commit guards | Destination collisions introduced immediately before the rename, including empty directories, are never overwritten. Replaced source inodes reject. Three copied-package semantic mutants (no-replace, source identity and writer lock) are killed by their exact assertions after passing controls; production sources are unchanged by the campaign. `reports/storage-migration-mutants.json`. |
+| PASS, actual desktop and installation | All 22 actual Wails steps pass with stable sources: generated-root setup, all eight wallets, token controls, new Settings storage path, authenticated backup, appearance persistence, fresh-profile restore and Enter unlock. Actual per-user install/uninstall preserves synthetic profile data. Native WebKit security and inspector rejection pass. `reports/wails-wallet.json`, `reports/portable-install.json`, `reports/wails-security.json`, `reports/wails-inspector.json`. Installation does not launch the application or migrate real user data. |
+| PASS, actual local-chain payment | Eight source-stable checks execute the real Go signer/payment pipeline against isolated genesis-funded geth, verify the new testnet vault location, exact receipt/balances/fee/nonce and reject public RPC/secret canary leaks. No mainnet funds. `reports/portable-send.json`. |
+| NOT_RUN | New hosted workflow, clean OS/Wayland upgrade matrix and independent review. Existing funded-network acceptance gates are unchanged; no real profiles/secrets or mainnet funds are used. |
+
+See [storage directory and conflict recovery](STORAGE_DIRECTORY.md).
+
 ## Window layout, storage location and desktop integration — 2026-10-28
 
 | State | Evidence and limits |
