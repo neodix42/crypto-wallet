@@ -1,24 +1,39 @@
 # Go coverage and remaining-path review
 
-## Current Wails migration: full measurement NOT_RUN
+## Current Wails coverage campaign — 2026-10-28
 
 The 2026-10-28 Wails/WebKit replacement changes the shipped UI and invalidates
 previous GTK coverage for the current candidate. Coverage integration is now
 implemented: `internal/webui` is a **critical package with a 95% floor**, and all
-existing 90%/95% floors remain unchanged. **No current full Wails package-floor
-pass is claimed.** The combined campaign has not been run after this migration;
-old raw counters and percentages below are historical.
+existing 90%/95% floors remain unchanged. The final source-stable combined Go
+campaign **PASS** covers **all 33 measured package floors**, all four required
+local execution gates and **1,240** source inputs in **433.233 seconds**. Wails
+Go measures **95.43%**, the wallet controller **96.87%**, retained GTK **95.09%**,
+EVM **97.05%** and typed token-policy decoding **100%**. The actual instrumented
+GUI passes all **18 workflows**, with real counters from **31 distinct private
+processes**. Independent source/profile/runtime verification passes. Raw
+measurements later in this document are explicitly historical GTK evidence.
 
 `make coverage` now builds a separate instrumented executable with
-`production,webkit2_41,portable`, instruments the command/controller/**webui**/
+`production,webkit2_41,portable,walletcoverage`, instruments the command/controller/**webui**/
 memory-protection packages, and drives its actual Wails windows through
 `scripts/wails-wallet-test.py`. Its report is `wails-wallet-coverage.json`; the
 raw profile remains `go-native-runtime.cover` for verifier compatibility.
 The base suite uses production/WebKitGTK 4.1 build tags while retaining legacy
 seccomp tests. Existing GTK regression profiles and all original Decred/TON/USDT
-integration gates remain required. No shipped production path is excluded to
+integration gates remain required, alongside real two-token ERC-20 execution.
+No shipped production path is excluded to
 improve a percentage. Go counters do not measure React/JavaScript, C or WebKit
 library behavior.
+
+The base campaign explicitly enumerates every wallet-module package before
+instrumentation. Go 1.27.3's `-coverpkg=./...` also matched the local Wails module
+replacement and supplied dependency counters with module-relative filenames.
+The collector now checks ownership/module/source directories and instruments
+all 38 wallet package identities explicitly. Foreign counters fail rather than
+being removed from measured profiles. The reviewed Wails fork retains its own
+security tests; a third-party framework coverage percentage is not substituted
+for wallet coverage.
 
 Current source binding includes Go/C/header code, React/TypeScript/CSS/HTML
 sources and tests, frontend package/configuration pins, the complete reviewed
@@ -28,21 +43,40 @@ Historical Electron-only toy fixtures without any Wails module/package marker
 retain their historical verifier scope. A Wails build cannot reuse a GTK runtime
 report or omit `internal/webui` statement counters.
 
-The migration's six coverage-integrity regressions and 34 release-evidence
-regressions **PASS**. These include synthetic 94% Wails counters failing the
+Coverage-integrity and release-evidence regressions **PASS**. These include
+synthetic 94% Wails counters failing the
 unchanged 95% floor, forged lower floors, changed React/fork pins, missing UI
 sources and reassigned GTK runtime evidence. Synthetic counters test enforcement;
 they do not measure the wallet. Standalone GUI/security/recovery acceptance does
-not substitute for this still-unrun combined coverage campaign. The retained
+not substitute for the combined coverage campaign. The retained
 Electron production verifier also remains unable to certify a Wails production
 release.
 
-Private-process counter collection remains an explicit verification gap: the
-secret prompt's restricted environment currently omits `GOCOVERDIR`, and the
-parent retires that process after receiving its reply. A future combined run
-must prove private-process counters are collected before claiming the 95% UI
-floor. These paths remain in the denominator; no environment/secret handling
-rule is weakened and no artificial production coverage hook is added.
+Private-process collection uses a separate, explicitly tagged diagnostic build.
+Only `walletcoverage` builds can pass an absolute, owned, mode-0700 counter
+directory to a private prompt and flush real Go counters before replying. The
+ordinary build imports no `runtime/coverage` package through this helper and
+continues to omit `GOCOVERDIR` from private-process environments. Counters contain
+statement metadata/counts, never prompt values. The driver records each actual
+private X11 window's process ID; all those distinct processes must supply
+counters. A parent or unrelated helper cannot stand in for a private prompt.
+
+The reported hosted failure exposed two separate prerequisites: production GTK
+startup must reject an absent display before opening storage, and graphical
+coverage must run under the already-configured CI-only namespace profile. Both
+have regressions. Failed GUI startup retains its original reason and marks
+measurement NOT_RUN or INCOMPLETE instead of hiding it behind missing metadata.
+Inherited public staking opt-ins are removed before this local campaign.
+
+The shipped React UI is measured independently with pinned Vitest/coverage-v8
+5.0.5, including both real mount entrypoints and every production TS/TSX module.
+The measured **51 tests PASS**, with **98.45% statements / 94.69% branches**.
+Private UI and protocol files retain 95% statement/90% branch floors; other
+executable modules retain 90%/85%. Type-only declarations report a zero executable
+denominator explicitly. The retained Electron measurement still passes its own
+unchanged floors. `reports/frontend-coverage.json` requires both campaigns and
+binds source, compiled assets and raw summaries; these component tests do not
+substitute for real WebKit/GUI acceptance.
 
 Separately, `scripts/wails-inspector-test.py` passes on the current executable:
 actual WebKit helper processes initialize while inherited TCP/HTTP inspector
@@ -51,6 +85,14 @@ settings produce zero listeners. Its binary/source-bound report is
 coverage. Disabling developer extras alone was experimentally insufficient;
 trusted Go startup also clears inspector/engine injection settings before WebKit
 initializes.
+
+The current aggregate lists eleven explicit base-suite skips. The unused
+launcher bootstrap-worker parent is not a separate scenario. Aptos local-node
+cases, NEAR sandbox/local staking and local EVM protocol acceptance run in the
+separate passing eight-gate `make test-integration` campaign, rather than being
+mislabelled as base-suite passes. The public NEAR read-only probe, two public
+staking tests and 24-hour soak are NOT_RUN in this campaign. Earlier partial
+public staking evidence retains its separate scope; no mainnet spending occurs.
 
 ## Historical GTK measurement (2026-10-27; not current Wails evidence)
 
@@ -64,15 +106,30 @@ Go measures statements, not branches, C ABI behavior, cryptographic soundness or
 
 Run `make coverage`, or `./scripts/with-toolchain.sh python3 scripts/go-coverage.py`. The wrapper runs all original Go/unit/stress tests with atomic cross-package instrumentation, retained GTK prompt regressions, native GTK adapter tests on a private Xvfb, targeted portable memory tests, and a **separate instrumented native executable** through the real disposable-profile GUI driver. It preserves all original local-node/emulator gates and records every explicit skip.
 
-The five frozen raw profiles are `go-base.cover`, `go-native.cover`, `go-nativeui.cover`, `go-native-runtime.cover` and `go-portable-memory.cover`. Identical source blocks share one statement denominator and use maximum observed counts. The verifier requires their exact hashes and reconstructs the union. Missing profiles, altered counters, changed source or below-floor packages fail. The portable memory tests exercise production memory-only code, actual kernel-failure tracing, preserved loopback access, and explicit refusal to claim an installed syscall sandbox. The full base suite separately retains real legacy seccomp tests.
+The current Wails campaign requires six frozen raw profiles: `go-base.cover`,
+`go-native.cover`, `go-nativeui.cover`, `go-native-runtime.cover`,
+`go-portable-memory.cover` and `go-webui-diagnostic.cover`. The base suite keeps
+the original production/WebKit tags, measuring the shipped restricted
+environment helper; the additional diagnostic profile tests the separately
+tagged collector and directory guards. Historical non-Wails fixtures retain
+their original five-profile requirement. Identical source blocks share one
+statement denominator and use maximum observed counts. The verifier requires
+the exact profiles/hashes and reconstructs the union. Missing profiles, altered
+counters, changed source or below-floor packages fail. Portable memory tests
+exercise actual kernel failures and preserved loopback access without claiming
+an installed syscall sandbox. The base suite retains real legacy seccomp tests.
 
 Source binding includes every first-party Go/test/module file, C/header bindings and the coverage/private-display drivers. A before/after snapshot rejects concurrent edits. Only the exact tagged `internal/secureui/automation.go`, `internal/secureui/recovery_automation.go` and `internal/nativeui/automation.go` test injectors and independent nonshipped oracle generators are excluded. No shipped path is excluded. Third-party library and native GTK/C statements are not measured by Go.
 
 `reports/go-coverage.json` records the stable source snapshot, all suites, profiles, original gates and skipped tests. `reports/coverage.json` contains per-package floors. `reports/go-uncovered.json` retains every unexecuted block's exact source excerpt; `reports/go-functions.txt` and `reports/go.html` provide function/source views. These local generated reports are not release assets. Source or binary changes require affected checks to run again.
 
-`python3 scripts/coverage-test.py` passes five integrity tests. `python3 scripts/release-evidence-test.py` passes 30 verifier regressions, including source/driver/C changes, forged counters, missing profiles, lowered/missing original gates and reclassified portable-memory/native-runtime evidence.
+`python3 scripts/coverage-test.py` passes twelve integrity tests.
+`python3 scripts/release-evidence-test.py` passes 45 verifier regressions,
+including source/driver/C changes, forged counters, missing profiles,
+lowered/missing original gates, missing private-process measurements, changed
+React assets, and reclassified portable-memory/native-runtime evidence.
 
-## Executed campaigns and limits
+## Historical GTK campaigns and limits
 
 | State | Campaign |
 | --- | --- |
@@ -104,7 +161,7 @@ The final measurement binds **226** source/test/module/driver files and takes **
 
 The launcher bootstrap-worker skip is its unused parent role outside the dedicated worker subprocess. Optional Aptos/NEAR/public-balance/private-geth integration tests require their named harnesses or explicit opt-in; separate reports retain their own scope. The 24-hour soak and five-minute native typing campaigns are explicit runs and are never inferred from faster stress or UI tests.
 
-## Measured package floors
+## Historical GTK package floors
 
 Legacy launchers/helpers and the retained GTK prompt package are measured for regressions; they do not ship in the default one-file archive. `internal/buildinfo`, `internal/model` and embedded redistribution text have no executable statement denominator, so no percentage is invented for them.
 
@@ -142,7 +199,7 @@ Legacy launchers/helpers and the retained GTK prompt package are measured for re
 | `internal/walletcore` | 1355/1400 | 96.79% | 95% | PASS |
 | `internal/walletsigner` | 232/238 | 97.48% | 95% | PASS |
 
-## Remaining-path review
+## Historical GTK remaining-path review
 
 Unexecuted counters remain unexecuted even if nearby tests pass. The table below indexes every remaining production block; full spans and excerpts are in `reports/go-uncovered.json`. Conservative validation, cryptographic-library errors, serialization/storage failures, cancellation/lifecycle races, native callback boundaries and RPC rejection paths retain their guards. No guard is removed or declared impossible merely to improve coverage.
 

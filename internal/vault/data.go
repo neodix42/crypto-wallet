@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"localwallet/internal/chains/evm"
 	"localwallet/internal/derivation"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
@@ -34,6 +35,7 @@ type Data struct {
 	Operations               []journal.Operation `json:"operations"`
 	Endpoints                map[string]Endpoint `json:"endpoints"`
 	Exchange                 *ExchangeData       `json:"exchange,omitempty"`
+	ERC20Tokens              []model.ERC20Token  `json:"erc20Tokens,omitempty"`
 }
 
 func (d *Data) Destroy() {
@@ -44,6 +46,7 @@ func (d *Data) Destroy() {
 	d.Accounts = nil
 	d.Operations = nil
 	d.Endpoints = nil
+	d.ERC20Tokens = nil
 	if d.Exchange != nil {
 		d.Exchange.Destroy()
 		d.Exchange = nil
@@ -111,6 +114,17 @@ func (d *Data) Validate() error {
 	if err := validateExchange(d.Exchange, seen); err != nil {
 		return err
 	}
+	if len(d.ERC20Tokens) > evm.MaxImportedTokens {
+		return ErrFormat
+	}
+	tokens := map[string]bool{}
+	for _, token := range d.ERC20Tokens {
+		if evm.ValidateTokenPolicy(token) != nil || tokens[token.Asset.ID] ||
+			(token.Network == "ethereum-sepolia") != (d.Environment == "testnet") {
+			return ErrFormat
+		}
+		tokens[token.Asset.ID] = true
+	}
 	return nil
 }
 
@@ -127,13 +141,15 @@ func VerifyRecovery(a, b *Data) error {
 		Operations []journal.Operation
 		Endpoints  map[string]Endpoint
 		Exchange   *ExchangeData
-	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange})
+		Tokens     []model.ERC20Token
+	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens})
 	y, _ := json.Marshal(struct {
 		Accounts   []model.Account
 		Operations []journal.Operation
 		Endpoints  map[string]Endpoint
 		Exchange   *ExchangeData
-	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange})
+		Tokens     []model.ERC20Token
+	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens})
 	if sha256.Sum256(x) != sha256.Sum256(y) {
 		return errors.New("backup public descriptors differ")
 	}

@@ -123,6 +123,9 @@ func (e *Engine) Lock() {
 	}
 	clear(e.password)
 	e.password = nil
+	if adapters, err := adaptersWithTokens(e.Adapters, nil); err == nil {
+		e.Adapters = adapters
+	}
 }
 func wipeInputs(in [][]byte) {
 	for _, p := range in {
@@ -439,6 +442,12 @@ func (e *Engine) Unlock() error {
 	// recovery words. Clear the retired flag without changing the root or paths.
 	d.DeprecatedBackupVerified = false
 	e.data = d
+	adapters, err := adaptersWithTokens(e.Adapters, d.ERC20Tokens)
+	if err != nil {
+		e.Lock()
+		return err
+	}
+	e.Adapters = adapters
 	e.password = append([]byte(nil), in[0]...)
 	journal.Recover(d.Operations)
 	if d.Exchange != nil {
@@ -705,6 +714,7 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 			feeLabel = "Estimated fee reserve (NEAR protocol has no signed fee cap)"
 		}
 		summary := fmt.Sprintf("Network: %s\nSource: %s\nDestination: %s\nAsset identity: %s\n%s: %s\n%s: %s %s\nNonce/sequence: %s\nExpiry (Unix): %d\nMemo: %q\nExact chain effects:\n%s", p.Account.Network, p.Account.Address, p.Recipient, p.Asset, amountLabel, p.Amount, feeLabel, p.MaxFee, p.FeeAsset, p.Nonce, p.Expires, p.Memo, nativeEffects(p))
+		summary += e.tokenApproval(p)
 		if !e.UI.Confirm(approvalTitle, summary) {
 			o.State = "CANCELLED"
 			return model.Signed{}, e.cancelError()

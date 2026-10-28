@@ -300,8 +300,8 @@ func TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy(t *testing.T) {
 					t.Fatal("unsupported USDT issuer state prepared")
 				}
 				ac, _ := f.a.Derive(syntheticSeed(), 0, "ethereum-mainnet")
-				if balances, e := f.a.Balance(ctx, ac); e == nil || balances != nil {
-					t.Fatal("unsupported USDT issuer state presented as balance")
+				if balances, e := f.a.Balance(ctx, ac); e != nil || len(balances) != 2 || balances[0].State != "provider-observed" || balances[1].Asset != USDTAsset || balances[1].State != "unavailable" || balances[1].Atomic != "" {
+					t.Fatal("unsupported USDT issuer state invented a token balance or hid verified ETH")
 				}
 			})
 		}

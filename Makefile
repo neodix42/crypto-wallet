@@ -9,6 +9,7 @@ SOAK_SECONDS ?= 86400
 .PHONY: test-wails-security
 .PHONY: test-install-portable
 .PHONY: test-near-staking test-near-staking-local test-near-staking-gui test-near-staking-testnet
+.PHONY: test-erc20
 .PHONY: test-packaged-desktop test-packaged-send-desktop build-components install-desktop package-portable package-components test-portable build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
@@ -61,6 +62,9 @@ test-near-staking-gui: build
 test-near-staking-testnet:
 	WALLET_NEAR_STAKING_TESTNET=1 $(GO_TOOLS) go test ./tests/staking -run TestPublicTestnetStaking -v -count=1
 	@python3 -c 'import json,pathlib,sys; r=json.loads(pathlib.Path("reports/near-staking-testnet.json").read_text()); print("Testnet cycle: " + r["status"] + ". " + r.get("reason", "")); sys.exit(0 if r["status"] == "PASS" else 1)'
+test-erc20: frontend
+	$(GO_TOOLS) go test -race ./internal/chains/evm ./internal/signer ./internal/walletcore ./internal/walletsigner ./internal/nativewallet ./internal/vault -run 'ERC20|Token' -count=1
+	WALLET_ERC20_EVM=1 $(TOOLS) go test ./internal/chains/evm -run '^TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache$$' -v -count=1
 test-exchange:
 	$(GO_TOOLS) go test ./internal/exchange/...
 	$(GO_TOOLS) go test ./internal/signer ./internal/walletsigner ./internal/walletcore ./internal/chains/evm -run 'Exchange|Bybit|USDT'

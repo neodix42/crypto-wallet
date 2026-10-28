@@ -39,6 +39,7 @@ if not binary.exists():
 if binary.exists():run('decred-simnet',['go','test','./internal/chains/decred','-run','TestDcrdSimnet','-v','-count=1'],{**os.environ,'WALLET_DCRD':str(binary),'WALLET_EVIDENCE_DIR':str(reports)})
 else:rows.append({'gate':'decred-simnet','status':'BLOCKED','reason':'Install pinned dcrd v1.10.9 under .tools/dcrd/dcrd'})
 run('ton-v5r1-emulator',['go','test','./internal/chains/ton','-run','TestWalletV5R1Emulator','-v','-count=1'],{**os.environ,'WALLET_TON_EMULATOR':'1','WALLET_EVIDENCE_DIR':str(reports)})
+run('erc20-evm-execution',['go','test','./internal/chains/evm','-run','^TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache$','-v','-count=1'],{**os.environ,'WALLET_ERC20_EVM':'1','WALLET_EVIDENCE_DIR':str(reports)})
 node('geth-native',['python3','tests/oracles/evm/geth-node.py'],'http://127.0.0.1:18547',['go','test','./internal/chains/evm','-run','TestTP050LocalEVMProtocolAcceptance','-v','-count=1'],{'LOCALWALLET_EVM_NODE':'http://127.0.0.1:18547'})
 node('evm-canonical-ZEN-runtime',['node','tests/oracles/evm/local-node.mjs'],'http://127.0.0.1:18546',['go','test','./internal/chains/evm','-run','TestTP050LocalEVMProtocolAcceptance','-v','-count=1'],{'LOCAL_CHAIN_ID':'84532','LOCAL_NODE_PORT':'18546','LOCALWALLET_EVM_NETWORK':'base-sepolia','LOCALWALLET_EVM_NODE':'http://127.0.0.1:18546'})
 report={'status':'PASS' if all(r['status']=='PASS' for r in rows) else 'FAIL','scope':'Real local protocol acceptance, not public testnets; Core SDK fixtures have no official local validator gate','gates':rows}

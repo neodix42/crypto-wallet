@@ -146,7 +146,13 @@ func (a *Adapter) tokenIdentity(ctx context.Context, n model.Network, s model.As
 	if e != nil {
 		return errors.New("invalid contract code")
 	}
-	if crypto.Keccak256Hash(codeBytes).Hex() != tokenCodeHashes[n.ID] {
+	expected := tokenCodeHashes[n.ID]
+	for _, token := range a.tokens {
+		if token.Network == n.ID && token.Asset.ID == s.ID {
+			expected = token.CodeHash
+		}
+	}
+	if crypto.Keccak256Hash(codeBytes).Hex() != expected {
 		return errors.New("registered token runtime code hash mismatch")
 	}
 	var raw string
@@ -187,7 +193,8 @@ func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balanc
 	for _, s := range n.Assets {
 		v, e := a.balance(ctx, n, ac, s, b.Number)
 		if e != nil {
-			return nil, e
+			out = append(out, model.Balance{Asset: s.ID, State: "unavailable", At: b.Hash})
+			continue
 		}
 		out = append(out, model.Balance{Asset: s.ID, Atomic: v.String(), State: "provider-observed", At: b.Hash})
 	}
@@ -349,6 +356,11 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 func recipientPolicy(n model.Network, recipient string) error {
 	if strings.EqualFold(recipient, "0x2222222222222222222222222222222222222222") {
 		return errors.New("system bridge is not an ordinary recipient")
+	}
+	for _, token := range n.Assets {
+		if token.Contract != "" && strings.EqualFold(recipient, token.Contract) {
+			return errors.New("tracked token contract is not a receiving wallet")
+		}
 	}
 	for _, network := range registry() {
 		for _, s := range network.Assets {
@@ -553,7 +565,7 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	if e != nil {
 		return model.Receipt{}, e
 	}
-	n, _ := network(p.Account.Network)
+	n, _ := a.network(p.Account.Network)
 	if e = a.checkChain(ctx, n); e != nil {
 		return model.Receipt{}, e
 	}
@@ -588,7 +600,7 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 	if e != nil {
 		return model.Receipt{}, e
 	}
-	n, _ := network(p.Account.Network)
+	n, _ := a.network(p.Account.Network)
 	r := model.Receipt{Identity: s.Identity, State: "UNKNOWN"}
 	if e = a.checkChain(ctx, n); e != nil {
 		return r, e

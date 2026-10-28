@@ -204,7 +204,8 @@ class CIDesktop(unittest.TestCase):
 
     def test_helper_rejects_arbitrary_shells_commands_and_sandbox_bypass_arguments(self):
         self.mark_loaded()
-        for command in [[], ['/bin/sh'], ['make', 'test'], ['make', 'test-packaged', '--no-sandbox'],
+        for command in [[], ['/bin/sh'], ['make', 'test'], ['make', 'coverage', 'EXTRA=arbitrary'],
+                        ['make', 'coverage', '--eval=all:; arbitrary'], ['make', 'test-packaged', '--no-sandbox'],
                         ['make', 'test-wails-wallet', '--no-sandbox'], ['make', 'test-send-portable', 'EXTRA=arbitrary'],
                         ['make', 'test-packaged-desktop', 'EXTRA=arbitrary'],
                         ['sudo', 'make', 'test-packaged'], ['make test-packaged'],
@@ -278,6 +279,25 @@ class CIDesktop(unittest.TestCase):
         for test_only in ['scripts/ci-desktop.py', 'make test-packaged', 'scripts/packaged-send.py']:
             self.assertNotIn(test_only, release)
         self.assertIn('\tpython3 scripts/ci-desktop-test.py\n', (ROOT / 'Makefile').read_text())
+
+    def test_coverage_runs_under_the_loaded_profile_before_guaranteed_cleanup(self):
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        checks = workflow.split('  checks:\n', 1)[1]
+        setup = checks.index('run: python3 scripts/ci-desktop.py setup')
+        coverage = checks.index('run: python3 scripts/ci-desktop.py run -- make coverage\n')
+        cleanup = checks.index('run: python3 scripts/ci-desktop.py cleanup')
+        self.assertLess(setup, coverage)
+        self.assertLess(coverage, cleanup)
+        self.assertEqual(checks.count('run: python3 scripts/ci-desktop.py setup'), 1)
+        self.assertIn('if: always()', checks[checks.rfind('      - name:', 0, cleanup):cleanup])
+        self.assertIn(('make', 'coverage'), ci.COMMANDS)
+        self.assertNotIn('run: make coverage', checks)
+        self.assertNotIn('test-fuzz coverage', checks)
+        for target in ['test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'test-fuzz']:
+            self.assertIn('run: make ' + target + '\n', checks)
+        release = (ROOT / '.github/workflows/release.yml').read_text()
+        self.assertNotIn('run: make coverage', release)
+        self.assertNotIn('scripts/ci-desktop.py', release)
 
 
 class ProfileCapture(unittest.TestCase):

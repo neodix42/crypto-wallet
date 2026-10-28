@@ -83,8 +83,8 @@ func TestTP052PreparationRejectsInvalidIntent(t *testing.T) {
 		t.Fatal("wrong chain balance")
 	}
 	f.rpcError = "eth_getBalance"
-	if _, e := f.a.Balance(context.Background(), ac); e == nil {
-		t.Fatal("failed balance shown as zero")
+	if balances, e := f.a.Balance(context.Background(), ac); e != nil || len(balances) != 1 || balances[0].Atomic != "" || balances[0].State != "unavailable" {
+		t.Fatal("failed native observation was not explicitly unknown")
 	}
 }
 func TestTP052TokenAndGasStateFailures(t *testing.T) {
@@ -140,8 +140,8 @@ func TestTP052TokenAndGasStateFailures(t *testing.T) {
 		}
 		return nil, false
 	}
-	if _, e := f.a.Balance(context.Background(), ac); e == nil {
-		t.Fatal("malformed token balance")
+	if balances, e := f.a.Balance(context.Background(), ac); e != nil || len(balances) != 2 || balances[0].State != "provider-observed" || balances[1].Atomic != "" || balances[1].State != "unavailable" {
+		t.Fatal("malformed token observation became a balance or hid the verified native observation")
 	}
 	for _, b := range []map[string]string{{"number": "0xz", "hash": "x", "timestamp": "0x1", "baseFeePerGas": "0x1"}, {"number": "0x1", "hash": "0x" + strings.Repeat("a", 64), "timestamp": quantity(big.NewInt(time.Now().Unix())), "baseFeePerGas": "0xz"}} {
 		f := fakeNode(t, "ethereum-sepolia")

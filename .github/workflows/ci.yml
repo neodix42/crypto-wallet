@@ -82,7 +82,22 @@ jobs:
       - name: Provision pinned offline provenance verifier
         run: python3 scripts/bootstrap-gh.py >> "$GITHUB_PATH"
       - run: ./scripts/with-toolchain.sh python3 scripts/provision-tests.py
-      - run: make test test-security test-race test-interop test-integration test-fuzz coverage
+      - name: Exercise unit, frontend and developer-tool regressions
+        run: make test
+      - name: Exercise security boundaries and semantic mutants
+        run: make test-security
+      - name: Detect Go data races
+        run: make test-race
+      - name: Compare independent interoperability fixtures
+        run: make test-interop
+      - name: Exercise actual local chain integrations
+        run: make test-integration
+      - name: Exercise bounded fuzz campaigns
+        run: make test-fuzz
+      - name: Permit owned test namespaces in an ephemeral CI-only profile
+        run: python3 scripts/ci-desktop.py setup
+      - name: Measure and enforce current Go and frontend coverage
+        run: python3 scripts/ci-desktop.py run -- make coverage
       - name: Execute Go-signed USDT transfers on isolated pinned EVM
         run: WALLET_USDT_EVM=1 ./scripts/with-toolchain.sh go test ./internal/chains/evm -run USDT -count=1
       - run: make check-deps
@@ -90,8 +105,6 @@ jobs:
         run: make test-recovery
       - name: Check owned-process crash recovery and secret canaries
         run: make test-crash
-      - name: Permit sandboxed desktop checks in an ephemeral CI AppArmor profile
-        run: python3 scripts/ci-desktop.py setup
       - name: Retain legacy Electron phrase setup and recovery regression
         run: python3 scripts/ci-desktop.py run -- make test-packaged-desktop
       - name: Retain legacy Electron-approved payment on an isolated actual geth chain

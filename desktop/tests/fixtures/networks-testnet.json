@@ -2,10 +2,13 @@
   "schemaVersion": 1,
   "scope": "Public network DTOs from chains.All().Networks(), filtered by the named environment; no account seed, native UI, RPC or transaction operation.",
   "sourceSHA256": {
+    "desktop/tests/generate-registry-fixture.py": "fc7858d25e8a2aaca6c77c615981b62e9be0870d0e77738b0287896f9adabcef",
     "internal/chains/registry.go": "eb309fe9c84bdb6274ba7f235f3339787286de331408839ddf059a52aa8376ef",
-    "internal/chains/evm/registry.go": "e39f4508d9bf3aa9efff835e6edc008998af6a5a8239debc96fdd979111fd62f",
+    "internal/chains/evm/registry.go": "248310a2eadbeb5f4960a13cd694c3f58483b9d833f83c75564b518e26618523",
+    "internal/chains/evm/adapter.go": "58994c508abd354ffd3031adcb84008460197d61b826d5929dfc6388faee6ef2",
+    "internal/chains/evm/tokens.go": "0b9b52596b97d97a4db68690345af5b5acdacd135241c372d4c2a94198e8454c",
     "internal/chains/hypercore/adapter.go": "07953904ef1e6854afb304acb0e8a589fab8053c36475fc637878ee5a7b7eeaf",
-    "internal/chains/near/near.go": "130338ac7e41d4d903f49cc567de91ccc67e67b2ef52fa1cb080c7397c283c43",
+    "internal/chains/near/near.go": "fd2183d9a7b37618fe6b3dc8b889a0c69f1f51ee43948a389f8a14e4831576da",
     "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
     "internal/chains/decred/decred.go": "da7ca49a095ad6fe251b11a3915001f1a9ff34b62b0af5951d608f7015db267c",
     "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed"

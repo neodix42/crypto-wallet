@@ -28,6 +28,7 @@ ENABLED = pathlib.Path('/sys/module/apparmor/parameters/enabled')
 PROFILE_LIMIT = 1048576
 PROFILE_TIMEOUT = 10
 COMMANDS = frozenset({
+    ('make', 'coverage'),
     ('make', 'test-packaged'),
     ('make', 'test-wails-wallet'),
     ('make', 'test-send-portable'),
@@ -131,7 +132,7 @@ def setup():
 def run(command):
     require_ci()
     if tuple(command) not in COMMANDS:
-        raise RuntimeError('Only explicit packaged desktop checks are permitted by this helper')
+        raise RuntimeError('Only explicit packaged desktop and coverage checks are permitted by this helper')
     if not loaded():
         raise RuntimeError('CI desktop AppArmor profile is missing; run setup first')
     # aa-exec fails if it cannot select this profile. There is no unconfined or

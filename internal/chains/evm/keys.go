@@ -125,7 +125,7 @@ func (a *Adapter) ValidateAddress(net, s string) error {
 }
 
 func (a *Adapter) validateAccount(ac model.Account) (model.Network, error) {
-	n, e := network(ac.Network)
+	n, e := a.network(ac.Network)
 	if e != nil {
 		return n, e
 	}

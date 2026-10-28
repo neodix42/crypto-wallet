@@ -23,6 +23,18 @@ describe('public representation', () => {
     const row = node('row', 'open/public-account'); row.Children = [node('button'), node('label'), node('address'), node('button')];
     expect(isWalletRow(row)).toBe(true); row.Children.pop(); expect(isWalletRow(row)).toBe(false);
   });
+  it('validates every combo option before accepting a settings view', () => {
+    const state = view(), select = node('combo', 'field/region', 'Region');
+    state.Pages![0].Nodes = [select];
+    select.Options = [{ ID: 'official', Text: 'Official endpoint' }];
+    expect(validView(state)).toBe(true);
+    for (const option of [null, [], { ID: 'x\0', Text: 'Endpoint' }, { ID: 'official', Text: 'x'.repeat(4097) }]) {
+      select.Options = [option] as typeof select.Options;
+      expect(validView(state)).toBe(false);
+    }
+    const empty = view(); empty.Pages = null;
+    expect(validView(empty)).toBe(true);
+  });
 });
 
 describe('private prompt validation', () => {

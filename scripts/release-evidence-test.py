@@ -174,18 +174,205 @@ class ReleaseEvidence(unittest.TestCase):
         profile = 'mode: atomic\nlocalwallet/internal/vault/vault.go:2.1,2.30 1 1\n'
         if include_counters:
             profile += 'localwallet/internal/webui/window.go:2.1,2.30 1 1\n'
-        inputs = ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover')
+        inputs = ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover', 'go-webui-diagnostic.cover')
         for name in (*inputs, 'go.cover'):
             self.write('reports/' + name, profile)
         report = self.report('go-coverage')
         report['sourceSHA256'] = binding.go_sources(self.root)
         report['profiles'] = [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in inputs]
         report['nativeRuntime'] = {'status': 'PASS', 'sourceStable': True, 'instrumented': True,
+            'processIDs': [123, 124], 'privateProcessIDs': [456, 457], 'privateCounterProcesses': [456, 457], 'coverageStatus': 'MEASURED',
             'producerSHA256': binding.sha256(self.root / 'scripts/wails-wallet-test.py'),
             'instrumentedBinarySHA256': 'a' * 64,
             'artifact': {'runtime': 'wails-webkitgtk4.1; portable-go; sandbox=none', 'sha256': 'a' * 64}}
+        report['diagnosticCoverage'] = {'status': 'PASS'}
+        report['gates'] = [row for row in report['gates'] if row['gate'] != 'erc20-evm-execution']
+        report['gates'].append({'gate': 'erc20-evm-execution', 'status': 'PASS'})
         self.write_json('reports/go-coverage.json', report)
         self.write_json('reports/coverage.json', {'packages': binding.go_rows(self.root / 'reports/go.cover')})
+        self.seal_wails_frontend_fixture()
+
+    def seal_wails_frontend_fixture(self):
+        # These public counter/bundle fixtures exercise rejection semantics.
+        # They are never executed or presented as a React coverage measurement.
+        self.write('internal/webui/frontend/dist/index.html', '<main>Public fixture</main>')
+        self.write('internal/webui/frontend/dist/secret/index.html', '<main>Private-role fixture</main>')
+        self.write('internal/webui/frontend/dist/assets/fixture.js', '// Public compiled source fixture')
+        summary = {}
+        for name in binding.wails_frontend_files(self.root):
+            count = 0 if name.endswith('/types.ts') else 1
+            summary[str(self.root / name)] = {metric: {'total': count, 'covered': count, 'pct': 100}
+                                             for metric in ('statements', 'branches')}
+        self.write_json('reports/wails-frontend/coverage-summary.json', summary)
+        report = self.report('frontend-coverage')
+        report['wails'] = {'status': 'PASS', 'sourceStable': True,
+                          'sourceSHA256': binding.wails_frontend_sources(self.root),
+                          'runtimeSHA256': binding.wails_frontend_runtime(self.root),
+                          'coverageSummarySHA256': binding.sha256(self.root / 'reports/wails-frontend/coverage-summary.json'),
+                          'files': binding.wails_frontend_rows(self.root, summary)}
+        self.write_json('reports/frontend-coverage.json', report)
+
+    def test_current_wails_frontend_cannot_reuse_legacy_only_coverage(self):
+        self.current_wails_fixture()
+        report = self.report('frontend-coverage')
+        del report['wails']
+        self.write_json('reports/frontend-coverage.json', report)
+        self.assert_blocked('wails-frontend-coverage-missing-or-unstable')
+
+    def test_current_wails_requires_every_observed_private_role_counter(self):
+        self.current_wails_fixture()
+        original = self.report('go-coverage')
+        mutations = [
+            {'privateCounterProcesses': [456]},
+            {'privateCounterProcesses': [456, 789]},
+            {'privateCounterProcesses': []},
+            {'privateProcessIDs': [123, 457]},
+            {'privateProcessIDs': [456, 456]},
+            {'privateProcessIDs': [True, 457]},
+            {'processIDs': []},
+            {'processIDs': [1]},
+            {'coverageStatus': 'NOT_RUN'},
+        ]
+        for changed in mutations:
+            with self.subTest(changed=changed):
+                report = json.loads(json.dumps(original))
+                report['nativeRuntime'].update(changed)
+                self.write_json('reports/go-coverage.json', report)
+                self.assert_blocked('go-coverage-private-process-counters-incomplete')
+        self.write_json('reports/go-coverage.json', original)
+        self.assertEqual(self.failures(), [])
+
+    def test_current_wails_diagnostic_profile_and_tests_remain_required(self):
+        self.current_wails_fixture()
+        report = self.report('go-coverage')
+        report['diagnosticCoverage']['status'] = 'NOT_RUN'
+        self.write_json('reports/go-coverage.json', report)
+        self.assert_blocked('go-coverage-diagnostic-collector-incomplete')
+        report['diagnosticCoverage']['status'] = 'PASS'
+        report['profiles'] = [row for row in report['profiles'] if row['file'] != 'reports/go-webui-diagnostic.cover']
+        self.write_json('reports/go-coverage.json', report)
+        self.assert_blocked('go-coverage-raw-profiles-incomplete')
+
+    def test_current_erc20_execution_and_its_producer_cannot_be_omitted(self):
+        self.current_wails_fixture()
+        original = self.report('go-coverage')
+        for state in (None, 'NOT_RUN', 'FAIL'):
+            report = json.loads(json.dumps(original))
+            report['gates'] = [row for row in report['gates'] if row['gate'] != 'erc20-evm-execution']
+            if state is not None:
+                report['gates'].append({'gate': 'erc20-evm-execution', 'status': state})
+            self.write_json('reports/go-coverage.json', report)
+            self.assert_blocked('go-coverage-original-local-gates-incomplete')
+        self.write_json('reports/go-coverage.json', original)
+        self.write('tests/oracles/evm/erc20-node.mjs', '// Changed public local-node producer fixture')
+        self.assert_blocked('go-coverage-stale-or-incomplete-source-set')
+
+    def test_current_wails_frontend_source_and_compiled_assets_are_bound(self):
+        self.current_wails_fixture()
+        for name in ('internal/webui/frontend/src/PrivateApp.tsx',
+                     'internal/webui/frontend/src/added.test.tsx',
+                     'internal/webui/frontend/package-lock.json'):
+            with self.subTest(name=name):
+                path = self.root / name
+                original = path.read_bytes() if path.exists() else None
+                self.write(name, '// Public changed React source fixture')
+                self.assert_blocked('wails-frontend-coverage-stale-source')
+                if original is None:
+                    path.unlink()
+                else:
+                    path.write_bytes(original)
+        path = self.root / 'internal/webui/frontend/dist/assets/fixture.js'
+        path.write_text('// Changed compiled public fixture')
+        self.assert_blocked('wails-frontend-coverage-stale-runtime')
+
+    def test_current_wails_frontend_private_floors_cannot_be_lowered_or_forged(self):
+        self.current_wails_fixture()
+        raw = 'reports/wails-frontend/coverage-summary.json'
+        summary = binding.read_json(self.root, raw)
+        summary[str(self.root / 'internal/webui/frontend/src/PrivateApp.tsx')] = {
+            'statements': {'total': 100, 'covered': 94, 'pct': 94},
+            'branches': {'total': 100, 'covered': 89, 'pct': 89}}
+        self.write_json(raw, summary)
+        report = self.report('frontend-coverage')
+        report['wails']['coverageSummarySHA256'] = binding.sha256(self.root / raw)
+        report['wails']['files'] = binding.wails_frontend_rows(self.root, summary)
+        self.write_json('reports/frontend-coverage.json', report)
+        self.assert_blocked('wails-frontend-coverage-floors-or-measurement-mismatch')
+        report['wails']['files'][0]['floors'] = {'statements': 90, 'branches': 85}
+        self.write_json('reports/frontend-coverage.json', report)
+        self.assert_blocked('wails-frontend-coverage-floors-or-measurement-mismatch')
+        for metric in ('statements', 'branches'):
+            summary[str(self.root / 'internal/webui/frontend/src/PrivateApp.tsx')][metric]['pct'] = 100
+        rows = binding.wails_frontend_rows(self.root, summary)
+        self.assertEqual(next(row for row in rows if row['file'] == 'src/PrivateApp.tsx')['status'], 'FAIL')
+
+    def test_current_wails_frontend_requires_all_production_modules_and_counts(self):
+        self.current_wails_fixture()
+        report = self.report('frontend-coverage')['wails']
+        types = next(row for row in report['files'] if row['file'] == 'src/types.ts')
+        self.assertEqual(types['status'], 'NOT_APPLICABLE')
+        self.assertEqual(types['statements']['total'], 0)
+        summary = binding.read_json(self.root, 'reports/wails-frontend/coverage-summary.json')
+        for name in ('main.tsx', 'private-main.tsx', 'protocol.ts', 'icons.tsx'):
+            with self.subTest(name=name):
+                altered = dict(summary)
+                del altered[str(self.root / 'internal/webui/frontend/src' / name)]
+                rows = binding.wails_frontend_rows(self.root, altered)
+                self.assertEqual(next(row for row in rows if row['file'] == 'src/' + name)['status'], 'FAIL')
+        added = 'internal/webui/frontend/src/new-page.tsx'
+        self.write(added, 'export const publicFixture = 1;')
+        summary[str(self.root / added)] = {metric: {'total': 0, 'covered': 0, 'pct': 100}
+                                          for metric in ('statements', 'branches')}
+        rows = binding.wails_frontend_rows(self.root, summary)
+        self.assertEqual(next(row for row in rows if row['file'] == 'src/new-page.tsx')['status'], 'FAIL')
+
+    def test_current_wails_frontend_raw_summary_and_stability_are_required(self):
+        self.current_wails_fixture()
+        report = self.report('frontend-coverage')
+        report['wails']['sourceStable'] = False
+        self.write_json('reports/frontend-coverage.json', report)
+        self.assert_blocked('wails-frontend-coverage-missing-or-unstable')
+        report['wails']['sourceStable'] = True
+        self.write_json('reports/frontend-coverage.json', report)
+        raw = self.root / 'reports/wails-frontend/coverage-summary.json'
+        raw.write_text(raw.read_text() + '\n')
+        self.assert_blocked('wails-frontend-coverage-raw-summary-mismatch')
+
+    def test_current_wails_failed_measurement_cannot_reuse_an_old_passing_summary(self):
+        self.current_wails_fixture()
+        def run(command, **kwargs):
+            return subprocess.CompletedProcess(command, 1 if command[-1] == 'coverage' else 0)
+        with mock.patch.object(frontend.subprocess, 'run', side_effect=run):
+            report = frontend.measure_wails(self.root)
+        self.assertEqual(report['status'], 'FAIL')
+        self.assertEqual(report['reason'], 'wails-frontend-tests-or-coverage-failed')
+
+    def test_current_wails_measurement_rejects_concurrent_component_changes(self):
+        self.current_wails_fixture()
+        def run(command, **kwargs):
+            if command[-1] == 'coverage':
+                self.write('internal/webui/frontend/src/PrivateApp.tsx', '// Public concurrently changed fixture')
+            return subprocess.CompletedProcess(command, 0)
+        with mock.patch.object(frontend.subprocess, 'run', side_effect=run):
+            report = frontend.measure_wails(self.root)
+        self.assertEqual(report['status'], 'FAIL')
+        self.assertFalse(report['sourceStable'])
+        self.assertNotIn('sourceSHA256', report)
+        self.assertEqual(report['reason'], 'wails-frontend-source-or-runtime-changed-during-measurement')
+
+    def test_current_wails_compiled_runtime_cannot_change_during_legacy_measurement(self):
+        self.current_wails_fixture()
+        def run(command, **kwargs):
+            if command[0] == './node_modules/.bin/c8':
+                self.write('internal/webui/frontend/dist/assets/fixture.js', '// Public concurrently changed bundle')
+            return subprocess.CompletedProcess(command, 0)
+        with mock.patch.object(frontend.subprocess, 'run', side_effect=run), contextlib.redirect_stdout(io.StringIO()):
+            result = frontend.measure(self.root)
+        report = self.report('frontend-coverage')
+        self.assertEqual(result, 1)
+        self.assertEqual(report['status'], 'FAIL')
+        self.assertFalse(report['sourceStable'])
+        self.assertEqual(report['reason'], 'wails-frontend-source-or-runtime-changed-during-legacy-measurement')
 
     def test_current_wails_coverage_binds_react_html_css_pins_fork_and_drivers(self):
         self.current_wails_fixture()
@@ -236,7 +423,7 @@ class ReleaseEvidence(unittest.TestCase):
     def test_wails_94_percent_fails_original_critical_floor(self):
         self.current_wails_fixture()
         profile = 'mode: atomic\nlocalwallet/internal/webui/window.go:1.1,2.1 94 1\nlocalwallet/internal/webui/window.go:3.1,4.1 6 0\n'
-        inputs = ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover')
+        inputs = ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover', 'go-webui-diagnostic.cover')
         for name in (*inputs, 'go.cover'):
             self.write('reports/' + name, profile)
         report = self.report('go-coverage')

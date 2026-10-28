@@ -118,6 +118,24 @@ func (w *Window) autoPlainLabel(text string) bool {
 	defer C.free(unsafe.Pointer(p))
 	return C.test_plain_label(w.widget, p) != 0
 }
+
+func (w *Window) autoSetPublicEntry(id, value string) bool {
+	key := C.CString(id)
+	text := C.CString(value)
+	defer C.free(unsafe.Pointer(key))
+	defer C.free(unsafe.Pointer(text))
+	entry := C.test_find(w.widget, key)
+	if entry == nil {
+		return false
+	}
+	C.gtk_entry_set_text(entry, text)
+	return true
+}
+
+func (w *Window) autoActivity() { nativeUIActivity(C.uintptr_t(w.id)) }
+
+func (w *Window) autoClosePublic() { C.wallet_ui_close(w.widget) }
+
 func (w *Window) autoLateCallbacks() {
 	id := C.uintptr_t(w.id)
 	nativeUITick(id)

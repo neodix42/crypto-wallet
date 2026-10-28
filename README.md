@@ -66,6 +66,24 @@ App passwords protect the encrypted local vault; BIP39 recovery phrases determin
 
 Public mainnet providers are configured for Ethereum, HyperEVM, HyperCore, Base, Horizen, NEAR, Aptos and TON. Decred requires an authenticated TLS `dcrd` connection through **Configure trusted RPC**. Unknown/failed balances never become verified zero. A NEAR implicit address needs funding to exist on-chain; a verified missing account shows zero with activation guidance. See [mainnet configuration](docs/MAINNET.md) and [balance troubleshooting](docs/BALANCE_CONNECTIVITY.md).
 
+## Ethereum tokens
+
+The Ethereum wallet lists ETH and every configured ERC-20 token with its balance,
+full contract and decimal precision. ETH and canonical USDT remain configured by
+default. To track another token, use **Track an ERC-20 token → Verify and add
+token**, enter its contract on the selected Ethereum network and review the
+private password-authenticated confirmation. Select the token before **Send**;
+`1` means one token. **Receive** shows your owned Ethereum address/QR, shared by
+all tokens on that network. The token contract is not your receive address, and
+ETH pays sending fees.
+
+Only explicitly configured tokens are queried; this is not automatic inventory
+discovery. Unsupported metadata and failed token queries remain unknown, while
+other verified balances stay visible. Approved tracking metadata is encrypted
+locally and must be imported again after phrase-only recovery on another
+installation; the phrase still restores the same addresses and token ownership.
+See [supported ERC-20 behavior, limits and test evidence](docs/ERC20.md).
+
 ## Tests
 
 Use public synthetic fixtures only. No test automatically spends mainnet funds. The default tests run offline after dependencies/toolchains have been installed; optional node integrations explicitly report a skip when their prerequisites are absent.
@@ -79,6 +97,7 @@ python3 scripts/check-build-inputs-test.py # missing/untracked source and lockfi
 make test-go              # compile embedded frontend, then Go unit/corpus tests
 make frontend             # prepare embedded assets before direct go test ./...
 make test-exchange        # Bybit/signing/IPC/UI guards, mutations and explicit local USDT integration
+make test-erc20           # token import/policy/UI guards and real two-token local EVM transfers
 make test                 # Go plus current React and retained desktop tests
 make test-security        # vault/prompt/IPC/lifecycle, mutations, API surface checks
 make test-race            # Go race detector

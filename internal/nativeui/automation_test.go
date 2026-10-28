@@ -27,15 +27,19 @@ func TestNativeDialogsAndCancellationOnPrivateX11(t *testing.T) {
 	const id = "0123456789abcdef0123456789abcdef"
 	const canary = "public-synthetic-private-input-71032"
 	var privateEvents atomic.Int32
+	publicEvents := make(chan Event, 8)
 	w, err := New(func(e Event) {
 		if strings.Contains(e.Value, canary) || strings.Contains(e.Value, phrase) {
 			privateEvents.Add(1)
+		}
+		if e.ID == "publicRecipient" || e.ID == "activity" {
+			publicEvents <- e
 		}
 	})
 	if err != nil {
 		t.Fatal("private test display unavailable")
 	}
-	view := View{Title: "TEST CryptoWallet native", Active: "main", Pages: []Page{{ID: "main", Title: "Main account", Nodes: []Node{{Kind: "label", Text: "Public test view"}, {Kind: "entry", ID: "publicRecipient", Value: "public-recipient-value"}}}, {ID: "other", Title: "Other public wallet", Nodes: []Node{{Kind: "column", Children: []Node{{Kind: "heading", Text: "Public wallet"}, {Kind: "separator"}, {Kind: "row", ID: "publicRow", Children: []Node{{Kind: "address", Value: "public-owned-address"}, {Kind: "button", ID: "publicCopy", Text: "Copy public address", Tooltip: "Public tooltip"}}}, {Kind: "combo", ID: "publicAsset", Value: "native", Options: []Option{{ID: "native", Text: "Native asset"}}}, {Kind: "check", ID: "publicHidden", Text: "Public fixture", Value: "true", Disabled: true}}}}}}}
+	view := View{Title: "TEST CryptoWallet native", Active: "main", Pages: []Page{{ID: "main", Title: "Main account", Nodes: []Node{{Kind: "label", Text: "Public test view"}, {Kind: "entry", ID: "publicRecipient", Text: "Public recipient", Value: "public-recipient-value"}}}, {ID: "other", Title: "Other public wallet", Nodes: []Node{{Kind: "column", Children: []Node{{Kind: "heading", Text: "Public wallet"}, {Kind: "separator"}, {Kind: "row", ID: "publicRow", Children: []Node{{Kind: "address", Value: "public-owned-address"}, {Kind: "button", ID: "publicCopy", Text: "Copy public address", Tooltip: "Public tooltip"}}}, {Kind: "combo", ID: "publicAsset", Text: "Public asset", Value: "native", Options: []Option{{ID: "native", Text: "Native asset"}}}, {Kind: "check", ID: "publicHidden", Text: "Public fixture", Value: "true", Disabled: true}}}}}}}
 	w.Render(view)
 	finished := make(chan struct{})
 	go func() {
@@ -88,6 +92,51 @@ func TestNativeDialogsAndCancellationOnPrivateX11(t *testing.T) {
 		})
 		if !<-focusCheck {
 			t.Error("background rerender lost public entry focus, cursor or selection")
+		}
+		// Exercise real public GTK changed callbacks separately from private
+		// fields, and prove value-free activity is throttled on the GTK thread.
+		interaction := make(chan bool, 1)
+		w.Dispatch(func() {
+			labels := w.autoPlainLabel("Public recipient") && w.autoPlainLabel("Public asset")
+			changed := w.autoSetPublicEntry("publicRecipient", "exact-public-recipient")
+			w.lastInput = time.Time{}
+			w.autoActivity()
+			w.autoActivity()
+			autoSchedule("", -3, 0)
+			reply, err := w.Prompt(uiprompt.Prompt{ID: id, Kind: "confirm", Title: "TEST GTK-thread confirmation", Summary: "Public exact fixture effects"})
+			interaction <- labels && changed && err == nil && reply.Accepted && reply.PromptID == id
+		})
+		if !<-interaction {
+			t.Error("public labels/entry or direct GTK-thread confirmation failed")
+		}
+		if event := <-publicEvents; event != (Event{ID: "publicRecipient", Value: "exact-public-recipient"}) {
+			t.Error("real public entry callback changed its exact public input")
+		}
+		if event := <-publicEvents; event != (Event{ID: "activity"}) || len(publicEvents) != 0 {
+			t.Error("activity was not value-free and throttled")
+		}
+		// Render from the backend goroutine, rather than calling GTK directly.
+		background := cloneView(view)
+		background.Status, background.StatusRevision = "Backend-dispatched public status", 9
+		w.Render(background)
+		backgroundCheck := make(chan bool, 1)
+		w.Dispatch(func() { backgroundCheck <- w.autoStatus() == background.Status })
+		if !<-backgroundCheck {
+			t.Error("backend render did not reach the owned GTK dispatcher")
+		}
+		w.DispatchControl(func() { w.statusUntil = time.Now().Add(-time.Millisecond) })
+		expired := false
+		for range 30 {
+			check := make(chan bool, 1)
+			w.Dispatch(func() { check <- w.statusUntil.IsZero() && w.autoStatus() == "" })
+			if <-check {
+				expired = true
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		if !expired {
+			t.Error("real GLib tick did not retire expired public status")
 		}
 		var pngData bytes.Buffer
 		_ = png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 8, 8)))
@@ -239,10 +288,20 @@ func TestNativeDialogsAndCancellationOnPrivateX11(t *testing.T) {
 		}
 		// Closing the public window must also release an active private input
 		// and its waiting backend goroutine, without touching destroyed widgets.
-		go func() { time.Sleep(80 * time.Millisecond); w.Close() }()
+		var drainedAfterClose atomic.Bool
+		go func() {
+			time.Sleep(80 * time.Millisecond)
+			w.DispatchControl(func() {
+				w.Dispatch(func() { drainedAfterClose.Store(w.closed) })
+				w.autoClosePublic()
+			})
+		}()
 		_, err = w.Prompt(uiprompt.Prompt{ID: id, Kind: "input", Title: "TEST close with private input", Labels: []string{"Synthetic password"}})
 		if !errors.Is(err, uiprompt.ErrCancelled) {
 			t.Error("window close left a private prompt alive")
+		}
+		if !drainedAfterClose.Load() {
+			t.Error("actual GTK close failed to retire queued backend callbacks")
 		}
 	}()
 	w.Run()

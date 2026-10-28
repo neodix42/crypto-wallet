@@ -30,7 +30,8 @@ def source_hashes():
 def local_gates(env):
     # These flags can only enable local emulator/simnet tests. External funded
     # testnet gates stay separate; do not inherit a user-selected live endpoint.
-    for name in ("WALLET_NEAR_LOCAL_RPC", "WALLET_APTOS_LOCAL", "WALLET_APTOS_ROTATION", "LOCALWALLET_EVM_NODE"):
+    for name in ("WALLET_NEAR_LOCAL_RPC", "WALLET_NEAR_STAKING_LOCAL_RPC", "WALLET_NEAR_STAKING_TESTNET",
+                 "WALLET_APTOS_LOCAL", "WALLET_APTOS_ROTATION", "LOCALWALLET_EVM_NODE"):
         env.pop(name, None)
     candidates = [os.environ.get("WALLET_DCRD", ""), str(root / ".tools/dcrd/dcrd"),
                   str(root / ".tools/dcrd"), "/tmp/localwallet-dcr-bin/dcrd"]
@@ -72,11 +73,57 @@ def local_gates(env):
     else:
         report["gates"].append({"gate": "usdt-evm-execution", "status": "BLOCKED",
                                 "reason": "Run npm ci --ignore-scripts in tests/oracles/evm"})
+    env.pop("WALLET_ERC20_EVM", None)
+    if shutil.which("node") and all((oracle / name / "package.json").is_file() and
+            json.loads((oracle / name / "package.json").read_text()).get("version") == version
+            for name, version in (("ethers", "6.17.0"), ("ganache", "7.9.2"), ("solc", "0.8.30"))):
+        env["WALLET_ERC20_EVM"] = "1"
+        report["gates"].append({"gate": "erc20-evm-execution", "status": "READY",
+                                "source": "Two deployed ERC-20 contracts; ethers 6.17.0 / Ganache 7.9.2 / solc 0.8.30"})
+    else:
+        report["gates"].append({"gate": "erc20-evm-execution", "status": "BLOCKED",
+                                "reason": "Run npm ci --ignore-scripts in tests/oracles/evm"})
     env["WALLET_EVIDENCE_DIR"] = str(reports)
 
 
+def first_party_packages(env):
+    """Resolve owned package identities before asking Go to instrument them.
+
+    Go's wildcard coverage matching can include a replaced dependency whose
+    source directory lives under this checkout. The reviewed Wails fork is
+    third-party code; its own security tests remain separate. Enumerating the
+    wallet module keeps every owned package without instrumenting dependencies.
+    """
+    command = ["go", "list", "-tags", "production,webkit2_41", "-f",
+               "{{.ImportPath}}\t{{.Dir}}\t{{if .Module}}{{.Module.Path}}{{end}}", "./..."]
+    output = subprocess.check_output(command, cwd=root, env=env, text=True, timeout=60)
+    packages = []
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 3:
+            raise RuntimeError("Invalid Go package ownership metadata")
+        name, directory, module = fields
+        if module != "localwallet" or not (name == module or name.startswith(module + "/")):
+            raise RuntimeError("Go package enumeration included a foreign module")
+        try:
+            relative = pathlib.Path(directory).resolve().relative_to(root.resolve())
+        except ValueError:
+            raise RuntimeError("Go package source directory is outside the wallet checkout") from None
+        if relative.parts and relative.parts[0] in ("third_party", "vendor", ".tools", "node_modules"):
+            raise RuntimeError("Go package enumeration included a dependency source directory")
+        if name in packages:
+            raise RuntimeError("Duplicate Go package ownership metadata")
+        packages.append(name)
+    if not packages:
+        raise RuntimeError("No first-party Go packages were enumerated")
+    report["instrumentedPackages"] = sorted(packages)
+    report["packageEnumeration"] = command
+    return sorted(packages)
+
+
 def all_packages(env):
-    command = ["go", "test", "-tags", "production,webkit2_41", "-timeout=10m", "-count=1", "-covermode=atomic", "-coverpkg=./...",
+    packages_to_cover = first_party_packages(env)
+    command = ["go", "test", "-tags", "production,webkit2_41", "-timeout=10m", "-count=1", "-covermode=atomic", "-coverpkg=" + ",".join(packages_to_cover),
                "-coverprofile=" + str(reports / "go-base.cover"), "-json", "./..."]
     packages = {}
     failures = []
@@ -121,7 +168,8 @@ def all_packages(env):
                     process.wait()
     report["goTests"] = {"status": "PASS" if code == 0 else "FAIL", "exit": code, "packages": packages, "failures": failures}
     for gate, test in (("decred-simnet", "TestDcrdSimnet"), ("ton-v5r1-emulator", "TestWalletV5R1Emulator"),
-                       ("usdt-evm-execution", "TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache")):
+                       ("usdt-evm-execution", "TestTP050USDTGoSignedTransactionsExecuteOnIndependentGanache"),
+                       ("erc20-evm-execution", "TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache")):
         for row in report["gates"]:
             if row["gate"] == gate and row["status"] == "READY":
                 executed = any(name == test for _, name in passed_tests)
@@ -172,6 +220,28 @@ def portable_memory_coverage(env):
     return 0 if status == "PASS" else 1
 
 
+def webui_diagnostic_coverage(env):
+    """Measure the opt-in counter collector separately from production code.
+
+    The ordinary base suite keeps production's restricted environment/no-op;
+    this additional raw profile also exercises diagnostic directory guards.
+    """
+    profile = reports / "go-webui-diagnostic.cover"
+    profile.unlink(missing_ok=True)
+    command = ["go", "test", "-tags", "production,webkit2_41,portable,walletcoverage",
+               "-covermode=atomic", "-coverpkg=./internal/webui", "-coverprofile=" + str(profile),
+               "-count=1", "-json", "./internal/webui"]
+    result = subprocess.run(command, cwd=root, env=env, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, timeout=120)
+    log = reports / "webui-diagnostic-test.jsonl"
+    log.write_text(result.stdout)
+    report["diagnosticCoverage"] = {"status": "PASS" if result.returncode == 0 else "FAIL",
+        "command": command, "rawLogSHA256": hashlib.sha256(log.read_bytes()).hexdigest(),
+        "scope": "Additional walletcoverage-tag-only tests; production base still measures shipped environment restrictions"}
+    print("Wails diagnostic collector coverage:", report["diagnosticCoverage"]["status"], flush=True)
+    return result.returncode
+
+
 def portable_runtime_coverage(env):
     """Instrumented GUI acceptance stays separate from the shipped candidate."""
     profile = reports / "go-native-runtime.cover"
@@ -181,7 +251,7 @@ def portable_runtime_coverage(env):
         binary = folder / "cryptowallet-instrumented"
         counters = folder / "counters"
         counters.mkdir(mode=0o700)
-        subprocess.run(["go", "build", "-tags", "production,webkit2_41,portable", "-cover", "-covermode=atomic",
+        subprocess.run(["go", "build", "-tags", "production,webkit2_41,portable,walletcoverage", "-cover", "-covermode=atomic",
                         "-coverpkg=./cmd/cryptowallet,./internal/nativewallet,./internal/webui,./internal/isolation",
                         "-trimpath", "-ldflags=-X localwallet/internal/buildinfo.Version=" + selected_version(root),
                         "-o", str(binary), "./cmd/cryptowallet"],
@@ -193,12 +263,26 @@ def portable_runtime_coverage(env):
         evidence = reports / "wails-wallet-coverage.json"
         report["nativeRuntime"] = json.loads(evidence.read_text()) if evidence.is_file() else {"status": "BLOCKED", "reason": "Instrumented Wails runtime report missing"}
         report["nativeRuntime"]["instrumentedBinarySHA256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        if result.returncode or report["nativeRuntime"].get("status") != "PASS" or report["nativeRuntime"].get("instrumented") is not True:
+            # Preserve the driver's actual startup/namespace/workflow failure.
+            # No application ran when its namespace prerequisite was denied;
+            # missing counters are a consequence, not the diagnostic cause.
+            report["nativeRuntime"]["exit"] = result.returncode
+            report["nativeRuntime"]["coverageStatus"] = "NOT_RUN" if not any(counters.glob("covcounters.*")) else "INCOMPLETE"
+            return 1
         if not any(counters.glob("covmeta.*")):
             raise RuntimeError("Instrumented native runtime produced no Go coverage metadata")
+        parents = report["nativeRuntime"].get("processIDs", [])
+        prompts = report["nativeRuntime"].get("privateProcessIDs", [])
+        measured = {int(path.name.split(".")[2]) for path in counters.glob("covcounters.*")
+                    if len(path.name.split(".")) == 4 and path.name.split(".")[2].isdigit()}
+        if (not parents or not prompts or set(prompts) & set(parents) or
+                not set(prompts) <= measured):
+            raise RuntimeError("Not every observed private prompt process produced distinct Go coverage counters")
+        report["nativeRuntime"]["privateCounterProcesses"] = sorted(prompts)
         subprocess.run(["go", "tool", "covdata", "textfmt", "-i=" + str(counters), "-o=" + str(profile)],
                        cwd=root, env=env, check=True, timeout=60)
-        if result.returncode or report["nativeRuntime"].get("status") != "PASS" or report["nativeRuntime"].get("instrumented") is not True:
-            return 1
+        report["nativeRuntime"]["coverageStatus"] = "MEASURED"
         return 0
 
 
@@ -214,6 +298,8 @@ def merge_profiles(paths):
         for line in lines[1:]:
             location, statements, count = line.rsplit(" ", 2)
             source = location.rsplit(":", 1)[0]
+            if not source.startswith("localwallet/"):
+                raise RuntimeError("Coverage profile includes dependency instrumentation; rerun with explicit wallet package identities")
             if source in ("localwallet/internal/secureui/automation.go",
                           "localwallet/internal/secureui/recovery_automation.go",
                           "localwallet/internal/nativeui/automation.go"):
@@ -275,6 +361,7 @@ def main():
         native_ui_report = reports / "native-ui.json"
         report["nativeDesktopInput"] = json.loads(native_ui_report.read_text()) if native_ui_report.is_file() else {"status": "BLOCKED", "reason": "Native desktop input report missing"}
         memory_exit = portable_memory_coverage(env)
+        diagnostic_exit = webui_diagnostic_coverage(env)
         runtime_exit = portable_runtime_coverage(env)
         after = source_hashes()
         if after != before:
@@ -282,7 +369,7 @@ def main():
             raise RuntimeError("Go sources/module pins changed during measurement; rerun on a stable working tree")
         report["sourceSHA256"] = before
         report["sourceCommit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-        if go_exit or native.returncode or native_ui.returncode or memory_exit or runtime_exit:
+        if go_exit or native.returncode or native_ui.returncode or memory_exit or diagnostic_exit or runtime_exit:
             raise RuntimeError("A Go/native suite failed; do not reuse old coverage as evidence")
         # Retain the exact input to this measurement: a later standalone native
         # security run rewrites native-input.cover with different counters.
@@ -292,7 +379,7 @@ def main():
         # regression counters; both must remain available to evidence verification.
         native_ui_profile = reports / "go-nativeui.cover"
         shutil.copyfile(reports / "native-ui.cover", native_ui_profile)
-        profile = merge_profiles([reports / "go-base.cover", native_profile, native_ui_profile, reports / "go-native-runtime.cover", reports / "go-portable-memory.cover"])
+        profile = merge_profiles([reports / "go-base.cover", native_profile, native_ui_profile, reports / "go-native-runtime.cover", reports / "go-portable-memory.cover", reports / "go-webui-diagnostic.cover"])
         uncovered_blocks(profile)
         subprocess.run(["go", "tool", "cover", "-html=" + str(profile), "-o", str(reports / "go.html")], cwd=root, check=True)
         floor = subprocess.run(["python3", "scripts/coverage.py", str(profile)], cwd=root)

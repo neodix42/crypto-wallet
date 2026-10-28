@@ -698,8 +698,11 @@ class BuildTools(unittest.TestCase):
         text = (ROOT / '.github/workflows/release.yml').read_text()
         tests = (ROOT / '.github/workflows/ci.yml').read_text()
         publish = text.index('gh release create ')
-        gate = ' '.join(line.split('run: ', 1)[1] for line in tests.splitlines() if 'run: make ' in line)
-        self.assertTrue(set(('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'test-fuzz', 'coverage', 'check-deps')).issubset(shlex.split(gate)))
+        runs = [shlex.split(line.split('run: ', 1)[1]) for line in tests.splitlines() if 'run: ' in line]
+        wrapper = ['python3', 'scripts/ci-desktop.py', 'run', '--']
+        gates = [command[len(wrapper):] if command[:len(wrapper)] == wrapper else command for command in runs]
+        for target in ('test', 'test-security', 'test-race', 'test-interop', 'test-integration', 'test-fuzz', 'coverage', 'check-deps'):
+            self.assertIn(['make', target], gates)
         for required in ('make test-packaged', 'scripts/packaged-send.py', 'make test-recovery', 'make test-crash', 'WALLET_USDT_EVM=1'):
             self.assertIn(required, tests)
         for forbidden in ('make test', 'scripts/provision-tests.py', 'scripts/ci-desktop.py', 'scripts/record-evidence.py', 'test-security', 'test-race', 'xvfb', 'tesseract'):

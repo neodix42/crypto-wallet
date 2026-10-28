@@ -11,6 +11,7 @@ import (
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -572,17 +573,27 @@ func TestPublicErrorCodesAreFixedAndBusyClosedViewsDoNotAuthorizeWork(t *testing
 }
 
 func TestRunRejectsForeignProfileAndMissingDisplayBeforeOpeningStorage(t *testing.T) {
-	if Run("unrecognized-profile") == nil {
-		t.Fatal("unrecognized profile entered native startup")
-	}
 	private := t.TempDir()
 	t.Setenv("HOME", private)
 	t.Setenv("XDG_CONFIG_HOME", private+"/config")
 	t.Setenv("DISPLAY", "")
 	t.Setenv("WAYLAND_DISPLAY", "")
 	t.Setenv("GDK_BACKEND", "x11")
-	if Run("mainnet") == nil {
-		t.Fatal("missing native display did not fail safely")
+	if Run("unrecognized-profile") == nil {
+		t.Fatal("unrecognized profile entered native startup")
+	}
+	for _, environment := range []string{"mainnet", "testnet"} {
+		for _, display := range []string{"", " \t"} {
+			t.Setenv("DISPLAY", display)
+			t.Setenv("WAYLAND_DISPLAY", display)
+			if err := Run(environment); err == nil || err.Error() != "wallet desktop unavailable: no X11 or Wayland display configured" {
+				t.Fatal("missing desktop did not return a safe startup error")
+			}
+		}
+	}
+	entries, err := os.ReadDir(private)
+	if err != nil || len(entries) != 0 {
+		t.Fatal("rejected startup created profile files or other local state")
 	}
 }
 

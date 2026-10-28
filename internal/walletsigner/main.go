@@ -288,6 +288,22 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		}
 	case "settings":
 		out = e.Settings()
+	case "tokenPolicies":
+		if signer.DecodeBody(m.Body, &struct{}{}) != nil {
+			return nil, signer.ErrDenied
+		}
+		out = e.TokenPolicies()
+	case "importToken":
+		var b struct {
+			AccountID string           `json:"accountId"`
+			Token     model.ERC20Token `json:"token"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			err = e.ImportToken(b.AccountID, b.Token)
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "associate":
 		var a model.Account
 		if err = signer.DecodeBody(m.Body, &a); err == nil {

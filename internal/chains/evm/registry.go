@@ -26,6 +26,7 @@ var tokenCodeHashes = map[string]string{
 // Its transport must not log request bodies. Endpoint changes still require chain-ID checks.
 type Adapter struct {
 	endpoints  map[string]string
+	tokens     []model.ERC20Token
 	HTTPClient *http.Client
 }
 
@@ -72,8 +73,22 @@ func (a *Adapter) Networks() []model.Network {
 		if ep, ok := a.endpoints[ns[i].ID]; ok {
 			ns[i].RPC = ep
 		}
+		for _, token := range a.tokens {
+			if token.Network == ns[i].ID {
+				ns[i].Assets = append(ns[i].Assets, token.Asset)
+			}
+		}
 	}
 	return ns
+}
+
+func (a *Adapter) network(id string) (model.Network, error) {
+	for _, n := range a.Networks() {
+		if n.ID == id {
+			return n, nil
+		}
+	}
+	return model.Network{}, fmt.Errorf("unsupported EVM network")
 }
 func network(id string) (model.Network, error) {
 	for _, n := range registry() {

@@ -26,6 +26,7 @@ GO_COVERAGE_INPUTS = ('scripts/go-coverage.py', 'scripts/coverage.py',
 # fixtures/checkouts without any Wails package/module retain their old verifier
 # scope; their absence cannot waive files once a current Wails marker is present.
 WAILS_COVERAGE_INPUTS = ('scripts/wails-wallet-test.py', 'scripts/wails-inspector-test.py', 'scripts/test-wails-security.py',
+                         'tests/oracles/evm/erc20-node.mjs',
                          'scripts/verify-wails-fork.py',
                          'internal/webui/frontend/package.json', 'internal/webui/frontend/package-lock.json',
                          'internal/webui/frontend/tsconfig.json', 'internal/webui/frontend/vite.config.ts',
@@ -136,6 +137,75 @@ def frontend_runtime(root):
     return hash_names(root, names)
 
 
+def wails_frontend_sources(root):
+    names = [name for name in WAILS_COVERAGE_INPUTS if name.startswith('internal/webui/frontend/')]
+    names.extend(('scripts/frontend-coverage.py', 'scripts/evidence_binding.py'))
+    names.extend(files_below(root, 'internal/webui/frontend/src'))
+    return hash_names(root, names)
+
+
+def wails_frontend_runtime(root):
+    names = files_below(root, 'internal/webui/frontend/dist')
+    names.extend(('internal/webui/frontend/dist/index.html', 'internal/webui/frontend/dist/secret/index.html'))
+    return hash_names(root, names)
+
+
+def wails_frontend_files(root):
+    # Test modules and their public fixture factory are non-shipped inputs. All
+    # production TypeScript is required, even when no test imports that module.
+    return sorted(name for name in files_below(root, 'internal/webui/frontend/src')
+                  if name.endswith(('.ts', '.tsx')) and
+                  not name.endswith(('.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx', '/test-fixtures.ts')))
+
+
+def wails_frontend_rows(root, summary):
+    required = {name for name in WAILS_COVERAGE_INPUTS
+                if name.startswith('internal/webui/frontend/src/') and name.endswith(('.ts', '.tsx'))}
+    present = set(wails_frontend_files(root))
+    rows = []
+    for name in sorted(present | required):
+        relative = name.removeprefix('internal/webui/frontend/')
+        critical = relative in ('src/PrivateApp.tsx', 'src/private-main.tsx', 'src/protocol.ts')
+        floors = {'statements': 95 if critical else 90, 'branches': 90 if critical else 85}
+        record = summary.get(str(pathlib.Path(root) / name))
+        metrics, passed = {}, name in present
+        for metric, floor in floors.items():
+            value = record.get(metric) if isinstance(record, dict) else None
+            total = value.get('total') if isinstance(value, dict) else None
+            covered = value.get('covered') if isinstance(value, dict) else None
+            pct = value.get('pct') if isinstance(value, dict) else None
+            valid = (type(total) is int and type(covered) is int and 0 <= covered <= total and
+                     type(pct) in (int, float) and math.isfinite(pct) and
+                     0 <= pct <= 100 and abs(pct - (100 * covered / total if total else 100)) < .011)
+            metrics[metric] = {'total': total, 'covered': covered, 'percent': pct}
+            passed = passed and valid and pct >= floor
+        # This file contains only TypeScript interfaces/declarations. Keep it
+        # in the report and raw denominator; do not invent executed statements.
+        type_only = (relative == 'src/types.ts' and passed and
+                     all(value['total'] == 0 for value in metrics.values()))
+        if not type_only and metrics['statements']['total'] == 0:
+            passed = False
+        row = {'file': relative, **metrics, 'floors': floors,
+               'status': 'NOT_APPLICABLE' if type_only else 'PASS' if passed else 'FAIL'}
+        if type_only:
+            row['reason'] = 'Type-only interfaces and declarations; no executable statements or branches.'
+        rows.append(row)
+    return rows
+
+
+def validate_wails_frontend(root, report):
+    if not isinstance(report, dict) or report.get('status') != 'PASS' or report.get('sourceStable') is not True:
+        raise EvidenceError('wails-frontend-coverage-missing-or-unstable')
+    equal_snapshot(report.get('sourceSHA256'), wails_frontend_sources(root), 'wails-frontend-coverage-stale-source')
+    equal_snapshot(report.get('runtimeSHA256'), wails_frontend_runtime(root), 'wails-frontend-coverage-stale-runtime')
+    raw = regular(root, 'reports/wails-frontend/coverage-summary.json')
+    if report.get('coverageSummarySHA256') != sha256(raw):
+        raise EvidenceError('wails-frontend-coverage-raw-summary-mismatch')
+    rows = wails_frontend_rows(root, read_json(root, 'reports/wails-frontend/coverage-summary.json'))
+    if not rows or report.get('files') != rows or any(row['status'] == 'FAIL' for row in rows):
+        raise EvidenceError('wails-frontend-coverage-floors-or-measurement-mismatch')
+
+
 def equal_snapshot(actual, expected, code):
     if not isinstance(actual, dict) or not actual or actual != expected:
         raise EvidenceError(code)
@@ -224,6 +294,8 @@ def validate_frontend(root, report):
     rows = frontend_rows(root, read_json(root, 'reports/desktop/coverage-summary.json'))
     if report.get('files') != rows or any(row['status'] != 'PASS' for row in rows):
         raise EvidenceError('frontend-coverage-floors-or-measurement-mismatch')
+    if wails_build(root):
+        validate_wails_frontend(root, report.get('wails'))
 
 
 def go_rows(profile):
@@ -264,7 +336,10 @@ def validate_go(root, report, floor_report):
         raise EvidenceError('go-coverage-missing-or-incomplete')
     equal_snapshot(report.get('sourceSHA256'), go_sources(root), 'go-coverage-stale-or-incomplete-source-set')
     gates = report.get('gates')
-    if not isinstance(gates, list) or len(gates) != 3 or {row.get('gate') for row in gates if isinstance(row, dict)} != {'decred-simnet', 'ton-v5r1-emulator', 'usdt-evm-execution'} or any(not isinstance(row, dict) or row.get('status') != 'PASS' for row in gates):
+    required_gates = {'decred-simnet', 'ton-v5r1-emulator', 'usdt-evm-execution'}
+    if wails_build(root):
+        required_gates.add('erc20-evm-execution')
+    if not isinstance(gates, list) or len(gates) != len(required_gates) or {row.get('gate') for row in gates if isinstance(row, dict)} != required_gates or any(not isinstance(row, dict) or row.get('status') != 'PASS' for row in gates):
         raise EvidenceError('go-coverage-original-local-gates-incomplete')
     portable = report.get('portableMemory')
     memory_tests = {'TestStaticBuildDoesNotPretendLegacySandboxIsInstalled',
@@ -287,9 +362,22 @@ def validate_go(root, report, floor_report):
                 not re.fullmatch(r'[0-9a-f]{64}', artifact['sha256']) or
                 artifact['sha256'] != runtime.get('instrumentedBinarySHA256')):
             raise EvidenceError('go-coverage-wails-runtime-not-bound')
+        def process_ids(value):
+            return (isinstance(value, list) and bool(value) and
+                    all(type(pid) is int and pid > 1 for pid in value) and len(set(value)) == len(value))
+        parents, prompts, measured = (runtime.get(name) for name in ('processIDs', 'privateProcessIDs', 'privateCounterProcesses'))
+        if (not all(process_ids(value) for value in (parents, prompts, measured)) or
+                set(parents) & set(prompts) or set(prompts) != set(measured) or
+                runtime.get('coverageStatus') != 'MEASURED'):
+            raise EvidenceError('go-coverage-private-process-counters-incomplete')
+        diagnostic = report.get('diagnosticCoverage')
+        if not isinstance(diagnostic, dict) or diagnostic.get('status') != 'PASS':
+            raise EvidenceError('go-coverage-diagnostic-collector-incomplete')
     profiles = report.get('profiles')
     required = {'reports/go-base.cover', 'reports/go-native.cover', 'reports/go-nativeui.cover', 'reports/go-native-runtime.cover', 'reports/go-portable-memory.cover'}
-    if not isinstance(profiles, list) or len(profiles) != 5 or any(not isinstance(row, dict) for row in profiles) or {row.get('file') for row in profiles} != required:
+    if wails_build(root):
+        required.add('reports/go-webui-diagnostic.cover')
+    if not isinstance(profiles, list) or len(profiles) != len(required) or any(not isinstance(row, dict) for row in profiles) or {row.get('file') for row in profiles} != required:
         raise EvidenceError('go-coverage-raw-profiles-incomplete')
     for row in profiles:
         if row.get('sha256') != sha256(regular(root, row['file'])):

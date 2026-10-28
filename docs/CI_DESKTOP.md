@@ -1,4 +1,34 @@
-# Packaged desktop startup in GitHub Actions
+# Isolated desktop and coverage checks in GitHub Actions
+
+## Current Wails coverage prerequisite — 2026-10-28
+
+The [reported test run](https://github.com/neodix42/crypto-wallet/actions/runs/40632779639) passed its Wails application job, but the separate checks job failed while starting the instrumented Wails coverage workflow: `Private network namespace preserving ordinary UID unavailable`. The hosted Ubuntu runner denied the coverage driver's user/network namespace. The temporary CI permission was configured only after the combined test-and-coverage step, so that step could never inherit it. This was a test-infrastructure ordering error, not evidence of a wallet startup failure or a passing coverage gate.
+
+Coverage now has its own named step, after `scripts/ci-desktop.py setup`, and runs through the exact allowlisted command `python3 scripts/ci-desktop.py run -- make coverage`. Unit, security, race, interoperability, local integration and fuzz checks retain separate named steps. The same permission remains available to the explicitly retained Electron regression checks, and an `always()` cleanup removes it before artifact upload even when a check fails. Build/publication remain separate and load no profiles or tests.
+
+This named profile permits only the owned test namespaces required to keep disposable wallets away from public networks. It does not change the installed application's confinement, load policy on a developer machine, grant namespace permission to unrelated host processes, or alter a kernel setting. The portable Wails application still uses the owner-requested unconfined Go roles and explicitly disabled WebKit renderer sandbox. The helper rejects arbitrary commands and additional Make arguments.
+
+| Status | Scope |
+| --- | --- |
+| PASS | 21 offline CI-helper regressions, including actual offline parser compilation, explicit coverage argv, setup/coverage/always-cleanup ordering, failure propagation, and rejection of additional Make arguments. No kernel policy was loaded locally. |
+| PASS | Pinned actionlint v1.7.12 accepts all three workflows. |
+| NOT_RUN | Execution of the changed namespace/coverage wiring on a fresh GitHub-hosted runner; the original red run records the old source. Numerical coverage and other gates remain independently enforced. |
+
+Run `python3 scripts/ci-desktop-test.py` locally; it never invokes sudo, loads a host profile or starts a wallet. The actual CI-only setup/run/cleanup commands intentionally reject local developer environments. Source-bound results are written to `reports/ci-desktop-tools.json`.
+
+The combined local campaign also reproduced a separate public-pixel race during
+address copying. A WebKit hover tooltip and one legitimate private window both
+temporarily used GTK's `cryptowallet` title. Failure-only X11 metadata established
+that the tooltip belonged to the public PID, had tooltip type/override-redirect
+and was transient for the public window; the normal private window had a
+different PID. The driver now moves the pointer to empty space after the
+explicit read-only click. It still rejects unknown or multiple private windows,
+and never sends private/loading pixels through public OCR. Three actual Decred
+copy cycles and ten startup regressions pass. The `--decred-copy-only` and
+`--tokens-only` modes label their evidence as partial; neither substitutes for
+the full coverage/recovery campaign.
+
+## Historical Electron startup diagnosis — 2026-10-27
 
 The reported [release job](https://github.com/neodix42/crypto-wallet/actions/runs/40467178485/job/122065301167) built, verified and installed version 0.1.1, then failed before any mapped LocalWallet window. Its uploaded evidence contained an empty desktop and failed report but no launcher log. The remote report therefore does not establish the precise Chromium error.
 

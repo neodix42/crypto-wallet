@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -177,7 +178,7 @@ func promptEnvironment() []string {
 			env = append(env, key+"="+value)
 		}
 	}
-	return env
+	return coveragePromptEnvironment(env)
 }
 
 // Only the current executable can host a private prompt. The words/passwords
@@ -374,6 +375,9 @@ func (b *PrivateBridge) Reply(reply uiprompt.Reply) bool {
 		close(b.done)
 		b.done = nil
 	}
+	// Only diagnostic coverage builds persist statement counters. Flush before
+	// releasing the reply: the parent immediately retires and reaps this role.
+	flushPromptCoverage()
 	err = b.channel.Write(ipc.Message{Version: 1, ID: b.prompt.ID, Session: b.session, Method: "reply", Body: raw})
 	b.clear()
 	if b.ctx != nil {
@@ -498,6 +502,10 @@ func checkPrivatePipes(read, write, image *os.File) error {
 }
 func RunPrivate() error {
 	read, write, image := os.NewFile(3, "wallet-private-input"), os.NewFile(4, "wallet-private-output"), os.NewFile(5, "wallet-private-image")
+	return runPrivate(read, write, image)
+}
+
+func runPrivate(read, write, image *os.File) error {
 	if read == nil || write == nil || image == nil {
 		return errDesktop
 	}
@@ -508,22 +516,89 @@ func RunPrivate() error {
 		return errDesktop
 	}
 	channel := &ipc.Channel{R: read, W: write}
+	p, session, err := readPrivatePrompt(channel)
+	if err != nil {
+		return err
+	}
+	b := &PrivateBridge{prompt: p, channel: channel, session: session}
+	defer b.clear()
+	prepareWebKitRuntime()
+	configureWebKitSignal()
+	a := privateAppOptions(p)
+	a.Bind = []interface{}{b}
+	a.OnStartup = func(ctx context.Context) {
+		b.mu.Lock()
+		b.ctx = ctx
+		b.mu.Unlock()
+		go func() {
+			b.parentMessages()
+			wruntime.Quit(ctx)
+		}()
+	}
+	a.OnBeforeClose = func(context.Context) bool {
+		b.cancel()
+		return false
+	}
+	a.OnShutdown = func(context.Context) { b.mu.Lock(); b.revokeLocked(); b.mu.Unlock() }
+	if wails.Run(a) != nil {
+		return errors.New("private wallet desktop unavailable")
+	}
+	return nil
+}
+
+// EOF or anything except the exact outstanding copy acknowledgment retires
+// this private view. In particular, parent-channel loss never leaves a live
+// prompt holding words or a pending clipboard authorization.
+func (b *PrivateBridge) parentMessages() {
+	for {
+		m, err := b.channel.Read()
+		if err != nil {
+			break
+		}
+		valid := b.parentMessage(m)
+		clear(m.Body)
+		if !valid {
+			break
+		}
+	}
+	b.mu.Lock()
+	b.revokeLocked()
+	b.mu.Unlock()
+}
+
+func (b *PrivateBridge) cancel() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.finished {
+		return
+	}
+	raw, _ := json.Marshal(uiprompt.Reply{PromptID: b.prompt.ID})
+	flushPromptCoverage()
+	_ = b.channel.Write(ipc.Message{Version: 1, ID: b.prompt.ID, Session: b.session, Method: "reply", Body: raw})
+	clear(raw)
+	b.revokeLocked()
+}
+
+// The private role accepts exactly one bound signer-authored envelope before
+// constructing any browser window. Keep this parser independently testable.
+func readPrivatePrompt(channel *ipc.Channel) (uiprompt.Prompt, string, error) {
 	m, err := channel.Read()
 	if err != nil || m.Method != "prompt" || m.Error != "" || !uiprompt.ValidID(m.Session) {
-		return errDesktop
+		clear(m.Body)
+		return uiprompt.Prompt{}, "", errDesktop
 	}
 	p, err := uiprompt.DecodePrompt(m.Body)
 	clear(m.Body)
 	if err != nil || m.ID != p.ID || p.Kind == "file" || p.Kind == "copy" {
-		return errDesktop
+		return uiprompt.Prompt{}, "", errDesktop
 	}
 	if p, err = checkedPrompt(p); err != nil {
-		return errDesktop
+		return uiprompt.Prompt{}, "", errDesktop
 	}
-	b := &PrivateBridge{prompt: p, channel: channel, session: m.Session}
-	defer b.clear()
-	prepareWebKitRuntime()
-	configureWebKitSignal()
+	return p, m.Session, nil
+}
+
+func privateAppOptions(p uiprompt.Prompt) *options.App {
 	a := appOptions(true)
 	a.Title = p.Title
 	a.Width = 680
@@ -539,46 +614,7 @@ func RunPrivate() error {
 	if p.Kind == "recovery" || p.Kind == "recoveryBackup" || p.Kind == "receive" {
 		a.Height = 660
 	}
-	a.Bind = []interface{}{b}
-	a.OnStartup = func(ctx context.Context) {
-		b.mu.Lock()
-		b.ctx = ctx
-		b.mu.Unlock()
-		go func() {
-			// Only a matching clipboard acknowledgment may follow the prompt.
-			for {
-				m, e := channel.Read()
-				if e != nil {
-					break
-				}
-				valid := b.parentMessage(m)
-				clear(m.Body)
-				if !valid {
-					break
-				}
-			}
-			b.mu.Lock()
-			b.revokeLocked()
-			b.mu.Unlock()
-			wruntime.Quit(ctx)
-		}()
-	}
-	a.OnBeforeClose = func(context.Context) bool {
-		b.mu.Lock()
-		if !b.finished {
-			raw, _ := json.Marshal(uiprompt.Reply{PromptID: b.prompt.ID})
-			_ = b.channel.Write(ipc.Message{Version: 1, ID: b.prompt.ID, Session: b.session, Method: "reply", Body: raw})
-			clear(raw)
-			b.revokeLocked()
-		}
-		b.mu.Unlock()
-		return false
-	}
-	a.OnShutdown = func(context.Context) { b.mu.Lock(); b.revokeLocked(); b.mu.Unlock() }
-	if wails.Run(a) != nil {
-		return errors.New("private wallet desktop unavailable")
-	}
-	return nil
+	return a
 }
 
 // Decode private replies here as well as in the signer. Keeping an explicit

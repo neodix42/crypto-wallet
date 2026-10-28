@@ -107,6 +107,12 @@ func Run(environment string) error {
 	if environment != "mainnet" && environment != "testnet" {
 		return errors.New("invalid profile")
 	}
+	// Reject a headless launch before starting the coordinator or opening the
+	// profile. Production Wails initializes GTK in Run and panics when neither
+	// display is configured; its development build returns an error instead.
+	if strings.TrimSpace(os.Getenv("DISPLAY")) == "" && strings.TrimSpace(os.Getenv("WAYLAND_DISPLAY")) == "" {
+		return errors.New("wallet desktop unavailable: no X11 or Wayland display configured")
+	}
 	app := &App{environment: environment, state: snapshot{Locked: true, VaultState: "checking"}, fields: map[string]string{"region": "https://api.bybit.com", "side": "Sell", "slippage": "0.5", "index": "1", "from": "0", "count": "10", "gap": "20", "limit": "1000", "birthday": "0", "blockBudget": "1000"}, balances: map[string][]model.Balance{}, balanceErrors: map[string]bool{}, sendForms: map[string]bool{}, active: "group/0", lastActivity: time.Now()}
 	child := &supervisor.Child{Path: "/proc/self/exe", SelfRole: "--internal-core", Environment: environment}
 	app.core = child
@@ -810,6 +816,9 @@ func (a *App) walletEvent(action string) {
 		return
 	}
 	kind, id := parts[0], parts[1]
+	if a.tokenEvent(kind, id) {
+		return
+	}
 	if a.stakingEvent(kind, id) {
 		return
 	}
@@ -849,13 +858,7 @@ func (a *App) walletEvent(action string) {
 		return
 	}
 	if kind == "asset" {
-		values := strings.SplitN(id, "/", 2)
-		if len(values) == 2 {
-			a.fields["asset/"+values[0]] = values[1]
-			a.plan = nil
-			a.planRevision++
-			a.render()
-		}
+		a.selectWalletAsset(id)
 		return
 	}
 	if kind == "retry" || kind == "reconcile" || kind == "cancelPrepared" {
@@ -1054,12 +1057,16 @@ func (a *App) ensureExchangeSelection() {
 	if account, ok := a.account(a.fields["exchangeAccount"]); ok {
 		n := a.network(account.Network)
 		for _, asset := range n.Assets {
-			if asset.ID == a.fields["exchangeAsset"] {
+			if asset.ID == a.fields["exchangeAsset"] && exchangeAssetAllowed(account, asset) {
 				return
 			}
 		}
-		if len(n.Assets) > 0 {
-			a.fields["exchangeAsset"] = n.Assets[0].ID
+		a.fields["exchangeAsset"] = ""
+		for _, asset := range n.Assets {
+			if exchangeAssetAllowed(account, asset) {
+				a.fields["exchangeAsset"] = asset.ID
+				break
+			}
 		}
 	}
 }
@@ -1283,12 +1290,10 @@ func (a *App) walletPage(account model.Account) webui.Page {
 			return page
 		}
 	}
-	var assets []webui.Node
-	for _, item := range network.Assets {
-		assets = append(assets, a.button("asset/"+account.ID+"/"+item.ID, item.Symbol, item.ID == asset.ID))
-	}
-	if len(assets) > 1 {
-		page.Nodes = append(page.Nodes, row(assets...))
+	if account.Family == "evm" {
+		if asset.Contract != "" {
+			page.Nodes = append(page.Nodes, node("address", "", "Selected ERC-20 contract · "+account.Network+" (not your receive address)", asset.Contract), label("Decimals: "+strconv.Itoa(int(asset.Decimals))+". Native ETH pays transaction fees on this network."))
+		}
 	}
 	if !a.state.RecoveryConfirmed {
 		page.Nodes = append(page.Nodes, label("Receiving and spending require recorded-word confirmation."), a.button("confirmRecovery", "Record and confirm recovery phrase", false))
@@ -1308,6 +1313,9 @@ func (a *App) walletPage(account model.Account) webui.Page {
 			}
 			page.Nodes = append(page.Nodes, label("Prepared payment\nNetwork: "+account.Network+"\nFrom: "+account.Address+"\nTo: "+a.plan.Recipient+"\nAmount: "+amountText+" "+asset.Symbol+"\nMaximum fee: "+fee+" "+symbol+"\nMemo: "+a.plan.Memo+"\nExpires: "+time.Unix(a.plan.Expires, 0).UTC().Format(time.RFC3339)), a.button("send/"+account.ID, "Review and send", false), a.button("cancelPrepared/"+a.plan.ID, "Cancel prepared payment", false))
 		}
+	}
+	if account.Family == "evm" {
+		page.Nodes = append(page.Nodes, a.walletAssets(account, asset)...)
 	}
 	page.Nodes = append(page.Nodes, row(a.button("configure/"+account.ID, "Configure trusted RPC", false), a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false), a.button("chainHistory/"+account.ID, "Read chain history", false)))
 	if account.Family == "near" || account.Family == "aptos" {
@@ -1394,16 +1402,22 @@ func (a *App) exchangePage() []webui.Node {
 	}
 	var assets []webui.Option
 	var address, contract string
+	validSelection := false
 	if account, ok := a.account(a.fields["exchangeAccount"]); ok {
 		address = account.Address
 		for _, asset := range a.network(account.Network).Assets {
+			if !exchangeAssetAllowed(account, asset) {
+				continue
+			}
 			assets = append(assets, webui.Option{ID: asset.ID, Text: asset.Symbol})
 			if asset.ID == a.fields["exchangeAsset"] {
 				contract = asset.Contract
+				validSelection = true
 			}
 		}
 	}
-	nodes := []webui.Node{heading("Bybit Exchange"), label("Assets deposited to Bybit are held by Bybit. Each deposit, spot trade, internal transfer and withdrawal requires its own exact confirmation in your private wallet dialog."), row(a.combo("exchangeAccount", "Wallet / network", accounts), a.combo("exchangeAsset", "Wallet asset", assets)), node("address", "", "Owned wallet receive address", address)}
+	disabled = disabled || !validSelection
+	nodes := []webui.Node{heading("Bybit Exchange"), label("Assets deposited to Bybit are held by Bybit. Each deposit, spot trade, internal transfer and withdrawal requires its own exact confirmation in your private wallet dialog."), label("Imported ERC-20 tokens remain available in Wallet. This Exchange offers only the wallet's reviewed asset routes."), row(a.combo("exchangeAccount", "Wallet / network", accounts), a.combo("exchangeAsset", "Wallet asset", assets)), node("address", "", "Owned wallet receive address", address)}
 	if contract != "" {
 		nodes = append(nodes, node("address", "", "Token contract (not your receive address)", contract))
 	}

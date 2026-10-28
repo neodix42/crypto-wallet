@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"localwallet/internal/amount"
+	"localwallet/internal/chains/evm"
 	"localwallet/internal/exchange"
 	"localwallet/internal/exchange/bybit"
 	"localwallet/internal/ipc"
@@ -184,6 +185,9 @@ func (c *core) exchangeAsset(id, assetID string) (model.Account, model.Asset, mo
 	}
 	adapter, err := c.adapter(account.Network)
 	if err != nil {
+		return account, model.Asset{}, nil, errExchange
+	}
+	if _, ethereum := adapter.(*evm.Adapter); ethereum && !evm.IsPinnedAsset(account.Network, assetID) {
 		return account, model.Asset{}, nil, errExchange
 	}
 	for _, network := range adapter.Networks() {

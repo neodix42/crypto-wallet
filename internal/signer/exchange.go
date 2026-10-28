@@ -173,6 +173,11 @@ func (e *Engine) DisconnectExchange() error {
 	return e.persist()
 }
 func (e *Engine) exchangeAsset(accountID, assetID string) (model.Account, model.Asset, error) {
+	for _, token := range e.TokenPolicies() {
+		if token.Asset.ID == assetID {
+			return model.Account{}, model.Asset{}, ErrDenied
+		}
+	}
 	a, err := e.account(accountID)
 	if err != nil {
 		return model.Account{}, model.Asset{}, ErrDenied

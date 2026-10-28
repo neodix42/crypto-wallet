@@ -62,7 +62,8 @@ while True:
  state.setdefault('calls',[]).append(method)
  output=None
  if method in state.get('reject',[]):error='SYNTHETIC_DENIED'
- elif method in ['snapshot','accounts','status','confirmRecovery','backupPhrase','accountPage']:
+ elif method in ['snapshot','accounts','status','confirmRecovery','backupPhrase','accountPage','importToken']:
+  if method=='importToken':state.setdefault('tokenPolicies',[]).append(body['token'])
   allaccounts=state.get('accounts',[]);offset=int(body.get('cursor','') or '0');accounts=allaccounts[offset:offset+128]
   output={'locked':state.get('locked',False),'walletExists':state.get('walletExists',True),'vaultState':state.get('vaultState','present'),'environment':'testnet','accounts':accounts,'operations':None,'recoveryConfirmed':True,'revision':str(state.get('revision',1)),'totalAccounts':len(allaccounts),'totalOperations':len(state.get('ops',[])),'accountsCursor':str(offset+len(accounts)) if offset+len(accounts)<len(allaccounts) else ''}
  elif method=='pending':output=state.get('ops',[])
@@ -75,6 +76,7 @@ while True:
   output={'operations':page,'nextCursor':str(offset+len(page)) if offset+len(page)<len(ops) else '', 'complete':offset+len(page)==len(ops),'revision':str(state.get('revision',1)),'total':len(ops)}
   output.update(state.get('journalOverride',{}))
  elif method=='settings':output=state.get('settings',{})
+ elif method=='tokenPolicies':output=state.get('tokenPolicies',[])
  elif method=='prepare':
   state.setdefault('ops',[]).append({'plan':body,'state':'PREPARED','digest':'public-test'})
   output={}

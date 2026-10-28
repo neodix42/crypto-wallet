@@ -10,7 +10,7 @@ mutants=[
  ('aead-authentication','internal/vault/envelope.go','return nil, ErrUnlock','return []byte("synthetic authentication bypass"), nil','./internal/vault'),
  ('kdf-floor','internal/vault/envelope.go','p.Memory >= 64*1024','p.Memory >= 1024','./internal/vault'),
  ('chain-id','internal/chains/evm/adapter.go','if x.ChainID != n.ChainID {','if false {','./internal/chains/evm'),
- ('native-confirmation','internal/signer/engine.go','if !e.UI.Confirm("Authorize exact transfer','if false && !e.UI.Confirm("Authorize exact transfer','./internal/signer'),
+ ('native-confirmation','internal/signer/engine.go','if !e.UI.Confirm(approvalTitle, summary) {','if false && !e.UI.Confirm(approvalTitle, summary) {','./internal/signer'),
  ('changed-recipient','internal/chains/evm/adapter.go','x.To != p.Recipient || x.Value != p.Amount','false || x.Value != p.Amount','./internal/chains/evm'),
  ('foreign-change','internal/chains/decred/decred.go','if e != nil || change != x.ChangeAddress {','if e != nil || len(change)==0 {','./internal/chains/decred'),
  ('locked-signing','internal/signer/engine.go','func (e *Engine) Sign(id string) (model.Signed, error) {\n\tif !e.canAuthorize() {','func (e *Engine) Sign(id string) (model.Signed, error) {\n\tif false {','./internal/signer'),
@@ -23,15 +23,24 @@ mutants=[
  ('backup-explicit-confirmation','internal/signer/engine.go','if !accepted {\n\t\treturn nil\n\t}\n\tin, err := e.UI.Input("Confirm app password to back up recovery phrase"','if false && !accepted {\n\t\treturn nil\n\t}\n\tin, err := e.UI.Input("Confirm app password to back up recovery phrase"','./internal/signer'),
  ('backup-app-password-reauthentication','internal/signer/engine.go','if len(in) != 1 || !hmac.Equal(in[0], e.password) {\n\t\treturn ErrDenied\n\t}\n\t// Authentication inputs are no longer needed while the words are displayed.','if len(in) != 1 {\n\t\treturn ErrDenied\n\t}\n\t// Authentication inputs are no longer needed while the words are displayed.','./internal/signer'),
  ('backup-current-generation-binding','internal/signer/engine.go','return e.data == d && e.canAuthorize() && d.Generation == generation','return e.data == d && e.canAuthorize() && (d.Generation == generation || true)','./internal/signer'),
+ ('erc20-import-confirmation','internal/signer/tokens.go','if !e.UI.Confirm("Import Ethereum ERC-20 token", summary) ||','if (false && !e.UI.Confirm("Import Ethereum ERC-20 token", summary)) ||','./internal/signer'),
+ ('erc20-import-password','internal/signer/tokens.go','!hmac.Equal(in[0], e.password)','(false && !hmac.Equal(in[0], e.password))','./internal/signer'),
+ ('erc20-runtime-pinning','internal/chains/evm/adapter.go','if crypto.Keccak256Hash(codeBytes).Hex() != expected {','if false && crypto.Keccak256Hash(codeBytes).Hex() != expected {','./internal/chains/evm'),
+ ('erc20-false-transfer-result','internal/chains/evm/adapter.go','if s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {','if false && s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {','./internal/chains/evm'),
 ]
-# New secret-display guards require an unmodified passing control and their
+# Approval and secret-display guards require an unmodified passing control and their
 # exact runtime security assertion. An unrelated failure or panic cannot kill
 # these mutants. Existing default mutants and their criteria remain unchanged.
 backup_checks={
+ 'native-confirmation':('^TestTP042CancelledAndExpiredAuthorization$', 'TestTP042CancelledAndExpiredAuthorization', 'cancelled confirmation signed'),
  'backup-ready-state-and-reentry':('^TestTP033BackupPhraseRejectsUnavailableAndPendingVaultWithoutPrompt$/^(pending|reentry)$', 'TestTP033BackupPhraseRejectsUnavailableAndPendingVaultWithoutPrompt/pending', 'unavailable backup requested secret input or phrase'),
  'backup-explicit-confirmation':('^TestTP033BackupPhraseCancellationAndInvalidInputNeverGrantAuthority$/^cancel-confirm$', 'TestTP033BackupPhraseCancellationAndInvalidInputNeverGrantAuthority/cancel-confirm', 'backup cancellation or authentication did not fail safely'),
  'backup-app-password-reauthentication':('^TestTP033BackupPhraseCancellationAndInvalidInputNeverGrantAuthority$/^wrong-password$', 'TestTP033BackupPhraseCancellationAndInvalidInputNeverGrantAuthority/wrong-password', 'backup cancellation or authentication did not fail safely'),
  'backup-current-generation-binding':('^TestTP043BackupPhraseChecksSessionAtEveryPromptBoundary$/^input$/^generation$', 'TestTP043BackupPhraseChecksSessionAtEveryPromptBoundary/input/generation', 'backup accepted authorization across a changed session'),
+ 'erc20-import-confirmation':('^TestTokenImportRejectsCancelledWrongPasswordStaleAndLockedRequestsAtomically$/^cancel$', 'TestTokenImportRejectsCancelledWrongPasswordStaleAndLockedRequestsAtomically/cancel', 'cancelled/stale/failed authorization persisted an imported token'),
+ 'erc20-import-password':('^TestTokenImportRejectsCancelledWrongPasswordStaleAndLockedRequestsAtomically$/^password$', 'TestTokenImportRejectsCancelledWrongPasswordStaleAndLockedRequestsAtomically/password', 'cancelled/stale/failed authorization persisted an imported token'),
+ 'erc20-runtime-pinning':('^TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy$', 'TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy', 'wrong USDT runtime accepted'),
+ 'erc20-false-transfer-result':('^TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy$', 'TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy', 'false/malformed USDT simulation accepted'),
 }
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--only',nargs='+',choices=[m[0] for m in mutants],help='Run only these exact mutant IDs; the default still runs every mutant.')

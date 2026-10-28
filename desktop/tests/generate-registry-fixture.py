@@ -18,7 +18,7 @@ import("encoding/json";"os";"localwallet/internal/chains";"localwallet/internal/
 func main(){var all []model.Network;for _,a:=range chains.All(){for _,n:=range a.Networks(){all=append(all,n)}};if e:=json.NewEncoder(os.Stdout).Encode(all);e!=nil{panic(e)}}
 ''')
     networks = json.loads(subprocess.check_output(['go', 'run', str(source)], cwd=root, text=True))
-files = ['internal/chains/registry.go', 'internal/chains/evm/registry.go', 'internal/chains/hypercore/adapter.go', 'internal/chains/near/near.go', 'internal/chains/aptos/aptos.go', 'internal/chains/decred/decred.go', 'internal/chains/ton/ton.go']
+files = ['desktop/tests/generate-registry-fixture.py', 'internal/chains/registry.go', 'internal/chains/evm/registry.go', 'internal/chains/evm/adapter.go', 'internal/chains/evm/tokens.go', 'internal/chains/hypercore/adapter.go', 'internal/chains/near/near.go', 'internal/chains/aptos/aptos.go', 'internal/chains/decred/decred.go', 'internal/chains/ton/ton.go']
 for environment in ['testnet', 'mainnet']:
     selected = [network for network in networks if network['testnet'] == (environment == 'testnet')]
     fixture = {

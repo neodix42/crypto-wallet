@@ -1,5 +1,61 @@
 # Implementation and release evidence
 
+## Multiple Ethereum ERC-20 assets — 2026-10-28
+
+Ethereum mainnet/Sepolia wallets now show balances for every configured asset,
+with exact contract/precision and per-token unknown states. Contract import
+requires a private exact-policy confirmation and current password; the signer
+persists the approved policy in the encrypted vault and restores it on unlock.
+Native ETH fees, standard-transfer-only signing, canonical USDT/ZEN policies,
+all existing networks and derivation identities remain intact. Imported assets
+are excluded from unreviewed Bybit routes. See [ERC20.md](ERC20.md) for commands,
+manual tracking/recovery behavior and issuer/proxy limitations.
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS | Actual two-token local EVM execution (6/18 decimals): four Go-signed transfers out/back, independent ethers calldata/receipt/log/balance/gas/nonce checks, exactly six transactions including two deployments; runtime/precision/false-result faults reject safely. |
+| PASS | Private import authorization/cancellation, current password, stale session/generation, persistence failure, encrypted fresh-engine reload and exact signing; direct vault/child-handler malformed/null/duplicate/cross-profile/boundary tests. Explicit zero decimals is supported; missing/null precision is rejected. |
+| PASS | Nine controller tests plus actual isolated Wails presentation: separate ETH/USDT rows, full contract, exact units and same verified owned receive address. Public RPC remains deliberately unavailable; graphical balance observations are unknown, not mocked successes. |
+| PASS | Full local unit/security/race/interoperability/integration/fuzz/dependency commands. Twenty-two semantic mutants are killed, including four ERC-20 policies; all eighteen bounded fuzz targets execute mutations. Scope-specific reports retain their own source snapshots. |
+| PASS | Rebuilt/installed ordinary one-file Go binary; actual ephemeral WebKit/inspector restrictions and fresh-copy headless recovery comparing 27 canonical descriptors on nine networks. Installation opens no real profile. |
+| PASS | Final combined source-stable coverage: all 33 package floors and all four required local execution gates. Wails adapter 95.43%, controller 96.87%, EVM 97.05%, retained GTK 95.09%; all six raw profiles and independent source/runtime verifiers pass. Both frontend campaigns pass. |
+| NOT_RUN at this source checkpoint | Hosted CI follows commit/push. Inspect the exact commit's Actions results; this checked-in checklist records local acceptance. |
+| NOT_RUN | Public funded ERC-20 transfers, full clean OS/Wayland acceptance, combined GUI-approved real-node payments and independent security/legal review. No mainnet funds or user secrets were used. |
+
+## CI production-runtime repair — 2026-10-28
+
+Run [40632779639](https://github.com/neodix42/crypto-wallet/actions/runs/40632779639)
+passed its Wails job, but the broader checks failed during coverage. Production
+Wails attempted GTK initialization in a test with no display, and the graphical
+coverage campaign ran before its CI-only namespace permission was installed.
+Missing counters then obscured that startup error. These were actual failures;
+the earlier passing development-tag tests did not exercise this configuration.
+The later NEAR approval-title refactor had also invalidated the literal native
+confirmation mutation anchor; its repair now requires a passing control and the
+specific cancelled-confirmation assertion to kill that mutant.
+
+The application now rejects missing/blank X11 and Wayland display settings before
+starting child roles or opening profile storage. CI sets up its scoped AppArmor
+test profile before coverage, preserves cleanup, and reports unit, security,
+race, interoperability, integration, fuzz and coverage failures as separate steps.
+No application sandbox setting or production security requirement changes.
+
+Coverage also now measures the shipped React UI and actual private Wails
+processes, keeping the existing package/file thresholds. Only diagnostic
+`walletcoverage` builds inherit a validated private counter directory and flush
+real statement counters before a reply; ordinary builds retain their restricted
+prompt environment. Every observed private window PID must have its own counters.
+Updated NEAR registry fixtures retain all network/asset identities and bind the
+current implementation hash.
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS | Production-tag missing-display regression: both profiles reject empty/whitespace settings without creating profile files. Focused controller race/vet checks also pass. |
+| PASS | CI helper ordering/command allowlist, build-tool regressions and all three pinned actionlint workflow checks. No local AppArmor policy was changed. |
+| PASS, scoped | Actual V8 coverage of all shipped React/TypeScript modules, including both mount entrypoints; private/protocol floors remain 95% statements/90% branches, other executable modules 90%/85%. Component coverage does not establish WebKit or public-network acceptance. |
+| PASS | Final source-stable combined Go/frontend coverage, all original package floors/local gates and the added real two-token execution gate; no skipped external test is promoted to passing. Coverage integrity: 12 regressions; release-evidence validation: 45 regressions; startup guard: 10 regressions. |
+| NOT_RUN at this source checkpoint | Hosted execution follows commit/push. Clean OS/Wayland, GUI-approved real-node payments, remaining funded-network and independent-review gates retain their separate scopes. |
+
 ## NEAR staking extension — 2026-10-28
 
 Implemented **NEAR Wallet → Staking** through the actual Go FunctionCall/signing/journal pipeline: stake, partial/all unstake, withdraw all, exact `get_account` state and private password-authenticated approvals. No generic contract call or new secret export is exposed. [TP-100–104 checklist, commands, trust limits and precise test evidence](NEAR_STAKING.md).
@@ -25,7 +81,7 @@ Release run [40631055106](https://github.com/neodix42/crypto-wallet/actions/runs
 | PASS, clean Git checkout | `python3 scripts/go-build-test.py` rebuilt locked npm dependencies, production frontend, notices and the one-file Go archive from a disposable committed worktree. No application source or generated asset was copied from the development tree; only development SDK/compiler/module caches were reused. Extracted diagnostics work without those caches or toolchains and create no profile. Electron/Debian tool invocations: zero. Report: `reports/ci-checkout-build.json`; this build check does not certify a new GUI/network campaign. |
 | NOT_RUN | Hosted build/release for the repair commit, pending push. No additional security, funded-network, OS-matrix or production-readiness gate is claimed. |
 
-## Current Wails / React distribution — 2026-10-28
+## Initial Wails / React distribution — recorded 2026-10-28 candidate
 
 The owner selected the sibling charting project's main UI architecture: Wails v2.17.0 and React/TypeScript with system WebKitGTK 4.1, replacing the handwritten GTK interface. Charting's optional Chromium Screener is not included. CryptoWallet retains one Go executable containing embedded frontend assets and coordinator/signer self-roles, unchanged profile/vault/derivation identities and all nine networks/twelve asset identities. Node/npm compile the frontend only; runtime prerequisites are system GTK3/WebKitGTK. There is no Electron/Chromium bundle or SUID-helper setup. The Go roles apply no syscall sandbox; the pinned Wails implementation also explicitly disables WebKitGTK's renderer sandbox while enforcing local-asset and ephemeral-storage policy. [Current trust boundary and evidence](WAILS_UI.md).
 

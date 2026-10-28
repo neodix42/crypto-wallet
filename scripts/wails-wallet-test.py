@@ -32,6 +32,8 @@ parser.add_argument("--instrumented", action="store_true")
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--quick-import", action="store_true", help="Targeted public fixture import/restart check; omits generated-root address comparison")
 mode.add_argument("--staking-only", action="store_true", help="Targeted actual NEAR Staking page check after disposable public-fixture import; no RPC server or transaction approval")
+mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
+mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
     raise SystemExit("Report name must be a simple owned test name")
@@ -43,8 +45,14 @@ if args.quick_import:
 if args.staking_only:
     report["scope"]="Actual uninstrumented NEAR Wallet/Staking navigation after importing a public disposable BIP39 fixture into a fresh isolated profile. Full AstroStakers contract, whole-NEAR units, unknown observed state, real offline RPC failure and disabled Withdraw are checked through X11 pixels/OCR/input. No RPC response is mocked and no transaction is prepared, approved or sent."
     report["notRun"].extend(["Generated-root setup, backup and exact nine-wallet address comparison (staking-only mode)", "Funded stake/unstake/withdraw execution and public testnet acceptance"])
+if args.tokens_only:
+    report["scope"]="Targeted actual Ethereum ETH/USDT wallet presentation on an isolated display after importing the public disposable BIP39 fixture. Public pixels verify separate unknown balances, the complete USDT contract, decimals, explicit selection, whole-USDT Send units and the unchanged owned receive address. No RPC response is mocked and no token is imported, transaction prepared, approved or sent. This partial mode is not full wallet/recovery acceptance."
+    report["notRun"].extend(["Generated-root setup, backup, fresh-copy restore, all-nine-wallet comparison and restart/unlock (tokens-only mode)", "Custom token metadata import and funded token execution (offline graphical mode)"])
+if args.decred_copy_only:
+    report["scope"]="Targeted repeated actual Decred verified receive/copy on an isolated display after importing a public disposable BIP39 fixture; private windows remain excluded from public pixels and failure diagnostics contain only X11 window metadata. No payment, public RPC or complete wallet acceptance claim."
+    report["notRun"].append("Generated-root setup, backup and exact nine-wallet address comparison (Decred copy diagnostic mode)")
 if args.instrumented:
-    report["scope"] = "Instrumented Go statement-coverage run of the real native desktop workflows. " + __doc__.replace("Uninstrumented", "Instrumented")
+    report["scope"] = "Instrumented Go statement-coverage run. " + report["scope"].replace("Uninstrumented", "Instrumented")
 report_path = REPORTS / (args.report_name+".json")
 app = xvfb = None
 logs = []
@@ -95,6 +103,81 @@ class PrivateWindowVisible(RuntimeError):
     pass
 
 class Desktop(mod.Desktop):
+    def park_pointer(self):
+        # The owned server is 1600x1100; its bottom-right corner lies outside
+        # the 1440x900 wallet and centered private prompts. Move only, without
+        # clicking, focusing a window or inspecting any private pixels. This
+        # retires WebKit's native public-hover tooltip before a slow prompt
+        # (notably a persisted Decred receive advance) finishes starting.
+        mod.T.XTestFakeMotionEvent(self.d, -1, 1590, 1090, 0)
+        mod.X.XFlush(self.d)
+        time.sleep(.15)
+
+    def window_metadata(self):
+        # Failure-only metadata, never pixels, OCR, environment, arguments or
+        # a process log. Freeze this owned X server while reading properties so
+        # a retiring window cannot disappear between enumeration and lookup.
+        def property(window, name):
+            actual, format, count, remaining, data = C.c_ulong(), C.c_int(), C.c_ulong(), C.c_ulong(), C.c_void_p()
+            atom = mod.X.XInternAtom(self.d, name.encode("ascii"), 0)
+            status = mod.X.XGetWindowProperty(self.d, window, atom, 0, 64, 0, 0, C.byref(actual), C.byref(format), C.byref(count), C.byref(remaining), C.byref(data))
+            try:
+                if status != 0 or remaining.value or not data.value:
+                    return None
+                if format.value == 32 and count.value == 1:
+                    return int(C.cast(data, C.POINTER(C.c_ulong))[0])
+                if format.value == 8 and count.value <= 256:
+                    return C.string_at(data, count.value).decode("ascii", errors="replace").split("\0")
+                return None
+            finally:
+                if data.value:
+                    mod.X.XFree(data)
+        def window_type(window):
+            atom = property(window, "_NET_WM_WINDOW_TYPE")
+            if not isinstance(atom, int):
+                return None
+            mod.X.XGetAtomName.argtypes = [C.c_void_p, C.c_ulong]
+            mod.X.XGetAtomName.restype = C.c_void_p
+            name = mod.X.XGetAtomName(self.d, atom)
+            try:
+                return C.string_at(name).decode("ascii", errors="replace") if name else None
+            finally:
+                if name:
+                    mod.X.XFree(name)
+        def metadata(window, title):
+            attributes = mod.WA()
+            mod.X.XGetWindowAttributes(self.d, window, C.byref(attributes))
+            return {"window": int(window), "title": title, "geometry": self.geometry(window),
+                    "pid": property(window, "_NET_WM_PID"),
+                    "transientFor": property(window, "WM_TRANSIENT_FOR"),
+                    "class": property(window, "WM_CLASS"),
+                    "windowType": window_type(window), "overrideRedirect": bool(attributes.override)}
+        mod.X.XGrabServer(self.d)
+        mod.X.XSync(self.d, 0)
+        try:
+            return [metadata(window, title) for window, title in self.windows()]
+        finally:
+            mod.X.XUngrabServer(self.d)
+            mod.X.XFlush(self.d)
+    def wait(self, prefix, seconds=10):
+        window, title = super().wait(prefix, seconds)
+        if args.instrumented and title != "CryptoWallet" and not title.startswith("CryptoWallet · "):
+            actual, format, count, remaining, data = C.c_ulong(), C.c_int(), C.c_ulong(), C.c_ulong(), C.c_void_p()
+            atom = mod.X.XInternAtom(self.d, b"_NET_WM_PID", 0)
+            status = mod.X.XGetWindowProperty(self.d, window, atom, 0, 1, 0, 6, C.byref(actual), C.byref(format), C.byref(count), C.byref(remaining), C.byref(data))
+            try:
+                if status != 0 or actual.value != 6 or format.value != 32 or count.value != 1 or not data.value:
+                    raise RuntimeError("Owned private window did not expose its process identity")
+                pid = C.cast(data, C.POINTER(C.c_ulong))[0]
+                if pid <= 1 or pid in report.get("processIDs", []):
+                    raise RuntimeError("Private window did not belong to a distinct prompt process")
+                processes = report.setdefault("privateProcessIDs", [])
+                if pid not in processes:
+                    processes.append(pid)
+            finally:
+                if data.value:
+                    mod.X.XFree(data)
+        return window, title
     def image(self):
         # Private image remains in memory, including during disposable phrase OCR.
         p = mod.X.XGetImage(self.d, self.root, 0, 0, 1600, 1100, 0xffffffff, 2)
@@ -422,15 +505,63 @@ def launch(installation, home):
     logs.append(log)
     command=["unshare","--user","--map-current-user","--keep-caps","--net","--mount","/bin/sh","-c",'mount --make-rprivate / && mount --bind "$1" /etc/hosts && exec setpriv --bounding-set=-all --inh-caps=-all --ambient-caps=-all "$2"',"cryptowallet-owned-test",str(hosts_fixture),str(installation/"cryptowallet")]
     app = subprocess.Popen(command, env=env, stdout=log, stderr=log, start_new_session=True)
+    if args.instrumented:
+        report.setdefault("processIDs", []).append(app.pid)
     report["currentStep"]="Wait for initial Wails public window"
     desktop.wait("CryptoWallet", 30)
     report["currentStep"]="Wait for initial Wails public wallet state"
     wait(lambda: "Create your app password" in text() or "Your encrypted wallet is on this device" in text())
 
-def addresses():
+def receive_dialog_state(windows):
+    # A private GTK window can be mapped under its executable name before
+    # Wails assigns the verified title. It remains private throughout; this
+    # classifier never permits public OCR or acceptance of that loading view.
+    private = [title for _, title in windows if title != "CryptoWallet" and not title.startswith("CryptoWallet · ")]
+    if not private:
+        return "absent"
+    if len(private) != 1:
+        raise RuntimeError("Unexpected native dialog during public address copy")
+    if private[0] == "Verify receive address":
+        return "ready"
+    if private[0] == "cryptowallet":
+        return "starting"
+    raise RuntimeError("Unexpected native dialog during public address copy")
+
+def request_receive_copy(seconds=30):
+    deadline = time.monotonic() + seconds
+    requested = starting = False
+    next_click = 0
+    while time.monotonic() < deadline:
+        state = receive_dialog_state(desktop.windows())
+        if state == "ready":
+            if not requested:
+                raise RuntimeError("Unexpected receive dialog before public address request")
+            return
+        if state == "starting":
+            if not requested:
+                raise RuntimeError("Unexpected native dialog before public address request")
+            starting = True
+        elif starting:
+            raise RuntimeError("Receive dialog closed before showing its verified address title")
+        elif time.monotonic() >= next_click:
+            try:
+                click("Copy address")
+            except PrivateWindowVisible:
+                if not requested:
+                    raise
+            else:
+                requested = True
+                desktop.park_pointer()
+                next_click = time.monotonic() + .75
+        # Once a private loading window is visible, inspect only window titles
+        # until its exact verified title appears. Never click or OCR it.
+        time.sleep(.05)
+    raise RuntimeError("Verified receive dialog did not appear within its bounded deadline")
+
+def addresses(networks=("Ethereum", "Base", "Horizen", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON")):
     result = {}
     # These are the display labels in the pinned mainnet registry.
-    for network in ("Ethereum", "Base", "Horizen", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON"):
+    for network in networks:
         report["currentStep"] = "Select main account before " + network
         click("Main account", top=True)
         # Some network labels contain an ecosystem prefix; match the unique word.
@@ -446,20 +577,7 @@ def addresses():
         # Balance redraws can race a test pointer click. Retry only this
         # read-only address request, and require its real native confirmation;
         # this helper is never used for signing, trading or withdrawing.
-        deadline=time.monotonic()+30
-        while time.monotonic()<deadline:
-            if any(title.startswith("Verify receive address") for _,title in desktop.windows()):break
-            if desktop.secret_window():raise RuntimeError("Unexpected native dialog during public address copy")
-            try:
-                click("Copy address")
-            except PrivateWindowVisible:
-                if any(title.startswith("Verify receive address") for _,title in desktop.windows()):break
-                raise
-            until=time.monotonic()+.75
-            while time.monotonic()<until:
-                if any(title.startswith("Verify receive address") for _,title in desktop.windows()):break
-                time.sleep(.05)
-            if any(title.startswith("Verify receive address") for _,title in desktop.windows()):break
+        request_receive_copy()
         # The signer independently displays its verified receive details before
         # fulfilling a public copy request; acknowledge that actual native view.
         report["currentStep"] = "Wait for " + network + " verified receive dialog"
@@ -473,6 +591,8 @@ def addresses():
         result[network] = value
         report.setdefault("walletsObserved",[]).append(network)
         save()
+        if network == "Ethereum":
+            ethereum_tokens(value)
         if network != "TON":
             report["currentStep"] = "Close " + network + " wallet tab by middle click"
             deadline=time.monotonic()+30
@@ -513,6 +633,89 @@ def scroll_to_public_words(words):
         if position:return position
         scroll_public(5,3)
     raise RuntimeError("Expected staking control or disclosure missing: "+words)
+
+def ethereum_tokens(expected_address=None):
+    stage("Observe actual Ethereum native and ERC-20 balance rows")
+    if expected_address is None:
+        click("Main account",top=True)
+        scroll_public(4,35)
+        click("Ethereum")
+        wait(lambda:"Copy address" in text())
+        request_receive_copy()
+        desktop.wait("Verify receive address",30)
+        desktop.accept("Verify receive address")
+        wait(lambda:not desktop.secret_window())
+        expected_address=wait(lambda:(value if re.fullmatch(r"0x[0-9a-fA-F]{40}",value:=clipboard()) else None))
+    scroll_public(4,35)
+    wait(lambda:"Assets on Ethereum" in text())
+    rows=public_rows()
+    visible=" ".join(row[11] for row in rows)
+    report["ethereumAssetPublicOCR"]=[{"word":row[11],"line":row[1:5],"box":[int(row[index]) for index in (6,7,8,9)]} for row in rows if row[11].strip("·.,:") in ("ETH","USDT","Unknown","Decimals","18","6")]
+    asset_heading=public_words_position("Assets on Ethereum",rows)
+    if not asset_heading:raise RuntimeError("Ethereum asset list heading was not visible")
+    def asset_button(symbol):
+        candidates=[row for row in public_rows() if row[11]==symbol and int(row[7])>asset_heading[1]]
+        if not candidates:raise RuntimeError("Configured Ethereum asset button was not visible: "+symbol)
+        first_y=min(int(row[7]) for row in candidates)
+        # The first matching asset line contains its selector and balance.
+        # Explanatory paragraphs farther below also mention ETH/USDT; those
+        # words cannot be used as buttons or substituted for a balance row.
+        row=min((row for row in candidates if int(row[7])<=first_y+20),key=lambda value:int(value[6]))
+        return int(row[6])+int(row[8])//2,int(row[7])+int(row[9])//2
+    for symbol in ("ETH","USDT"):
+        _,button_y=asset_button(symbol)
+        lines={}
+        for row in rows:
+            if abs(int(row[7])+int(row[9])//2-button_y)<45:
+                lines.setdefault(tuple(row[1:5]),[]).append(row[11])
+        if not any(re.search(r"\bUnknown\s+"+symbol+r"\b"," ".join(words)) for words in lines.values()):
+            raise RuntimeError("Offline Ethereum asset row did not display its separate unknown balance: "+symbol)
+    if not re.search(r"Decimals[: ]+18\b",visible) or not re.search(r"Decimals[: ]+6\b",visible):
+        raise RuntimeError("Ethereum native/token decimal metadata was not visible")
+    # Require all forty contract digits from actual public pixels. Restrict OCR
+    # to hexadecimal glyphs; pixels and OCR stay in memory and never enter an
+    # artifact. X11 classification and capture remain one atomic operation.
+    mod.X.XGrabServer(desktop.d);mod.X.XSync(desktop.d,0)
+    try:
+        if desktop.secret_window():raise PrivateWindowVisible("Refusing Ethereum public contract OCR while a private prompt is visible")
+        picture=desktop.image().convert("L")
+    finally:
+        mod.X.XUngrabServer(desktop.d);mod.X.XFlush(desktop.d)
+    data=io.BytesIO()
+    picture.resize((picture.width*3,picture.height*3),Image.Resampling.LANCZOS).save(data,format="PNG")
+    raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","11","-c","tessedit_char_whitelist=0x0123456789abcdefABCDEF"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=15)
+    contract="0xdAC17F958D2ee523a2206206994597C13D831ec7"
+    if contract.lower() not in re.sub(r"\s+","",raw.decode()).lower():
+        raise RuntimeError("Complete pinned USDT contract was not readable in Ethereum public pixels")
+    passed("Actual Ethereum wallet displays separate unknown ETH and USDT balances, full token contract and 18/6 decimal metadata without mocked RPC or zero-balance claims")
+    stage("Select USDT and inspect its ordinary Send presentation")
+    desktop.click(*asset_button("USDT"))
+    time.sleep(.3)
+    scroll_public(4,35)
+    click("Send")
+    wait(lambda:bool(re.search(r"Amount.*1 means 1 USDT",text())))
+    if desktop.secret_window() or "Prepared payment" in text():
+        raise RuntimeError("Token selection or opening Send requested authority or prepared a payment")
+    request_receive_copy()
+    desktop.wait("Verify receive address",30)
+    desktop.accept("Verify receive address")
+    wait(lambda:not desktop.secret_window())
+    if clipboard()!=expected_address:
+        raise RuntimeError("USDT selection replaced the owned Ethereum receive address")
+    click("Send")
+    wait(lambda:"Recipient address" not in text())
+    # The token form changes layout above the list. Re-find the list before
+    # switching back; no stored coordinates survive a state transition.
+    scroll_public(4,35)
+    heading=scroll_to_public_words("Assets on Ethereum")
+    asset_heading=heading
+    desktop.click(*asset_button("ETH"))
+    time.sleep(.3)
+    scroll_public(4,35)
+    if desktop.secret_window() or "Prepared payment" in text() or "Recipient address" in text():
+        raise RuntimeError("Returning to ETH retained token-send authority or an open form")
+    report["ethereumTokenPresentation"]={"network":"ethereum-mainnet","assets":["ETH","USDT"],"decimals":[18,6],"tokenContract":contract,"receiveAddressSHA256":hashlib.sha256(expected_address.encode()).hexdigest(),"balanceObservation":"Unknown: no RPC service in owned network namespace","preparedOrSent":False}
+    passed("Explicit USDT selection uses whole-token Send units and the same verified owned receive address, then closes Send and returns to ETH without preparing or approving a payment")
 
 def staking_page():
     stage("Open actual NEAR wallet Staking page")
@@ -626,7 +829,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only:
             recorded=b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -640,6 +843,12 @@ try:
             wait(lambda:"Main account" in text())
             if args.staking_only:
                 staking_page()
+            if args.tokens_only:
+                ethereum_tokens()
+            if args.decred_copy_only:
+                for _ in range(3):
+                    addresses(("Decred",))
+                passed("Three repeated actual Decred receive/copy prompts completed without ambiguous mapped windows")
             close_gracefully()
             passed("Targeted public-fixture import reaches all-wallet overview and closes successfully")
             if args.quick_import:
@@ -748,6 +957,7 @@ except Exception as exc:
     report.update(status="FAIL",reason=str(exc) if isinstance(exc,RuntimeError) else "Native acceptance failed; private diagnostics withheld")
     if "desktop" in globals():
         report["ownedWindowTitles"]=[title for _,title in desktop.windows()]
+        report["ownedWindowMetadata"]=desktop.window_metadata()
 finally:
     stop()
     if xvfb is not None:

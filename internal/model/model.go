@@ -33,6 +33,14 @@ type Asset struct {
 	Decimals uint8  `json:"decimals"`
 	Contract string `json:"contract,omitempty"`
 }
+
+// ERC20Token is an explicitly approved public token policy, not a discovered
+// balance or an endorsement of the token issuer's behavior.
+type ERC20Token struct {
+	Network  string `json:"network"`
+	Asset    Asset  `json:"asset"`
+	CodeHash string `json:"codeHash"`
+}
 type Transfer struct {
 	AccountID string `json:"accountId"`
 	Asset     string `json:"asset"`

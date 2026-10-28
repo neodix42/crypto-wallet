@@ -175,7 +175,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
 		interactive = true
 	}
 	if interactive {
@@ -437,6 +437,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}
 	switch m.Method {
+	case "importToken":
+		return c.importTokenAt(m, epoch)
 	case "nearStakingState", "prepareNearStaking":
 		return c.nearStakingAt(m, epoch)
 	case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
@@ -766,6 +768,15 @@ func (c *core) applySettingsAt(epoch uint64) error {
 	}
 	evms := map[string]string{}
 	cores := map[string]string{}
+	var tokens []model.ERC20Token
+	for _, adapter := range adapters {
+		if _, ok := adapter.(*evm.Adapter); ok {
+			if err := c.childCallAt(epoch, "tokenPolicies", struct{}{}, &tokens); err != nil {
+				return err
+			}
+			break
+		}
+	}
 	for id, ep := range settings {
 		adapter, e := findAdapter(adapters, id)
 		if e != nil {
@@ -798,6 +809,10 @@ func (c *core) applySettingsAt(epoch uint64) error {
 		switch a.(type) {
 		case *evm.Adapter:
 			n, e := evm.NewWithEndpoints(evms)
+			if e != nil {
+				return e
+			}
+			n, e = n.WithTokens(tokens)
 			if e != nil {
 				return e
 			}
