@@ -61,6 +61,16 @@ statement metadata/counts, never prompt values. The driver records each actual
 private X11 window's process ID; all those distinct processes must supply
 counters. A parent or unrelated helper cannot stand in for a private prompt.
 
+The hosted full, uninstrumented Wails campaign at commit
+[`e014505`](https://github.com/neodix42/crypto-wallet/commit/e014505) passed all
+18 workflows with stable sources, running from 07:12:09 to 07:31:34 UTC
+(19 minutes 25 seconds). Its successful duration exceeds the collector's former
+15-minute overall GUI limit. The separate instrumented campaign therefore has
+a 40-minute overall subprocess deadline, allowing roughly twice that observed
+hosted duration. All per-action deadlines, full workflow selection, counter
+requirements and coverage floors remain unchanged. This deadline correction
+does not itself record a passing hosted instrumented campaign.
+
 The reported hosted failure exposed two separate prerequisites: production GTK
 startup must reject an absent display before opening storage, and graphical
 coverage must run under the already-configured CI-only namespace profile. Both

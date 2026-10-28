@@ -123,10 +123,13 @@ class CoverageEvidence(unittest.TestCase):
 
     def test_wails_runtime_campaign_targets_shipped_adapter_and_keeps_raw_profile(self):
         commands = []
+        driver_options = []
         evidence = coverage.reports / 'wails-wallet-coverage.json'
         evidence.write_text('{"status":"PASS","instrumented":true,"sourceStable":true,"processIDs":[123],"privateProcessIDs":[456]}')
         def run(command, **kwargs):
             commands.append(command)
+            if command[:2] == ['python3', 'scripts/wails-wallet-test.py']:
+                driver_options.append(kwargs)
             if command[:2] == ['go', 'build']:
                 binary = pathlib.Path(command[command.index('-o') + 1])
                 binary.write_bytes(b'public instrumented executable fixture')
@@ -143,6 +146,9 @@ class CoverageEvidence(unittest.TestCase):
         self.assertEqual(driver[1], 'scripts/wails-wallet-test.py')
         self.assertIn('wails-wallet-coverage', driver)
         self.assertIn('--instrumented', driver)
+        self.assertEqual(driver[-3:], ['--report-name', 'wails-wallet-coverage', '--instrumented'])
+        self.assertEqual(len(driver), 7)
+        self.assertEqual(driver_options[0]['timeout'], 2400)
         self.assertTrue(convert[-1].endswith('go-native-runtime.cover'))
         self.assertEqual(coverage.report['nativeRuntime']['privateCounterProcesses'], [456])
 

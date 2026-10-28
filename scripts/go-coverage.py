@@ -259,7 +259,7 @@ def portable_runtime_coverage(env):
         runtime_env = {**env, "GOCOVERDIR": str(counters)}
         result = subprocess.run(["python3", "scripts/wails-wallet-test.py", "--binary", str(binary),
                                  "--report-name", "wails-wallet-coverage", "--instrumented"],
-                                cwd=root, env=runtime_env, timeout=900)
+                                cwd=root, env=runtime_env, timeout=2400)
         evidence = reports / "wails-wallet-coverage.json"
         report["nativeRuntime"] = json.loads(evidence.read_text()) if evidence.is_file() else {"status": "BLOCKED", "reason": "Instrumented Wails runtime report missing"}
         report["nativeRuntime"]["instrumentedBinarySHA256"] = hashlib.sha256(binary.read_bytes()).hexdigest()

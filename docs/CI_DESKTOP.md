@@ -28,6 +28,15 @@ copy cycles and ten startup regressions pass. The `--decred-copy-only` and
 `--tokens-only` modes label their evidence as partial; neither substitutes for
 the full coverage/recovery campaign.
 
+Hosted commit [`e014505`](https://github.com/neodix42/crypto-wallet/commit/e014505)
+subsequently passed the full 18-workflow uninstrumented Wails GUI campaign with
+stable sources in 19 minutes 25 seconds (07:12:09–07:31:34 UTC). The coverage
+collector's former 15-minute subprocess limit was below this measured successful
+duration. Its full instrumented GUI subprocess now has a 40-minute overall
+deadline; the existing per-action timeouts and all acceptance checks remain
+unchanged. A passing ordinary GUI run does not pass instrumented coverage, whose
+hosted result remains independently required.
+
 ## Historical Electron startup diagnosis — 2026-10-27
 
 The reported [release job](https://github.com/neodix42/crypto-wallet/actions/runs/40467178485/job/122065301167) built, verified and installed version 0.1.1, then failed before any mapped LocalWallet window. Its uploaded evidence contained an empty desktop and failed report but no launcher log. The remote report therefore does not establish the precise Chromium error.
