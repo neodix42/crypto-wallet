@@ -56,6 +56,19 @@ current implementation hash.
 | PASS | Final source-stable combined Go/frontend coverage, all original package floors/local gates and the added real two-token execution gate; no skipped external test is promoted to passing. Coverage integrity: 12 regressions; release-evidence validation: 45 regressions; startup guard: 10 regressions. |
 | NOT_RUN at this source checkpoint | Hosted execution follows commit/push. Clean OS/Wayland, GUI-approved real-node payments, remaining funded-network and independent-review gates retain their separate scopes. |
 
+A later local coverage rerun timed out in the portable memory test. A covered
+200-repeat reproducer established a test-harness race: an exiting traced thread
+returned `ESRCH`, then fatal-assertion cleanup blocked in `exec.Cmd.Wait`. The
+test-only tracer now handles this exit race and drains only its own process
+group with bounded cleanup, preserving the required injected fault and normal
+helper exit. Actual aborted exec-stop/clone-stop regressions verify complete
+reaping and helper termination. This changes no production memory protection.
+The fixed covered stress run passes 250/250 iterations without skips in
+130.811 seconds; ten legacy/memory race repetitions, focused portable race,
+nonportable unit and vet checks pass.
+The failed run is retained as failed evidence; prior full passes do not certify
+the tracer follow-up's full coverage or hosted checks.
+
 ## NEAR staking extension — 2026-10-28
 
 Implemented **NEAR Wallet → Staking** through the actual Go FunctionCall/signing/journal pipeline: stake, partial/all unstake, withdraw all, exact `get_account` state and private password-authenticated approvals. No generic contract call or new secret export is exposed. [TP-100–104 checklist, commands, trust limits and precise test evidence](NEAR_STAKING.md).

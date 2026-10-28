@@ -5,7 +5,7 @@
 The 2026-10-28 Wails/WebKit replacement changes the shipped UI and invalidates
 previous GTK coverage for the current candidate. Coverage integration is now
 implemented: `internal/webui` is a **critical package with a 95% floor**, and all
-existing 90%/95% floors remain unchanged. The final source-stable combined Go
+existing 90%/95% floors remain unchanged. The recorded source-stable combined Go
 campaign **PASS** covers **all 33 measured package floors**, all four required
 local execution gates and **1,240** source inputs in **433.233 seconds**. Wails
 Go measures **95.43%**, the wallet controller **96.87%**, retained GTK **95.09%**,
@@ -70,6 +70,22 @@ a 40-minute overall subprocess deadline, allowing roughly twice that observed
 hosted duration. All per-action deadlines, full workflow selection, counter
 requirements and coverage floors remain unchanged. This deadline correction
 does not itself record a passing hosted instrumented campaign.
+
+A later unchanged-source local rerun exposed an intermittent test-tracer
+failure. A covered 200-repeat run reproduced an exiting helper thread causing
+`PTRACE_GETREGS` to return `ESRCH`; the assertion's deferred `exec.Cmd.Wait`
+then blocked while other ptrace stops still needed draining. The failed report
+and reproducing stack remain separate from passing measurements. The test-only
+tracer now drains its own process group, handles the thread-exit race and uses
+bounded ptrace-aware cleanup with direct output files. Real exec-stop and
+clone-stop regressions require complete reaping and a dead helper. The original
+fault-injection and successful-rejection assertions remain mandatory; no
+production isolation behavior or coverage floor changes. The fixed covered
+stress campaign passes all 250 iterations in 130.811 seconds without a skip or
+failure, including both real stopped-tracee cleanup stages. Ten repeated legacy
+and memory race runs, focused portable race tests, the nonportable unit suite
+and vet also pass. These scoped results do not substitute for the final
+revision's full measurement or hosted result.
 
 The reported hosted failure exposed two separate prerequisites: production GTK
 startup must reject an absent display before opening storage, and graphical
