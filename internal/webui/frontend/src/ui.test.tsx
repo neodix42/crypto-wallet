@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PublicApp, PublicContent, PublicNode, WalletShell } from './PublicApp';
+import { Field, PublicApp, PublicContent, PublicNode, WalletShell } from './PublicApp';
 import { PrivateApp, PromptContents } from './PrivateApp';
 import { id, node, phrase, view } from './test-fixtures';
 import type { Prompt, Reply, View, WalletEvent } from './types';
@@ -153,6 +153,121 @@ describe('public React renderer', () => {
     await act(async () => { push(fresh); resolve(view()); });
     expect(host.textContent).toContain('Fresh view');
     await click(host.querySelector('[data-action="refresh"]')); expect(events).toEqual([{ ID: 'refresh', Value: '' }]);
+  });
+  it('queues pasted address-book fields before Save without requiring blur', async () => {
+    const state = view(); state.Active = 'addressbook'; state.Pages = [{ ID: 'addressbook', Title: 'Address book', Nodes: [node('entry', 'field/bookName', 'Name'), node('entry', 'field/bookAddress', 'Address'), node('button', 'saveBookAddress', 'Save address')] }];
+    const sent: WalletEvent[] = [];
+    let release!: (value: boolean) => void;
+    const first = new Promise<boolean>(resolve => { release = resolve; });
+    window.go = { webui: { PublicBridge: { Snapshot: async () => state, Event: vi.fn(event => { sent.push(event); return sent.length === 1 ? first : Promise.resolve(true); }) } } };
+    await mount(<PublicApp/>);
+    const inputs = host.querySelectorAll('input'), nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    const values = ['Pasted recipient', '0x2222222222222222222222222222222222222222'];
+    await act(async () => {
+      for (let i = 0; i < inputs.length; i++) {
+        inputs[i].focus(); nativeSet.call(inputs[i], values[i]);
+        inputs[i].dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste', data: values[i] }));
+      }
+    });
+    await click(host.querySelector('[data-action="saveBookAddress"]'));
+    expect(document.activeElement).toBe(inputs[1]);
+    expect(sent).toEqual([{ ID: 'field/bookName', Value: values[0] }]);
+    await act(async () => { release(true); });
+    expect(sent).toEqual([{ ID: 'field/bookName', Value: values[0] }, { ID: 'field/bookAddress', Value: values[1] }, { ID: 'saveBookAddress', Value: '' }]);
+  });
+  it('applies a coalesced Go composer replacement even when its final field values equal the pre-edit snapshot', async () => {
+    function page(revision: number, name = '', address = '') {
+      const composer = node('column', `bookComposer/${revision}`);
+      composer.Children = [node('entry', 'field/bookName', 'Name', name), node('entry', 'field/bookAddress', 'Address', address)];
+      return { ID: 'addressbook', Title: 'Address book', Nodes: [composer] };
+    }
+    const emit = vi.fn(), nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await mount(<PublicContent page={page(1)} emit={emit}/>);
+    expect(host.querySelector('.node-column')).toBeNull();
+    const original = [...host.querySelectorAll('input')];
+    const draft = ['Disposable recipient', '0x2222222222222222222222222222222222222222'];
+    await act(async () => {
+      original.forEach((input, index) => {
+        input.focus(); nativeSet.call(input, draft[index]); input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste', data: draft[index] }));
+      });
+      original[1].blur();
+    });
+    // A fresh ordinary snapshot with unchanged canonical values cannot erase
+    // edits whose field events have not yet been reflected in a view.
+    await act(async () => { root!.render(<PublicContent page={page(1)} emit={emit}/>); });
+    expect([...host.querySelectorAll('input')].map(input => input.value)).toEqual(draft);
+    // Fast idempotent Save can coalesce its busy view; the explicit Go-owned
+    // replacement still clears the composer without relying on that frame.
+    await act(async () => { root!.render(<PublicContent page={page(2)} emit={emit}/>); });
+    expect([...host.querySelectorAll('input')].map(input => input.value)).toEqual(['', '']);
+    expect(host.querySelector('input')).not.toBe(original[0]);
+    await act(async () => { root!.render(<PublicContent page={page(3, 'Go edit', '0x333')} emit={emit}/>); });
+    expect([...host.querySelectorAll('input')].map(input => input.value)).toEqual(['Go edit', '0x333']);
+    expect(emit.mock.calls).toEqual([['field/bookName', draft[0]], ['field/bookAddress', draft[1]]]);
+  });
+  it('preserves a newer local address-book edit when an older value is echoed by an asynchronous view', async () => {
+    const initial = node('entry', 'field/bookName', 'Name', 'Original');
+    await mount(<Field node={initial} emit={() => {}}/>);
+    const input = host.querySelector('input')!, nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      input.focus(); nativeSet.call(input, 'New');
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'New' }));
+      nativeSet.call(input, 'Newest recipient');
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'Newest recipient' }));
+    });
+    expect(input.value).toBe('Newest recipient');
+    await act(async () => { root!.render(<Field node={{ ...initial, Value: 'New' }} emit={() => {}}/>); });
+    expect(input.value).toBe('Newest recipient');
+    await act(async () => { root!.render(<Field node={{ ...initial, Value: 'Newest recipient' }} emit={() => {}}/>); });
+    expect(input.value).toBe('Newest recipient');
+    await act(async () => { root!.render(<Field node={{ ...initial, Value: '' }} emit={() => {}}/>); });
+    expect(input.value).toBe('');
+  });
+  it.each([
+    ['full Aptos address', '0x' + '1'.repeat(64)],
+    ['maximum contact name', 'n'.repeat(80)],
+    ['maximum public input', 'p'.repeat(4096)],
+  ])('preserves the %s after a delayed first-prefix echo', async (_kind, complete) => {
+    const initial = node('entry', 'field/bookAddress', 'Address');
+    await mount(<Field node={initial} emit={() => {}}/>);
+    const input = host.querySelector('input')!, nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      input.focus();
+      for (let length = 1; length <= complete.length; length++) {
+        nativeSet.call(input, complete.slice(0, length));
+        input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: complete[length - 1] }));
+      }
+    });
+    await act(async () => { root!.render(<Field node={{ ...initial, Value: complete[0] }} emit={() => {}}/>); });
+    expect(input.value).toBe(complete);
+    await act(async () => { root!.render(<Field node={{ ...initial, Value: complete }} emit={() => {}}/>); });
+    expect(input.value).toBe(complete);
+  });
+  it('accepts authoritative field resets, busy states and a different field identity', async () => {
+    const initial = node('entry', 'field/bookAddress', 'Address', 'Original');
+    const nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await mount(<Field node={initial} emit={() => {}}/>);
+    async function edit() {
+      await act(async () => {
+        const input = host.querySelector('input')!; input.focus();
+        for (const value of ['Prefix', 'Newest address']) {
+          nativeSet.call(input, value); input.dispatchEvent(new InputEvent('input', { bubbles: true, data: value }));
+        }
+      });
+    }
+    await edit();
+    await act(async () => { root!.render(<Field node={{ ...initial, Value: 'Go replacement' }} emit={() => {}}/>); });
+    expect(host.querySelector('input')!.value).toBe('Go replacement');
+    await edit();
+    await act(async () => { root!.render(<Field node={{ ...initial, Disabled: true, Value: 'Go replacement' }} emit={() => {}}/>); });
+    expect(host.querySelector('input')!.value).toBe('Go replacement');
+    await act(async () => { root!.render(<Field node={initial} emit={() => {}}/>); });
+    await edit();
+    await act(async () => { host.querySelector('input')!.blur(); root!.render(<Field node={{ ...initial, Value: 'Prefix' }} emit={() => {}}/>); });
+    expect(host.querySelector('input')!.value).toBe('Prefix');
+    await edit();
+    await act(async () => { root!.render(<Field node={{ ...initial, ID: 'field/recipient/another-account', Value: 'Prefix' }} emit={() => {}}/>); });
+    expect(host.querySelector('input')!.value).toBe('Prefix');
   });
   it('uses a fixed status area, hides after seven seconds and resets repeated messages by revision', async () => {
     vi.useFakeTimers();

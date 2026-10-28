@@ -1,17 +1,31 @@
 package signer
 
 import (
+	"errors"
 	"strings"
 
 	"localwallet/internal/model"
 )
 
+// Public categories deliberately exclude the submitted name/address, vault
+// location and underlying filesystem error. The IPC layer maps identities only.
+var (
+	ErrAddressBookInvalidInput       = errors.New("invalid address book input")
+	ErrAddressBookInvalidAddress     = errors.New("invalid address for selected network")
+	ErrAddressBookDuplicateName      = errors.New("address book name already exists")
+	ErrAddressBookDuplicateRecipient = errors.New("address book recipient already exists")
+	ErrAddressBookLimit              = errors.New("address book entry limit reached")
+	ErrAddressBookStale              = errors.New("address book entry is no longer available")
+	ErrAddressBookUnavailable        = errors.New("address book wallet is unavailable")
+	ErrAddressBookWriteFailed        = errors.New("address book persistence failed")
+)
+
 func (e *Engine) AddressBook(accountID string) ([]model.AddressBookEntry, error) {
 	if !e.canAuthorize() {
-		return nil, ErrDenied
+		return nil, ErrAddressBookUnavailable
 	}
 	if _, err := e.account(accountID); err != nil {
-		return nil, ErrDenied
+		return nil, ErrAddressBookUnavailable
 	}
 	entries := []model.AddressBookEntry{}
 	for _, entry := range e.data.AddressBook {
@@ -26,15 +40,18 @@ func (e *Engine) AddressBook(accountID string) ([]model.AddressBookEntry, error)
 // account fixes it. Address-book metadata grants no signing authority.
 func (e *Engine) SaveAddress(accountID, id, name, address, memo string) (model.AddressBookEntry, error) {
 	if !e.canAuthorize() {
-		return model.AddressBookEntry{}, ErrDenied
+		return model.AddressBookEntry{}, ErrAddressBookUnavailable
 	}
 	account, err := e.account(accountID)
 	if err != nil {
-		return model.AddressBookEntry{}, ErrDenied
+		return model.AddressBookEntry{}, ErrAddressBookUnavailable
 	}
 	adapter, err := e.adapter(account.Network)
-	if err != nil || adapter.ValidateAddress(account.Network, address) != nil {
-		return model.AddressBookEntry{}, ErrDenied
+	if err != nil {
+		return model.AddressBookEntry{}, ErrAddressBookUnavailable
+	}
+	if adapter.ValidateAddress(account.Network, address) != nil {
+		return model.AddressBookEntry{}, ErrAddressBookInvalidAddress
 	}
 	updating := id != ""
 	if !updating {
@@ -42,13 +59,13 @@ func (e *Engine) SaveAddress(accountID, id, name, address, memo string) (model.A
 	}
 	entry := model.AddressBookEntry{ID: id, AccountID: account.ID, Network: account.Network, Name: name, Address: address, Memo: memo}
 	if !entry.ValidFor(account) {
-		return model.AddressBookEntry{}, ErrDenied
+		return model.AddressBookEntry{}, ErrAddressBookInvalidInput
 	}
 	position, count := -1, 0
 	for i, saved := range e.data.AddressBook {
 		if saved.ID == id {
 			if saved.AccountID != accountID {
-				return model.AddressBookEntry{}, ErrDenied
+				return model.AddressBookEntry{}, ErrAddressBookStale
 			}
 			position = i
 		}
@@ -56,12 +73,24 @@ func (e *Engine) SaveAddress(accountID, id, name, address, memo string) (model.A
 			continue
 		}
 		count++
-		if saved.ID != id && (strings.EqualFold(saved.Name, name) || saved.Address == address && saved.Memo == memo) {
-			return model.AddressBookEntry{}, ErrDenied
+		// A lost successful acknowledgement must not force another contact or
+		// another write. Only an exact create retry of this owned destination
+		// is idempotent; changed names/addresses and edits still need identity.
+		if !updating && saved.Name == name && saved.Address == address && saved.Memo == memo {
+			return saved, nil
+		}
+		if saved.ID != id && strings.EqualFold(saved.Name, name) {
+			return model.AddressBookEntry{}, ErrAddressBookDuplicateName
+		}
+		if saved.ID != id && saved.Address == address && saved.Memo == memo {
+			return model.AddressBookEntry{}, ErrAddressBookDuplicateRecipient
 		}
 	}
-	if updating && position < 0 || !updating && (len(e.data.AddressBook) >= model.MaxAddressBookEntries || count >= model.MaxAccountAddressBookEntries) {
-		return model.AddressBookEntry{}, ErrDenied
+	if updating && position < 0 {
+		return model.AddressBookEntry{}, ErrAddressBookStale
+	}
+	if !updating && (len(e.data.AddressBook) >= model.MaxAddressBookEntries || count >= model.MaxAccountAddressBookEntries) {
+		return model.AddressBookEntry{}, ErrAddressBookLimit
 	}
 	if position < 0 {
 		e.data.AddressBook = append(e.data.AddressBook, entry)
@@ -69,17 +98,17 @@ func (e *Engine) SaveAddress(accountID, id, name, address, memo string) (model.A
 		e.data.AddressBook[position] = entry
 	}
 	if err := e.persist(); err != nil {
-		return model.AddressBookEntry{}, err
+		return model.AddressBookEntry{}, ErrAddressBookWriteFailed
 	}
 	return entry, nil
 }
 
 func (e *Engine) RemoveAddress(accountID, id string) error {
 	if !e.canAuthorize() {
-		return ErrDenied
+		return ErrAddressBookUnavailable
 	}
 	if _, err := e.account(accountID); err != nil {
-		return ErrDenied
+		return ErrAddressBookUnavailable
 	}
 	for i, entry := range e.data.AddressBook {
 		if entry.ID == id && entry.AccountID == accountID {
@@ -92,8 +121,11 @@ func (e *Engine) RemoveAddress(accountID, id string) error {
 				entries = nil
 			}
 			e.data.AddressBook = entries
-			return e.persist()
+			if err := e.persist(); err != nil {
+				return ErrAddressBookWriteFailed
+			}
+			return nil
 		}
 	}
-	return ErrDenied
+	return ErrAddressBookStale
 }

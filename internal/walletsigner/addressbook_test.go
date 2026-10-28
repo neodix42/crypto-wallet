@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 )
 
@@ -72,5 +73,40 @@ func TestAddressBookIPCRejectsAmbiguousFieldsBeforePromptOrPersistence(t *testin
 	after, err := engine.Files.Read("vault.lwv")
 	if err != nil || !bytes.Equal(before, after) || ui.inputCalls != inputs || ui.confirmCalls != confirmations {
 		t.Fatal("invalid contact request modified storage or prompted")
+	}
+}
+
+func TestAddressBookSaveFailureFramesAreActionableAndNeverEchoContactOrStorageDetails(t *testing.T) {
+	engine, ui := dispatchEngine(t, "testnet", true)
+	unlockFixture(t, engine, ui)
+	account := accountFor(t, engine, "evm")
+	const label = "CANARY-private-contact-label"
+	var entry model.AddressBookEntry
+	if json.Unmarshal(dispatch(t, engine, "saveAddress", map[string]string{"accountId": account.ID, "name": label, "address": account.Address}), &entry) != nil || entry.ID == "" {
+		t.Fatal("contact fixture was not saved")
+	}
+	for _, test := range []struct {
+		body map[string]string
+		code string
+	}{
+		{map[string]string{"accountId": account.ID, "name": label, "address": "0x1111111111111111111111111111111111111111"}, "ADDRESS_BOOK_DUPLICATE_NAME"},
+		{map[string]string{"accountId": account.ID, "name": "Other", "address": account.Address}, "ADDRESS_BOOK_DUPLICATE_RECIPIENT"},
+		{map[string]string{"accountId": account.ID, "name": label, "address": "CANARY-private-invalid-address"}, "ADDRESS_BOOK_INVALID_ADDRESS"},
+		{map[string]string{"accountId": account.ID, "id": strings.Repeat("b", 32), "name": "Other", "address": "0x1111111111111111111111111111111111111111"}, "ADDRESS_BOOK_STALE"},
+	} {
+		m := request("saveAddress", test.body)
+		wire := &bytes.Buffer{}
+		if err := respond(&ipc.Channel{W: wire}, m, func() (json.RawMessage, error) { return handle(engine, m, "testnet") }); err != nil {
+			t.Fatal(err)
+		}
+		frame, err := (&ipc.Channel{R: bytes.NewReader(wire.Bytes())}).Read()
+		if err != nil || frame.Error != test.code || string(frame.Body) != "null" || bytes.Contains(wire.Bytes(), []byte("CANARY")) || ipc.PublicErrorCode(ipc.NewRequestError(frame.Error)) != test.code {
+			t.Fatal("private response leaked contact data or lost actionable category", err)
+		}
+	}
+	engine.Files.Close()
+	m := request("saveAddress", map[string]string{"accountId": account.ID, "id": entry.ID, "name": "Changed", "address": account.Address})
+	if _, err := handle(engine, m, "testnet"); requestErrorCode(err) != "ADDRESS_BOOK_WRITE_FAILED" || !engine.Snapshot().Locked || strings.Contains(err.Error(), "CANARY") {
+		t.Fatal("private persistence failure did not expose only its safe category and lock", err)
 	}
 }

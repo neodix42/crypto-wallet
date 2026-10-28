@@ -93,9 +93,11 @@ type App struct {
 	quote                                 json.RawMessage
 	exchangeRevision                      uint64
 	bookEntries                           []model.AddressBookEntry
-	bookOwner, bookTarget, bookError      string
+	bookOwner, bookTarget                 string
+	bookPartial                           bool
 	bookEdit                              string
 	bookRevision                          uint64
+	bookDraftRevision                     uint64
 	result                                string
 	resultOwner, chainOwner               string
 	busy, background, closed              bool
@@ -357,6 +359,12 @@ func safeError(err error) string {
 	return "Request failed or is unavailable. Balance remains unknown until verified; reconcile pending operations before retrying."
 }
 func (a *App) work(title string, fn func(uint64) (func(), error)) {
+	a.workWithFeedback(title, fn, nil)
+}
+
+// Feedback customizes public operation messages without changing success,
+// failure, private-prompt revocation or the lifecycle guards.
+func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), feedback func(error)) {
 	if a.busy || a.closed {
 		return
 	}
@@ -393,6 +401,9 @@ func (a *App) work(title string, fn func(uint64) (func(), error)) {
 					apply()
 				}
 				a.notice("Request completed. Check its returned state and any limitations.")
+			}
+			if feedback != nil {
+				feedback(err)
 			}
 			a.render()
 			// Tabs remain navigable during work. Initialize a first address-book

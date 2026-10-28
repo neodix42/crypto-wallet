@@ -2,7 +2,6 @@ package walletcore
 
 import (
 	"encoding/json"
-	"errors"
 
 	"localwallet/internal/ipc"
 	"localwallet/internal/model"
@@ -17,7 +16,7 @@ func (c *core) addressBookAt(message ipc.Message, epoch uint64) (any, error) {
 			AccountID strictjson.Text `json:"accountId"`
 		}
 		if strictjson.Decode(message.Body, &body) != nil {
-			return nil, errors.New("invalid address book fields")
+			return nil, ipc.NewRequestError("ADDRESS_BOOK_INVALID_INPUT")
 		}
 		accountID = string(body.AccountID)
 	case "saveAddress":
@@ -29,7 +28,7 @@ func (c *core) addressBookAt(message ipc.Message, epoch uint64) (any, error) {
 			Memo      strictjson.Text `json:"memo,omitempty"`
 		}
 		if strictjson.Decode(message.Body, &body) != nil || !model.AddressBookText(string(body.Name), 80, false) || !model.AddressBookText(string(body.Address), 256, false) || !model.AddressBookText(string(body.Memo), 120, true) {
-			return nil, errors.New("invalid address book fields")
+			return nil, ipc.NewRequestError("ADDRESS_BOOK_INVALID_INPUT")
 		}
 		accountID = string(body.AccountID)
 	case "removeAddress":
@@ -38,14 +37,14 @@ func (c *core) addressBookAt(message ipc.Message, epoch uint64) (any, error) {
 			ID        strictjson.Text `json:"id"`
 		}
 		if strictjson.Decode(message.Body, &body) != nil || len(body.ID) != 32 {
-			return nil, errors.New("invalid address book fields")
+			return nil, ipc.NewRequestError("ADDRESS_BOOK_INVALID_INPUT")
 		}
 		accountID = string(body.AccountID)
 	default:
-		return nil, errors.New("unsupported address book action")
+		return nil, ipc.NewRequestError("ADDRESS_BOOK_INVALID_INPUT")
 	}
 	if !model.AddressBookText(accountID, 256, false) {
-		return nil, errors.New("invalid address book account")
+		return nil, ipc.NewRequestError("ADDRESS_BOOK_INVALID_INPUT")
 	}
 	// The signer is the authority for ownership, exact network and durable
 	// encrypted persistence. Existing epoch checks discard late locked replies.

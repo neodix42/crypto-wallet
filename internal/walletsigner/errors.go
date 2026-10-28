@@ -18,6 +18,14 @@ func requestErrorCode(err error) string {
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"},
 		{signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},
 		{uiprompt.ErrCancelled, "REQUEST_CANCELLED"},
+		{signer.ErrAddressBookInvalidInput, "ADDRESS_BOOK_INVALID_INPUT"},
+		{signer.ErrAddressBookInvalidAddress, "ADDRESS_BOOK_INVALID_ADDRESS"},
+		{signer.ErrAddressBookDuplicateName, "ADDRESS_BOOK_DUPLICATE_NAME"},
+		{signer.ErrAddressBookDuplicateRecipient, "ADDRESS_BOOK_DUPLICATE_RECIPIENT"},
+		{signer.ErrAddressBookLimit, "ADDRESS_BOOK_LIMIT"},
+		{signer.ErrAddressBookStale, "ADDRESS_BOOK_STALE"},
+		{signer.ErrAddressBookUnavailable, "ADDRESS_BOOK_UNAVAILABLE"},
+		{signer.ErrAddressBookWriteFailed, "ADDRESS_BOOK_WRITE_FAILED"},
 	} {
 		if errors.Is(err, entry.err) {
 			return entry.code

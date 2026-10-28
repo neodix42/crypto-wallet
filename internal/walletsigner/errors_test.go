@@ -27,6 +27,14 @@ func TestNativeFailureGuidanceAndPublicFramesContainNoInputOrPath(t *testing.T) 
 		{signer.ErrPasswordPolicy, "PASSWORD_POLICY"}, {uiprompt.ErrInputTooLong, "INPUT_TOO_LONG"},
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"}, {signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},
 		{uiprompt.ErrCancelled, "REQUEST_CANCELLED"}, {signer.ErrDenied, "REQUEST_DENIED"}, {errors.New("PASSWORD_POLICY"), "REQUEST_DENIED"},
+		{signer.ErrAddressBookInvalidInput, "ADDRESS_BOOK_INVALID_INPUT"},
+		{signer.ErrAddressBookInvalidAddress, "ADDRESS_BOOK_INVALID_ADDRESS"},
+		{signer.ErrAddressBookDuplicateName, "ADDRESS_BOOK_DUPLICATE_NAME"},
+		{signer.ErrAddressBookDuplicateRecipient, "ADDRESS_BOOK_DUPLICATE_RECIPIENT"},
+		{signer.ErrAddressBookLimit, "ADDRESS_BOOK_LIMIT"},
+		{signer.ErrAddressBookStale, "ADDRESS_BOOK_STALE"},
+		{signer.ErrAddressBookUnavailable, "ADDRESS_BOOK_UNAVAILABLE"},
+		{signer.ErrAddressBookWriteFailed, "ADDRESS_BOOK_WRITE_FAILED"},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			err := fmt.Errorf("CANARY-private-password-or-path: %w", tc.err)

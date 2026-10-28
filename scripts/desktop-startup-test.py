@@ -1285,11 +1285,102 @@ class WailsEVMContractTooltip(unittest.TestCase):
             block(rows,picture,(0,0,401,320),(100,260))
 
 
+
+class WailsAddressBookPublicObservation(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('public_words_position','address_book_use_matches','address_book_use_position','address_book_recipient_loaded','address_book_composer_cleared','public_status_contains')
+        functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names]
+        self.capture=mock.Mock()
+        self.decoder=mock.Mock(return_value=b'')
+        self.scope={'public_rows':self.capture,'palette':lambda:{'input':(255,255,255)},'appearance':{'theme':'light'},'Image':Image,'ImageOps':ImageOps,'io':io,'subprocess':SimpleNamespace(check_output=self.decoder,DEVNULL=subprocess.DEVNULL)}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'address-book-public-helper','exec'),self.scope)
+        self.recipient='0x'+'2'*40
+
+    def word(self,text,x,y,line):
+        return ['5','1',str(line),'1','1','1',str(x),str(y),'80','14','99',text]
+
+    def recipient_rows(self,value=None,y=546):
+        return [self.word('Recipient',143,504,1),self.word('address',232,504,1),self.word(value or self.recipient,155,y,2)]
+
+    def test_recipient_is_exactly_observed_below_its_own_input_label(self):
+        self.capture.return_value=self.recipient_rows()
+        self.assertTrue(self.scope['address_book_recipient_loaded'](self.recipient))
+        self.capture.assert_called_once_with(ocr_scale=1)
+
+    def test_extra_confusable_or_receive_identity_cannot_become_loaded_recipient(self):
+        for rows in (self.recipient_rows('0xX'+'2'*40),self.recipient_rows(self.recipient+'2'),self.recipient_rows(y=287),self.recipient_rows('0x'+'3'*40)):
+            with self.subTest(rows=rows):
+                self.capture.return_value=rows
+                self.assertFalse(self.scope['address_book_recipient_loaded'](self.recipient))
+        rows=self.recipient_rows();rows[0][11]='Receive';self.capture.return_value=rows
+        self.assertFalse(self.scope['address_book_recipient_loaded'](self.recipient))
+
+    def test_use_label_falls_back_to_second_scale_without_repairing_wrong_glyphs(self):
+        wrong=[self.word('Yse',900,650,1),self.word('address',950,650,1)]
+        exact=[self.word('Use',900,650,1),self.word('address',950,650,1)]
+        self.capture.side_effect=[wrong,exact]
+        self.assertEqual(self.scope['address_book_use_position'](),(965,657))
+        self.assertEqual(self.capture.call_args_list,[mock.call(ocr_scale=1),mock.call(ocr_scale=2)])
+        self.capture.side_effect=[wrong,wrong]
+        self.assertIsNone(self.scope['address_book_use_position']())
+
+    def test_duplicate_saved_use_controls_cannot_pass_an_identical_retry(self):
+        rows=[self.word('Use',900,650,1),self.word('address',950,650,1),self.word('Use',900,720,2),self.word('address',950,720,2)]
+        self.capture.return_value=rows
+        with self.assertRaisesRegex(RuntimeError,'multiple selectable'):
+            self.scope['address_book_use_position']()
+
+    def test_fresh_completed_save_requires_a_blank_composer_in_the_owned_public_field(self):
+        picture=Image.new('RGB',(1600,1100),'white')
+        rows=[self.word('Name',143,405,1)]
+        self.capture.return_value=(rows,picture,(80,32,1440,1036))
+        self.assertTrue(self.scope['address_book_composer_cleared']())
+        picture.putpixel((160,445),(29,41,56))
+        self.assertFalse(self.scope['address_book_composer_cleared']())
+        self.capture.return_value=([],picture,(80,32,1440,1036))
+        self.assertFalse(self.scope['address_book_composer_cleared']())
+        self.capture.return_value=([self.word('Name',143,1050,1)],picture,(80,32,1440,1036))
+        with self.assertRaisesRegex(RuntimeError,'owned public bounds'):
+            self.scope['address_book_composer_cleared']()
+
+    def test_exact_feedback_is_read_from_owned_footer_instead_of_page_body(self):
+        picture=Image.new('RGB',(1600,1100),'white')
+        self.capture.return_value=([self.word('Expected feedback.',115,1046,1)],picture,(80,32,1440,1036))
+        self.assertTrue(self.scope['public_status_contains']('Expected feedback.'))
+        self.decoder.assert_not_called()
+        self.capture.return_value=([self.word('Expected feedback.',115,650,1)],picture,(80,32,1440,1036))
+        self.assertFalse(self.scope['public_status_contains']('Expected feedback.'))
+        self.assertEqual(self.decoder.call_count,2)
+        for call in self.decoder.call_args_list:
+            self.assertEqual(call.args[0],['tesseract','stdin','stdout','--psm','7'])
+            self.assertEqual(call.kwargs['timeout'],10)
+
+    def test_footer_single_line_fallback_requires_exact_unrepaired_message(self):
+        picture=Image.new('RGB',(1600,1100),'white')
+        self.capture.return_value=([],picture,(80,32,1440,1036))
+        self.decoder.side_effect=[b'wrong feedback.\n',b'Expected feedback.\n']
+        self.assertTrue(self.scope['public_status_contains']('Expected feedback.'))
+        with Image.open(io.BytesIO(self.decoder.call_args.kwargs['input'])) as crop:
+            self.assertEqual(crop.size,((1440-42)*2+24,29*2+24))
+        self.decoder.side_effect=[b'Expected feedbaek.\n',b'Expected feedbaek.\n']
+        self.assertFalse(self.scope['public_status_contains']('Expected feedback.'))
+        self.capture.return_value=([],picture,(80,32,1700,1036))
+        with self.assertRaisesRegex(RuntimeError,'owned public bounds'):
+            self.scope['public_status_contains']('Expected feedback.')
+
+    def test_private_guard_failure_cannot_become_a_public_match(self):
+        self.capture.side_effect=RuntimeError('private pixels refused')
+        for name,args in (('address_book_use_position',()),('address_book_recipient_loaded',(self.recipient,)),('public_status_contains',('Expected feedback.',))):
+            with self.subTest(name=name),self.assertRaisesRegex(RuntimeError,'private pixels'):
+                self.scope[name](*args)
+
+
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip):
+    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsAddressBookPublicObservation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

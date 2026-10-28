@@ -49,8 +49,8 @@ if args.staking_only:
     report["scope"]="Actual uninstrumented NEAR Wallet/Staking navigation after importing a public disposable BIP39 fixture into a fresh isolated profile. Full AstroStakers contract, whole-NEAR units, unknown observed state, real offline RPC failure and disabled Withdraw are checked through X11 pixels/OCR/input. No RPC response is mocked and no transaction is prepared, approved or sent."
     report["notRun"].extend(["Generated-root setup, backup and exact eight-wallet address comparison (staking-only mode)", "Funded stake/unstake/withdraw execution and public testnet acceptance"])
 if args.tokens_only:
-    report["scope"]="Targeted actual Ethereum ETH/USDT wallet presentation on an isolated display after importing the public disposable BIP39 fixture. Public pixels verify separate unknown balances, the complete USDT contract, decimals, explicit selection, whole-USDT Send units and the unchanged owned receive address. No RPC response is mocked and no token is imported, transaction prepared, approved or sent. This partial mode is not full wallet/recovery acceptance."
-    report["notRun"].extend(["Generated-root setup, backup, fresh-copy restore, all-eight-wallet comparison and restart/unlock (tokens-only mode)", "Custom token metadata import and funded token execution (offline graphical mode)"])
+    report["scope"]="Targeted actual Ethereum ETH/USDT wallet presentation on an isolated display after importing the public disposable BIP39 fixture. Public pixels verify separate unknown balances, the complete USDT contract, decimals, explicit selection, whole-USDT Send units, the unchanged owned receive address, encrypted address-book save/retry/validation feedback and recipient persistence after actual restart. No RPC response is mocked and no token is imported, transaction prepared, approved or sent. This partial mode is not full wallet/recovery acceptance."
+    report["notRun"].extend(["Generated-root setup, backup, fresh-copy restore and all-eight-wallet comparison (tokens-only mode)", "Custom token metadata import and funded token execution (offline graphical mode)"])
 if args.decred_copy_only:
     report["scope"]="Targeted repeated actual Decred verified receive/copy on an isolated display after importing a public disposable BIP39 fixture; private windows remain excluded from public pixels and failure diagnostics contain only X11 window metadata. No payment, public RPC or complete wallet acceptance claim."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (Decred copy diagnostic mode)")
@@ -1420,23 +1420,66 @@ def ethereum_tokens(expected_address=None):
     passed("Explicit USDT selection uses whole-token Send units and the same verified owned receive address, then closes Send and returns to ETH without preparing or approving a payment")
     address_book_campaign()
 
+def public_status_contains(message):
+    rows,picture,bounds=public_rows(ocr_scale=1,with_picture=True,with_geometry=True)
+    x,y,w,h=bounds
+    if x<0 or y<0 or x+w>picture.width or y+h>picture.height or w<60 or h<40:
+        raise RuntimeError("Status feedback capture exceeds owned public bounds")
+    footer=" ".join(row[11] for row in rows if int(row[7])>=y+h-31 and x+30<=int(row[6])<x+w)
+    if message in footer:return True
+    crop=picture.crop((x+30,y+h-30,x+w-12,y+h-1)).convert("L")
+    if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
+    for scale in (1,2):
+        data=io.BytesIO();ImageOps.expand(crop.resize((crop.width*scale,crop.height*scale),Image.Resampling.LANCZOS),border=12,fill=255).save(data,format="PNG")
+        raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","7"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=10)
+        if message in " ".join(raw.decode().split()):return True
+    return False
+
+def address_book_use_matches(rows):
+    matches=[]
+    for index,row in enumerate(rows[:-1]):
+        second=rows[index+1]
+        if row[11]=="Use" and second[11]=="address" and row[1:5]==second[1:5]:
+            matches.append(((int(row[6])+int(second[6])+int(second[8]))//2,int(row[7])+int(row[9])//2))
+    return matches
+
+def address_book_use_position():
+    for scale in (1,2):
+        matches=address_book_use_matches(public_rows(ocr_scale=scale))
+        if len(matches)>1:raise RuntimeError("Disposable address book unexpectedly contains multiple selectable saved rows")
+        if matches:return matches[0]
+    return None
+
+def address_book_composer_cleared():
+    rows,picture,bounds=public_rows(ocr_scale=1,with_picture=True,with_geometry=True)
+    names=[row for row in rows if row[11]=="Name"]
+    if len(names)!=1:return False
+    label=names[0];left=int(label[6])+12;center=int(label[7])+int(label[9])//2
+    box=(left,center+25,left+400,center+55)
+    x,y,w,h=bounds
+    if box[0]<x or box[1]<y or box[2]>x+w or box[3]>y+h:raise RuntimeError("Address-book composer check exceeds owned public bounds")
+    # This read-only interior excludes borders and covers the entire public
+    # Disposable recipient name. Save must visibly clear its freshly filled
+    # composer; an earlier identical status message alone cannot pass.
+    colors=picture.crop(box).getcolors(maxcolors=1)
+    return colors==[(400*30,palette()["input"])]
+
+def address_book_recipient_loaded(recipient):
+    rows=public_rows(ocr_scale=1)
+    label=public_words_position("Recipient address",rows)
+    # Compare the complete observed input token below its own label,
+    # excluding a receive address, longer identity or repaired glyph.
+    return bool(label) and any(row[11]==recipient and label[1]+20<int(row[7])<label[1]+65 for row in rows)
+
 def address_book_campaign():
     stage("Save and load a disposable Ethereum recipient through its address-book icons")
     recipient="0x"+"2"*40
-    def use_position():
-        for scale in (1,2):
-            position=public_words_position("Use address",public_rows(ocr_scale=scale))
-            if position:return position
-        return None
-    def recipient_loaded():
-        rows=public_rows(ocr_scale=1)
-        label=public_words_position("Recipient address",rows)
-        # Compare the complete observed input token below its own label,
-        # excluding a receive address, longer identity or repaired glyph.
-        return bool(label) and any(row[11]==recipient and label[1]+20<int(row[7])<label[1]+65 for row in rows)
     def field(label,value):
-        position=public_words_position(label)
-        if not position:raise RuntimeError("Address-book input label was not visible")
+        lines={}
+        for row in public_rows():lines.setdefault(tuple(row[1:5]),[]).append(row)
+        positions=[position for line in lines.values() if len(line)==len(label.split()) and (position:=public_words_position(label,line))]
+        if len(positions)!=1:raise RuntimeError("Address-book input label was not uniquely visible")
+        position=positions[0]
         desktop.click(position[0],position[1]+40)
         desktop.key("a",ctrl=True)
         if value:desktop.type(value)
@@ -1452,24 +1495,45 @@ def address_book_campaign():
     stage("Address book: inspect scoped form after keyboard Save icon activation")
     wait(lambda:"Save address" in text() and "Wallet / network" in text())
     field("Name","Disposable recipient")
+    if address_book_composer_cleared():raise RuntimeError("Initial Save did not first fill its fresh composer")
     click("Save address")
-    stage("Address book: inspect persisted disposable entry")
-    use=wait(lambda:"Disposable recipient" in text() and use_position())
+    report["addressBookSaveFeedback"]={"initialObservedImmediately":"Address saved." in text()}
+    stage("Address book: inspect freshly cleared composer and unique durable saved entry")
+    use=wait(lambda:address_book_composer_cleared() and "Disposable recipient" in text() and address_book_use_position())
+    stage("Address book: repeat the identical create without duplicating its durable recipient")
+    field("Name","Disposable recipient");field("Address",recipient)
+    if address_book_composer_cleared():raise RuntimeError("Identical Save retry did not first fill its fresh composer")
+    click("Save address")
+    report["addressBookSaveFeedback"]["repeatObservedImmediately"]="Address saved." in text()
+    wait(lambda:address_book_composer_cleared() and "Disposable recipient" in text() and address_book_use_position())
+    for kind,name,address,feedback in (
+        ("invalid-address","Invalid recipient","invalid-ethereum-address","Enter a valid address for the selected network."),
+        ("duplicate-name","Disposable recipient","0x"+"3"*40,"A contact already uses this name in this wallet."),
+        ("duplicate-recipient","Another recipient",recipient,"This address and comment are already saved in this wallet."),
+    ):
+        stage("Address book: reject "+kind+" with actionable feedback and retain the usable saved recipient")
+        field("Name",name);field("Address",address)
+        click("Save address")
+        wait(lambda:public_status_contains(feedback))
+        visible=text()
+        if "Address book unavailable" in visible or "Disposable recipient" not in visible or not address_book_use_position():
+            raise RuntimeError("Rejected address-book edit discarded its known saved row or showed a false storage failure")
+    use=wait(address_book_use_position)
     desktop.click(*use);time.sleep(.25)
     stage("Address book: inspect saved recipient after Use address")
-    wait(recipient_loaded)
+    wait(lambda:address_book_recipient_loaded(recipient))
     field("Recipient address","")
     desktop.key("Tab");desktop.key("Return")
     stage("Address book: inspect scoped entries after keyboard Load icon activation")
-    use=wait(lambda:"Wallet / network" in text() and use_position())
+    use=wait(lambda:"Wallet / network" in text() and address_book_use_position())
     desktop.click(*use);time.sleep(.25)
     stage("Address book: inspect loaded recipient after Use address")
-    wait(recipient_loaded)
+    wait(lambda:address_book_recipient_loaded(recipient))
     if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Address-book selection requested authority or prepared a payment")
     click("Send")
     wait(lambda:"Recipient address" not in text())
-    report["addressBook"]={"saved":True,"loaded":True,"network":"ethereum-mainnet","recipientSHA256":hashlib.sha256(recipient.encode()).hexdigest(),"preparedOrSent":False}
-    passed("Recipient Save/Load icons persist and restore a scoped address-book entry without preparing or approving a payment")
+    report["addressBook"]={"saved":True,"loaded":True,"identicalCreateRetry":True,"singleObservedSavedRowAfterRetry":True,"retryComposerCleared":True,"rejectFeedback":["invalid-address","duplicate-name","duplicate-recipient"],"savedRowUsableAfterReject":True,"network":"ethereum-mainnet","recipientSHA256":hashlib.sha256(recipient.encode()).hexdigest(),"preparedOrSent":False}
+    passed("Recipient Save/Load icons persist and restore a scoped entry, identical Save retries succeed, and invalid/duplicate edits retain usable saved contacts with actionable feedback and no payment authority")
 
 def staking_page():
     stage("Open actual NEAR wallet Staking page")
@@ -1618,6 +1682,23 @@ try:
                 passed("Actual main-row icon copies the exact independently derived public-fixture Ethereum address")
             close_gracefully()
             passed("Targeted public-fixture import reaches all-wallet overview and closes successfully")
+            if args.tokens_only:
+                stage("Address book: reopen the existing disposable encrypted profile after graceful exit")
+                launch(installations[0],home)
+                unlock_with_enter(different_password)
+                click("Ethereum")
+                wait(lambda:"Copy address" in text())
+                click("Send")
+                label=wait(lambda:public_words_position("Recipient address"))
+                desktop.click(label[0],label[1]+40)
+                desktop.key("Tab");desktop.key("Return")
+                use=wait(lambda:"Disposable recipient" in text() and "ethereum-mainnet" in text() and address_book_use_position())
+                desktop.click(*use);time.sleep(.25)
+                wait(lambda:address_book_recipient_loaded("0x"+"2"*40))
+                if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Restarted address-book selection requested payment authority")
+                report["addressBook"]["restoredAfterRestart"]=True
+                close_gracefully()
+                passed("Existing disposable encrypted profile retains its saved address through actual exit/restart/Unlock and fills the exact recipient without payment approval")
             if args.quick_import:
                 launch(installations[0],home)
                 unlock_with_enter(different_password)

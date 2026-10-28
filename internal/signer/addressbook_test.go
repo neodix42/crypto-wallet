@@ -3,6 +3,8 @@ package signer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,6 +29,13 @@ func TestAddressBookAllNetworksEncryptedReloadAndOwnedAccountIsolation(t *testin
 			}
 			if err := e.AddAccount(1); err != nil {
 				t.Fatal(err)
+			}
+			// Begin from a previously installed schema-1 vault that has no
+			// optional addressBook member, rather than relying on create-time RAM.
+			e.Lock()
+			u.inputs = append(u.inputs, input(syntheticPassword))
+			if err := e.Unlock(); err != nil {
+				t.Fatal("existing vault without address book could not reopen", err)
 			}
 			book := map[string][]model.AddressBookEntry{}
 			for _, account := range accounts {
@@ -272,5 +281,155 @@ func TestAddressBookFinalDeletionPreservesEncryptedRecoveryVerification(t *testi
 	entries, err := e.AddressBook(account.ID)
 	if err != nil || len(entries) != 0 || e.data.AddressBook != nil {
 		t.Fatal("final deletion did not survive real signer unlock", err)
+	}
+}
+
+func TestAddressBookCreateRetryReturnsDurableIdentityWithoutRewritingVaultOrPayment(t *testing.T) {
+	e, ui, _ := newEngine(t, []model.Adapter{evm.New()})
+	createImported(t, e, ui, "testnet")
+	account := e.Snapshot().Accounts[0]
+	entry, err := e.SaveAddress(account.ID, "", "Exact retry recipient", account.Address, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := evmPlan(account)
+	if err := e.Prepare(plan); err != nil {
+		t.Fatal(err)
+	}
+	ui.inputs = append(ui.inputs, input(syntheticPassword))
+	signed, err := e.Sign(plan.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Update(plan.ID, "SUBMITTING", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Update(plan.ID, "UNKNOWN", &model.Receipt{Identity: signed.Identity, State: "UNKNOWN", Detail: "Synthetic ambiguous submission; no network request"}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := e.Files.Read("vault.lwv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	generation := e.data.Generation
+	operation := e.data.Operations[0]
+	// Simulate losing the initial acknowledgement: the client knows its exact
+	// input but not the ID. The retry must observe the first committed record.
+	for attempt := 0; attempt < 3; attempt++ {
+		retried, err := e.SaveAddress(account.ID, "", entry.Name, entry.Address, entry.Memo)
+		if err != nil || retried != entry || len(e.data.AddressBook) != 1 || e.data.Generation != generation {
+			t.Fatal("exact create retry changed durable contact identity", err)
+		}
+	}
+	after, err := e.Files.Read("vault.lwv")
+	if err != nil || !bytes.Equal(before, after) || !reflect.DeepEqual(operation, e.data.Operations[0]) || e.data.Operations[0].State != "UNKNOWN" || e.data.Operations[0].Signed == nil || !bytes.Equal(e.data.Operations[0].Signed.Bytes, signed.Bytes) {
+		t.Fatal("metadata retry rewrote ciphertext or changed payment authority", err)
+	}
+	if _, err := e.SaveAddress(account.ID, "", strings.ToUpper(entry.Name), entry.Address, ""); !errors.Is(err, ErrAddressBookDuplicateName) {
+		t.Fatal("non-exact name retry silently replaced the original", err)
+	}
+	if _, err := e.SaveAddress(account.ID, "", "Different label", entry.Address, ""); !errors.Is(err, ErrAddressBookDuplicateRecipient) {
+		t.Fatal("changed-name duplicate silently created another recipient", err)
+	}
+	if _, err := e.SaveAddress(account.ID, "", entry.Name, "0x1111111111111111111111111111111111111111", ""); !errors.Is(err, ErrAddressBookDuplicateName) {
+		t.Fatal("changed-destination duplicate silently replaced the original", err)
+	}
+	e.Lock()
+	ui.inputs = append(ui.inputs, input(syntheticPassword))
+	if err := e.Unlock(); err != nil {
+		t.Fatal(err)
+	}
+	before, err = e.Files.Read("vault.lwv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	generation = e.data.Generation
+	retried, err := e.SaveAddress(account.ID, "", entry.Name, entry.Address, entry.Memo)
+	after, readErr := e.Files.Read("vault.lwv")
+	if err != nil || readErr != nil || retried != entry || len(e.data.AddressBook) != 1 || e.data.Generation != generation || !bytes.Equal(before, after) {
+		t.Fatal("exact create retry after restart was not idempotent", err, readErr)
+	}
+	if !reflect.DeepEqual(operation, e.data.Operations[0]) || e.Prepare(plan) == nil {
+		t.Fatal("contact acknowledgement retry changed unresolved payment or released its reservation")
+	}
+}
+
+func TestAddressBookFailuresHaveFixedActionableCategoriesWithoutInputOrStorageDetails(t *testing.T) {
+	e, ui, _ := newEngine(t, []model.Adapter{evm.New()})
+	createImported(t, e, ui, "testnet")
+	account := e.Snapshot().Accounts[0]
+	entry, err := e.SaveAddress(account.ID, "", "Original recipient", account.Address, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := e.Files.Read("vault.lwv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name                              string
+		account, id, label, address, memo string
+		want                              error
+	}{
+		{"unsupported address", account.ID, "", "Other", "CANARY-private-invalid-address", "", ErrAddressBookInvalidAddress},
+		{"bad input", account.ID, "", "CANARY-private\nlabel", account.Address, "", ErrAddressBookInvalidInput},
+		{"unsupported memo", account.ID, entry.ID, "Other", account.Address, "CANARY-private-comment", ErrAddressBookInvalidInput},
+		{"same folded name", account.ID, "", strings.ToUpper(entry.Name), "0x1111111111111111111111111111111111111111", "", ErrAddressBookDuplicateName},
+		{"same destination", account.ID, "", "Other", entry.Address, "", ErrAddressBookDuplicateRecipient},
+		{"stale edit", account.ID, strings.Repeat("b", 32), "Other", "0x1111111111111111111111111111111111111111", "", ErrAddressBookStale},
+		{"foreign account", "CANARY-private-foreign-account", "", "Other", account.Address, "", ErrAddressBookUnavailable},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := e.SaveAddress(test.account, test.id, test.label, test.address, test.memo)
+			if !errors.Is(err, test.want) || result.ID != "" || strings.Contains(err.Error(), "CANARY") {
+				t.Fatal("wrong or unredacted failure category", err)
+			}
+		})
+	}
+	if err := e.RemoveAddress(account.ID, strings.Repeat("b", 32)); !errors.Is(err, ErrAddressBookStale) {
+		t.Fatal("stale removal lost category", err)
+	}
+	after, err := e.Files.Read("vault.lwv")
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("rejected input rewrote encrypted vault", err)
+	}
+	e.Files.Close()
+	if _, err := e.SaveAddress(account.ID, entry.ID, "Changed", account.Address, ""); !errors.Is(err, ErrAddressBookWriteFailed) || !e.Snapshot().Locked {
+		t.Fatal("failed write lost category or did not lock", err)
+	}
+	if _, err := e.AddressBook(account.ID); !errors.Is(err, ErrAddressBookUnavailable) {
+		t.Fatal("failed storage retained contact read authority", err)
+	}
+}
+
+func TestAddressBookFullOwnedBookRejectsNewRecordButAllowsExactRetryAndIDBoundEdit(t *testing.T) {
+	e, ui, _ := newEngine(t, []model.Adapter{evm.New()})
+	createImported(t, e, ui, "testnet")
+	account := e.Snapshot().Accounts[0]
+	for i := 0; i < model.MaxAccountAddressBookEntries; i++ {
+		e.data.AddressBook = append(e.data.AddressBook, model.AddressBookEntry{ID: fmt.Sprintf("%032x", i+1), AccountID: account.ID, Network: account.Network, Name: fmt.Sprintf("Contact %d", i), Address: fmt.Sprintf("0x%040x", i+1)})
+	}
+	if err := e.persist(); err != nil {
+		t.Fatal("bounded valid address book did not persist", err)
+	}
+	entry := e.data.AddressBook[0]
+	before, err := e.Files.Read("vault.lwv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.SaveAddress(account.ID, "", "Extra", "0x1111111111111111111111111111111111111111", ""); !errors.Is(err, ErrAddressBookLimit) {
+		t.Fatal("full address book did not report limit", err)
+	}
+	retried, err := e.SaveAddress(account.ID, "", entry.Name, entry.Address, entry.Memo)
+	if err != nil || retried != entry {
+		t.Fatal("full address book rejected exact committed retry", err)
+	}
+	after, err := e.Files.Read("vault.lwv")
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("limit/retry rewrote full address book", err)
+	}
+	updated, err := e.SaveAddress(account.ID, entry.ID, "Renamed existing", entry.Address, entry.Memo)
+	if err != nil || updated.ID != entry.ID || len(e.data.AddressBook) != model.MaxAccountAddressBookEntries {
+		t.Fatal("bounded full book could not update exact record", err)
 	}
 }

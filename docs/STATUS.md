@@ -1,5 +1,56 @@
 # Implementation and release evidence
 
+## Address-book Save diagnosis and repair — 2026-10-28
+
+The former controller assigned `Address book unavailable` before every read or
+mutation and retained it on rejection. Valid saves work across all active network
+validators; an invalid address, conflicting contact or storage/session failure
+was previously reduced to the same misleading page state. A reproduced frontend
+race also allowed an older echoed field value to overwrite newer typing. Finally,
+the controller required a list read after a durable save; failure of that read
+misreported a committed contact as failed, and retrying could then hit a duplicate.
+An actual desktop diagnostic also reproduced a fast successful retry whose form
+stayed filled: React could coalesce the busy and completed snapshots, leaving
+unchanged canonical empty values unable to reset local inputs. Fourteen observed
+success messages and the persisted row distinguish this from a rejected save.
+Explicit Go-owned composer replacement fixes successful Save, Clear and Edit
+without relying on a transient busy view. The user's exact input is unknown;
+no real profile is opened to infer it.
+
+Save now consumes the validated durable acknowledgement directly and exact create
+retries return the existing identity without another write. Fixed error categories
+identify the blocker without returning submitted text, filesystem paths or raw
+provider errors. Input conflicts preserve the draft and unchanged contacts;
+uncertain writes invalidate selectable cache, and actual session/storage failures
+still revoke authority. Acknowledged public input echoes preserve newer edits.
+
+Earlier tests set controller fields directly and exercised only a fresh valid
+graphical contact. They did not cover delayed partial echoes, rejected Save UI,
+committed-save/read failure or exact repeated creation. These gaps are now
+explicit regressions, including full-length Aptos addresses and contact names,
+and coalesced same-value form resets. Baseline reproduction records are
+`reports/addressbook-field-echo-baseline.json` and
+`reports/addressbook-coalesced-reset-baseline.json`.
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, backend and protocol | All eight active mainnets and 11 testnet/local descriptors, existing encrypted vaults, exact retry without generation/ciphertext changes, duplicate/size categories, actual failed-write lock, strict IPC and private error canaries. A real encrypted UNKNOWN payment/reservation survives contact retries and restart unchanged. Full affected suites and focused six-package race pass: `reports/addressbook-save-all-backend-tests.log`, `reports/addressbook-save-diagnostics-race.log`. |
+| PASS, controller/race | Durable Save/Delete require no second list RPC; correctable rejections keep draft/contacts; forged account/network/field/edit-ID acknowledgements reject; incomplete lists remain explicitly partial; storage/session failure locks; unknown write acknowledgement never claims failure to commit. Existing epoch, selection and lifecycle guards pass. `reports/addressbook-save-controller-race.log`. |
+| PASS, current aggregate | `make test-ci`: current Go suites, stress regressions and all 66 React tests pass. All 90 final current GUI-helper tests pass separately, including exact bounded status-bar observation and private/out-of-bounds/body-text rejection. Frontend tests cover paste then Save without blur, delayed echoes at 66/80/4096 characters, authoritative resets, disabled state, changed field identity and explicit same-value composer replacement. `reports/addressbook-save-ci.log`, `reports/addressbook-save-final-helper.log`. |
+| PASS, portable artifact and recovery | Fresh single-Go build/package and isolated extraction; seven recovery/migration checks across three disposable installations/24 descriptors; eight real private-geth payment checks; eight actual WebKit security and three inspector checks; ten installation checks. No real profile or public funds. Logs: `reports/addressbook-save-{build,recovery,payment,webkit-security,inspector,installer}.log`. |
+| FAIL, first graphical attempt | The new observer checked the seven-second success message only after locating the saved row. It timed out with stable sources. A guarded public-only diagnostic confirmed the contact was saved, its composer cleared and its Use control available; the transient message had expired. This is an observer-order failure, not a passing desktop campaign. `reports/wails-addressbook-save-first-failed.json`. |
+| FAIL, intermediate product acceptance | The stronger repeated-save check then exposed a genuine uncleared local composer after a successful fast save. Stable guarded public diagnostics establish the defect; no rejection or unchanged form was treated as success. `reports/wails-addressbook-save-repeat-failed.json`, `reports/addressbook-coalesced-reset-baseline.json`. An unrelated full-run generated-phrase observer read only 11 ordinals; later workflow steps were not passed in that attempt. `reports/wails-addressbook-save-full-phrase-ocr-failed.json`. |
+| FAIL, broad feedback observer | Targeted and complete attempts then stopped at duplicate-name feedback (the complete run had passed nine earlier steps). An immediate guarded diagnostic confirmed the exact correct message and preserved row with 1× footer OCR; broad 2× page OCR missed the prefix. The final observer checks the exact message only inside the owned status bar, without glyph repair or body-text acceptance. Earlier failed results remain separate: `reports/wails-addressbook-save-full-duplicate-feedback-failed.json`, `reports/wails-duplicate-name-diagnostic.json`. |
+| PASS, targeted actual desktop | All five targeted uninstrumented steps pass with stable sources on the recorded final binary. Initial and repeated Save visibly clear a freshly filled composer and retain one selectable row; invalid-address, duplicate-name and duplicate-recipient feedback are exact; the cached row remains usable. Actual exit/restart, Enter unlock and Load/Use restore the exact full recipient from the encrypted profile. No payment is prepared, approved or sent. `reports/wails-addressbook-save.json`. |
+| PASS, complete actual desktop | All 24 uninstrumented steps pass with `sourceStable=true` on the recorded final binary. Generated-root setup, all eight wallets, actual NEAR/Ethereum views, Settings/backup/Appearance/Bybit cancellation and Enter unlock pass. Save/retry/all three rejections/Load/Use are repeated after independent phrase restore with a different app password; all eight restored addresses match. `reports/wails-wallet.json`, `reports/addressbook-save-full-gui.log`. |
+| NOT_RUN at local commit checkpoint | Hosted workflow for the new commit. Local results do not certify a later release build; follow that exact commit's checks. |
+| NOT_RUN | Separate physical-machine migration, full clean OS/Wayland matrix, funded public networks/Bybit and independent review. |
+
+The tested local executable is SHA256
+`4d712a69cc01772b28188ebcd3449a732a7cd82e6c57ed778cbe34a199ec763a`.
+The checklist records this candidate only; it is not production or funded-network
+acceptance. See [address-book behavior](ADDRESS_BOOK.md).
+
 ## Address book, compact assets and USDC spot directions — 2026-10-28
 
 | State | Evidence and limits |

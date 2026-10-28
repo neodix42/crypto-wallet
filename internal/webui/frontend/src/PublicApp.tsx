@@ -4,6 +4,7 @@ import { applyAppearance, isAssetTable, isWalletRow, validView } from './protoco
 import { AddressBookIcon, CopyIcon, Mark, SaveAddressIcon, SettingsIcon } from './icons';
 
 type Emit = (id: string, value?: string) => void;
+const publicFieldLimit = 4096;
 const blank: View = { Title: 'CryptoWallet', Status: '', StatusRevision: 0, Active: '', Pages: [] };
 
 function AssetSelector({ node, tooltip, emit }: { node: Node; tooltip: string; emit: Emit }) {
@@ -22,14 +23,36 @@ export function AssetTable({ node, emit }: { node: Node; emit: Emit }) {
 
 export function Field({ node, emit }: { node: Node; emit: Emit }) {
   const [value, setValue] = useState(node.Value);
-  const previous = useRef(node.Value);
-  useEffect(() => { if (previous.current !== node.Value) { previous.current = node.Value; setValue(node.Value); } }, [node.Value]);
-  const update = (v: string) => { setValue(v); emit(node.ID, v); };
+  const previous = useRef({ id: node.ID, value: node.Value });
+  const pending = useRef<string[]>([]), input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (previous.current.id !== node.ID || node.Disabled) {
+      pending.current = []; setValue(node.Value);
+    } else if (previous.current.value !== node.Value) {
+      const acknowledged = pending.current.indexOf(node.Value);
+      if (node.Kind === 'entry' && input.current === document.activeElement && acknowledged >= 0) {
+        pending.current.splice(0, acknowledged + 1);
+        if (!pending.current.length) setValue(node.Value);
+      } else {
+        pending.current = []; setValue(node.Value);
+      }
+    }
+    previous.current = { id: node.ID, value: node.Value };
+  }, [node.ID, node.Kind, node.Value, node.Disabled]);
+  const update = (v: string) => {
+    if (node.Kind === 'entry') {
+      // Public draft values only. Bound echoes retained while a field is
+      // focused; unknown Go values and explicit busy/reset views still win.
+      pending.current.push(v);
+      if (pending.current.length > publicFieldLimit) pending.current.shift();
+    }
+    setValue(v); emit(node.ID, v);
+  };
   const id = 'wallet-' + node.ID;
   if (node.Kind === 'check') return <label className="check-field" title={node.Tooltip}><input type="checkbox" checked={value === 'true'} disabled={node.Disabled} onChange={event => update(String(event.target.checked))}/>{node.Text}</label>;
   return <label className="field" htmlFor={id} title={node.Tooltip}><span>{node.Text}</span>{node.Kind === 'combo'
     ? <select id={id} value={value} disabled={node.Disabled} onChange={event => update(event.target.value)}>{!(node.Options || []).some(option => option.ID === value) && <option value="" disabled>Select…</option>}{(node.Options || []).map(option => <option key={option.ID} value={option.ID}>{option.Text}</option>)}</select>
-    : <input id={id} value={value} disabled={node.Disabled} autoComplete="off" spellCheck={false} maxLength={4096} onChange={event => update(event.target.value)}/>}</label>;
+    : <input ref={input} id={id} value={value} disabled={node.Disabled} autoComplete="off" spellCheck={false} maxLength={publicFieldLimit} onBlur={() => { pending.current = []; }} onChange={event => update(event.target.value)}/>}</label>;
 }
 
 export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
@@ -38,7 +61,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'heading': return <h2 className="node-heading" title={node.Tooltip}>{node.Text}</h2>;
     case 'label': return node.Text ? <p className="node-label" title={node.Tooltip}>{node.Text}</p> : null;
     case 'separator': return <hr/>;
-    case 'column': return isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
+    case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
       if (node.ID.startsWith('recipientField/')) return <div className="recipient-field">{children()}</div>;

@@ -132,7 +132,7 @@ func TestAddressBookReadRejectsForeignDuplicateAndOversizedEntries(t *testing.T)
 			a.fields["bookAccount"] = account.ID
 			a.loadAddressBook()
 			ui.apply(t)
-			if a.bookOwner != "" || len(a.bookEntries) != 0 || a.bookError == "" || strings.Contains(a.status, "provider-private-error") {
+			if a.bookOwner != "" || len(a.bookEntries) != 0 || !strings.Contains(a.status, "Could not refresh saved contacts") || strings.Contains(a.status, "provider-private-error") {
 				t.Fatal("failed contact read retained stale selectable entries or leaked failure detail")
 			}
 		})

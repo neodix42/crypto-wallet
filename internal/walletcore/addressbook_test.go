@@ -111,3 +111,39 @@ func TestAddressBookCoordinatorDiscardsCompletionAfterSessionChange(t *testing.T
 		})
 	}
 }
+
+func TestAddressBookCoordinatorPreservesOnlyAllowlistedFailureCategories(t *testing.T) {
+	c, path := fakeCoordinator(t, &publicAdapter{}, nil)
+	fixture := strings.Replace(publicChild, "if error:response['error']=error", "if error:response['error']=state.get('errorOverride',error)", 1)
+	if fixture == publicChild {
+		t.Fatal("failure fixture insertion failed")
+	}
+	if err := os.WriteFile(c.child.Path, []byte(fixture), 0700); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte(fixture))
+	manifest, _ := json.Marshal(map[string]string{"wallet-signer": hex.EncodeToString(digest[:])})
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "manifest.json"), manifest, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, category := range []string{"ADDRESS_BOOK_INVALID_INPUT", "ADDRESS_BOOK_INVALID_ADDRESS", "ADDRESS_BOOK_DUPLICATE_NAME", "ADDRESS_BOOK_DUPLICATE_RECIPIENT", "ADDRESS_BOOK_LIMIT", "ADDRESS_BOOK_STALE", "ADDRESS_BOOK_UNAVAILABLE", "ADDRESS_BOOK_WRITE_FAILED", "CANARY-private-error-path", "ADDRESS_BOOK_INVALID_INPUT\nCANARY-private-context"} {
+		state := readPublicState(t, path)
+		state["reject"] = []string{"saveAddress"}
+		state["errorOverride"] = category
+		writePublicState(t, path, state)
+		out, err := c.handle(message("saveAddress", map[string]string{"accountId": "owned", "name": "Public recipient", "address": "public-recipient"}))
+		want := category
+		if strings.Contains(category, "CANARY") {
+			want = "REQUEST_FAILED_STATE_UNKNOWN"
+		}
+		if err == nil || out != nil || ipc.PublicErrorCode(err) != want || strings.Contains(err.Error(), "CANARY") {
+			t.Fatal("coordinator lost safe failure category or relayed private context", err)
+		}
+	}
+	// Invalid public fields fail before child transport with the same fixed
+	// input category, rather than pretending the encrypted book is unavailable.
+	out, err := c.handle(ipc.Message{Method: "saveAddress", Body: []byte(`{"accountId":"owned","name":null,"address":"CANARY-private-address"}`)})
+	if out != nil || ipc.PublicErrorCode(err) != "ADDRESS_BOOK_INVALID_INPUT" || strings.Contains(err.Error(), "CANARY") {
+		t.Fatal("public schema failure was not categorized/redacted", err)
+	}
+}

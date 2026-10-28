@@ -16,7 +16,7 @@ func handleAddressBook(engine *signer.Engine, method string, raw []byte) (json.R
 			AccountID strictjson.Text `json:"accountId"`
 		}
 		if signer.DecodeBody(raw, &body) != nil {
-			return nil, signer.ErrDenied
+			return nil, signer.ErrAddressBookInvalidInput
 		}
 		out, err = engine.AddressBook(string(body.AccountID))
 	case "saveAddress":
@@ -28,7 +28,7 @@ func handleAddressBook(engine *signer.Engine, method string, raw []byte) (json.R
 			Memo      strictjson.Text `json:"memo,omitempty"`
 		}
 		if signer.DecodeBody(raw, &body) != nil {
-			return nil, signer.ErrDenied
+			return nil, signer.ErrAddressBookInvalidInput
 		}
 		out, err = engine.SaveAddress(string(body.AccountID), string(body.ID), string(body.Name), string(body.Address), string(body.Memo))
 	case "removeAddress":
@@ -37,7 +37,7 @@ func handleAddressBook(engine *signer.Engine, method string, raw []byte) (json.R
 			ID        strictjson.Text `json:"id"`
 		}
 		if signer.DecodeBody(raw, &body) != nil {
-			return nil, signer.ErrDenied
+			return nil, signer.ErrAddressBookInvalidInput
 		}
 		err = engine.RemoveAddress(string(body.AccountID), string(body.ID))
 	default:
