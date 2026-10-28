@@ -267,6 +267,9 @@ class CIDesktop(unittest.TestCase):
         self.assertLess(send, cleanup)
         self.assertLess(cleanup, upload)
         self.assertIn('if: always()', text[text.rfind('      - name:', 0, cleanup):cleanup])
+        self.assertIn('reports/wails-*-near-public-contract.png', text)
+        for broad_pixels in ['reports/*.png', 'reports/**/*.png']:
+            self.assertNotIn(broad_pixels, text)
         self.assertNotIn('scripts/ci-desktop.py', checks)
         for command in [gui, payment]:
             self.assertNotIn('run: ' + command, text)

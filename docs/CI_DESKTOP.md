@@ -1,5 +1,17 @@
 # Current desktop checks in GitHub Actions
 
+## Hosted contract-text observation follow-up — 2026-10-28
+
+The follow-up [run 40690429440](https://github.com/neodix42/crypto-wallet/actions/runs/40690429440) at `8e677a2` passes the repaired mutation/security step. Its new GUI diagnostics establish that NEAR navigation succeeds on the first attempt and the actual Staking page displays AstroStakers. Only the exact full-contract recognition fails. The earlier missed-click hypothesis did not establish the cause.
+
+A static public-text probe reproduces the distinction: Ubuntu 24's Tesseract 5.3.4 with DejaVu Sans Mono reads `poolv1` as `poolvl`, including several ordinary upscale modes. The development machine uses Tesseract 5.5. The earlier “CI-font” probe matched the sans-serif brand metrics but incorrectly forced that sans face onto monospace content too; it did not reproduce the hosted contract font. This is a test-fixture gap, not evidence of a changed contract or a passing GUI campaign. The correction must preserve exact contract identity and reject near-miss addresses, without substituting `1`/`l` or forcing expected characters.
+
+The guarded public crop then reproduces the same `1`/`l` misread under **both** OCR versions without image padding. Adding a white border and decoding only the complete read-only contract line produces the exact 25 bytes. Engine version alone is therefore not the demonstrated cause: field segmentation and padding matter. The new decoder anchors the unique **Exact contract** label in one atomic public capture, scrolls only when the complete line is outside the viewport, and uses native/3× single-line OCR with whitespace-only joining. It supplies no character whitelist or expected-word dictionary. It stops re-clicking an already-open Staking tab.
+
+The committed positive fixture is actual local Ubuntu 26 app pixels; wrong-`l` and wrong-`I` fixtures are explicitly synthetic. Their metadata and hashes are in [near-public-contract.json](../tests/e2e/fixtures/near-public-contract.json). Both decoders reject the wrong images; 72 additional synthetic near-misses reject as well. Genuine mono-font false negatives remain failures, never character substitutions. On a mismatch, only the small guard-checked public contract crop is retained, bound by SHA-256 and uploaded through the narrow `wails-*-near-public-contract.png` artifact path. Private-window capture failures produce no image.
+
+Local focused and complete 20-step GUI runs pass using the extracted official Ubuntu 24 OCR runtime. This checks that decoder against local rendering; it does not establish Ubuntu 24 WebKit/font rendering or a new passing hosted run. Source-specific results and pending gates remain in [STATUS.md](STATUS.md).
+
 ## Mutation and navigation repair — 2026-10-28
 
 [Run 40683603591](https://github.com/neodix42/crypto-wallet/actions/runs/40683603591) at `59e063f` passed the current unit/frontend/helper step and Go security units. Four mutation campaigns then hit their unchanged 120-second deadline: recovery authorization, recorded-phrase confirmation, nonce reservation and ambiguous-payment reservation. The report marks them **INVALID**, not killed or passed. Each campaign reran the complete signer suite; the unmodified suite takes 68 seconds on this development machine. The old timeout handler discarded partial test output, so the hosted report cannot identify the exact test running at expiry.

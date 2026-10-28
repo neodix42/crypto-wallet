@@ -311,7 +311,7 @@ def private_primary(prefix):
     report.setdefault("privateFooterFailures",[]).append({"title":prefix,"window":[w,h],"expectedPrimary":list(palette()["primary"]),"commonColors":[[list(color),count] for color,count in counts.most_common(6)]})
     raise RuntimeError("Private prompt did not finish rendering its enabled footer action")
 
-def public_rows(contrast=False):
+def public_rows(contrast=False, with_picture=False):
     # Make classification and pixel capture one X11 operation. An async Go
     # prompt cannot become visible between the allowlist check and image read.
     # This is only the owned private :18x test server; release it before OCR.
@@ -323,6 +323,7 @@ def public_rows(contrast=False):
         picture=desktop.image()
     finally:
         desktop.ungrab_server()
+    captured=picture
     # In the Light theme, disabled controls have low-contrast gray text on
     # near-white surfaces. Preserve the immutable, guard-checked public
     # capture while making those actual glyphs legible to the OCR engine.
@@ -337,7 +338,7 @@ def public_rows(contrast=False):
         if len(fields) == 12 and fields[11].strip():
             for position in (6,7,8,9):fields[position]=str(int(fields[position])//2)
             rows.append(fields)
-    return rows
+    return (rows,captured) if with_picture else rows
 
 def private_rows(prefix):
     window,_=desktop.wait(prefix,30)
@@ -730,6 +731,71 @@ def near_navigation_state(rows):
     state["staking"]=state["wallet"] and state["validator"] and state["contract"]
     return state
 
+def near_contract_crop(rows,picture):
+    # Locate the read-only public address below its unique Exact contract
+    # label, not the editable pool field or the owned receive address. Rows and
+    # pixels come from one immutable, guard-checked public capture.
+    window,_=desktop.wait("CryptoWallet")
+    x,y,w,h=desktop.geometry(window)
+    matches=[]
+    for index,row in enumerate(rows[:-1]):
+        second=rows[index+1]
+        if row[11]=="Exact" and second[11]=="contract" and row[1:5]==second[1:5] and int(row[7])>y+145:
+            matches.append((row,second))
+    if len(matches)>1:raise RuntimeError("Public staking contract label was ambiguous")
+    if not matches:return None
+    first,last=matches[0]
+    if int(first[6])<x+32 or int(last[6])+int(last[8])>x+w-32:return None
+    left=max(x+32,int(first[6])-3)
+    top=max(int(row[7])+int(row[9]) for row in (first,last))+2
+    bounds=(left,top,min(left+523,x+w-32),top+52)
+    if bounds[2]<=bounds[0] or bounds[3]>y+h-33 or bounds[2]>picture.width or bounds[3]>picture.height:return None
+    return picture.crop(bounds),bounds
+
+def decode_near_contract(picture,deadline):
+    # A whole-display sparse-text pass can misread poolv1 as poolvl on the
+    # Ubuntu24 Tesseract/font combination. Decode the isolated actual public
+    # line, without a character whitelist, supplied dictionary or 1/l rewrite.
+    # Only whitespace segmentation may change; every other byte must match.
+    expected="astro-stakers.poolv1.near"
+    gray=picture.convert("L")
+    if appearance["theme"]=="dark":gray=ImageOps.invert(gray)
+    for scale in (1,3):
+        remaining=deadline-time.monotonic()
+        if remaining<=0:return False
+        prepared=gray.resize((gray.width*scale,gray.height*scale),Image.Resampling.LANCZOS)
+        prepared=ImageOps.expand(prepared,border=12*scale,fill=255)
+        data=io.BytesIO();prepared.save(data,format="PNG")
+        raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","7"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=min(10,remaining))
+        candidate="".join(raw.decode("utf-8",errors="replace").split())
+        matched=candidate==expected
+        report.setdefault("nearContractOCR",[]).append({"scale":scale,"psm":7,"matched":matched,"recognizedBytes":len(candidate.encode()),"recognizedSHA256":hashlib.sha256(candidate.encode()).hexdigest()})
+        if matched:return True
+    return False
+
+def verify_near_public_contract(deadline):
+    # Navigation has already reached this exact NEAR/Staking page. Move only
+    # its public scroll position if the read-only line is below the viewport;
+    # do not re-click Staking or any transaction control while decoding it.
+    for _ in range(4):
+        if time.monotonic()>=deadline:return False
+        rows,picture=public_rows(with_picture=True)
+        captured=near_contract_crop(rows,picture)
+        if captured:
+            line,bounds=captured
+            report["nearContractPublicRegion"]={"bounds":list(bounds),"size":list(line.size)}
+            if decode_near_contract(line,deadline):return True
+            # This immutable crop was classified/captured before OCR under the
+            # same X11 guard. It contains only the anchored public contract
+            # line, never a whole window, address table or private prompt.
+            path=REPORTS/(args.report_name+"-near-public-contract.png")
+            line.save(path)
+            report["nearContractPublicRegion"]["failureArtifact"]=path.name
+            report["nearContractPublicRegion"]["failureArtifactSHA256"]=hashlib.sha256(path.read_bytes()).hexdigest()
+            return False
+        scroll_public(5,2)
+    return False
+
 def wait_near_navigation(target, seconds=45):
     # Only these two idempotent public navigation actions may be repeated.
     # An asynchronous balance snapshot can supersede a pointer event; inspect
@@ -749,6 +815,14 @@ def wait_near_navigation(target, seconds=45):
         state=near_navigation_state(rows)
         observed["observed"]=state
         save()
+        if target=="staking" and state["wallet"] and state["validator"]:
+            stage("Verify exact read-only public NEAR staking contract")
+            state["contract"]=verify_near_public_contract(deadline)
+            state["staking"]=state["contract"]
+            save()
+            if not state["contract"]:
+                raise RuntimeError("Complete public NEAR staking contract could not be verified exactly")
+            return
         if state[target]:return
         # Never select Staking until the exact NEAR Wallet is observed. Never
         # select another wallet or act on an unexpected page with its address.

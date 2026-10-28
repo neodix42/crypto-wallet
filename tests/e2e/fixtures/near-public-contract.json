@@ -1,0 +1,22 @@
+{
+  "scope": "Guard-checked read-only public NEAR staking contract line captured from the actual Wails app on a disposable X11 display, Ubuntu26.04; not hosted Ubuntu24 pixels. Contains only the public staking pool and border, no wallet receive address or private prompt.",
+  "fixtureSHA256": "35ebf94639d9e39499a63d87f8272fa873f63216de5752792c6ac07149a536b4",
+  "expected": "astro-stakers.poolv1.near",
+  "size": [
+    523,
+    52
+  ],
+  "font": "DejaVu sans-family override; actual distinct-monospace CSS fallback not established",
+  "negativeFixtures": {
+    "near-public-contract-wrong-l.png": {
+      "fixtureSHA256": "797f82236db10809b20966158dbbc94df8d715bf2151fa96e8d227a3414a3d39",
+      "displayedPublicText": "astro-stakers.poolvl.near",
+      "scope": "Synthetic public-text negative control rendered with DejaVuSans18 using Pillow; not captured app pixels."
+    },
+    "near-public-contract-wrong-i.png": {
+      "fixtureSHA256": "c69dcb14721dc59b33387ed83e56a10a27d2ac29b49b90704eb7d4f8ade6f5f2",
+      "displayedPublicText": "astro-stakers.poolvI.near",
+      "scope": "Synthetic public-text negative control rendered with DejaVuSans18 using Pillow; not captured app pixels."
+    }
+  }
+}

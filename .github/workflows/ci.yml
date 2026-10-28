@@ -57,6 +57,7 @@ jobs:
           path: |
             reports/native-*.json
             reports/wails-*.json
+            reports/wails-*-near-public-contract.png
             reports/portable-*.json
             reports/go-only-build.json
             dist/portable-build-verification.json

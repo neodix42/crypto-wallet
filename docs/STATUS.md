@@ -1,5 +1,17 @@
 # Implementation and release evidence
 
+## Hosted contract-text observation follow-up — 2026-10-28
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, hosted checks job at `8e677a2` | [Run 40690429440](https://github.com/neodix42/crypto-wallet/actions/runs/40690429440) passes the complete checks job: current units/helpers, mutation/security, race, interoperability, real local integrations, fuzz, isolated EVM transfers, dependency review and headless recovery/crash checks. Its separate GUI job fails; the overall run is not green. |
+| FAIL, hosted GUI | Precise diagnostics show correct NEAR wallet, first-attempt navigation and AstroStakers, but full contract OCR remains false. Sixteen repeated tab clicks do not fix that recognition error. The overall GUI campaign remains failed. |
+| PASS, diagnosis only | Ubuntu 24/Tesseract 5.3.4 and DejaVu Sans Mono reproduce `poolv1` → `poolvl` on synthetic public text. Earlier sans-matched local GUI probes did not preserve the mono fallback and therefore did not establish hosted equivalence. See [the corrected diagnosis](CI_DESKTOP.md). |
+| PASS, exact decoder | Both OCR versions reproduce the raw public-crop misread and read the exact 25 contract bytes after anchored segmentation/padding. Both reject the committed synthetic wrong-`l`/wrong-`I` image fixtures; 72 additional synthetic near-misses reject. No whitelist, address rewriting or reduced identity check. Genuine mono-font false negatives remain failures. |
+| PASS, local final tests | `make test-ci`, all `make test-security-ci` checks, 35 current-interface regressions on both OCR versions, 50 complete helper regressions, 23 CI routing/privacy-artifact checks and pinned workflow lint. All 24 general, five Bybit and five Exchange mutants are killed with current stable sources. |
+| PASS, full local GUI with Ubuntu 24 OCR | `make test-wails-wallet`: all 20 steps and stable sources using extracted official Tesseract 5.3.4. Focused five-step campaigns also pass under 5.3.4 and 5.5. This is local system rendering, not a clean Ubuntu 24 desktop matrix. |
+| NOT_RUN at commit checkpoint | New hosted execution of the contract-crop correction. The local full GUI and raw fixture results do not certify hosted rendering, public funded operations or independent review. |
+
 ## Hosted mutation/navigation repair — 2026-10-28
 
 The failed [run 40683603591](https://github.com/neodix42/crypto-wallet/actions/runs/40683603591) is retained as a failure: four mutation campaigns timed out and the Wails navigation observer did not reach its NEAR Staking assertions. See [the diagnosis and repair scope](CI_DESKTOP.md). No wallet security policy, accepted network, production timeout or release authentication check is changed by this repair.

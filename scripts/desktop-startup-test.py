@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Pre-input diagnostics must explain startup failures without retaining workflow logs."""
 import ast
+import hashlib
 import io
+import json
 import pathlib
 import re
 import subprocess
@@ -179,6 +181,7 @@ class WailsNearNavigation(unittest.TestCase):
         self.report={}
         self.scope={'time':self.clock,'re':re,'desktop':self.desktop,'app':None,
                     'public_rows':self.rows,'click':self.click,'report':self.report,
+                    'verify_near_public_contract':mock.Mock(return_value=True),'stage':mock.Mock(),
                     'save':mock.Mock(),'PrivateWindowVisible':type('PrivateWindowVisible',(RuntimeError,),{})}
         exec(compile(ast.Module(body=functions,type_ignores=[]),'near-public-navigation-helper','exec'),self.scope)
 
@@ -247,12 +250,13 @@ class WailsNearNavigation(unittest.TestCase):
 
     def test_missing_contract_cannot_pass_or_retry_an_operation(self):
         self.rows.return_value=self.wallet()+self.row('AstroStakers astro-stakers.poolv1.near.evil',650,4)
+        self.scope['verify_near_public_contract'].return_value=False
         # The complete address is a separate exact OCR token, not a prefix.
-        with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+        with self.assertRaisesRegex(RuntimeError,'could not be verified exactly'):
             self.scope['wait_near_navigation']('staking',seconds=.3)
         self.assertLess(self.clock.now,.5)
         self.assertFalse(self.report['nearNavigation']['staking']['observed']['contract'])
-        self.assertEqual(self.click.call_args_list,[mock.call(177,560)])
+        self.click.assert_not_called()
 
     def test_unknown_public_page_cannot_select_a_near_label(self):
         for rows in (self.row('Settings NEAR',280,1),self.wallet('ETH')):
@@ -281,6 +285,115 @@ class WailsNearNavigation(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'exited'):
             self.scope['wait_near_navigation']('wallet')
         self.rows.assert_not_called();self.click.assert_not_called()
+
+
+class WailsPublicContractOCR(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('near_contract_crop','decode_near_contract','verify_near_public_contract')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.folder=tempfile.TemporaryDirectory(prefix='wallet-public-contract-')
+        self.addCleanup(self.folder.cleanup)
+        self.desktop=SimpleNamespace(wait=mock.Mock(return_value=(1,'CryptoWallet')),
+                                     geometry=mock.Mock(return_value=(80,100,1440,900)))
+        self.report={}
+        self.rows=mock.Mock()
+        self.scroll=mock.Mock()
+        self.scope={'Image':Image,'ImageOps':ImageOps,'io':io,'hashlib':hashlib,
+                    'time':time,'subprocess':subprocess,'desktop':self.desktop,
+                    'appearance':{'theme':'light'},'report':self.report,
+                    'public_rows':self.rows,'scroll_public':self.scroll,
+                    'REPORTS':pathlib.Path(self.folder.name),
+                    'args':SimpleNamespace(report_name='owned-contract')}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'wails-public-contract-helper','exec'),self.scope)
+        self.fixture=ROOT/'tests/e2e/fixtures/near-public-contract.png'
+
+    def label(self,y=700):
+        return [['5','1','1','1','1',str(i),str(160+i*55),str(y),'50','18','99',word]
+                for i,word in enumerate(('Exact','contract'))]
+
+    def test_actual_guarded_public_fixture_has_exact_identity_without_decoder_hints(self):
+        metadata=json.loads(self.fixture.with_suffix('.json').read_text())
+        self.assertEqual(hashlib.sha256(self.fixture.read_bytes()).hexdigest(),metadata['fixtureSHA256'])
+        with Image.open(self.fixture) as picture:
+            self.assertTrue(self.scope['decode_near_contract'](picture,time.monotonic()+10))
+        self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
+
+    def test_actual_decoder_rejects_visually_confusable_wrong_public_contracts(self):
+        metadata=json.loads(self.fixture.with_suffix('.json').read_text())
+        for name,negative in metadata['negativeFixtures'].items():
+            path=self.fixture.parent/name
+            with self.subTest(fixture=name):
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),negative['fixtureSHA256'])
+                with Image.open(path) as picture:
+                    self.assertFalse(self.scope['decode_near_contract'](picture,time.monotonic()+10))
+
+    def test_only_whitespace_can_change_in_exact_contract_decoder(self):
+        for value,expected in ((b'astro-stakers.poolv1.near\n',True),
+                               (b'astro-stakers. poolv1.near\n',True),
+                               (b'astro-stakers.poolvl.near\n',False),
+                               (b'astro-stakers.poolvI.near\n',False),
+                               (b'astro-stakers.poolv7.near\n',False),
+                               (b'astro-stakers.poolv1.near.evil\n',False),
+                               (b'astro-stakers.poolv1.near other\n',False),
+                               (b'astro.stakers.poolv1.near\n',False)):
+            with self.subTest(value=value),mock.patch.object(subprocess,'check_output',return_value=value) as decoder:
+                self.assertEqual(self.scope['decode_near_contract'](Image.new('RGB',(523,52),'white'),time.monotonic()+10),expected)
+                for call in decoder.call_args_list:
+                    self.assertEqual(call.args[0],['tesseract','stdin','stdout','--psm','7'])
+                    self.assertLessEqual(call.kwargs['timeout'],10)
+        self.assertTrue(all(set(row)=={'scale','psm','matched','recognizedBytes','recognizedSHA256'} for row in self.report['nearContractOCR']))
+
+    def test_decoder_timeout_or_expired_budget_cannot_become_a_match(self):
+        with mock.patch.object(subprocess,'check_output') as decoder:
+            self.assertFalse(self.scope['decode_near_contract'](Image.new('RGB',(523,52)),time.monotonic()-1))
+            decoder.assert_not_called()
+        for error in (subprocess.TimeoutExpired('tesseract',1),subprocess.CalledProcessError(1,'tesseract')):
+            with mock.patch.object(subprocess,'check_output',side_effect=error),self.assertRaises(type(error)):
+                self.scope['decode_near_contract'](Image.new('RGB',(523,52)),time.monotonic()+1)
+        self.assertNotIn('nearContractOCR',self.report)
+
+    def test_crop_requires_unique_readonly_label_and_complete_public_viewport(self):
+        picture=Image.new('RGB',(1600,1100),'white')
+        crop,bounds=self.scope['near_contract_crop'](self.label(),picture)
+        self.assertEqual(bounds,(157,720,680,772))
+        self.assertEqual(crop.size,(523,52))
+        self.assertIsNone(self.scope['near_contract_crop']([],picture))
+        self.assertIsNone(self.scope['near_contract_crop'](self.label(930),picture))
+        self.assertIsNone(self.scope['near_contract_crop'](self.label(),Image.new('RGB',(500,700))))
+        with self.assertRaisesRegex(RuntimeError,'ambiguous'):
+            self.scope['near_contract_crop'](self.label()+self.label(800),picture)
+        self.desktop.geometry.return_value=(500,100,1000,900)
+        self.assertIsNone(self.scope['near_contract_crop'](self.label(),picture))
+
+    def test_failed_decoder_saves_only_immutable_anchored_public_region_and_hash(self):
+        picture=Image.new('RGB',(1600,1100),'white')
+        self.rows.return_value=(self.label(),picture)
+        self.scope['decode_near_contract']=mock.Mock(return_value=False)
+        self.assertFalse(self.scope['verify_near_public_contract'](time.monotonic()+10))
+        self.rows.assert_called_once_with(with_picture=True)
+        self.scroll.assert_not_called()
+        files=list(pathlib.Path(self.folder.name).iterdir())
+        self.assertEqual([path.name for path in files],['owned-contract-near-public-contract.png'])
+        with Image.open(files[0]) as saved:self.assertEqual(saved.size,(523,52))
+        self.assertEqual(self.report['nearContractPublicRegion']['failureArtifactSHA256'],hashlib.sha256(files[0].read_bytes()).hexdigest())
+
+    def test_clipped_readonly_line_scrolls_without_navigation_or_transaction_actions(self):
+        picture=Image.new('RGB',(1600,1100),'white')
+        self.rows.side_effect=[(self.label(930),picture),(self.label(),picture)]
+        self.scope['decode_near_contract']=mock.Mock(return_value=True)
+        self.assertTrue(self.scope['verify_near_public_contract'](time.monotonic()+10))
+        self.scroll.assert_called_once_with(5,2)
+        self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
+
+    def test_private_guard_failure_cannot_create_a_public_failure_artifact(self):
+        private=type('PrivateWindowVisible',(RuntimeError,),{})
+        self.rows.side_effect=private('private pixels refused')
+        self.scope['decode_near_contract']=mock.Mock()
+        with self.assertRaises(private):self.scope['verify_near_public_contract'](time.monotonic()+10)
+        self.scope['decode_near_contract'].assert_not_called()
+        self.scroll.assert_not_called()
+        self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
 
 
 class WailsAppearanceCapture(unittest.TestCase):
@@ -655,7 +768,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsPrivateStartup, WailsNearNavigation, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
+    for case in (WailsPrivateStartup, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 
