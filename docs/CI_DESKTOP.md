@@ -1,5 +1,39 @@
 # Isolated desktop and coverage checks in GitHub Actions
 
+## Status expiry observation repair — 2026-10-28
+
+Run [40653531321](https://github.com/neodix42/crypto-wallet/actions/runs/40653531321)
+passed the complete Wails job, security/race/interoperability/integration/fuzz
+checks, Go/frontend coverage, dependency checks, recovery and crash checks. Its
+remaining failure was the retained Electron Unlock layout observer. It recorded
+an absent status message at 10.194 seconds against an 8.5-second limit, after
+running two full-window OCR passes. That timestamp measured decoding completion
+and cannot establish when the app actually cleared the message. The subsequent
+legacy payment step was skipped after this failure.
+
+The observer now captures only the public 52-pixel status bar at 6.8 and
+8.0 seconds, before either OCR call. It records capture intervals and OCR
+completion separately. The first capture must finish before 7.0 seconds and the
+second before 8.5 seconds; late captures still fail. A visible cancellation must
+be recognized before expiry, and only the static `Status` label may remain
+afterwards. Blank or garbled OCR cannot prove expiry. An atomic guard on the
+owned X server rejects private/unexpected windows and geometry drift before
+pixels are read. No production timer, workflow assertion or coverage floor
+changes.
+
+| Status | Scope |
+| --- | --- |
+| PASS | 22 startup/timing regressions, including slow OCR, genuine early/persistent messages, unreadable text, late captures, private prompts and capture-error cleanup; seven existing real-OCR regressions, 45 release-evidence integrity checks and all 163 retained desktop tests. The exact 7,000 ms timer assertions remain enforced. |
+| PASS, actual local UI | Fresh fixture restore, empty Unlock geometry/wheel checks, no status outline, visible cancellation at 6.812 seconds and absent at 8.014 seconds; unchanged encrypted vault, canary checks and complete disposable-profile/display cleanup. |
+| PASS, actual delayed OCR | Same uninstrumented app and real Tesseract, with a test-only 3.4-second delay per status decode. Captures finish at 6.811/8.013 seconds; decoding finishes at 15.032 seconds. The check passes using capture times, with no mocked pixels or text. |
+| PASS, scoped local payment | The previously skipped regression executes one real approved payment on isolated pinned geth; all seven receipt/balance/fee/nonce and canary checks pass. Only public genesis-funded fixtures are used. |
+| NOT_RUN at this source checkpoint | Revised hosted workflow after commit/push. Earlier passing gates and local UI results do not establish a passing revised workflow. |
+
+Generated reports are `reports/ci-unlock-layout-fixed.json`,
+`reports/ci-unlock-layout-slow-real-ocr.json` and
+`reports/ci-unlock-remaining-legacy-send.json`. The failed hosted evidence is
+retained separately under `reports/hosted-4ae8a144/checks/`.
+
 ## Current Wails coverage prerequisite — 2026-10-28
 
 The [reported test run](https://github.com/neodix42/crypto-wallet/actions/runs/40632779639) passed its Wails application job, but the separate checks job failed while starting the instrumented Wails coverage workflow: `Private network namespace preserving ordinary UID unavailable`. The hosted Ubuntu runner denied the coverage driver's user/network namespace. The temporary CI permission was configured only after the combined test-and-coverage step, so that step could never inherit it. This was a test-infrastructure ordering error, not evidence of a wallet startup failure or a passing coverage gate.
@@ -12,7 +46,7 @@ This named profile permits only the owned test namespaces required to keep dispo
 | --- | --- |
 | PASS | 21 offline CI-helper regressions, including actual offline parser compilation, explicit coverage argv, setup/coverage/always-cleanup ordering, failure propagation, and rejection of additional Make arguments. No kernel policy was loaded locally. |
 | PASS | Pinned actionlint v1.7.12 accepts all three workflows. |
-| NOT_RUN | Execution of the changed namespace/coverage wiring on a fresh GitHub-hosted runner; the original red run records the old source. Numerical coverage and other gates remain independently enforced. |
+| PASS, hosted at `4ae8a14` | Changed namespace/coverage wiring on a fresh GitHub-hosted runner: all 33 Go package floors, four real execution gates and frontend floors pass. Downloaded raw source/profile/runtime evidence was independently validated; the later legacy Unlock observer failure is recorded above. |
 
 Run `python3 scripts/ci-desktop-test.py` locally; it never invokes sudo, loads a host profile or starts a wallet. The actual CI-only setup/run/cleanup commands intentionally reject local developer environments. Source-bound results are written to `reports/ci-desktop-tools.json`.
 
@@ -34,8 +68,9 @@ stable sources in 19 minutes 25 seconds (07:12:09–07:31:34 UTC). The coverage
 collector's former 15-minute subprocess limit was below this measured successful
 duration. Its full instrumented GUI subprocess now has a 40-minute overall
 deadline; the existing per-action timeouts and all acceptance checks remain
-unchanged. A passing ordinary GUI run does not pass instrumented coverage, whose
-hosted result remains independently required.
+unchanged. A passing ordinary GUI run does not pass instrumented coverage. Both
+were subsequently verified in hosted run `40653531321` at `4ae8a14`; its later
+Unlock observer failure remains a separate failed check.
 
 ## Historical Electron startup diagnosis — 2026-10-27
 

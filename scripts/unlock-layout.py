@@ -11,6 +11,7 @@ import base64
 import ctypes as C
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import pathlib
@@ -20,6 +21,8 @@ import signal
 import subprocess
 import tempfile
 import time
+
+from PIL import Image, ImageOps
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PASSWORD = 'public-unlock-layout-password-79326'
@@ -77,6 +80,69 @@ def stop(process, group=False):
         process.wait(timeout=5)
 
 
+def capture_public_status(expected_bounds=None):
+    # Classification, geometry and pixel capture form one operation on this
+    # test-owned X server. A private prompt cannot map between the guard and
+    # image read. Only the public status crop survives this function in RAM.
+    mod.X.XGrabServer(desktop.d)
+    try:
+        mod.X.XSync(desktop.d, 0)
+        if desktop.secret_window():
+            raise RuntimeError('Refusing public status inspection while a private prompt is open')
+        windows = desktop.windows()
+        if len(windows) != 1 or windows[0][1] != 'CryptoWallet':
+            raise RuntimeError('Unexpected window during public status inspection')
+        bounds = desktop.geometry(windows[0][0])
+        x, y, width, height = bounds
+        if width < 100 or height < 52 or (expected_bounds is not None and bounds != expected_bounds):
+            raise RuntimeError('Public window geometry changed during status inspection')
+        started_at = time.monotonic()
+        picture = desktop.image().crop((x, y + height - 52, x + width, y + height)).convert('RGB')
+        captured_at = time.monotonic()
+        return {'picture': picture, 'bounds': bounds, 'startedAt': started_at, 'capturedAt': captured_at}
+    finally:
+        mod.X.XUngrabServer(desktop.d)
+        mod.X.XFlush(desktop.d)
+
+
+def status_text(picture):
+    # Decode an already captured public crop, never a live/private window.
+    # Slow OCR must not determine when the application was observed.
+    picture = ImageOps.invert(picture.convert('L'))
+    picture = picture.resize((picture.width * 2, picture.height * 2), Image.Resampling.LANCZOS)
+    buffer = io.BytesIO()
+    picture.save(buffer, format='PNG')
+    output = subprocess.check_output(['tesseract', 'stdin', 'stdout', '--psm', '7'],
+                                     input=buffer.getvalue(), stderr=subprocess.DEVNULL, timeout=20)
+    return ' '.join(output.decode().lower().split())
+
+
+def observe_status_expiry(cancelled_at, expected_bounds):
+    samples = []
+    for target, latest in ((6.8, 7.0), (8.0, 8.5)):
+        time.sleep(max(0, cancelled_at + target - time.monotonic()))
+        sample = capture_public_status(expected_bounds)
+        if sample['capturedAt'] >= cancelled_at + latest:
+            raise RuntimeError('Public status capture missed its bounded observation time')
+        samples.append(sample)
+    # Both immutable samples exist before either potentially slow decoder
+    # starts. This retains the real seven-second UI check on busy CI runners.
+    decoding_at = time.monotonic()
+    before, after = (status_text(sample['picture']) for sample in samples)
+    finished_at = time.monotonic()
+    visible = 'request cancelled' in before
+    absent = after == 'status'
+    return {'preExpiryCaptureSecondsAfterCancel': round(samples[0]['capturedAt'] - cancelled_at, 3),
+            'postExpiryCaptureSecondsAfterCancel': round(samples[1]['capturedAt'] - cancelled_at, 3),
+            'captureIntervalsSecondsAfterCancel': [[round(sample[key] - cancelled_at, 3)
+                                                   for key in ('startedAt', 'capturedAt')] for sample in samples],
+            'maximumAbsenceCaptureSeconds': 8.5,
+            'visibleBeforeExpiry': visible, 'absentAfterExpiry': absent,
+            'ocrCompletedSecondsAfterCancel': round(finished_at - cancelled_at, 3),
+            'ocrSeconds': round(finished_at - decoding_at, 3),
+            'privatePixelsRetained': False}
+
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--report-prefix', default='unlock-layout')
 args = parser.parse_args()
@@ -103,6 +169,9 @@ app = xvfb = desktop = handler_refs = None
 logs = []
 started = time.monotonic()
 mod = load('unlock_layout_x11', 'tests/e2e/x11.py')
+mod.X.XGrabServer.argtypes = [C.c_void_p]
+mod.X.XUngrabServer.argtypes = [C.c_void_p]
+mod.X.XSync.argtypes = [C.c_void_p, C.c_int]
 gui_module = load('unlock_layout_public_gui', 'scripts/packaged-send.py')
 fill_rectangles = selected_helper('publicfillrectangles')
 save()
@@ -231,36 +300,27 @@ try:
         wait(lambda: 'request cancelled' in gui.text().lower())
         x, y, width, height = desktop.geometry(desktop.wait('CryptoWallet')[0])
 
-        def public_status():
-            if desktop.secret_window():
-                raise RuntimeError('Refusing public status inspection while a private prompt is open')
-            return desktop.image().convert('RGB')
-
-        picture = public_status()
+        bounds = (x, y, width, height)
+        picture = capture_public_status(bounds)['picture']
         outline_colors = {(232, 166, 157), (232, 177, 165), (245, 201, 160)}
         long_runs = []
-        for yy in range(y+height-52, y+height):
+        for yy in range(52):
             run = longest = 0
-            for xx in range(x+3, x+width-25):
+            for xx in range(3, width-25):
                 run = run+1 if picture.getpixel((xx, yy)) in outline_colors else 0
                 longest = max(longest, run)
             # Also reject a compact rectangle around a short status string.
             # Ordinary alert text uses a different color and the former lone
             # left accent was only three pixels wide.
             if longest >= 40:
-                long_runs.append({'rowWithinStatusbar': yy-(y+height-52), 'horizontalPixels': longest})
+                long_runs.append({'rowWithinStatusbar': yy, 'horizontalPixels': longest})
         report['publicStatusOutline'] = {'longOutlineRuns': long_runs, 'privatePixelsRetained': False}
-        desktop.screenshot(REPORTS / (args.report_prefix + '-status.png'))
+        picture.save(REPORTS / (args.report_prefix + '-status.png'))
         check('Focused public error status has no rectangle around its text', not long_runs)
-        time.sleep(max(0, cancelled_at+6.8-time.monotonic()))
-        visible_at = time.monotonic()
-        visible = 'request cancelled' in gui.text().lower()
-        wait(lambda: 'request cancelled' not in gui.text().lower(), 5)
-        absent_after = time.monotonic()-cancelled_at
-        report['publicStatusTiming'] = {'visibleSecondsAfterCancel': round(visible_at-cancelled_at, 3),
-                                        'firstObservedAbsentSecondsAfterCancel': round(absent_after, 3),
-                                        'maximumObservedAbsenceSecondsIncludingOCR': 8.5}
-        check('Public error feedback is readable at 6.8 seconds and observed absent by 8.5 seconds including OCR', visible and absent_after <= 8.5)
+        timing = observe_status_expiry(cancelled_at, bounds)
+        report['publicStatusTiming'] = timing
+        check('Public error feedback is readable in the 6.8-second capture and absent in the capture by 8.5 seconds',
+              timing['visibleBeforeExpiry'] and timing['absentAfterExpiry'])
         check('Cancelling empty Unlock preserves the encrypted wallet byte-for-byte', hashlib.sha256(vault.read_bytes()).hexdigest() == vault_before)
         stop(app, group=True)
         for log in logs:

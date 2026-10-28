@@ -1,5 +1,26 @@
 # Implementation and release evidence
 
+## CI status timing observer — 2026-10-28
+
+The remaining failure in hosted run
+[40653531321](https://github.com/neodix42/crypto-wallet/actions/runs/40653531321)
+was a legacy Unlock test that counted two OCR passes as message-expiry delay.
+The Wails job and security/race/interoperability/integration/fuzz/coverage gates
+passed; the later legacy payment regression was skipped after the observer
+failure. See [CI_DESKTOP.md](CI_DESKTOP.md) for the exact diagnosis and captures.
+
+The test now captures the guarded public status bar at 6.8/8.0 seconds before
+decoding either image. Capture deadlines remain before 7.0/8.5 seconds, actual
+visible/absent text is required, and private/unknown windows block pixel access.
+The app's seven-second timer and production payloads are unchanged.
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS | 22 focused startup/timing regressions, seven existing OCR regressions, 45 release-evidence integrity checks, all 163 retained desktop tests, syntax/whitespace checks and independent read-only review. Exact 7,000 ms timer assertions remain enforced. |
+| PASS, actual local UI | Normal and deliberately slowed real-Tesseract runs on an isolated X11 display and public fixture profile. Both verify pre-expiry visibility, absence by 8.5 seconds, geometry, no outline, unchanged vault, canaries and cleanup. Delayed decoding finishes at 15.032 seconds after valid 6.811/8.013-second captures. |
+| PASS, scoped local execution | Previously skipped legacy payment check: seven actual private-geth receipt/balance/fee/nonce and canary assertions; no public-network funds. |
+| NOT_RUN at this source checkpoint | Full revised hosted CI after commit/push. Earlier successful coverage and local scoped tests do not certify this follow-up's full workflow. |
+
 ## Multiple Ethereum ERC-20 assets — 2026-10-28
 
 Ethereum mainnet/Sepolia wallets now show balances for every configured asset,
