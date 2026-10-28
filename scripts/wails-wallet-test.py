@@ -704,6 +704,72 @@ def scroll_to_public_words(words, contrast=False):
         scroll_public(5,3)
     raise RuntimeError("Expected staking control or disclosure missing: "+words)
 
+def near_navigation_state(rows):
+    # Inspect only fixed public markers, never retain the OCR payload. A Copy
+    # address button on another wallet is insufficient: require NEAR's own
+    # heading and its Wallet/Staking pair on one content-navigation row.
+    _,main_y,_,_=desktop.geometry(desktop.wait("CryptoWallet")[0])
+    content=[row for row in rows if int(row[7])>main_y+145]
+    visible=" ".join(row[11] for row in content)
+    lines={}
+    for row in content:
+        lines.setdefault(tuple(row[1:5]),[]).append(row[11])
+    # The displayed middle dot is commonly recognized as a dash. Ignore
+    # punctuation only, preserving all three exact words on one OCR line.
+    heading=any(re.findall(r"[a-z]+"," ".join(line).lower())==["near","mainnet","near"]
+                for line in lines.values())
+    wallet=public_words_position("Wallet",content)
+    staking=public_words_position("Staking",content)
+    state={"mainAccount":"Account group" in visible,
+           "nearHeading":heading,
+           "copyAddress":public_words_position("Copy address",content) is not None,
+           "nearSections":bool(wallet and staking and abs(wallet[1]-staking[1])<=8),
+           "validator":public_words_position("AstroStakers",content) is not None,
+           "contract":public_words_position("astro-stakers.poolv1.near",content) is not None}
+    state["wallet"]=state["nearHeading"] and state["copyAddress"] and state["nearSections"]
+    state["staking"]=state["wallet"] and state["validator"] and state["contract"]
+    return state
+
+def wait_near_navigation(target, seconds=45):
+    # Only these two idempotent public navigation actions may be repeated.
+    # An asynchronous balance snapshot can supersede a pointer event; inspect
+    # the actual resulting page before another attempt. This helper cannot
+    # prepare, approve, refresh, sign, send, trade or withdraw anything.
+    if target not in ("wallet","staking"):
+        raise RuntimeError("Unexpected read-only NEAR navigation target")
+    deadline=time.monotonic()+seconds
+    next_click=0
+    observed=report.setdefault("nearNavigation",{}).setdefault(target,{"attempts":0})
+    while time.monotonic()<deadline:
+        if app is not None and app.poll() is not None:
+            raise RuntimeError("Owned native wallet exited during NEAR navigation")
+        if desktop.secret_window():
+            raise PrivateWindowVisible("Unexpected private prompt during read-only NEAR navigation")
+        rows=public_rows()
+        state=near_navigation_state(rows)
+        observed["observed"]=state
+        save()
+        if state[target]:return
+        # Never select Staking until the exact NEAR Wallet is observed. Never
+        # select another wallet or act on an unexpected page with its address.
+        allowed=state["mainAccount"] and not state["copyAddress"] if target=="wallet" else state["wallet"]
+        if allowed and time.monotonic()>=next_click:
+            _,main_y,_,_=desktop.geometry(desktop.wait("CryptoWallet")[0])
+            content=[row for row in rows if int(row[7])>main_y+145]
+            point=public_words_position("NEAR" if target=="wallet" else "Staking",content)
+            if point:
+                # One pointer event from this guarded observation, not click()'s
+                # independent multi-OCR retry loop inside another deadline.
+                if desktop.secret_window():
+                    raise PrivateWindowVisible("Unexpected private prompt before NEAR navigation input")
+                desktop.focus(desktop.wait("CryptoWallet")[0])
+                desktop.click(*point)
+                observed["attempts"]+=1
+                desktop.park_pointer()
+                next_click=time.monotonic()+.75
+        time.sleep(.1)
+    raise RuntimeError("Read-only NEAR "+target+" navigation exceeded its bounded deadline")
+
 def public_picture():
     # Apply the same atomic public-window allowlist before every appearance
     # sample. These images never leave RAM or become failure attachments.
@@ -944,12 +1010,12 @@ def staking_page():
     stage("Open actual NEAR wallet Staking page")
     click("Main account",top=True)
     scroll_public(4,35)
-    click("NEAR")
-    wait(lambda:"Copy address" in text())
+    wait(lambda:"Account group" in text())
+    stage("Select NEAR wallet row before staking")
+    wait_near_navigation("wallet")
     scroll_public(4,35)
-    click("Staking")
-    wait(lambda:"AstroStakers" in text())
-    wait(lambda:"astro-stakers.poolv1.near" in text())
+    stage("Select NEAR inner Staking tab and verify complete validator contract")
+    wait_near_navigation("staking")
     if desktop.secret_window():raise RuntimeError("Opening staking unexpectedly requested private approval")
     report["stakingValidator"]="astro-stakers.poolv1.near"
     passed("Actual NEAR inner Staking tab displays AstroStakers and its complete mainnet contract without a private prompt")

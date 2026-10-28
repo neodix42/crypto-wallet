@@ -1,5 +1,19 @@
 # Implementation and release evidence
 
+## Hosted mutation/navigation repair — 2026-10-28
+
+The failed [run 40683603591](https://github.com/neodix42/crypto-wallet/actions/runs/40683603591) is retained as a failure: four mutation campaigns timed out and the Wails navigation observer did not reach its NEAR Staking assertions. See [the diagnosis and repair scope](CI_DESKTOP.md). No wallet security policy, accepted network, production timeout or release authentication check is changed by this repair.
+
+| State | Evidence and limits |
+| --- | --- |
+| FAIL, hosted at `59e063f` | Current unit/frontend/helper checks and Go security units pass; 20 general mutants are killed and four are INVALID at 120 seconds. Wails startup/phrase setup passes, then the coarse NEAR-navigation stage times out. Later job steps are skipped, not passed. |
+| PASS, diagnosis only | Unmodified signer package takes 68.348 seconds locally. A two-CPU broad-mutant diagnostic observes the intended assertion, then expires in unrelated receive/QR work; that diagnostic is not a passing security campaign. Original-source targeted staking and a CI-like font probe reach the real page. The original hosted GUI timeout remains unreproduced. |
+| PASS, repaired security | All 24 general mutants killed in 95.868 seconds with stable sources. Four affected campaigns also pass under two-CPU affinity in 42.950 seconds, with all six required controls and exact failures. Five Bybit and five Exchange mutants, Go security packages and the current Go/React surface checks pass. `reports/ci-security-validation.json`. |
+| PASS, regressions | `make test-ci`: current Go packages, all 55 React tests, 11 mutation-driver and 27 current Wails startup/navigation regressions. Twelve build-input regressions, 23 namespace/routing checks, all three pinned workflow lints and independent read-only review pass. |
+| PASS, targeted GUI | Final actual CI-font staking: five steps, stable sources, complete validator, unknown real offline state and inert disabled withdrawal. An intermediate overly strict heading detector failed and was corrected using guarded public observations; its failed report is retained separately. `reports/wails-staking-ci-fonts-fixed.json`. |
+| PASS, complete local GUI | Final `make test-wails-wallet`: all 20 steps, stable sources, generated-root setup, real NEAR Staking, all eight addresses, ETH/USDT controls, authenticated phrase backup/copy, Appearance and private Bybit geometry, fresh independent phrase restore and Enter unlock. `reports/wails-wallet.json`. No real user profile or public-network funds are used. |
+| NOT_RUN at commit checkpoint | Revised hosted execution follows commit/push. Funded public-network/Bybit operations, the full OS matrix and independent review remain separate. |
+
 ## Hosted test scope update — 2026-10-28
 
 The owner removed legacy Electron tests and Go/frontend coverage measurement/enforcement from GitHub jobs. Explicit CI targets retain current Go/Wails/React tests and shared security/recovery protocols while full local targets and coverage thresholds remain available. No application code, network support, signing policy or release publication check is relaxed. See [the CI scope and historical results](CI_DESKTOP.md).

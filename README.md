@@ -95,6 +95,8 @@ CI-only signing regressions require `./scripts/with-toolchain.sh npm --prefix .g
 
 GitHub Actions runs current Go/Wails/React tests through `make test-ci`, `make test-security-ci`, `make test-race-ci` and `make check-deps-ci`, alongside interoperability, integration, fuzz, recovery and actual Wails GUI checks. These targets exclude legacy Electron tests and do not measure or enforce Go/frontend coverage. `make test`, the other full local targets below, and `make coverage` remain available locally with their existing thresholds. Removing a hosted check does not record it as passing.
 
+[CI diagnostics and evidence](docs/CI_DESKTOP.md) records source-specific failures and fixes. A timed-out mutation is INVALID; a skipped integration or incomplete GUI workflow is not a pass.
+
 The retained local public-pixel OCR regression in `make test` requires `python3-pil` and `tesseract-ocr` (`sudo apt-get install python3-pil tesseract-ocr`). It uses a committed public tooltip fixture and does not open a wallet or display.
 
 ```sh

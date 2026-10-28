@@ -3,6 +3,7 @@
 import ast
 import io
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -158,6 +159,128 @@ class WailsPrivateStartup(unittest.TestCase):
         self.desktop.image.assert_not_called()
         self.desktop.windows.assert_not_called()
         self.assertEqual(self.clock.now, .15)
+
+
+class WailsNearNavigation(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('near_navigation_state','wait_near_navigation','public_words_position')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.clock=SimpleNamespace(now=0)
+        self.clock.monotonic=lambda:self.clock.now
+        self.clock.sleep=lambda seconds:setattr(self.clock,'now',self.clock.now+seconds)
+        self.desktop=SimpleNamespace(secret_window=mock.Mock(return_value=False),
+                                     wait=mock.Mock(return_value=(1,'CryptoWallet')),
+                                     geometry=mock.Mock(return_value=(80,100,1440,900)),
+                                     focus=mock.Mock(),click=mock.Mock(),
+                                     park_pointer=mock.Mock())
+        self.rows=mock.Mock()
+        self.click=self.desktop.click
+        self.report={}
+        self.scope={'time':self.clock,'re':re,'desktop':self.desktop,'app':None,
+                    'public_rows':self.rows,'click':self.click,'report':self.report,
+                    'save':mock.Mock(),'PrivateWindowVisible':type('PrivateWindowVisible',(RuntimeError,),{})}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'near-public-navigation-helper','exec'),self.scope)
+
+    def row(self,words,y,line):
+        return [['5','1',str(line),'1','1',str(i),str(120+40*i),str(y),'35','20','99',word]
+                for i,word in enumerate(words.split())]
+
+    def overview(self):
+        return self.row('Account group',280,1)+self.row('NEAR',650,2)
+
+    def wallet(self,network='NEAR'):
+        return (self.row(network+' mainnet · '+network,280,1)+self.row('Copy address',400,2)
+                +(self.row('Wallet Staking',550,3) if network=='NEAR' else []))
+
+    def staking(self):
+        return self.wallet()+self.row('AstroStakers',650,4)+self.row('astro-stakers.poolv1.near',690,5)
+
+    def test_same_line_exact_heading_accepts_ocr_separator_without_weakening_words(self):
+        for separator in ('·','-','•','.'):
+            rows=self.row('NEAR mainnet '+separator+' NEAR',280,1)+self.row('Copy address',400,2)+self.row('Wallet Staking',550,3)
+            with self.subTest(separator=separator):
+                self.assertTrue(self.scope['near_navigation_state'](rows)['wallet'])
+        for heading in ('NEAR testnet · NEAR','Ethereum mainnet · NEAR','NEAR mainnet · ETH'):
+            rows=self.row(heading,280,1)+self.row('Copy address',400,2)+self.row('Wallet Staking',550,3)
+            with self.subTest(heading=heading):
+                self.assertFalse(self.scope['near_navigation_state'](rows)['wallet'])
+
+    def test_near_heading_words_cannot_be_combined_across_ocr_lines(self):
+        rows=self.row('NEAR mainnet',280,1)+self.row('NEAR',330,2)+self.row('Copy address',400,3)+self.row('Wallet Staking',550,4)
+        self.assertFalse(self.scope['near_navigation_state'](rows)['wallet'])
+
+    def test_dropped_first_wallet_selection_is_reobserved_and_retried_without_other_actions(self):
+        self.rows.side_effect=[self.overview()]*9+[self.wallet()]
+        self.scope['wait_near_navigation']('wallet',seconds=2)
+        self.assertEqual(self.click.call_args_list,[mock.call(137,660)]*2)
+        self.assertEqual(self.report['nearNavigation']['wallet']['attempts'],2)
+        self.assertTrue(self.report['nearNavigation']['wallet']['observed']['wallet'])
+        self.assertEqual(self.desktop.park_pointer.call_count,2)
+
+    def test_staking_waits_for_exact_near_wallet_then_complete_validator_and_contract(self):
+        partial=self.wallet()+self.row('AstroStakers',650,4)
+        self.rows.side_effect=[self.wallet()]*9+[partial,self.staking()]
+        self.scope['wait_near_navigation']('staking',seconds=2)
+        self.assertEqual(self.click.call_args_list,[mock.call(177,560)]*2)
+        self.assertEqual(self.report['nearNavigation']['staking']['attempts'],2)
+        self.assertTrue(self.report['nearNavigation']['staking']['observed']['contract'])
+
+    def test_another_wallet_or_near_word_in_top_tabs_is_never_accepted_as_near(self):
+        for rows in (self.wallet('ETH')+self.row('NEAR',205,10),
+                     self.wallet('ETH')+self.row('AstroStakers astro-stakers.poolv1.near',650,11),
+                     self.row('NEAR mainnet · NEAR Copy address',280,1)+self.row('Wallet',500,2)+self.row('Staking',550,3)):
+            with self.subTest(rows=rows):
+                self.clock.now=0;self.rows.return_value=rows
+                with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+                    self.scope['wait_near_navigation']('staking',seconds=.3)
+                self.assertFalse(self.report['nearNavigation']['staking']['observed']['wallet'])
+        self.click.assert_not_called()
+
+    def test_unexpected_private_window_aborts_before_pixels_or_another_click(self):
+        self.rows.return_value=self.overview()
+        self.desktop.secret_window.side_effect=[False,False,True]
+        with self.assertRaises(self.scope['PrivateWindowVisible']):
+            self.scope['wait_near_navigation']('wallet',seconds=2)
+        self.rows.assert_called_once_with()
+        self.click.assert_called_once_with(137,660)
+
+    def test_missing_contract_cannot_pass_or_retry_an_operation(self):
+        self.rows.return_value=self.wallet()+self.row('AstroStakers astro-stakers.poolv1.near.evil',650,4)
+        # The complete address is a separate exact OCR token, not a prefix.
+        with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+            self.scope['wait_near_navigation']('staking',seconds=.3)
+        self.assertLess(self.clock.now,.5)
+        self.assertFalse(self.report['nearNavigation']['staking']['observed']['contract'])
+        self.assertEqual(self.click.call_args_list,[mock.call(177,560)])
+
+    def test_unknown_public_page_cannot_select_a_near_label(self):
+        for rows in (self.row('Settings NEAR',280,1),self.wallet('ETH')):
+            with self.subTest(rows=rows):
+                self.clock.now=0;self.rows.return_value=rows
+                with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+                    self.scope['wait_near_navigation']('wallet',seconds=.3)
+        self.click.assert_not_called()
+
+    def test_private_window_after_observation_blocks_pointer_input(self):
+        self.rows.return_value=self.overview()
+        self.desktop.secret_window.side_effect=[False,True]
+        with self.assertRaises(self.scope['PrivateWindowVisible']):
+            self.scope['wait_near_navigation']('wallet',seconds=2)
+        self.rows.assert_called_once_with()
+        self.click.assert_not_called()
+
+    def test_unknown_target_is_rejected_before_any_capture_or_action(self):
+        for target in ('Stake','Withdraw all','Send','Refresh staking state','NEAR'):
+            with self.subTest(target=target),self.assertRaisesRegex(RuntimeError,'Unexpected'):
+                self.scope['wait_near_navigation'](target)
+        self.rows.assert_not_called();self.click.assert_not_called()
+
+    def test_exit_does_not_become_a_retry_or_success(self):
+        self.scope['app']=SimpleNamespace(poll=lambda:23)
+        with self.assertRaisesRegex(RuntimeError,'exited'):
+            self.scope['wait_near_navigation']('wallet')
+        self.rows.assert_not_called();self.click.assert_not_called()
 
 
 class WailsAppearanceCapture(unittest.TestCase):
@@ -532,7 +655,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsPrivateStartup, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
+    for case in (WailsPrivateStartup, WailsNearNavigation, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

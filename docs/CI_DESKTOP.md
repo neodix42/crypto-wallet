@@ -1,5 +1,19 @@
 # Current desktop checks in GitHub Actions
 
+## Mutation and navigation repair — 2026-10-28
+
+[Run 40683603591](https://github.com/neodix42/crypto-wallet/actions/runs/40683603591) at `59e063f` passed the current unit/frontend/helper step and Go security units. Four mutation campaigns then hit their unchanged 120-second deadline: recovery authorization, recorded-phrase confirmation, nonce reservation and ambiguous-payment reservation. The report marks them **INVALID**, not killed or passed. Each campaign reran the complete signer suite; the unmodified suite takes 68 seconds on this development machine. The old timeout handler discarded partial test output, so the hosted report cannot identify the exact test running at expiry.
+
+A two-CPU diagnostic of the broad recovery mutant observes its intended security failure, completes 186 passing and 17 failing tests, then hits Go's diagnostic 110-second deadline in an unrelated receive/QR test. This is diagnostic evidence of excessive campaign work, not a passing mutation. The four repaired campaigns together take 42.950 seconds under the same two-CPU restriction; all twelve individual control/mutant executions stay below 7.077 seconds.
+
+The Wails job passed real startup and generated-phrase setup/verification, then timed out under the broad “Open actual NEAR wallet Staking page” stage. That stage covered several different clicks and waits. Original-source targeted staking and a CI-like font probe pass locally; these results do not reproduce or explain the original hosted timeout. The repair adds precise navigation stages and bounded retries restricted to read-only NEAR Wallet/Staking navigation, requiring the actual target page and full validator contract. Private-window capture guards and all staking assertions remain required.
+
+An intermediate stricter detector rejected the genuine wallet heading. Guarded, in-memory public OCR identified the actual same-line words `NEAR mainnet · NEAR`, with the visual middle dot read as a dash. The final detector preserves those exact words and network while ignoring punctuation; cross-line, different-network and wrong-wallet matches fail. Its actual CI-font staking run passes all five steps with stable sources. The intermediate failure is retained separately; no private pixels or raw phrase/credential text are retained.
+
+The mutation repair binds the four guards to existing invariant tests, first requiring passing unmodified controls and then the exact security assertions from each mutant. Nonce and ambiguity guards retain both journal and signer evidence. Timeout, panic, compiler failure, missing assertion or skipped control cannot pass a guarded campaign. This avoids repeating unrelated production-KDF fixtures for every mutant without increasing the deadline or changing application behavior.
+
+The [current evidence checklist](STATUS.md) separates local validation from the failed historical run and the next hosted execution. Legacy Electron tests and coverage collection remain local-only; build/publication are still separate.
+
 ## Hosted scope update — 2026-10-28
 
 The owner removed legacy Electron tests and Go/frontend coverage collection and enforcement from GitHub jobs. The checks job now uses explicit `test-ci`, `test-security-ci`, `test-race-ci` and `check-deps-ci` targets. These avoid the legacy desktop dependency install, launcher unit suite, GTK input coverage collector, Electron surface tests and Electron build/license fixtures. Shared core/signer protocol tests, semantic security mutants, current Wails startup/appearance guards and current React tests remain hosted, alongside integration, interoperability, fuzz and recovery checks.
