@@ -205,10 +205,10 @@ func TestTokenImportRejectsMalformedContractsAndUnavailableWalletsBeforeBackend(
 		}
 		if guard == "other-network" {
 			for _, current := range a.state.Accounts {
-				if current.Network == "base-mainnet" {
+				if current.Network == "hyperevm-mainnet" {
 					id = current.ID
 					if _, found := findNode(a.walletPage(current).Nodes, "importToken/"+id); found {
-						t.Fatal("Ethereum-only importer appeared on another network")
+						t.Fatal("Token importer appeared on an unsupported network")
 					}
 				}
 			}

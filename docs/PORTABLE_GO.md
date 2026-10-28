@@ -33,7 +33,7 @@ The release workflow compiles/packages once and publishes that exact authenticat
 
 ## Data and security
 
-Profile paths remain `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, with a separate testnet profile. Installation does not read, replace or migrate a real vault. All nine networks/twelve asset identities, deterministic profiles, encrypted vault formats, real transaction adapters and journal reservations remain required.
+Profile paths remain `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, with a separate testnet profile. Installation does not read, replace or migrate a real vault. All eight active networks/ten pinned asset identities (following the explicit Horizen retirement), deterministic profiles, encrypted vault formats, real transaction adapters and journal reservations remain required.
 
 Go owns random phrase generation, password/word verification, immutable transaction plans, exact approvals, signatures and encrypted storage. Binary seeds/private and extended keys remain in the signer. The UI and coordinator remain trusted with temporary credential/phrase transport and display. Moving to WebKit adds browser-engine and JavaScript memory copies to this boundary; generation in Go does not protect against a compromised trusted UI. No secrets belong in ordinary portfolio state, logs, browser storage, plaintext files, network requests or QR codes. The authenticated backup dialog's explicit Copy phrase action is the sole phrase clipboard exception; clipboard history can retain it.
 

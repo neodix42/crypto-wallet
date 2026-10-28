@@ -26,15 +26,15 @@ func (a *App) walletAssets(account model.Account, selected model.Asset) []webui.
 		assetRow.ID = "walletAsset/" + account.ID + "/" + asset.ID
 		nodes = append(nodes, assetRow)
 	}
-	nodes = append(nodes, label("Balances cover configured assets only. A standard Ethereum RPC cannot enumerate every token held by an address. Unknown balances are not zero."))
+	nodes = append(nodes, label("Balances cover configured assets only. A standard EVM RPC cannot enumerate every token held by an address. Unknown balances are not zero."))
 	if ethereumTokenNetwork(account) {
-		nodes = append(nodes, label("ETH and these ERC-20 tokens use the wallet's same receive address on this Ethereum network. The token contract identifies the asset; never use it as your receive address."), heading("Track an ERC-20 token"), a.entry("tokenContract/"+account.ID, "Token contract address on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed), label("Go queries the exact contract, then shows its network, symbol and decimals in a private password-authenticated confirmation. Token names and metadata do not establish legitimacy. Adding a token does not send funds."))
+		nodes = append(nodes, label("ETH and these ERC-20 tokens use the wallet's same receive address on this network. The token contract identifies the asset; never use it as your receive address."), heading("Track an ERC-20 token"), a.entry("tokenContract/"+account.ID, "Token contract address on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed), label("Go queries the exact contract, then shows its network, symbol and decimals in a private password-authenticated confirmation. Token names and metadata do not establish legitimacy. Adding a token does not send funds."))
 	}
-	return nodes
+	return append(nodes, a.discoveredTokenRows(account)...)
 }
 
 func ethereumTokenNetwork(account model.Account) bool {
-	return account.Family == "evm" && (account.Network == "ethereum-mainnet" || account.Network == "ethereum-sepolia")
+	return account.Family == "evm" && evm.SupportsTokenImport(account.Network)
 }
 
 func exchangeAssetAllowed(account model.Account, asset model.Asset) bool {
@@ -42,6 +42,30 @@ func exchangeAssetAllowed(account model.Account, asset model.Asset) bool {
 }
 
 func (a *App) tokenEvent(kind, id string) bool {
+	if kind == "open" {
+		if _, present := a.tokenDiscovery[id]; !present {
+			a.discoverBaseTokens(id)
+		}
+		return false
+	}
+	if kind == "discoverTokens" {
+		a.discoverBaseTokens(id)
+		return true
+	}
+	if kind == "importDiscoveredToken" {
+		parts := strings.SplitN(id, "/", 2)
+		if len(parts) != 2 {
+			return true
+		}
+		for _, item := range a.tokenDiscovery[parts[0]].Result.Items {
+			if item.Token.Asset.Contract == parts[1] {
+				a.fields["tokenContract/"+parts[0]] = parts[1]
+				a.tokenEvent("importToken", parts[0])
+				break
+			}
+		}
+		return true
+	}
 	if kind != "importToken" {
 		return false
 	}
@@ -51,12 +75,12 @@ func (a *App) tokenEvent(kind, id string) bool {
 	}
 	contract := strings.TrimSpace(a.fields["tokenContract/"+id])
 	if len(contract) != 42 || !strings.HasPrefix(contract, "0x") {
-		a.notice("Enter the complete ERC-20 contract address for this Ethereum network.")
+		a.notice("Enter the complete ERC-20 contract address for this network.")
 		a.render()
 		return true
 	}
 	if _, err := hex.DecodeString(contract[2:]); err != nil {
-		a.notice("Enter the complete ERC-20 contract address for this Ethereum network.")
+		a.notice("Enter the complete ERC-20 contract address for this network.")
 		a.render()
 		return true
 	}

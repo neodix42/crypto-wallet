@@ -2,23 +2,15 @@
 
 The later [wallet/status interface update](WALLET_STATUS.md) moves the floating notices described by this candidate into the reserved bottom status bar and clarifies local approvals. This document's measured counts and artifact bindings remain historical.
 
-Select **Settings**, immediately to the right of **Exchange** in the main tab bar. Settings opens in the main window and contains three tabs:
+Current Settings uses the Wails/React main window and contains **Wallet**, **Exchange**, **Journal** and **Appearance** tabs, with a distinct selected-tab color. Appearance defaults to Light/18px and applies to private dialogs as well. Region/Connect/change-key/Disconnect live in Settings → Exchange; Deposit/Swap/Withdraw remain in the main Exchange page without a redundant Settings shortcut. Information/error feedback uses the compact bottom status bar and expires after seven seconds.
 
-| Tab | Contents |
-| --- | --- |
-| Wallet | Password, recovery/setup actions, deterministic accounts and recovery ranges |
-| Exchange | Bybit API region, Connect/change key, refresh connection and Disconnect |
-| Journal | Local payment journal, wallet/asset selection, reconciliation and older payment/chain-history pages |
+The current unlocked, recovery-confirmed session opens the separate masked Bybit API-key/HMAC-secret prompt, then exact service/custody consent, without another storage-password prompt. Disconnect and every funds-moving operation retain their required authorizations. The ordinary Settings view receives no credentials or secret payload. No connection action transfers funds. See [the current Exchange guide](EXCHANGE.md) and [Appearance](APPEARANCE.md).
 
-Deposit, Swap and Withdraw remain in the main **Exchange** page. Its **Exchange settings** shortcut selects **Settings → Exchange**. Select an account, wallet or main Exchange tab to leave Settings. Information and error notices float over the page, can be dismissed and do not push the content down. Settings itself has no modal overlay or focus trap.
+The asset contract/token identifier is distinct from the owned wallet receive address. Ethereum USDT's `0xdAC17F958D2ee523a2206206994597C13D831ec7` identifies the Tether contract; ETH/USDT use the same owned Ethereum address. Full network and contract identity, native gas and custody rules remain mandatory.
 
-Credential, password and recovery inputs continue to use the existing separate Electron dialogs. After Go password verification, connection setup requests the **Bybit API key** and its matching **API secret**, both masked. “System-generated” refers to the key type created in Bybit: its secret signs authenticated requests using HMAC. The API key alone identifies the connection and cannot authorize trading or withdrawals. The app does not create a new Bybit key and does not support self-generated RSA keys. Settings contains no credential inputs or credential response. No connection action transfers funds.
+## Historical 2026-10-25 verification
 
-The Exchange asset selector names the asset. **Token contract** labels an EVM token's issuing contract separately from the owned wallet address. HyperCore spot assets instead display **Token identifier**; a spot token identifier is not an ERC-20 contract. Ethereum USDT's `0xdAC17F958D2ee523a2206206994597C13D831ec7` is the token contract, not a receiving account. ETH and supported USDT in the same Ethereum account use that account's owned receive address. See [the Exchange guide](EXCHANGE.md) for the network, gas and custody requirements.
-
-## Current-change verification
-
-The entries below concern the main-window Settings layout, floating notices, clearer asset identity and credential labels. A previous candidate's passing tests do not establish these results.
+The entries below describe the earlier Electron candidate, before the current Wails/Appearance update. They concern the main-window Settings layout, floating notices, clearer asset identity and credential labels. A previous candidate's passing tests do not establish these results.
 
 | Check | Status and scope |
 | --- | --- |

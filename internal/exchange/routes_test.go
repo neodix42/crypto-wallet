@@ -21,7 +21,7 @@ func nativeRoute(network, symbol string) (model.Account, model.Asset) {
 }
 
 func TestExchangeRoutesUseActualWalletRegistryIdentities(t *testing.T) {
-	labels := map[string]string{"ethereum-mainnet": "Ethereum", "base-mainnet": "Base", "horizen-mainnet": "Horizen", "hyperevm-mainnet": "HyperEVM", "near-mainnet": "NEAR", "aptos-mainnet": "APTOS", "ton-mainnet": "TON"}
+	labels := map[string]string{"ethereum-mainnet": "Ethereum", "base-mainnet": "Base", "hyperevm-mainnet": "HyperEVM", "near-mainnet": "NEAR", "aptos-mainnet": "APTOS", "ton-mainnet": "TON"}
 	seen := map[string]bool{}
 	for _, adapter := range chains.All() {
 		for _, network := range adapter.Networks() {
@@ -56,8 +56,6 @@ func TestExchangeRouteMatchesActualLedgerAndFullTokenIdentity(t *testing.T) {
 		{"ethereum-mainnet", "ETH", "ETH", "ETH"},
 		{"base-mainnet", "ETH", "service-base", "Base"},
 		{"base-mainnet", "ETH", "service-base", "BASE"},
-		{"horizen-mainnet", "ETH", "service-horizen", "Horizen"},
-		{"horizen-mainnet", "ETH", "service-horizen", "Horizen Chain"},
 		{"hyperevm-mainnet", "HYPE", "service-hyper", "HyperEVM"},
 		{"hyperevm-mainnet", "HYPE", "service-hyper", "Hyperliquid HyperEVM"},
 		{"near-mainnet", "NEAR", "service-near", "NEAR"},

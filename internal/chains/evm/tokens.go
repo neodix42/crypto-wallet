@@ -13,6 +13,16 @@ import (
 
 const MaxImportedTokens = 32
 
+// SupportsTokenImport is intentionally narrower than EVM compatibility. Unknown
+// chain identities never inherit ERC-20 approval or discovery authority.
+func SupportsTokenImport(network string) bool {
+	switch network {
+	case "ethereum-mainnet", "ethereum-sepolia", "base-mainnet", "base-sepolia":
+		return true
+	}
+	return false
+}
+
 func IsPinnedAsset(networkID, assetID string) bool {
 	for _, network := range registry() {
 		if network.ID == networkID {
@@ -42,7 +52,7 @@ func tokenSymbol(symbol string) bool {
 // identity; the untrusted symbol is only bounded display metadata.
 func ValidateTokenPolicy(token model.ERC20Token) error {
 	s := token.Asset
-	if (token.Network != "ethereum-mainnet" && token.Network != "ethereum-sepolia") ||
+	if !SupportsTokenImport(token.Network) ||
 		len(s.Contract) != 42 || !common.IsHexAddress(s.Contract) ||
 		common.HexToAddress(s.Contract) == (common.Address{}) || common.HexToAddress(s.Contract).Hex() != s.Contract ||
 		s.ID != token.Network+":erc20:"+s.Contract || s.Decimals > 77 || !tokenSymbol(s.Symbol) ||
@@ -115,8 +125,8 @@ func decodeTokenSymbol(raw string) (string, error) {
 // Missing optional metadata is unsupported, never guessed (especially decimals).
 func (a *Adapter) InspectToken(ctx context.Context, account model.Account, contract string) (model.ERC20Token, error) {
 	n, err := a.validateAccount(account)
-	if err != nil || (n.ID != "ethereum-mainnet" && n.ID != "ethereum-sepolia") || a.ValidateAddress(n.ID, contract) != nil {
-		return model.ERC20Token{}, errors.New("token import requires an owned Ethereum wallet and exact contract")
+	if err != nil || !SupportsTokenImport(n.ID) || a.ValidateAddress(n.ID, contract) != nil {
+		return model.ERC20Token{}, errors.New("token import requires an owned Ethereum or Base wallet and exact contract")
 	}
 	contract = common.HexToAddress(contract).Hex()
 	for _, asset := range n.Assets {
@@ -128,18 +138,22 @@ func (a *Adapter) InspectToken(ctx context.Context, account model.Account, contr
 	if err != nil {
 		return model.ERC20Token{}, err
 	}
+	return a.inspectTokenAt(ctx, n, contract, b.Number)
+}
+
+func (a *Adapter) inspectTokenAt(ctx context.Context, n model.Network, contract, at string) (model.ERC20Token, error) {
 	var code, precision, symbol string
-	if err = a.rpc(ctx, n, "eth_getCode", []any{contract, b.Number}, &code); err != nil || len(code) < 4 || len(code) > 2<<20 || !cleanHex(code) {
+	if err := a.rpc(ctx, n, "eth_getCode", []any{contract, at}, &code); err != nil || len(code) < 4 || len(code) > 2<<20 || !cleanHex(code) {
 		return model.ERC20Token{}, errors.New("token contract runtime unavailable")
 	}
-	if err = a.rpc(ctx, n, "eth_call", []any{map[string]string{"to": contract, "data": callData("decimals()")}, b.Number}, &precision); err != nil {
+	if err := a.rpc(ctx, n, "eth_call", []any{map[string]string{"to": contract, "data": callData("decimals()")}, at}, &precision); err != nil {
 		return model.ERC20Token{}, err
 	}
 	decimals, err := abiInteger(precision)
 	if err != nil || !decimals.IsUint64() || decimals.Uint64() > 77 {
 		return model.ERC20Token{}, errors.New("token decimals are missing or unsupported")
 	}
-	if err = a.rpc(ctx, n, "eth_call", []any{map[string]string{"to": contract, "data": callData("symbol()")}, b.Number}, &symbol); err != nil {
+	if err = a.rpc(ctx, n, "eth_call", []any{map[string]string{"to": contract, "data": callData("symbol()")}, at}, &symbol); err != nil {
 		return model.ERC20Token{}, err
 	}
 	label, err := decodeTokenSymbol(symbol)

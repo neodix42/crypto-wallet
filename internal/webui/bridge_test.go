@@ -177,7 +177,7 @@ func TestPrivateBridgeDeliveryIdentityReplayAndClear(t *testing.T) {
 	if err != nil || m.ID != p.ID || m.Session != b.session || m.Method != "reply" {
 		t.Fatal("private reply identity changed")
 	}
-	r, err := uiprompt.DecodeReply(m.Body, p)
+	r, err := uiprompt.DecodeReply(m.Body, p.Prompt)
 	clear(m.Body)
 	if err != nil || len(r.Values) != 1 || r.Values[0] != "synthetic-private-value" {
 		t.Fatal("private pipe reply corrupted")

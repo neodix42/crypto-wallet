@@ -138,7 +138,7 @@ func TestElectronPromptsRestoreFreshWalletsWithoutNativeWindowOrCopiedFiles(t *t
 		return r
 	}
 	pending := decodeSnapshot(t, electronCall(t, first, "create", "create", map[string]int{"words": 12}, answer))
-	if pending.Locked || pending.RecoveryConfirmed || !pending.WalletExists || len(pending.Accounts) != 9 {
+	if pending.Locked || pending.RecoveryConfirmed || !pending.WalletExists || len(pending.Accounts) != 8 {
 		t.Fatal("incorrect-word challenge enabled wallet or lost durable root")
 	}
 	confirm = true
@@ -149,7 +149,7 @@ func TestElectronPromptsRestoreFreshWalletsWithoutNativeWindowOrCopiedFiles(t *t
 	for _, i := range []uint32{1, 127} {
 		ready = decodeSnapshot(t, electronCall(t, first, "a-index-"+string(rune(i+65)), "addAccount", map[string]uint32{"index": i}, nil))
 	}
-	if len(ready.Accounts) != 27 {
+	if len(ready.Accounts) != 24 {
 		t.Fatal("all network accounts not derived")
 	}
 	second := electronSigner(t)
@@ -174,7 +174,7 @@ func TestElectronPromptsRestoreFreshWalletsWithoutNativeWindowOrCopiedFiles(t *t
 		restored = decodeSnapshot(t, electronCall(t, second, "b-index-"+string(rune(i+65)), "addAccount", map[string]uint32{"index": i}, nil))
 	}
 	if !restored.RecoveryConfirmed || !reflect.DeepEqual(ready.Accounts, restored.Accounts) {
-		t.Fatal("fresh profile and different local password did not restore all 27 public descriptors")
+		t.Fatal("fresh profile and different local password did not restore all 24 public descriptors")
 	}
 	var eth model.Account
 	for _, a := range restored.Accounts {

@@ -4,7 +4,7 @@ Research baseline: **2026-10-23**. This is an implementation requirement, not ev
 
 ## 1. Required coverage and identity
 
-Implement native ETH on Ethereum, NEAR, APT, DCR, TON, native HYPE on HyperEVM, spot HYPE on HyperCore, and ERC-20 ZEN on both Base and current Horizen Chain. Include native ETH on Base and Horizen for receiving and paying gas. The owner-authorized Bybit extension dated 2026-10-24 adds only pinned Ethereum USDT and custodial spot asset/USDT trading. These are twelve independently selectable asset identities across nine mainnet networks. Arbitrary token discovery, other tokens, trading/staking beyond the authorized Bybit and NEAR staking-pool operations, NFTs, bridges, legacy migration claims and dApp signing remain outside v1; TON USDT jettons are not added.
+Implement native ETH on Ethereum, NEAR, APT, DCR, TON, native HYPE on HyperEVM, spot HYPE on HyperCore, and canonical ERC-20 ZEN plus native ETH on Base. The owner update of 2026-10-28 removes Horizen mainnet/testnet from active support while preserving authentication of historical encrypted descriptors and journal. The eight active mainnet networks contain ten pinned asset identities, including the earlier pinned Ethereum USDT extension. Standard ERC-20 contracts may be explicitly approved on Ethereum/Base; bounded Base indexer discovery provides read-only candidates with RPC-verified metadata/balances and never grants signing authority. Other token protocols, trading/staking beyond authorized Bybit and NEAR staking-pool operations, NFTs, bridges, legacy migration claims and dApp signing remain outside v1; TON USDT jettons are not added.
 
 Every asset is identified by network/environment plus native-asset ID, verified contract address or Core token ID. A ticker or `0x` address alone never identifies the network. Confirmation screens and receive QR views must show the exact network and asset. Importing a seed does not move funds between networks.
 
@@ -15,7 +15,6 @@ Every asset is identified by network/environment plus native-asset ID, verified 
 | HyperEVM HYPE | EVM 999 | EVM 998 | Native HYPE; EVM transaction |
 | HyperCore HYPE | HyperCore Mainnet, spot ledger | HyperCore Testnet | User-signed Core transfer; separate balance |
 | ZEN on Base / Base ETH | EVM 8453 | Base Sepolia 84532 | ZEN ERC-20; ETH pays gas |
-| ZEN on Horizen / Horizen ETH | EVM 26514 | Horizen testnet 2651420 | ZEN ERC-20/OFT; ETH pays gas |
 | NEAR | NEAR mainnet | NEAR testnet/local sandbox | Native NEAR; account/access-key model |
 | Aptos APT | Aptos mainnet; verify ledger chain ID | Aptos testnet/localnet | Native APT; selected authentication scheme |
 | Decred DCR | Official mainnet chain parameters | Official supported testnet/simnet | Decred UTXO and script model |
@@ -55,16 +54,14 @@ Do not auto-convert native TON phrases, Decred PGP-word seeds, legacy ZEN seeds 
 
 Use reviewed Go Ethereum signing/serialization primitives, local address validation and integer amounts. Prefer supported typed transactions; require chain-bound replay protection and refuse unprotected pre-EIP-155 signing. Validate sender, network, destination, native value, ERC-20 calldata, gas and total fee against the approved immutable transaction plan. Sources: [EIP-155](https://eips.ethereum.org/EIPS/eip-155), [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559).
 
-Legacy Horizen mainchain/EON balances migrated to Base ERC-20 ZEN on 2025-07-23; they are not new receiving networks for this app. Current Horizen is an EVM L3 with ETH gas. Official [ZEN deployment documentation](https://docs.horizen.io/horizen-chain/tokens-and-gas/zen-token/) identifies:
+Legacy Horizen mainchain/EON balances migrated to Base ERC-20 ZEN on 2025-07-23; they are not new receiving networks for this app. Current Horizen is an EVM L3 with ETH gas, but this wallet no longer exposes it under the 2026-10-28 owner instruction. Official [ZEN deployment documentation](https://docs.horizen.io/horizen-chain/tokens-and-gas/zen-token/) identifies:
 
 | Network | Required token contract |
 |---|---|
 | Base mainnet | `0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229` |
-| Horizen mainnet | `0x57da2D504bf8b83Ef304759d9f2648522D7a9280` |
 | Base Sepolia tZEN | `0x107fdE93838e3404934877935993782F977324BB` |
-| Horizen testnet tZEN | `0xb06EC4ce262D8dbDc24Fac87479A49A7DC4cFb87` |
 
-Reverify deployment bytecode, decimals and network before pinning the registry. The Horizen mainnet token address is also an **OFT adapter address on Base**; it is not Base's ZEN token. Never select contracts by symbol. A ZEN transfer uses `transfer` and needs ETH on that same network; it never implicitly triggers a bridge or approval. Include applicable rollup data fees in estimates. Sources: [migration](https://docs.horizen.io/migration/overview/), [Horizen fees](https://docs.horizen.io/horizen-chain/tokens-and-gas/gas-on-horizen/).
+Reverify deployment bytecode, decimals and network before pinning the registry. The historical `0x57da2D504bf8b83Ef304759d9f2648522D7a9280` address is an **OFT adapter on Base**, not Base's ZEN token. Never select contracts by symbol. A ZEN transfer uses `transfer` and needs ETH on that same network; it never implicitly triggers a bridge or approval. Include applicable rollup data fees in estimates. Sources: [migration](https://docs.horizen.io/migration/overview/), [Horizen fees](https://docs.horizen.io/horizen-chain/tokens-and-gas/gas-on-horizen/).
 
 Test wrong-chain RPCs, mixed-case checksum errors, token/recipient confusion, zero/maximum values, insufficient ETH despite sufficient ZEN, contract reverts, fee spikes, nonce races, replacements, reorgs and a timeout after acceptance. Persist signed bytes/hash before broadcast and reconcile the original payment before any retry.
 

@@ -437,6 +437,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}
 	switch m.Method {
+	case "discoverTokens":
+		return c.discoverTokensAt(m, epoch)
 	case "importToken":
 		return c.importTokenAt(m, epoch)
 	case "nearStakingState", "prepareNearStaking":

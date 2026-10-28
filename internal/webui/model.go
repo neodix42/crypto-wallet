@@ -22,6 +22,7 @@ type View struct {
 	Title, Status, Active string
 	StatusRevision        uint64
 	Pages                 []Page
+	Appearance            Appearance
 }
 type Event struct{ ID, Value string }
 
@@ -52,6 +53,9 @@ func plain(s string, max int) bool {
 // password/mnemonic entry into the public event channel. Secrets belong only
 // to the separately typed Prompt API, never a public declarative form.
 func validateView(v View) bool {
+	if v.Appearance != (Appearance{}) && !v.Appearance.Valid() {
+		return false
+	}
 	if !plain(v.Title, 256) || !plain(v.Status, 65536) || !plain(v.Active, 256) || len(v.Pages) > 1000 {
 		return false
 	}

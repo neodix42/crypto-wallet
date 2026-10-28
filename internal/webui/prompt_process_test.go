@@ -106,6 +106,10 @@ func promptProcessPeer() int {
 	reply := uiprompt.Reply{PromptID: p.ID, Accepted: true}
 	if p.Kind == "input" {
 		reply.Values = []string{strconv.Itoa(os.Getpid())}
+		if strings.HasPrefix(mode, "presentation:") {
+			appearance := privateAppearance()
+			reply.Values[0] = appearance.Theme + ":" + strconv.Itoa(appearance.FontSize)
+		}
 	}
 	response.Body, _ = json.Marshal(reply)
 	if mode == "bad-reply" {

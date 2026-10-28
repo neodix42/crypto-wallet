@@ -120,7 +120,7 @@ func (d *Data) Validate() error {
 	tokens := map[string]bool{}
 	for _, token := range d.ERC20Tokens {
 		if evm.ValidateTokenPolicy(token) != nil || tokens[token.Asset.ID] ||
-			(token.Network == "ethereum-sepolia") != (d.Environment == "testnet") {
+			(token.Network == "ethereum-sepolia" || token.Network == "base-sepolia") != (d.Environment == "testnet") {
 			return ErrFormat
 		}
 		tokens[token.Asset.ID] = true

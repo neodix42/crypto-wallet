@@ -13,7 +13,7 @@ import (
 	"localwallet/internal/model"
 )
 
-func tokenMetadataServer(t *testing.T, fail *bool) *httptest.Server {
+func tokenMetadataServer(t *testing.T, fail *bool, chain ...string) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
@@ -28,6 +28,9 @@ func tokenMetadataServer(t *testing.T, fail *bool) *httptest.Server {
 		switch request.Method {
 		case "eth_chainId":
 			result = "0xaa36a7"
+			if len(chain) > 0 {
+				result = chain[0]
+			}
 		case "eth_getBlockByNumber":
 			result = map[string]string{"number": "0x10", "hash": "0x" + strings.Repeat("a", 64), "timestamp": fmt.Sprintf("0x%x", time.Now().Unix()), "baseFeePerGas": "0x1"}
 		case "eth_getCode":

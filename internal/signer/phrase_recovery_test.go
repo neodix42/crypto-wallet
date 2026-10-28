@@ -42,7 +42,7 @@ func TestFreshMachinePhraseRecoveryAllNetworksAndStoragePasswords(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			if environment == "mainnet" && len(original.Snapshot().Accounts) != 27 {
+			if environment == "mainnet" && len(original.Snapshot().Accounts) != 24 {
 				t.Fatal("mainnet recovery omitted required domains")
 			}
 			original.Lock()

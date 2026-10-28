@@ -32,7 +32,6 @@ func ValidateRoute(account model.Account, asset model.Asset, chain, chainType, c
 	names := map[string][]string{
 		"ethereum-mainnet": {"Ethereum", "Ethereum(ERC20)", "Ethereum (ERC20)", "ERC20", "ETH"},
 		"base-mainnet":     {"Base", "BASE"},
-		"horizen-mainnet":  {"Horizen", "Horizen Chain"},
 		"hyperevm-mainnet": {"HyperEVM", "Hyperliquid HyperEVM"},
 		"near-mainnet":     {"NEAR", "NEAR Protocol", "Near Protocol"},
 		"aptos-mainnet":    {"APTOS", "Aptos"},

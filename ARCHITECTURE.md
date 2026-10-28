@@ -1,5 +1,7 @@
 # Implementation architecture
 
+> Current owner update (2026-10-28): [START_HERE.txt](START_HERE.txt) supersedes earlier Horizen-network coverage and Connect-only password requirements. Active coverage is eight mainnet networks/ten pinned assets; standard Ethereum/Base ERC-20 tracking and bounded read-only Base discovery are supported. Light/18px defaults and Settings Appearance apply to public/private Wails views. All unrelated secret-handling, approval, recovery and test gates remain mandatory.
+
 ## A-01: Components and ownership
 
 Use a Go module and a separately packaged Electron/TypeScript application. The owner's 2026-10-24 interface instruction replaces all Go/GTK application windows with Electron dialogs. Go still owns entropy generation, phrase/challenge validation, password authentication, immutable transaction interpretation, authorization and signing. Presentation and credential entry now place Electron main and the dedicated prompt renderer/preload inside the secret trust boundary; backend generation alone does not preserve the former native-display isolation.

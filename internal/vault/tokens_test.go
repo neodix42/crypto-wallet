@@ -112,7 +112,7 @@ func TestERC20VaultRejectsDuplicateMalformedCrossProfileAndUnboundedPolicies(t *
 	}{
 		{"duplicate", func(d *Data) { d.ERC20Tokens = append(d.ERC20Tokens, d.ERC20Tokens[0]) }},
 		{"cross profile", func(d *Data) { d.ERC20Tokens[0] = publicVaultToken(0, "ethereum-mainnet") }},
-		{"foreign chain", func(d *Data) { d.ERC20Tokens[0] = publicVaultToken(0, "base-sepolia") }},
+		{"foreign chain", func(d *Data) { d.ERC20Tokens[0] = publicVaultToken(0, "hyperevm-testnet") }},
 		{"missing asset identity", func(d *Data) { d.ERC20Tokens[0].Asset.ID = "" }},
 		{"foreign asset identity", func(d *Data) { d.ERC20Tokens[0].Asset.ID = "ethereum-sepolia:native" }},
 		{"missing contract", func(d *Data) { d.ERC20Tokens[0].Asset.Contract = "" }},

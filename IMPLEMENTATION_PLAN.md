@@ -1,5 +1,7 @@
 # Delivery milestones and release evidence
 
+> Current owner update (2026-10-28): [START_HERE.txt](START_HERE.txt) supersedes earlier Horizen-network coverage and Connect-only password requirements. Active coverage is eight mainnet networks/ten pinned assets; standard Ethereum/Base ERC-20 tracking and bounded read-only Base discovery are supported. Light/18px defaults and Settings Appearance apply to public/private Wails views. All unrelated secret-handling, approval, recovery and test gates remain mandatory.
+
 ## Working rules
 
 Read the entire task before building. Respect applicable repository instructions and preserve unrelated work. Inspect any existing application, tests and dependency policy. Record a concrete requirement-to-test checklist; implement the requested application rather than returning only this plan or scaffolding.

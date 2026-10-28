@@ -23,7 +23,7 @@ SIGNER = "internal/signer/exchange.go"
 MUTANTS = [
     {
         "id": "exchange-app-password-reauthentication",
-        "policy": "A wrong app password cannot approve a Bybit operation.",
+        "policy": "A wrong app password cannot authorize a funds-moving Bybit operation; connecting an unlocked wallet is the explicit exception.",
         "path": SIGNER,
         "changes": [("!hmac.Equal(in[0], e.password)", "(!hmac.Equal(in[0], e.password) && false)")],
         "selector": "^TestExchangeTP043AuthorizationFailuresLockAndPersistence$/^wrong-password$",

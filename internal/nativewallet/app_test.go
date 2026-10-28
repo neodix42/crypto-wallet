@@ -124,14 +124,14 @@ func ethAccount(t *testing.T, a *App) model.Account {
 
 func TestNativeControllerAllNetworksPublicBalancesAndWholeAssetUnits(t *testing.T) {
 	a, _, _ := fixture(t)
-	if len(a.networks) != 9 || len(a.state.Accounts) != 9 {
+	if len(a.networks) != 8 || len(a.state.Accounts) != 8 {
 		t.Fatal("native controller narrowed the network registry")
 	}
 	assetCount := 0
 	for _, n := range a.networks {
 		assetCount += len(n.Assets)
 	}
-	if assetCount != 12 {
+	if assetCount != 10 {
 		t.Fatal("native controller narrowed supported assets")
 	}
 	account := ethAccount(t, a)

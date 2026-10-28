@@ -1,4 +1,4 @@
-import type { Node, Prompt, View } from './types';
+import type { Appearance, Node, Prompt, View } from './types';
 
 const kinds = new Set(['label', 'heading', 'separator', 'row', 'column', 'button', 'entry', 'combo', 'check', 'address']);
 const encoder = new TextEncoder();
@@ -7,7 +7,16 @@ export function boundedText(value: unknown, max: number, empty = true): value is
 }
 function object(value: unknown): value is Record<string, unknown> { return !!value && typeof value === 'object' && !Array.isArray(value); }
 function list(value: unknown, max: number): value is unknown[] | null { return value === null || Array.isArray(value) && value.length <= max; }
+export function validAppearance(value: unknown): value is Appearance {
+  return object(value) && Object.keys(value).length === 2 && (value.theme === 'light' || value.theme === 'dark') && Number.isInteger(value.fontSize) && Number(value.fontSize) >= 14 && Number(value.fontSize) <= 24 && Number(value.fontSize) % 2 === 0;
+}
+export function applyAppearance(value?: Appearance): void {
+  const appearance = validAppearance(value) ? value : { theme: 'light', fontSize: 18 };
+  document.documentElement.dataset.theme = appearance.theme;
+  document.documentElement.dataset.fontSize = String(appearance.fontSize);
+}
 export function validView(value: unknown): value is View {
+  if (object(value) && value.Appearance !== undefined && !validAppearance(value.Appearance)) return false;
   if (!object(value) || !boundedText(value.Title, 256) || !boundedText(value.Status, 65536) || !boundedText(value.Active, 256) || !Number.isSafeInteger(value.StatusRevision) || Number(value.StatusRevision) < 0 || !list(value.Pages, 1000)) return false;
   let remaining = 20000;
   function nodes(values: unknown[] | null, depth: number): boolean {
@@ -30,6 +39,10 @@ export function isWalletRow(node: Node): boolean {
 export function validPrompt(value: unknown): value is Prompt {
   if (!object(value) || typeof value.id !== 'string' || !/^[a-f0-9]{32}$/.test(value.id) || !boundedText(value.title, 256, false)) return false;
   let fields = ['id', 'kind', 'title'];
+  if (Object.hasOwn(value, 'appearance')) {
+    if (!validAppearance(value.appearance)) return false;
+    fields.push('appearance');
+  }
   switch (value.kind) {
     case 'input':
       fields = fields.concat('labels');

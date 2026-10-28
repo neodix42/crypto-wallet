@@ -67,6 +67,9 @@ class WailsPrivateStartup(unittest.TestCase):
         self.click = mock.Mock()
         self.scope = {'time': self.clock, 'desktop': self.desktop, 'click': self.click,
                       'PrivateWindowVisible': type('PrivateWindowVisible', (RuntimeError,), {})}
+        self.desktop.grab_server = lambda: self.scope['mod'].X.XGrabServer(self.desktop.d)
+        self.desktop.ungrab_server = lambda: (self.scope['mod'].X.XUngrabServer(self.desktop.d),
+                                               self.scope['mod'].X.XFlush(self.desktop.d))
         exec(compile(ast.Module(body=functions, type_ignores=[]), 'wails-startup-test-helper', 'exec'), self.scope)
         self.main = [(1, 'CryptoWallet · 0.1.1 · mainnet')]
 
@@ -132,14 +135,15 @@ class WailsPrivateStartup(unittest.TestCase):
         self.scope.update(mod=SimpleNamespace(X=x), subprocess=SimpleNamespace(check_output=decoder))
         self.desktop.secret_window = lambda: self.scope['secret_window'](self.desktop)
         for title in ('cryptowallet', 'Verify receive address', 'Record recovery phrase', 'Unexpected private title'):
-            with self.subTest(title=title):
-                self.desktop.windows.return_value = self.main + [(2, title)]
-                with self.assertRaises(self.scope['PrivateWindowVisible']):
-                    self.scope['public_rows']()
+            for contrast in (False, True):
+                with self.subTest(title=title, contrast=contrast):
+                    self.desktop.windows.return_value = self.main + [(2, title)]
+                    with self.assertRaises(self.scope['PrivateWindowVisible']):
+                        self.scope['public_rows'](contrast=contrast)
         self.desktop.image.assert_not_called()
         decoder.assert_not_called()
-        self.assertEqual(x.XGrabServer.call_count, 4)
-        self.assertEqual(x.XUngrabServer.call_count, 4)
+        self.assertEqual(x.XGrabServer.call_count, 8)
+        self.assertEqual(x.XUngrabServer.call_count, 8)
 
     def test_hover_dismissal_moves_only_to_owned_empty_root_without_click_focus_or_pixels(self):
         motion, flush = mock.Mock(), mock.Mock()
@@ -152,6 +156,179 @@ class WailsPrivateStartup(unittest.TestCase):
         self.desktop.image.assert_not_called()
         self.desktop.windows.assert_not_called()
         self.assertEqual(self.clock.now, .15)
+
+
+class WailsAppearanceCapture(unittest.TestCase):
+    def setUp(self):
+        tree = ast.parse((ROOT / 'scripts/wails-wallet-test.py').read_text())
+        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('palette', 'masked_field_rectangles', 'public_picture')]
+        self.x = SimpleNamespace(**{name: mock.Mock() for name in
+                                 ('XGrabServer', 'XSync', 'XUngrabServer', 'XFlush')})
+        self.desktop = SimpleNamespace(d=object(), secret_window=mock.Mock(return_value=False),
+                                       image=mock.Mock())
+        self.scope = {'appearance': {'theme': 'light', 'fontSize': 18},
+                      'mod': SimpleNamespace(X=self.x), 'desktop': self.desktop,
+                      'PrivateWindowVisible': type('PrivateWindowVisible', (RuntimeError,), {})}
+        self.desktop.grab_server = lambda: self.x.XGrabServer(self.desktop.d)
+        self.desktop.ungrab_server = lambda: (self.x.XUngrabServer(self.desktop.d), self.x.XFlush(self.desktop.d))
+        exec(compile(ast.Module(body=functions, type_ignores=[]), 'wails-appearance-test-helper', 'exec'), self.scope)
+
+    def test_both_themes_locate_two_whole_masked_fields_and_exclude_footer(self):
+        for theme in ('light', 'dark'):
+            with self.subTest(theme=theme):
+                self.scope['appearance']['theme'] = theme
+                colors = self.scope['palette']()
+                picture = Image.new('RGB', (800, 700), colors['page'])
+                bounds = (50, 30, 680, 528)
+                for top in (250, 360):
+                    picture.paste(colors['input'], (76, top, 704, top + 54))
+                # A footer with the same surface color must not be mistaken
+                # for a third password field, even in the light theme.
+                picture.paste(colors['input'], (50, 484, 730, 558))
+                self.assertEqual(self.scope['masked_field_rectangles'](picture, bounds, colors['input']),
+                                 [(250, 303), (360, 413)])
+                picture.paste(colors['page'], (76, 360, 704, 414))
+                self.assertEqual(self.scope['masked_field_rectangles'](picture, bounds, colors['input']),
+                                 [(250, 303)], 'a missing or clipped secret field cannot be invented')
+
+    def test_private_dialog_blocks_new_appearance_capture_before_any_pixels(self):
+        self.desktop.secret_window.return_value = True
+        with self.assertRaises(self.scope['PrivateWindowVisible']):
+            self.scope['public_picture']()
+        self.desktop.image.assert_not_called()
+        self.x.XGrabServer.assert_called_once_with(self.desktop.d)
+        self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+
+    def test_capture_and_conversion_exception_always_release_owned_server(self):
+        self.desktop.image.side_effect = RuntimeError('synthetic capture failure')
+        with self.assertRaisesRegex(RuntimeError, 'synthetic capture failure'):
+            self.scope['public_picture']()
+        self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+        self.x.XFlush.assert_called_once_with(self.desktop.d)
+
+
+class WailsOwnedServerGuard(unittest.TestCase):
+    def setUp(self):
+        tree = ast.parse((ROOT / 'scripts/wails-wallet-test.py').read_text())
+        desktop = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'Desktop')
+        methods = [node for node in desktop.body if isinstance(node, ast.FunctionDef)
+                   and node.name in ('grab_server', 'ungrab_server', 'windows')]
+        copied = ast.ClassDef(name='Desktop', bases=[ast.Name(id='Base', ctx=ast.Load())],
+                              keywords=[], body=methods, decorator_list=[])
+        public = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'public_rows')
+        self.events = []
+        self.fail_enumeration = False
+        owner = self
+
+        class Base:
+            def windows(self):
+                owner.assertGreater(self._server_grab_depth, 0)
+                owner.events.append('enumerate')
+                if owner.fail_enumeration:
+                    raise RuntimeError('synthetic retiring-window failure')
+                return [(1, 'CryptoWallet')]
+
+        self.x = SimpleNamespace(XGrabServer=mock.Mock(side_effect=lambda _: self.events.append('grab')),
+                                 XUngrabServer=mock.Mock(side_effect=lambda _: self.events.append('ungrab')),
+                                 XFlush=mock.Mock(), XSync=mock.Mock())
+        self.scope = {'Base': Base, 'mod': SimpleNamespace(X=self.x), 'Image': Image,
+                      'ImageOps': ImageOps, 'appearance': {'theme': 'light', 'fontSize': 18},
+                      'io': io, 'subprocess': SimpleNamespace(check_output=mock.Mock(return_value=b'header\n'), DEVNULL=subprocess.DEVNULL),
+                      'PrivateWindowVisible': type('PrivateWindowVisible', (RuntimeError,), {})}
+        module = ast.fix_missing_locations(ast.Module(body=[copied, public], type_ignores=[]))
+        exec(compile(module, 'wails-owned-server-test-helper', 'exec'), self.scope)
+        self.desktop = self.scope['Desktop']()
+        self.desktop.d = object()
+        self.scope['desktop'] = self.desktop
+
+        def private():
+            self.desktop.windows()
+            return False
+
+        def pixels():
+            self.assertEqual(self.desktop._server_grab_depth, 1)
+            self.assertNotIn('ungrab', self.events)
+            self.events.append('pixels')
+            return Image.new('RGB', (4, 4), 'white')
+
+        self.desktop.secret_window = private
+        self.desktop.image = mock.Mock(side_effect=pixels)
+
+    def test_nested_enumeration_keeps_public_guard_held_until_pixel_capture(self):
+        self.assertEqual(self.scope['public_rows'](), [])
+        self.assertEqual(self.events, ['grab', 'enumerate', 'pixels', 'ungrab'])
+        self.assertEqual(self.desktop._server_grab_depth, 0)
+        self.x.XGrabServer.assert_called_once_with(self.desktop.d)
+        self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+
+    def test_enumeration_failure_releases_only_its_depth_and_outer_finally_releases_once(self):
+        self.fail_enumeration = True
+        self.desktop.grab_server()
+        with self.assertRaisesRegex(RuntimeError, 'retiring-window'):
+            self.desktop.windows()
+        self.assertEqual(self.desktop._server_grab_depth, 1)
+        self.x.XUngrabServer.assert_not_called()
+        self.desktop.ungrab_server()
+        self.assertEqual(self.desktop._server_grab_depth, 0)
+        self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+        self.desktop.image.assert_not_called()
+
+    def test_sync_failure_restores_standalone_guard_and_unbalanced_release_is_rejected(self):
+        self.x.XSync.side_effect = RuntimeError('synthetic sync failure')
+        with self.assertRaisesRegex(RuntimeError, 'sync failure'):
+            self.desktop.windows()
+        self.assertEqual(self.desktop._server_grab_depth, 0)
+        self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+        with self.assertRaisesRegex(RuntimeError, 'not held'):
+            self.desktop.ungrab_server()
+        self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+
+
+class WailsPrivateCopyNavigation(unittest.TestCase):
+    def setUp(self):
+        tree = ast.parse((ROOT / 'scripts/wails-wallet-test.py').read_text())
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'private_click')
+        self.desktop = SimpleNamespace(d=object(), wait=mock.Mock(return_value=(7, 'Back up recovery phrase')),
+                                       geometry=mock.Mock(return_value=(460, 220, 680, 660)), click=mock.Mock())
+        self.rows = mock.Mock()
+        self.motion, self.button, self.flush = mock.Mock(), mock.Mock(), mock.Mock()
+        self.scope = {'desktop': self.desktop, 'private_rows': self.rows,
+                      'mod': SimpleNamespace(T=SimpleNamespace(XTestFakeMotionEvent=self.motion, XTestFakeButtonEvent=self.button),
+                                             X=SimpleNamespace(XFlush=self.flush)),
+                      'time': SimpleNamespace(sleep=mock.Mock())}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), 'wails-private-copy-test-helper', 'exec'), self.scope)
+
+    def test_only_authenticated_backup_copy_can_scroll_and_click_its_actual_label(self):
+        copy = ['5', '1', '1', '1', '1', '1', '100', '200', '40', '20', '99', 'Copy']
+        phrase = copy[:]
+        phrase[11] = 'phrase'
+        self.rows.side_effect = [[], [copy, phrase]]
+        self.scope['private_click']('Back up recovery phrase', 'Copy phrase')
+        self.rows.assert_has_calls([mock.call('Back up recovery phrase')] * 2)
+        self.motion.assert_called_once_with(self.desktop.d, -1, 1122, 550, 0)
+        self.assertEqual(self.button.call_count, 6)
+        self.desktop.click.assert_called_once_with(580, 430)
+
+    def test_unknown_private_prompt_or_action_is_rejected_before_pixels_or_input(self):
+        for prefix, words in (('Record recovery phrase', 'Copy phrase'),
+                              ('Back up recovery phrase', 'Done'),
+                              ('Unlock local wallet', 'Continue')):
+            with self.subTest(prefix=prefix, words=words):
+                with self.assertRaisesRegex(RuntimeError, 'Unexpected private control'):
+                    self.scope['private_click'](prefix, words)
+        self.rows.assert_not_called()
+        self.desktop.wait.assert_not_called()
+        self.desktop.click.assert_not_called()
+        self.motion.assert_not_called()
+
+    def test_missing_control_has_a_finite_body_scroll_bound_and_never_clicks(self):
+        self.rows.return_value = []
+        with self.assertRaisesRegex(RuntimeError, 'no private OCR diagnostic retained'):
+            self.scope['private_click']('Back up recovery phrase', 'Copy phrase')
+        self.assertEqual(self.rows.call_count, 8)
+        self.assertEqual(self.motion.call_count, 8)
+        self.desktop.click.assert_not_called()
 
 
 class PublicStatusTiming(unittest.TestCase):

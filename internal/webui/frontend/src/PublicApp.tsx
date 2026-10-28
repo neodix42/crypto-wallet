@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Node, Page, View, WalletEvent } from './types';
-import { isWalletRow, validView } from './protocol';
+import { applyAppearance, isWalletRow, validView } from './protocol';
 import { CopyIcon, Mark, SettingsIcon } from './icons';
 
 type Emit = (id: string, value?: string) => void;
@@ -26,7 +26,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'separator': return <hr/>;
     case 'column': return <div className="node-column">{children()}</div>;
     case 'row': {
-      if (node.ID.startsWith('walletSections/')) return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
+      if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
       return <div className="node-row" title={node.Tooltip}>{children()}</div>;
     }
     case 'address': return <div className="address-field" title={node.Tooltip}>{node.Text && <span className="address-label">{node.Text}</span>}<code className="address">{node.Value}</code></div>;
@@ -34,7 +34,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'button': {
       const copy = node.ID.startsWith('copyReceive/');
       const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap)/.test(node.ID);
-      return <button type="button" data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : undefined} onClick={() => emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : node.Text}</button>;
+      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : undefined} onClick={() => emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : node.Text}</button>;
     }
   }
 }
@@ -57,6 +57,17 @@ export function PublicContent({ page, emit }: { page: Page; emit: Emit }) {
 export function WalletShell({ view, status, emit }: { view: View; status: string; emit: Emit }) {
   const pages = view.Pages || [], active = pages.find(page => page.ID === view.Active) || pages[0];
   const metadata = view.Title.split(' · ').slice(1).join(' · ');
+  const unlock = active?.ID.startsWith('group/') && active.Nodes?.some(node => node.Kind === 'button' && node.ID === 'unlock' && !node.Disabled);
+  useEffect(() => {
+    if (!unlock) return;
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !(event.target instanceof Element && event.target.closest('button,a,input,select,textarea'))) {
+        event.preventDefault(); emit('unlock');
+      }
+    };
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
+  }, [unlock, emit]);
   return <div className="wallet-shell"><header className="app-header"><a className="brand" href="#" onClick={event => { event.preventDefault(); const first = pages.find(page => page.ID.startsWith('group/')); if (first) emit('tab', first.ID); }}><Mark/><span>CryptoWallet</span></a><span className="build-metadata">{metadata}</span></header><nav className="tabs" aria-label="Wallet tabs">{pages.map(page => <div className={`tab ${active?.ID === page.ID ? 'active' : ''} ${page.ID === 'exchange' ? 'utility-start' : ''}`} key={page.ID} onAuxClick={event => { if (event.button === 1 && page.ID.startsWith('wallet/')) { event.preventDefault(); emit('closeTab', page.ID); } }}><button type="button" role="tab" aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" onClick={() => emit('tab', page.ID)}>{page.ID === 'settings' && <SettingsIcon/>}{page.Title}</button>{page.ID.startsWith('wallet/') && <button className="close-tab" type="button" aria-label={`Close ${page.Title}`} onClick={() => emit('closeTab', page.ID)}>×</button>}</div>)}</nav><main className={`workspace ${active?.ID.startsWith('group/') && !active.Nodes?.some(isWalletRow) ? 'welcome-workspace' : ''}`} id="wallet-panel" role="tabpanel" aria-label={active?.Title}>{active ? <PublicContent page={active} emit={emit}/> : <div className="connecting"><Mark/><p>Opening your encrypted wallet…</p></div>}</main><footer className="status-bar" aria-live="polite" aria-atomic="true"><span className={status ? 'status-dot visible' : 'status-dot'} aria-hidden="true"/><span>{status}</span></footer></div>;
 }
 
@@ -70,9 +81,9 @@ export function PublicApp() {
     queue.current = queue.current.then(async () => { if (await bridge.Event(event) !== true && ID !== 'activity') throw new Error('Unavailable'); }).catch(() => { if (live.current && ID !== 'activity') setStatus('Request failed. Check wallet state before retrying.'); });
   };
   useEffect(() => {
-    live.current = true;
+    live.current = true; applyAppearance();
     let disposed = false, pushed = false;
-    const accept = (value: unknown) => { if (disposed) return; if (validView(value)) { setView(value); document.title = value.Title; } else setStatus('The wallet returned an invalid view. Close and reopen CryptoWallet.'); };
+    const accept = (value: unknown) => { if (disposed) return; if (validView(value)) { applyAppearance(value.Appearance); setView(value); document.title = value.Title; } else setStatus('The wallet returned an invalid view. Close and reopen CryptoWallet.'); };
     const bridge = window.go?.webui?.PublicBridge;
     const unsubscribe = window.runtime?.EventsOn('wallet:view', value => { pushed = true; accept(value); });
     if (bridge) bridge.Snapshot().then(value => { if (!pushed) accept(value); }).catch(() => { if (!disposed) setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.'); });

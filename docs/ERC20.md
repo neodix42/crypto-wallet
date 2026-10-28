@@ -2,13 +2,13 @@
 
 Ethereum wallets display native ETH and all configured ERC-20 assets together.
 ETH and pinned USDT remain present by default on mainnet. Additional tokens are
-explicitly tracked by their full contract address on Ethereum mainnet or Sepolia;
-this does not remove any existing chain or canonical asset.
+explicitly tracked by their full contract address on Ethereum mainnet/Sepolia or Base mainnet/Sepolia;
+Horizen networks are explicitly retired under the later owner request; the existing canonical Base ZEN identity remains pinned.
 
 ## Add and use a token
 
-1. Open the Ethereum wallet tab and find **Track an ERC-20 token**.
-2. Enter its full contract address for that exact Ethereum network, then choose
+1. Open the Ethereum or Base wallet tab and find **Track an ERC-20 token**.
+2. Enter its full contract address for that exact network, then choose
    **Verify and add token**. The contract is the asset identifier; it is not a
    recipient address.
 3. Review the separate Go-authored confirmation: network, owned account,
@@ -17,7 +17,7 @@ this does not remove any existing chain or canonical asset.
 4. Its asset row shows the token balance, full contract and decimals. Select that
    row's asset button before **Send**. Amounts are whole token units: `1.25`
    means 1.25 of that token, using its verified decimal precision.
-5. **Receive** uses the same owned Ethereum address and QR code for all tokens
+5. **Receive** uses the same owned address and QR code for all tokens
    on that network. Keep ETH available for transaction fees when sending.
 
 Balances cover configured contracts, including zero balances. A failed query
@@ -27,9 +27,9 @@ not an independent consensus proof.
 
 There is no automatic claim to discover every token already held by an address.
 The [standard Ethereum JSON-RPC API](https://ethereum.org/developers/docs/apis/json-rpc/)
-does not supply an address-wide token inventory. Import each additional contract
-you want displayed. No third-party token indexer or address-disclosure service is
-enabled by this feature.
+does not supply an address-wide token inventory. Ethereum uses explicit contract tracking. Base additionally uses the bounded
+Blockscout candidate discovery described below, disclosing the public address
+to that indexer; candidates still need separate exact-contract signing approval.
 
 ## Supported behavior and trust
 
@@ -74,7 +74,9 @@ current metadata. On-chain token ownership remains attached to the restored
 address. App passwords protect each local installation and are not part of
 Ethereum key derivation.
 
-## Evidence checklist
+## Previous Ethereum-only checkpoint
+
+These rows record the preceding Ethereum-only implementation before Appearance, Base imports/discovery and Horizen retirement. They do not certify the changed candidate. Current evidence is recorded in [STATUS.md](STATUS.md); the local execution gate now requires both Ethereum and Base.
 
 | State | Required evidence |
 | --- | --- |
@@ -100,3 +102,19 @@ WALLET_ERC20_EVM=1 ./scripts/with-toolchain.sh go test ./internal/chains/evm \
 addition to the original chain/emulator gates. The latter rejects a missing or
 skipped token test. `make test-fuzz` includes the new token-policy/metadata fuzz
 target. Unit fixtures are not counted as real EVM transaction acceptance.
+
+## Base discovery and retired Horizen compatibility
+
+Current local evidence: the unchanged-source two-chain execution gate passes on Ethereum Sepolia-shaped and Base Sepolia-shaped disposable Ganache nodes: eight Go-signed transfers and exactly twelve mined transactions (four token deployments plus eight transfers), all independently checked. Metadata/runtime/false-return faults remain rejected; Base missing/increased fixture fee-oracle observations deny broadcast. The canonical Base ZEN runtime is not deployed by this custom-token oracle and correctly stays unavailable without hiding native/imported balances. Actual Base fees/consensus and funded public-chain transfers remain NOT_RUN. `reports/erc20-execution.json` requires both profiles; `reports/base-erc20-execution.json` records the Base case separately.
+
+Final local unit/security/race/interoperability/integration/fuzz, full 20-step normal/instrumented GUI and all 33 package coverage floors pass; EVM 96.81%, controller 97.04%, Wails 95.10%. All 24 semantic mutants are killed, with no lowered floor or deleted guard. These records certify only their stated local scopes; hosted tests for the new feature commit, clean OS/funded-network acceptance and independent review remain separate. See [STATUS.md](STATUS.md).
+
+Base has ETH and canonical ZEN pinned; other standard ERC-20 tokens use the same owned Base address. Opening a Base wallet requests candidate contracts from `base.blockscout.com` (or `base-sepolia.blockscout.com` for testnet), using the documented [Blockscout token-balances schema](https://github.com/blockscout/blockscout-api-v2-swagger/blob/main/swagger.yaml). No API credential or secret is sent. This discloses the public address to that indexer in addition to the selected RPC provider.
+
+The indexer is not trusted for symbols, decimals, quantities, logos, URLs or signing policy. Only candidate ERC-20 contract addresses are consumed. The response is bounded to 256 KiB/256 entries and at most 32 new contracts; redirects are rejected. Go checks the Base chain and a fresh block, reads standard symbol/decimals/runtime and rechecks runtime/precision before reading each balance at that same block. Only positive verified candidate balances appear in a separate **unapproved token** list. Existing pinned/tracked balances retain their own independent observations.
+
+Choose **Verify and add token** to run the ordinary exact-contract private confirmation and current-password import. Successful discovery alone cannot select a new Send asset, persist a token policy or add a Bybit route. Symbols may be spam or collide. Ignore unsolicited tokens; the runtime hash does not prove issuer/proxy safety.
+
+Indexer inventory is incomplete and provider availability is not guaranteed. Failure displays **inventory unknown**, partial verification has a separate warning, and an empty response never claims that the account holds no other tokens. **Refresh token discovery** retries explicitly; exact-contract import remains available. The live provider probe in this development environment returned HTTP403, so live indexer acceptance is **BLOCKED** here. Controlled provider/RPC tests and real local EVM token execution are different evidence.
+
+Active Horizen mainnet/testnet networks, gas domains, endpoints and exchange routes have been removed. Existing vaults still authenticate their exact historical derivation descriptors, retain encrypted endpoints and journal, and unlock the unchanged active wallets. Historical records do not enable RPC/signing; their journal remains visible through the general Journal page. No legacy operation, descriptor or funds are silently deleted or reinterpreted as Base. At the same account index, the frozen EVM profile derives the same EOA on Base, but balances and transaction histories remain distinct ledgers. Fresh phrase restoration reconstructs the eight active mainnet networks (24 descriptors at indices0,1,127), not retired network tabs.

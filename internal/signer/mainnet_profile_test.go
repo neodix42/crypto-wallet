@@ -28,7 +28,7 @@ func TestMainnetRootAllFamiliesBackupAndNativeAuthorization(t *testing.T) {
 		t.Fatal(err)
 	}
 	initial := e.Snapshot()
-	if initial.Environment != "mainnet" || initial.RecoveryConfirmed || len(initial.Accounts) != 9 {
+	if initial.Environment != "mainnet" || initial.RecoveryConfirmed || len(initial.Accounts) != 8 {
 		t.Fatal("mainnet initial account coverage or backup gate missing")
 	}
 	families := map[string]bool{}

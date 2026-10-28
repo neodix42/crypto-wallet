@@ -23,15 +23,18 @@ mutants=[
  ('backup-explicit-confirmation','internal/signer/engine.go','if !accepted {\n\t\treturn nil\n\t}\n\tin, err := e.UI.Input("Confirm app password to back up recovery phrase"','if false && !accepted {\n\t\treturn nil\n\t}\n\tin, err := e.UI.Input("Confirm app password to back up recovery phrase"','./internal/signer'),
  ('backup-app-password-reauthentication','internal/signer/engine.go','if len(in) != 1 || !hmac.Equal(in[0], e.password) {\n\t\treturn ErrDenied\n\t}\n\t// Authentication inputs are no longer needed while the words are displayed.','if len(in) != 1 {\n\t\treturn ErrDenied\n\t}\n\t// Authentication inputs are no longer needed while the words are displayed.','./internal/signer'),
  ('backup-current-generation-binding','internal/signer/engine.go','return e.data == d && e.canAuthorize() && d.Generation == generation','return e.data == d && e.canAuthorize() && (d.Generation == generation || true)','./internal/signer'),
- ('erc20-import-confirmation','internal/signer/tokens.go','if !e.UI.Confirm("Import Ethereum ERC-20 token", summary) ||','if (false && !e.UI.Confirm("Import Ethereum ERC-20 token", summary)) ||','./internal/signer'),
+ ('erc20-import-confirmation','internal/signer/tokens.go','if !e.UI.Confirm("Import ERC-20 token", summary) ||','if (false && !e.UI.Confirm("Import ERC-20 token", summary)) ||','./internal/signer'),
  ('erc20-import-password','internal/signer/tokens.go','!hmac.Equal(in[0], e.password)','(false && !hmac.Equal(in[0], e.password))','./internal/signer'),
  ('erc20-runtime-pinning','internal/chains/evm/adapter.go','if crypto.Keccak256Hash(codeBytes).Hex() != expected {','if false && crypto.Keccak256Hash(codeBytes).Hex() != expected {','./internal/chains/evm'),
  ('erc20-false-transfer-result','internal/chains/evm/adapter.go','if s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {','if false && s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {','./internal/chains/evm'),
+ ('exchange-connect-custody-confirmation','internal/signer/exchange.go','if !e.UI.Confirm("Approve Bybit custody and API access",','if false && !e.UI.Confirm("Approve Bybit custody and API access",','./internal/signer'),
+ ('exchange-connect-current-generation','internal/signer/exchange.go','data.Generation == generation && data.Exchange == x','(data.Generation == generation || true) && data.Exchange == x','./internal/signer'),
 ]
 # Approval and secret-display guards require an unmodified passing control and their
 # exact runtime security assertion. An unrelated failure or panic cannot kill
 # these mutants. Existing default mutants and their criteria remain unchanged.
 backup_checks={
+ 'password-reauthentication':('^TestTP042CancelledAndExpiredAuthorization$', 'TestTP042CancelledAndExpiredAuthorization', 'wrong reauthentication signed'),
  'native-confirmation':('^TestTP042CancelledAndExpiredAuthorization$', 'TestTP042CancelledAndExpiredAuthorization', 'cancelled confirmation signed'),
  'backup-ready-state-and-reentry':('^TestTP033BackupPhraseRejectsUnavailableAndPendingVaultWithoutPrompt$/^(pending|reentry)$', 'TestTP033BackupPhraseRejectsUnavailableAndPendingVaultWithoutPrompt/pending', 'unavailable backup requested secret input or phrase'),
  'backup-explicit-confirmation':('^TestTP033BackupPhraseCancellationAndInvalidInputNeverGrantAuthority$/^cancel-confirm$', 'TestTP033BackupPhraseCancellationAndInvalidInputNeverGrantAuthority/cancel-confirm', 'backup cancellation or authentication did not fail safely'),
@@ -41,6 +44,8 @@ backup_checks={
  'erc20-import-password':('^TestTokenImportRejectsCancelledWrongPasswordStaleAndLockedRequestsAtomically$/^password$', 'TestTokenImportRejectsCancelledWrongPasswordStaleAndLockedRequestsAtomically/password', 'cancelled/stale/failed authorization persisted an imported token'),
  'erc20-runtime-pinning':('^TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy$', 'TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy', 'wrong USDT runtime accepted'),
  'erc20-false-transfer-result':('^TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy$', 'TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy', 'false/malformed USDT simulation accepted'),
+ 'exchange-connect-custody-confirmation':('^TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions$/^cancel-confirm$', 'TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions/cancel-confirm', 'cancelled Bybit custody approval granted connection'),
+ 'exchange-connect-current-generation':('^TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions$/^generation-input$', 'TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions/generation-input', 'Bybit connection accepted a changed wallet session'),
 }
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--only',nargs='+',choices=[m[0] for m in mutants],help='Run only these exact mutant IDs; the default still runs every mutant.')

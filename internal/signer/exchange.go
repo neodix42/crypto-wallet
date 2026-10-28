@@ -106,22 +106,25 @@ func exchangeCredentialBytes(v []byte, key bool) bool {
 }
 
 // ConnectExchange requests credentials through the existing masked, isolated
-// Electron input channel. Neither the public portfolio nor core receives the
-// secret outside that transient prompt reply.
+// wallet input channel. An already unlocked, recovery-confirmed session may
+// connect without entering its storage password again; spending and disconnect
+// keep their own password checks. Neither the public portfolio nor core receives
+// the secret outside that transient prompt reply.
 func (e *Engine) ConnectExchange(endpoint string) error {
 	x, err := e.exchangeData()
 	if err != nil || e.data.Environment != "mainnet" || bybit.ValidateEndpoint(endpoint) != nil {
 		return ErrDenied
 	}
-	if err = e.exchangePassword("Reauthenticate Bybit connection"); err != nil {
-		return err
+	data, generation := e.data, e.data.Generation
+	current := func() bool {
+		return e.canAuthorize() && e.data == data && data.Generation == generation && data.Exchange == x
 	}
 	in, err := e.UI.Input("Connect Bybit — enter your API key and matching API secret", "Bybit API key", "Bybit API secret")
 	if err != nil {
 		return err
 	}
 	defer wipeInputs(in)
-	if len(in) != 2 || !e.canAuthorize() || !exchangeCredentialBytes(in[0], true) || !exchangeCredentialBytes(in[1], false) {
+	if len(in) != 2 || !current() || !exchangeCredentialBytes(in[0], true) || !exchangeCredentialBytes(in[1], false) {
 		return ErrDenied
 	}
 	c := &vault.ExchangeCredentials{Endpoint: endpoint, APIKey: bytes.Clone(in[0]), Secret: bytes.Clone(in[1])}
@@ -137,7 +140,7 @@ func (e *Engine) ConnectExchange(endpoint string) error {
 			return ErrDenied
 		}
 	}
-	if !e.UI.Confirm("Approve Bybit custody and API access", "Service: Bybit\nEndpoint: "+endpoint+"\nDeposited assets are held by Bybit, which controls trading, custody, withdrawals, fees and availability. API credentials permit the permissions configured in your Bybit account. This wallet supports unleveraged spot trades and withdrawals only to its selected owned accounts. No deposit, trade, transfer or withdrawal is sent by connecting. Keep the API key restricted and whitelist your wallet withdrawal addresses on Bybit. The exchange secret is stored only inside the encrypted local vault; recovery phrases do not restore it.") || !e.canAuthorize() {
+	if !e.UI.Confirm("Approve Bybit custody and API access", "Service: Bybit\nEndpoint: "+endpoint+"\nDeposited assets are held by Bybit, which controls trading, custody, withdrawals, fees and availability. API credentials permit the permissions configured in your Bybit account. This wallet supports unleveraged spot trades and withdrawals only to its selected owned accounts. No deposit, trade, transfer or withdrawal is sent by connecting. Keep the API key restricted and whitelist your wallet withdrawal addresses on Bybit. The exchange secret is stored only inside the encrypted local vault; recovery phrases do not restore it.") || !current() {
 		return ErrDenied
 	}
 	if x.Credentials != nil {

@@ -54,7 +54,7 @@ func TestWalletCreationRestorationAndAuthenticatedSettingsRouteOnlyTypedRequests
 			if a.busy || !strings.Contains(a.status, "completed") {
 				t.Fatal("typed mutation did not complete")
 			}
-			if row.event != "backupPhrase" && len(a.balanceQueue) != 9 {
+			if row.event != "backupPhrase" && len(a.balanceQueue) != 8 {
 				t.Fatal("state mutation did not refresh canonical wallets")
 			}
 			if row.event == "backupPhrase" && len(a.balanceQueue) != 0 {
@@ -366,7 +366,7 @@ func TestRefreshMutationsAndFailuresDoNotInventWalletState(t *testing.T) {
 		if strings.Contains(a.status, "canary") {
 			t.Fatal("private failure entered public feedback")
 		}
-		if phase == "success" && len(a.balanceQueue) != 9 {
+		if phase == "success" && len(a.balanceQueue) != 8 {
 			t.Fatal("refresh narrowed canonical wallets")
 		}
 		if phase != "success" && !strings.Contains(a.status, "failed") {

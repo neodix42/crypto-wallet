@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 
+	"localwallet/internal/chains/evm"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
@@ -71,14 +72,15 @@ func (e *Engine) SnapshotPage(cursor string) (SnapshotPage, error) {
 	page.Environment, page.RecoveryConfirmed = e.data.Environment, e.data.RecoveryConfirmed
 	page.Accounts = []model.Account{}
 	page.Revision = strconv.FormatUint(e.data.Generation, 10)
-	page.TotalAccounts, page.TotalOperations = len(e.data.Accounts), len(e.data.Operations)
-	offset, err := e.publicPosition(cursor, "accounts", "", "", len(e.data.Accounts))
+	accounts := e.activeAccounts()
+	page.TotalAccounts, page.TotalOperations = len(accounts), len(e.data.Operations)
+	offset, err := e.publicPosition(cursor, "accounts", "", "", len(accounts))
 	if err != nil {
 		return SnapshotPage{}, err
 	}
 	used := 0
-	for offset+used < len(e.data.Accounts) && used < PublicPageRecords {
-		page.Accounts = append(page.Accounts, e.data.Accounts[offset+used])
+	for offset+used < len(accounts) && used < PublicPageRecords {
+		page.Accounts = append(page.Accounts, accounts[offset+used])
 		raw, err := json.Marshal(page)
 		if err != nil || len(raw) > PublicPageBytes-4096 {
 			page.Accounts = page.Accounts[:len(page.Accounts)-1]
@@ -86,10 +88,10 @@ func (e *Engine) SnapshotPage(cursor string) (SnapshotPage, error) {
 		}
 		used++
 	}
-	if used == 0 && offset < len(e.data.Accounts) {
+	if used == 0 && offset < len(accounts) {
 		return SnapshotPage{}, ErrDenied
 	}
-	if offset+used < len(e.data.Accounts) {
+	if offset+used < len(accounts) {
 		page.AccountsCursor = e.publicCursor("accounts", "", "", offset+used)
 	}
 	return page, nil
@@ -99,7 +101,7 @@ func (e *Engine) PublicAccount(id string) (model.Account, error) {
 		return model.Account{}, ErrDenied
 	}
 	for _, account := range e.data.Accounts {
-		if account.ID == id {
+		if account.ID == id && !evm.IsRetiredNetwork(account.Network) {
 			return account, nil
 		}
 	}

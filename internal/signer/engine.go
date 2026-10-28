@@ -20,6 +20,7 @@ import (
 	"localwallet/internal/chains/aptos"
 	"localwallet/internal/chains/chainutil"
 	"localwallet/internal/chains/decred"
+	"localwallet/internal/chains/evm"
 	"localwallet/internal/chains/near"
 	"localwallet/internal/derivation"
 	"localwallet/internal/journal"
@@ -108,7 +109,7 @@ func (e *Engine) Snapshot() Snapshot {
 	if e.data == nil {
 		return s
 	}
-	s.Environment, s.RecoveryConfirmed, s.Accounts = e.data.Environment, e.data.RecoveryConfirmed, e.data.Accounts
+	s.Environment, s.RecoveryConfirmed, s.Accounts = e.data.Environment, e.data.RecoveryConfirmed, e.activeAccounts()
 	for _, op := range e.data.Operations {
 		op.Signed = nil
 		s.Operations = append(s.Operations, op)
@@ -199,6 +200,12 @@ func (e *Engine) validateAccounts(d *vault.Data) error {
 	}
 	defer clear(seed)
 	for _, a := range d.Accounts {
+		if evm.IsRetiredNetwork(a.Network) {
+			if err := evm.ValidateRetiredAccount(seed, a); err != nil {
+				return err
+			}
+			continue
+		}
 		adapter, err := e.adapter(a.Network)
 		if err != nil {
 			return err
@@ -540,7 +547,7 @@ func (e *Engine) account(id string) (model.Account, error) {
 		return model.Account{}, ErrDenied
 	}
 	for _, a := range e.data.Accounts {
-		if a.ID == id {
+		if a.ID == id && !evm.IsRetiredNetwork(a.Network) {
 			return a, nil
 		}
 	}
@@ -707,7 +714,7 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 		if p.Account.Family == "ton" {
 			feeLabel = "Estimated fee reserve (TON protocol has no signed fee cap)"
 		}
-		if p.Account.Family == "evm" && (strings.HasPrefix(p.Account.Network, "base-") || strings.HasPrefix(p.Account.Network, "horizen-")) {
+		if p.Account.Family == "evm" && strings.HasPrefix(p.Account.Network, "base-") {
 			feeLabel = "Signed execution cap + estimated rollup reserve (rollup charges are protocol-assessed)"
 		}
 		if p.Account.Family == "near" {
@@ -903,7 +910,13 @@ func (e *Engine) Settings() map[string]vault.Endpoint {
 	if e.data == nil {
 		return nil
 	}
-	return e.data.Endpoints
+	settings := make(map[string]vault.Endpoint, len(e.data.Endpoints))
+	for network, endpoint := range e.data.Endpoints {
+		if !evm.IsRetiredNetwork(network) {
+			settings[network] = endpoint
+		}
+	}
+	return settings
 }
 func (e *Engine) Configure(network string) error {
 	if e.data == nil {

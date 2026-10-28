@@ -11,6 +11,30 @@ import (
 	"localwallet/internal/strictjson"
 )
 
+func (c *core) discoverTokensAt(message ipc.Message, epoch uint64) (any, error) {
+	var request struct {
+		AccountID strictjson.Text `json:"accountId"`
+	}
+	if strictjson.Decode(message.Body, &request) != nil || request.AccountID == "" {
+		return nil, errors.New("token discovery requires an account")
+	}
+	account, err := c.account(string(request.AccountID))
+	if err != nil {
+		return nil, err
+	}
+	adapter, err := c.adapter(account.Network)
+	if err != nil {
+		return nil, err
+	}
+	base, ok := adapter.(*evm.Adapter)
+	if !ok {
+		return nil, errors.New("token discovery requires a Base wallet")
+	}
+	ctx, cancel := c.networkContextAt(45*time.Second, epoch)
+	defer cancel()
+	return base.DiscoverTokens(ctx, account)
+}
+
 func (c *core) importTokenAt(message ipc.Message, epoch uint64) (any, error) {
 	var request struct {
 		AccountID strictjson.Text `json:"accountId"`
@@ -29,7 +53,7 @@ func (c *core) importTokenAt(message ipc.Message, epoch uint64) (any, error) {
 	}
 	ethereum, ok := adapter.(*evm.Adapter)
 	if !ok {
-		return nil, errors.New("token import is available only for Ethereum")
+		return nil, errors.New("token import requires a supported Ethereum or Base wallet")
 	}
 	ctx, cancel := c.networkContextAt(45*time.Second, epoch)
 	defer cancel()

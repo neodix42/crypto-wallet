@@ -71,6 +71,7 @@ type App struct {
 	networks                              []model.Network
 	balances                              map[string][]model.Balance
 	balanceErrors                         map[string]bool
+	tokenDiscovery                        map[string]tokenDiscoveryState
 	fields                                map[string]string
 	active                                string
 	tabs                                  []string
@@ -99,6 +100,7 @@ type App struct {
 	status                                string
 	statusRevision                        uint64
 	monitorState                          string
+	appearance                            webui.Appearance
 	statusUntil, lastActivity, lastStatus time.Time
 	balanceQueue                          []string
 }
@@ -121,6 +123,10 @@ func Run(environment string) error {
 		return err
 	}
 	app.ui = window
+	app.appearance, err = webui.LoadAppearance()
+	if err != nil {
+		app.notice("Appearance settings could not be read. Using Light with 18px text.")
+	}
 	monitorContext, stopMonitoring := context.WithCancel(context.Background())
 	defer stopMonitoring()
 	app.startSessionMonitor(monitorContext)
@@ -266,6 +272,7 @@ func (a *App) lock() {
 	a.stakingErrors = nil
 	a.stakingPending = nil
 	a.stakingReading = ""
+	a.tokenDiscovery = nil
 	a.stakingRevision++
 	a.balances = map[string][]model.Balance{}
 	a.balanceQueue = nil
@@ -430,6 +437,7 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	return first, nil
 }
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
+	a.tokenDiscovery = nil
 	a.state = state
 	a.networks = networks
 	a.plan = nil
@@ -673,6 +681,10 @@ func (a *App) event(e webui.Event) {
 	}
 	if strings.HasPrefix(e.ID, "field/") {
 		key := strings.TrimPrefix(e.ID, "field/")
+		if key == "appearanceTheme" || key == "appearanceFontSize" {
+			a.changeAppearance(key, e.Value)
+			return
+		}
 		for _, prefix := range []string{"stakingPool/", "stakingAmount/"} {
 			if strings.HasPrefix(key, prefix) {
 				if _, pending := a.pendingStaking(strings.TrimPrefix(key, prefix)); pending {
@@ -765,7 +777,7 @@ func (a *App) event(e webui.Event) {
 	case "showHidden":
 		a.fields["showHidden"] = e.Value
 		a.render()
-	case "settingsWallet", "settingsExchange", "settingsJournal":
+	case "settingsWallet", "settingsExchange", "settingsJournal", "settingsAppearance":
 		a.fields["settings"] = strings.TrimPrefix(e.ID, "settings")
 		if e.ID == "settingsJournal" {
 			a.loadJournal(false)
@@ -1154,7 +1166,7 @@ func (a *App) render() {
 	a.ui.Render(v)
 }
 func (a *App) view() webui.View {
-	view := webui.View{Title: "CryptoWallet · " + buildinfo.Version + " · " + a.environment, Status: a.status, StatusRevision: a.statusRevision, Active: a.active}
+	view := webui.View{Title: "CryptoWallet · " + buildinfo.Version + " · " + a.environment, Status: a.status, StatusRevision: a.statusRevision, Active: a.active, Appearance: a.appearance.Normalized()}
 	if a.state.Locked {
 		title := "Unlock local wallet"
 		nodes := []webui.Node{heading(title)}
@@ -1168,8 +1180,7 @@ func (a *App) view() webui.View {
 		default:
 			nodes = append(nodes, label("Wallet storage is unavailable. Creation and restoration are blocked until its state can be read safely."))
 		}
-		nodes = append(nodes, a.button("refresh", "Retry storage check", false))
-		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: []webui.Node{label("Unlock the local wallet to configure it."), label(a.monitorState), label("Portable Go desktop. No Electron, SUID helper or sandbox setup. Wallet data stays in your existing localwallet configuration directory.")}}}
+		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: a.settingsPage()}}
 		if view.Active != "settings" {
 			view.Active = "group/0"
 		}
@@ -1342,14 +1353,26 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	return page
 }
 func (a *App) settingsPage() []webui.Node {
-	nodes := []webui.Node{row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", false), a.button("settingsJournal", "Journal", false)), label(a.monitorState)}
+	selected := a.fields["settings"]
+	if selected == "" {
+		selected = "Wallet"
+	}
+	sections := row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", a.state.Locked), a.button("settingsJournal", "Journal", a.state.Locked), a.button("settingsAppearance", "Appearance", false))
+	sections.ID, sections.Text, sections.Value = "settingsSections", "Settings sections", selected
+	nodes := []webui.Node{sections, label(a.monitorState)}
+	if selected == "Appearance" {
+		return append(nodes, a.appearancePage()...)
+	}
+	if a.state.Locked {
+		return append(nodes, label("Unlock the local wallet to configure wallet, exchange and journal settings."))
+	}
 	switch a.fields["settings"] {
 	case "Exchange":
 		options := []webui.Option{}
 		for _, endpoint := range bybit.Endpoints() {
 			options = append(options, webui.Option{ID: endpoint, Text: endpoint})
 		}
-		nodes = append(nodes, heading("Bybit connection"), a.combo("region", "Official API region", options), label("Enter API key and HMAC secret only in the private password-authenticated wallet dialogs. Bybit credentials are stored encrypted and cannot be recovered from the wallet phrase."), row(a.button("exchangeConnect", "Connect Bybit", false), a.button("exchangeDisconnect", "Disconnect Bybit", false), a.button("exchangeStatus", "Refresh connection", false)), label(publicText(a.exchange)))
+		nodes = append(nodes, heading("Bybit connection"), a.combo("region", "Official API region", options), label("Enter API key and HMAC secret only in the private wallet dialogs. Connecting confirms the exact service and custody terms; deposit, trade, transfer, withdrawal and disconnect keep their own required authorizations. Credentials are encrypted and are not recovered from the wallet phrase."), row(a.button("exchangeConnect", "Connect Bybit", false), a.button("exchangeDisconnect", "Disconnect Bybit", false), a.button("exchangeStatus", "Refresh connection", false)), label(publicText(a.exchange)))
 	case "Journal":
 		nodes = append(nodes, heading("Local payment journal"), label("An unresolved payment must be reconciled by its original identity. A provider observation is not finality."), row(a.button("journalRefresh", "Refresh journal", false), a.button("journalPrevious", "Previous journal page", a.journalOffset == 0), a.button("journalNext", "Next journal page", a.journalOffset+128 >= len(a.journal) && a.journalCursor == "")))
 		start := min(a.journalOffset, len(a.journal))

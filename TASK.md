@@ -1,5 +1,7 @@
 # Product and implementation requirements
 
+> Current owner update (2026-10-28): [START_HERE.txt](START_HERE.txt) supersedes earlier Horizen-network coverage and Connect-only password requirements. Active coverage is eight mainnet networks/ten pinned assets; standard Ethereum/Base ERC-20 tracking and bounded read-only Base discovery are supported. Light/18px defaults and Settings Appearance apply to public/private Wails views. All unrelated secret-handling, approval, recovery and test gates remain mandatory.
+
 ## 1. Objective
 
 Create a noncustodial desktop wallet using Go and Electron, with first-class support for Ubuntu 24.04 and later supported LTS releases. The owner requests amd64 Go executable artifacts and the complete portable desktop runtime without a Debian package. Portable packaging must preserve sandboxing. Arm64 is a separate tested build target, not an inferred claim.
@@ -17,7 +19,7 @@ The security and test documents are normative parts of this task. Words such as 
 | NEAR | Native NEAR; implicit accounts and verified associations with existing named accounts | Account ID, access-key authority, mainnet/testnet |
 | Hyperliquid | Native HYPE on HyperEVM and spot HYPE on HyperCore | Separate balances, destinations, transaction formats, and receipts |
 | Aptos | Native APT using an explicitly fixed Legacy Ed25519 profile | Authentication scheme and account address |
-| Horizen/ZEN | Canonical ZEN ERC-20 on Base and ZEN ERC-20 on current Horizen L3; ETH balance/send/receive on both for gas | Base versus Horizen; ZEN is not their gas currency |
+| ZEN / Base ERC-20 | Canonical ZEN and approved standard ERC-20 tokens on Base; ETH balance/send/receive for gas | Exact Base network/contract; ZEN is not the gas currency |
 | Decred | Native DCR ordinary payments; receive/change discovery and synchronization | UTXO, confirmation and synchronization state |
 | TON | Native Toncoin with the specified BIP39 + Wallet V5R1 profile | Wallet contract, mainnet/testnet, activation state |
 
@@ -39,7 +41,7 @@ New wallets default to an empty BIP39 passphrase. Import supports an explicit op
 
 ### 3.2 Multiple accounts
 
-Start with one wallet root and one account per required family. “Add account” increments the documented index, not a random new seed. EVM Account 1 can use the same EOA address across Ethereum, Base, Horizen and HyperEVM; display the networks separately. HyperCore associates with the same explicitly selected EVM key, with its own balance domain.
+Start with one wallet root and one account per required family. “Add account” increments the documented index, not a random new seed. EVM Account 1 can use the same EOA address across Ethereum, Base and HyperEVM; display the networks separately. HyperCore associates with the same explicitly selected EVM key, with its own balance domain.
 
 Account index, derivation profile, authentication scheme, network, public key, TON contract parameters, Decred change branch, and any account association must be durable metadata. Labels are not identifiers. Removing an account from the UI hides it; it never renumbers remaining accounts or destroys its recovery mapping. Restoring a phrase must offer bounded rescan and manual index-range discovery for accounts added later.
 

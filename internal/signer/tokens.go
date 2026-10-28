@@ -50,7 +50,7 @@ func (e *Engine) ImportToken(accountID string, token model.ERC20Token) error {
 		return err
 	}
 	summary := fmt.Sprintf("Network: %s\nOwned receiving address: %s\nToken contract: %s\nUntrusted token symbol: %s\nDecimals: %d\nObserved runtime code hash: %s\nOnly standard transfer(address,uint256) is permitted, with ETH paying gas. No approval/allowance or arbitrary contract call is enabled. This imports a watch policy, not funds. The RPC and token issuer can mislead you; token symbols can collide. Runtime code pinning does not prove proxy implementation stability or safe issuer behavior. Tokens with missing metadata, transfer fees, rebasing or nonstandard transfer results are not supported. Recovery phrases restore the address; import this contract again on another installation.", token.Network, account.Address, token.Asset.Contract, token.Asset.Symbol, token.Asset.Decimals, token.CodeHash)
-	if !e.UI.Confirm("Import Ethereum ERC-20 token", summary) || !e.canAuthorize() || e.data != data || data.Generation != generation {
+	if !e.UI.Confirm("Import ERC-20 token", summary) || !e.canAuthorize() || e.data != data || data.Generation != generation {
 		return ErrDenied
 	}
 	in, err := e.UI.Input("Confirm app password for token import", "Storage password")

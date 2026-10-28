@@ -14,7 +14,7 @@ var publicUAEFields2 = []string{"PUBLIC-TEST-STREET-6713", "00000", "1990-02-15"
 
 func TestExchangeTP040UAEPrivateInputsExactApprovalEncryptedPersistence(t *testing.T) {
 	e, u, a := exchangeEngine(t)
-	u.inputs = append(u.inputs, input(syntheticPassword), input(exchangeTestKey, exchangeTestSecret))
+	u.inputs = append(u.inputs, input(exchangeTestKey, exchangeTestSecret))
 	if err := e.ConnectExchange("https://api.bybit.ae"); err != nil {
 		t.Fatal(err)
 	}

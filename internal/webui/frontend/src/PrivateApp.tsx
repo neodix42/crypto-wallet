@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Prompt, Reply } from './types';
-import { inputWithinLimit, phraseWords, validPrompt } from './protocol';
+import { applyAppearance, inputWithinLimit, phraseWords, validPrompt } from './protocol';
 import { CopyIcon, Mark } from './icons';
 
 const unavailable = 'This request is no longer available. Return to your wallet and try again.';
@@ -46,18 +46,19 @@ export function PrivateApp() {
     finally { if (identity.current?.id === current.id) setCopying(false); }
   };
   useEffect(() => {
-    let disposed = false;
+    let disposed = false; applyAppearance();
     const bridge = window.go?.webui?.PrivateBridge;
     if (!bridge) setError(unavailable);
     else bridge.Prompt().then(value => {
       if (disposed || abandoned.current) return;
       if (!validPrompt(value)) { setError(unavailable); return; }
-      identity.current = { id: value.id, kind: value.kind }; setPrompt(value); document.title = value.title;
+      applyAppearance(value.appearance); identity.current = { id: value.id, kind: value.kind }; setPrompt(value); document.title = value.title;
     }).catch(() => { if (!disposed) setError(unavailable); });
     const abandon = () => { abandoned.current = true; void finish(false); erase(); };
     const visibility = () => { if (document.visibilityState === 'hidden') abandon(); };
     const stopExport = (event: Event) => { if (['recovery', 'recoveryBackup'].includes(identity.current?.kind || '')) event.preventDefault(); };
     const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' && !event.repeat && !event.isComposing && identity.current?.kind === 'input' && event.target instanceof HTMLInputElement) { event.preventDefault(); void finish(true); return; }
       if (event.key === 'Escape') { event.preventDefault(); void finish(false); return; }
       if (['recovery', 'recoveryBackup'].includes(identity.current?.kind || '') && (event.ctrlKey || event.metaKey) && ['c', 'x', 'p', 's'].includes(event.key.toLowerCase())) event.preventDefault();
     };

@@ -80,7 +80,7 @@ func TestTP002IndependentEthersFixtures(t *testing.T) {
 }
 func TestTP022RegistryAndDescriptors(t *testing.T) {
 	a := New()
-	if len(a.Networks()) != 8 {
+	if len(a.Networks()) != 6 {
 		t.Fatal("coverage narrowed")
 	}
 	for _, n := range a.Networks() {
@@ -142,6 +142,12 @@ func TestTP002AllEVMNetworkDomainFixtures(t *testing.T) {
 	}
 	a := New()
 	for _, v := range f.NetworkFixtures {
+		if IsRetiredNetwork(v.Network) {
+			if _, err := a.Derive(syntheticSeed(), v.Index, v.Network); err == nil {
+				t.Fatal("retired historical signing domain enabled")
+			}
+			continue // Original independent fixtures remain historical evidence.
+		}
 		p := fixturePlan(t, a, v.Network)
 		p.Account, e = a.Derive(syntheticSeed(), v.Index, v.Network)
 		if e != nil {
@@ -190,6 +196,12 @@ func TestTP002IndependentZENTokenTransactionFixtures(t *testing.T) {
 	}
 	a := New()
 	for _, v := range f.TokenFixtures {
+		if IsRetiredNetwork(v.Network) {
+			if _, err := a.Derive(syntheticSeed(), v.Index, v.Network); err == nil {
+				t.Fatal("retired historical ZEN domain enabled")
+			}
+			continue
+		}
 		p := fixturePlan(t, a, v.Network)
 		p.Account, e = a.Derive(syntheticSeed(), v.Index, v.Network)
 		if e != nil {
@@ -482,7 +494,7 @@ func (f *nodeFixture) prepare(t *testing.T, net string, token bool) (model.Plan,
 	return f.a.Prepare(context.Background(), ac, model.Transfer{AccountID: ac.ID, Asset: n.Assets[idx].ID, Recipient: "0x1111111111111111111111111111111111111111", Amount: "123456789"})
 }
 func TestTP050RPCPrepareSubmitReconcile(t *testing.T) {
-	for _, net := range []string{"ethereum-sepolia", "hyperevm-testnet", "base-sepolia", "horizen-testnet"} {
+	for _, net := range []string{"ethereum-sepolia", "hyperevm-testnet", "base-sepolia"} {
 		t.Run(net, func(t *testing.T) {
 			f := fakeNode(t, net)
 			for _, token := range []bool{false, true} {

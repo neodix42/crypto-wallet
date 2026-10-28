@@ -33,7 +33,7 @@ func exchangeEngine(t *testing.T) (*Engine, *testUI, model.Account) {
 	if a.ID == "" {
 		t.Fatal("missing Ethereum account")
 	}
-	u.inputs = append(u.inputs, input(syntheticPassword), input(exchangeTestKey, exchangeTestSecret))
+	u.inputs = append(u.inputs, input(exchangeTestKey, exchangeTestSecret))
 	if err := e.ConnectExchange("https://api.bybit.com"); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestExchangeTP040TP060CredentialsAndCrashSafeSwap(t *testing.T) {
 	if err = e.UpdateExchange(o.ID, "CONFIRMED", ""); err == nil {
 		t.Fatal("unidentified remote operation called confirmed")
 	}
-	u.inputs = append(u.inputs, input(syntheticPassword), input("DIFFERENT_PUBLIC_API_KEY", exchangeTestSecret))
+	u.inputs = append(u.inputs, input("DIFFERENT_PUBLIC_API_KEY", exchangeTestSecret))
 	if err = e.ConnectExchange(status.Endpoint); err == nil {
 		t.Fatal("different credential namespace replaced pending operation")
 	}
@@ -213,7 +213,7 @@ func TestExchangeTP042TransferWithdrawalAndCancellation(t *testing.T) {
 	if s.Connected || len(s.Operations) != 2 || s.Operations[1].State != "UNKNOWN" {
 		t.Fatal("disconnect erased uncertain withdrawal")
 	}
-	u.inputs = append(u.inputs, input(syntheticPassword), input(exchangeTestKey, exchangeTestSecret))
+	u.inputs = append(u.inputs, input(exchangeTestKey, exchangeTestSecret))
 	if err = e.ConnectExchange("https://api.bybit.com"); err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +278,7 @@ func TestExchangeTP042MalformedPlansAndUntrustedNetworkMetadata(t *testing.T) {
 	if exchangeWithdrawalNetwork(a, asset, w, "BNB Smart Chain", "") || exchangeWithdrawalNetwork(a, asset, w, "Ethereum(ERC20)", "foreign") {
 		t.Fatal("untrusted chain/token metadata accepted")
 	}
-	for network, names := range map[string][]string{"base-mainnet": {"Base", "BASE"}, "horizen-mainnet": {"Horizen", "Horizen Chain"}, "hyperevm-mainnet": {"HyperEVM", "Hyperliquid HyperEVM"}, "near-mainnet": {"NEAR", "NEAR Protocol", "Near Protocol"}, "aptos-mainnet": {"APTOS", "Aptos"}, "ton-mainnet": {"TON", "Toncoin", "TON (The Open Network)"}} {
+	for network, names := range map[string][]string{"base-mainnet": {"Base", "BASE"}, "hyperevm-mainnet": {"HyperEVM", "Hyperliquid HyperEVM"}, "near-mainnet": {"NEAR", "NEAR Protocol", "Near Protocol"}, "aptos-mainnet": {"APTOS", "Aptos"}, "ton-mainnet": {"TON", "Toncoin", "TON (The Open Network)"}} {
 		ac := a
 		ac.Network = network
 		asset.ID = network + ":native"
@@ -288,6 +288,16 @@ func TestExchangeTP042MalformedPlansAndUntrustedNetworkMetadata(t *testing.T) {
 		for _, name := range names {
 			if !exchangeWithdrawalNetwork(ac, asset, w, name, "") {
 				t.Fatal("known ledger label rejected")
+			}
+		}
+	}
+	for _, network := range []string{"horizen-mainnet", "horizen-testnet"} {
+		retired := a
+		retired.Network = network
+		retiredAsset := model.Asset{ID: network + ":native", Symbol: "ETH"}
+		for _, name := range []string{"Horizen", "Horizen Chain"} {
+			if exchangeWithdrawalNetwork(retired, retiredAsset, w, name, "") {
+				t.Fatal("retired network accepted for a Bybit withdrawal")
 			}
 		}
 	}
@@ -326,7 +336,7 @@ func TestExchangeTP042ActualTONRegistryOwnedWithdrawalAuthorization(t *testing.T
 	if account.ID == "" || asset.ID != "ton-mainnet:TON" || adapter.ValidateAddress(account.Network, account.Address) != nil {
 		t.Fatal("actual TON wallet/asset identity unavailable")
 	}
-	u.inputs = append(u.inputs, input(syntheticPassword), input(exchangeTestKey, exchangeTestSecret))
+	u.inputs = append(u.inputs, input(exchangeTestKey, exchangeTestSecret))
 	if err := e.ConnectExchange("https://api.bybit.com"); err != nil {
 		t.Fatal(err)
 	}
@@ -431,17 +441,17 @@ func TestExchangeTP040CredentialValidationAndReadOnlyRequestBounds(t *testing.T)
 	for _, values := range [][][]byte{input("bad"), input(syntheticPassword)} {
 		u.inputs = append(u.inputs, values)
 		if e.ConnectExchange("https://api.bybit.com") == nil {
-			t.Fatal("missing credentials/password accepted")
+			t.Fatal("missing API credentials accepted")
 		}
 	}
 	for _, pair := range [][]string{{"short", exchangeTestSecret}, {exchangeTestKey, "short"}, {"key with space", exchangeTestSecret}, {exchangeTestKey, "secret\x00CANARY123456789"}, {exchangeTestKey, "secret with space 123456789"}} {
-		u.inputs = append(u.inputs, input(syntheticPassword), input(pair...))
+		u.inputs = append(u.inputs, input(pair...))
 		if e.ConnectExchange("https://api.bybit.com") == nil {
 			t.Fatal("malformed credential accepted")
 		}
 	}
 	u.approve = false
-	u.inputs = append(u.inputs, input(syntheticPassword), input(exchangeTestKey, exchangeTestSecret))
+	u.inputs = append(u.inputs, input(exchangeTestKey, exchangeTestSecret))
 	if e.ConnectExchange("https://api.bybit.com") == nil {
 		t.Fatal("cancelled custody approval accepted")
 	}

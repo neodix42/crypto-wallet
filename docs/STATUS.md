@@ -1,5 +1,24 @@
 # Implementation and release evidence
 
+## Appearance, unlock, Bybit and Base update — 2026-10-28
+
+The owner request adds Light/Dark and public font preferences (Light/18px by default), distinct selected Settings tabs, Enter-based unlock, a larger Bybit credential prompt and a Connect-only exception to repeated password entry. It explicitly removes active Horizen support while retaining authenticated historical encrypted records and every other family. Base retains canonical ZEN and gains exact-contract ERC-20 import plus bounded read-only candidate discovery. See [APPEARANCE.md](APPEARANCE.md) and [ERC20.md](ERC20.md).
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, prior immutable CI | [run 40667566633](https://github.com/neodix42/crypto-wallet/actions/runs/40667566633) on e51d21e passed both jobs, including coverage, actual Wails workflows and the repaired legacy Unlock timer observer. This does not certify the new feature changes. |
+| PASS, scoped local | Frontend appearance/protocol suites with unchanged per-file floors; Go public preference safety, private prompt wire serialization, current Connect consent/session/persistence guards, Base candidate authorization separation and retired-vault compatibility under race detection. |
+| PASS, scoped real execution | Two actual standard-token contracts with 6/18 decimals on each of Ethereum/Base Sepolia-shaped owned local EVMs: 8 signed transfers, exactly 12 mined transactions including 4 deployments; independent receipt/event/balance/nonce/native-gas checks. Base fee oracle is a deterministic fixture, not actual rollup economics. |
+| BLOCKED, live provider | Base Blockscout candidate-inventory request returned HTTP403 in this environment. Controlled indexer/RPC tests pass; live inventory completeness/availability is not claimed. Exact-contract import is independent. |
+| PASS, actual local GUI | Final normal and instrumented Wails campaigns: 20 steps each, unchanged source, all eight addresses restored in a fresh independent app copy using a different app password. Targeted Appearance also passes; actual private Bybit fields/footer at 24px and Enter unlock are verified. No Bybit credentials are committed or live requests made. |
+| PASS, full local aggregate | `make test`, `make test-security`, all-package `go test -race -p 2 ./...`, interoperability, all eight real local integration gates, 18 actual bounded fuzz targets, vet, and six fresh-copy headless recovery checks comparing 24 descriptors. All 24 semantic mutants killed with unchanged source and every required passing control. |
+| PASS, enforced coverage | `make coverage`: all 33 original package floors and four required local execution gates; both frontend campaigns pass. Controller 97.04%, Wails adapter 95.10%, EVM 96.81%. Full instrumented GUI passes 20 steps and every observed private process has real counters. Raw source/runtime bindings verify against the frozen files. |
+| PASS, local artifact | The tested ordinary one-file Go binary is installed as repository-root `./cryptowallet`; existing profiles are not opened, replaced or migrated by installation. |
+| NOT_RUN at this checkpoint | Hosted tests for this new feature commit follow push; the separate earlier e51 CI success is not promoted to a result for these changes. |
+| NOT_RUN | Full clean supported X11/Wayland/monitor matrix, live/funded Bybit acceptance, public-network token roundtrips and independent security/legal review. No real user secret or automated mainnet funds are used. |
+
+The actual Appearance drill caught a private prompt JSON marshaling defect: a promoted kind-specific marshaler omitted its sibling appearance field. Explicit serialization and all-kind one-use wire regressions fix it. Retained desktop registry assertions also needed the exact user-authorized 8 networks/10 assets on mainnet and 11 networks/12 assets on testnet; no other network or security threshold was removed. An intermediate mutation campaign was invalid because its input driver changed and one broad password test timed out under competing race instrumentation. The password mutant now requires an unmodified passing control and the exact wrong-reauthentication assertion; the final full 24-mutant run passes with unchanged source. Larger typography also required bounded real backup-body scrolling and guarded Light-theme OCR contrast handling in the GUI driver; exact control-state, phrase and clipboard comparisons remain mandatory.
+
 ## CI status timing observer — 2026-10-28
 
 The remaining failure in hosted run

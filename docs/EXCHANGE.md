@@ -8,7 +8,7 @@ The wallet controls local private keys. **Bybit controls funds deposited into it
 
 ## Wallets and asset selection
 
-The mainnet registry has nine network wallets and twelve asset identities:
+The mainnet registry has eight network wallets and ten pinned asset identities:
 
 | Network wallet | Assets |
 | --- | --- |
@@ -18,7 +18,6 @@ The mainnet registry has nine network wallets and twelve asset identities:
 | NEAR | Native NEAR |
 | Aptos | Native APT |
 | Base | ETH and canonical ZEN ERC-20 |
-| Horizen L3 | ETH and canonical ZEN ERC-20 |
 | Decred | Native DCR |
 | TON | Native TON under the existing BIP39/V5R1 profile |
 
@@ -32,16 +31,16 @@ A supported local wallet asset does not guarantee a Bybit deposit/withdrawal net
 
 1. Complete wallet recovery-word confirmation and unlock the wallet. Select **Settings**, immediately to the right of **Exchange** in the main tab bar, then select its **Exchange** tab.
 2. Choose the API region matching your Bybit account. The list is explicit; the app does not infer a region from your IP or machine timezone.
-3. Select **Connect Bybit API key**. Reauthenticate with the app password, then enter the **API key** and matching **API secret** from a system-generated key created in Bybit, using the separate masked wallet dialogs. Review the custody/access confirmation.
+3. Select **Connect Bybit**. In the current unlocked, recovery-confirmed session, enter the **API key** and matching **API secret** from a system-generated key created in Bybit, using the separate masked wallet dialogs. Review the exact service/custody confirmation. Connect alone no longer repeats the storage-password prompt; disconnect and every funds-moving operation retain their own authorizations.
 4. Configure only the Bybit permissions needed for your intended actions: spot trading, internal account transfers and withdrawal. Withdrawals require a master-account key. Use an appropriate API IP restriction and add each exact owned destination address to Bybit's withdrawal whitelist. Read-only or insufficient permissions remain visible and cannot authorize writes.
 
-Connection, region, key changes and Disconnect live in **Settings → Exchange**. Settings is a page in the main window, with **Wallet**, **Exchange** and **Journal** tabs; it is not a popup. Select the main **Exchange** tab for Deposit, Swap and Withdraw, or select an account/wallet tab to return to it. You can configure the connection directly from Settings without opening the trading page.
+Connection, region, key changes and Disconnect live in **Settings → Exchange**. Settings is a page in the main window, with **Wallet**, **Exchange**, **Journal** and **Appearance** tabs; it is not a popup. Select the main **Exchange** tab for Deposit, Swap and Withdraw, or select an account/wallet tab to return to it. You can configure the connection directly from Settings without opening the trading page.
 
 The API key identifies the account connection; the API secret signs authenticated requests using HMAC. A key alone cannot authorize trading, transfers or withdrawals. “System-generated” names Bybit's key type, which provides both values; this app does not generate a replacement key. Self-generated RSA keys are not supported. Both fields remain masked. See [Bybit's authentication guide](https://bybit-exchange.github.io/docs/v5/guide) for its distinction between HMAC system-generated and RSA self-generated keys.
 
-Information and error messages appear in a dismissible floating notice without changing page layout. They do not authorize a retry. If a message reports an unknown balance or uncertain request, refresh or reconcile the original operation before considering another write.
+Information and error messages appear in the compact fixed bottom status bar and clear after seven seconds without changing page layout. They do not authorize a retry. If a message reports an unknown balance or uncertain request, refresh or reconcile the original operation before considering another write.
 
-The ordinary portfolio receives status and a key suffix. It cannot read the key, secret or beneficiary fields or submit a generic signed API payload. Credentials stay in the authenticated encrypted local vault. Go core performs HTTPS requests; Electron and signer remain blocked from remote IP networking. The dedicated prompt, Electron main and transient Go prompt transport are trusted with entered credentials, just as they are with entered wallet passwords. Their compromise can capture those inputs; masked fields and backend generation do not remove that trust.
+The ordinary portfolio receives status and a key suffix. It cannot read the key, secret or beneficiary fields or submit a generic signed API payload. Credentials stay in the authenticated encrypted local vault. Go core performs HTTPS requests. The default product now uses Wails/React and system WebKitGTK, with Go roles and its renderer unconfined under the explicit owner instruction; no OS-enforced signer remote-IP denial is claimed. The isolated prompt and transient Go transport are trusted with entered credentials, just as they are with entered wallet passwords. Their compromise can capture those inputs; masked fields and backend generation do not remove that trust.
 
 ## Deposit
 

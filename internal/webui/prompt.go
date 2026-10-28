@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -66,6 +67,7 @@ func (w *Window) Prompt(p uiprompt.Prompt) (uiprompt.Reply, error) {
 		w.activeDone = reaped
 	}
 	uiCtx := w.ctx
+	appearance := w.view.Appearance.Normalized()
 	w.mu.Unlock()
 	defer func() {
 		cancel()
@@ -132,7 +134,7 @@ func (w *Window) Prompt(p uiprompt.Prompt) (uiprompt.Reply, error) {
 					commit()
 					return true
 				}) == nil
-			})
+			}, appearance)
 			result <- promptResult{r, e}
 		}()
 	}
@@ -185,7 +187,7 @@ func promptEnvironment() []string {
 // are framed over anonymous inherited pipes, never argv, environment, files or
 // the main window's Wails event/binding channel. A random session and prompt ID
 // bind the sole reply; cancellation kills and reaps the child and its engine.
-func runPromptProcess(ctx context.Context, p uiprompt.Prompt, activity chan<- struct{}, copyCurrent func() bool) (uiprompt.Reply, error) {
+func runPromptProcess(ctx context.Context, p uiprompt.Prompt, activity chan<- struct{}, copyCurrent func() bool, presentation ...Appearance) (uiprompt.Reply, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	inputRead, inputWrite, err := os.Pipe()
@@ -214,6 +216,11 @@ func runPromptProcess(ctx context.Context, p uiprompt.Prompt, activity chan<- st
 	command := exec.CommandContext(ctx, "/proc/self/exe", "--internal-prompt")
 	command.ExtraFiles = []*os.File{inputRead, outputWrite, image}
 	command.Env = promptEnvironment()
+	appearance := DefaultAppearance()
+	if len(presentation) == 1 {
+		appearance = presentation[0].Normalized()
+	}
+	command.Env = append(command.Env, "LOCALWALLET_UI_THEME="+appearance.Theme, "LOCALWALLET_UI_FONT_SIZE="+strconv.Itoa(appearance.FontSize))
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
 	command.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL, Setpgid: true}
@@ -331,6 +338,7 @@ func runPromptProcess(ctx context.Context, p uiprompt.Prompt, activity chan<- st
 // PrivateBridge is bound only in the private self-role. The public Wails
 // process has no instance of this type and no route to its inherited pipes.
 type PrivateBridge struct {
+	appearance          Appearance
 	mu                  sync.Mutex
 	prompt              uiprompt.Prompt
 	ctx                 context.Context
@@ -344,17 +352,43 @@ type PrivateBridge struct {
 	done                chan struct{}
 }
 
-func (b *PrivateBridge) Prompt() (uiprompt.Prompt, error) {
+type privatePromptView struct {
+	uiprompt.Prompt
+	Appearance Appearance `json:"appearance"`
+}
+
+func (p privatePromptView) MarshalJSON() ([]byte, error) {
+	// Prompt has a kind-specific marshaler (including mandatory empty summary
+	// fields). Its promoted method would otherwise discard the sibling style.
+	raw, err := json.Marshal(p.Prompt)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(raw)
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, uiprompt.ErrProtocol
+	}
+	defer func() {
+		for _, value := range fields {
+			clear(value)
+		}
+	}()
+	fields["appearance"], _ = json.Marshal(p.Appearance.Normalized())
+	return json.Marshal(fields)
+}
+
+func (b *PrivateBridge) Prompt() (privatePromptView, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.finished || b.delivered {
-		return uiprompt.Prompt{}, uiprompt.ErrCancelled
+		return privatePromptView{}, uiprompt.ErrCancelled
 	}
 	b.delivered = true
 	p := b.prompt
 	p.Labels = append([]string(nil), p.Labels...)
 	p.PNG = append([]byte(nil), p.PNG...)
-	return p, nil
+	return privatePromptView{Prompt: p, Appearance: b.appearance.Normalized()}, nil
 }
 func (b *PrivateBridge) Reply(reply uiprompt.Reply) bool {
 	b.mu.Lock()
@@ -520,13 +554,15 @@ func runPrivate(read, write, image *os.File) error {
 	if err != nil {
 		return err
 	}
-	b := &PrivateBridge{prompt: p, channel: channel, session: session}
+	appearance := privateAppearance()
+	b := &PrivateBridge{prompt: p, channel: channel, session: session, appearance: appearance}
 	defer b.clear()
 	prepareWebKitRuntime()
 	configureWebKitSignal()
-	a := privateAppOptions(p)
+	a := privateAppOptions(p, appearance)
 	a.Bind = []interface{}{b}
 	a.OnStartup = func(ctx context.Context) {
+		fitPrivateWindow(ctx, a.Width, a.Height)
 		b.mu.Lock()
 		b.ctx = ctx
 		b.mu.Unlock()
@@ -598,7 +634,7 @@ func readPrivatePrompt(channel *ipc.Channel) (uiprompt.Prompt, string, error) {
 	return p, m.Session, nil
 }
 
-func privateAppOptions(p uiprompt.Prompt) *options.App {
+func privateAppOptions(p uiprompt.Prompt, presentation ...Appearance) *options.App {
 	a := appOptions(true)
 	a.Title = p.Title
 	a.Width = 680
@@ -606,7 +642,17 @@ func privateAppOptions(p uiprompt.Prompt) *options.App {
 	a.MinWidth = 560
 	a.MinHeight = 260
 	if p.Kind == "input" {
-		a.Height = 205 + len(p.Labels)*82
+		appearance := DefaultAppearance()
+		if len(presentation) == 1 {
+			appearance = presentation[0].Normalized()
+		}
+		// Header, each wrapped label/input and the pinned footer must fit at
+		// the selected font. Startup caps the window to the current monitor;
+		// the body scrolls on smaller screens while footer actions stay visible.
+		a.Height = 200 + appearance.FontSize*3 + len(p.Labels)*(56+appearance.FontSize*3)
+		if len(p.Labels) == 1 {
+			a.Height = max(294, 314+(appearance.FontSize-18)*9)
+		}
 		if a.Height > 850 {
 			a.Height = 850
 		}
@@ -615,6 +661,33 @@ func privateAppOptions(p uiprompt.Prompt) *options.App {
 		a.Height = 660
 	}
 	return a
+}
+
+func privateWindowSize(width, height, monitorWidth, monitorHeight int) (int, int) {
+	// Wails reports logical monitor geometry, not panel workarea. Leave room
+	// for desktop chrome and decorations; the OS may impose further limits.
+	if monitorWidth > 64 && monitorHeight > 80 {
+		width = min(width, monitorWidth-32)
+		height = min(height, monitorHeight-64)
+	}
+	return width, height
+}
+
+func fitPrivateWindow(ctx context.Context, width, height int) {
+	screens, err := wruntime.ScreenGetAll(ctx)
+	if err != nil || len(screens) == 0 {
+		return
+	}
+	screen := screens[0]
+	for _, candidate := range screens {
+		if candidate.IsCurrent {
+			screen = candidate
+			break
+		}
+	}
+	width, height = privateWindowSize(width, height, screen.Size.Width, screen.Size.Height)
+	wruntime.WindowSetMinSize(ctx, min(560, width), min(260, height))
+	wruntime.WindowSetSize(ctx, width, height)
 }
 
 // Decode private replies here as well as in the signer. Keeping an explicit

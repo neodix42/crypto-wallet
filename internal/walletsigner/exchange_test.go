@@ -21,7 +21,7 @@ func TestExchangePrivateDispatchRequiresMaskedCredentialsAndDurableApproval(t *t
 	if err != nil || json.Unmarshal(raw, &initial) != nil || initial.Connected {
 		t.Fatal("initial exchange status")
 	}
-	u.inputs = append(u.inputs, publicInput(publicPassword), publicInput("PUBLIC_TEST_ONLY_APIKEY_92731", "PUBLIC_TEST_ONLY_SECRET_912735"))
+	u.inputs = append(u.inputs, publicInput("PUBLIC_TEST_ONLY_APIKEY_92731", "PUBLIC_TEST_ONLY_SECRET_912735"))
 	raw, err = handle(e, request("exchangeConnect", map[string]string{"endpoint": "https://api.bybit.com"}), "mainnet")
 	if err != nil || strings.Contains(string(raw), "PUBLIC_TEST_ONLY_SECRET") {
 		t.Fatal("masked connection")

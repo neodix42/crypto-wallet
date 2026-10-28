@@ -206,7 +206,7 @@ def launch(installation, home):
 def addresses():
     result = {}
     # These are the display labels in the pinned mainnet registry.
-    for network in ("Ethereum", "Base", "Horizen", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON"):
+    for network in ("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON"):
         report["currentStep"] = "Select main account before " + network
         click("Main account", top=True)
         # Some network labels contain an ecosystem prefix; match the unique word.
@@ -287,7 +287,7 @@ try:
     with tempfile.TemporaryDirectory(prefix="cryptowallet-native-acceptance-") as temporary, tempfile.TemporaryFile() as display_log:
         folder = pathlib.Path(temporary)
         hosts_fixture=folder/"hosts"
-        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz mainnet.base.org horizen.calderachain.xyz api.hyperliquid.xyz rpc.mainnet.near.org api.mainnet.aptoslabs.com toncenter.com\n")
+        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz mainnet.base.org api.hyperliquid.xyz rpc.mainnet.near.org api.mainnet.aptoslabs.com toncenter.com\n")
         hosts_fixture.chmod(0o600)
         report["networkIsolation"]="Owned user/mount/network namespace; pinned public RPC hostnames resolve to the unreachable test-only loopback; no RPC service, mocked response or host /etc modification; namespace capabilities dropped before wallet exec."
         installations = [folder / "machine-a/app", folder / "machine-b/app"]
@@ -317,11 +317,11 @@ try:
         wait(lambda:"Request completed" in text())
         passed("Main-account row copy icon opens verified receive details without opening that wallet tab")
         expected = addresses()
-        if len(expected) != 9:
+        if len(expected) != 8:
             raise RuntimeError("Native account table lost network coverage")
         report["walletsCompared"] = len(expected)
         report["walletAddressesSHA256"] = hashlib.sha256(json.dumps(expected,sort_keys=True).encode()).hexdigest()
-        passed("All nine supported network wallets open and copy their full verified single-line addresses")
+        passed("All eight supported network wallets open and copy their full verified single-line addresses")
         passed("Middle-click closes wallet tabs and returns to the main account")
         click("Receive",last=True)
         desktop.wait("Verify receive address", 30)
@@ -362,7 +362,7 @@ try:
         wait(lambda:"Main account" in text(),30)
         if addresses()!=expected:
             raise RuntimeError("Fresh native app restored different wallet addresses")
-        passed("Fresh independent app copy restores the same nine wallets from its recorded phrase and a different local app password")
+        passed("Fresh independent app copy restores the same eight wallets from its recorded phrase and a different local app password")
         stop()
         # Reuse the isolated home only after an actual app exit.
         launch(installations[1],folder/"machine-b/home")
