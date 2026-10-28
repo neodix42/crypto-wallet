@@ -10,7 +10,7 @@ import (
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
-	"localwallet/internal/nativeui"
+	"localwallet/internal/webui"
 	"reflect"
 	"strings"
 	"testing"
@@ -48,7 +48,7 @@ func TestWalletCreationRestorationAndAuthenticatedSettingsRouteOnlyTypedRequests
 		t.Run(row.event, func(t *testing.T) {
 			a, ui, core := fixture(t)
 			routeFixture(t, a, core, row.method, row.body, json.RawMessage(`{"ok":true}`))
-			a.event(nativeui.Event{ID: row.event})
+			a.event(webui.Event{ID: row.event})
 			ui.apply(t)
 			if a.busy || !strings.Contains(a.status, "completed") {
 				t.Fatal("typed mutation did not complete")
@@ -81,7 +81,7 @@ func TestAdditionalAccountIndexBoundsRejectBeforeBackend(t *testing.T) {
 			a.fields[k] = v
 		}
 		routeFixture(t, a, core, row.method, row.body, json.RawMessage(`{}`))
-		a.event(nativeui.Event{ID: row.event})
+		a.event(webui.Event{ID: row.event})
 		ui.apply(t)
 		if a.busy || !strings.Contains(a.status, "completed") {
 			t.Fatal("valid bounded account index request failed")
@@ -96,7 +96,7 @@ func TestAdditionalAccountIndexBoundsRejectBeforeBackend(t *testing.T) {
 		if _, ok := fields["index"]; ok {
 			event = "addAccount"
 		}
-		a.event(nativeui.Event{ID: event})
+		a.event(webui.Event{ID: event})
 		if a.busy || !strings.Contains(a.status, "valid") {
 			t.Fatal("invalid account index reached backend")
 		}
@@ -168,7 +168,7 @@ func TestTabsFormsAssetsAndPagingPreserveWalletContextWithoutImplicitSpends(t *t
 	if a.fields["rows/0"] != "0" {
 		t.Fatal("wallet page did not return")
 	}
-	a.event(nativeui.Event{ID: "closeTab", Value: "wallet/" + account.ID})
+	a.event(webui.Event{ID: "closeTab", Value: "wallet/" + account.ID})
 	if len(a.tabs) != 0 || a.active != "group/0" {
 		t.Fatal("middle-close lost account group")
 	}
@@ -387,24 +387,24 @@ func TestSettingsExchangeAndJournalNavigationRouteCurrentSelection(t *testing.T)
 		a, ui, core := fixture(t)
 		a.fields["region"] = "https://api.bybit.com"
 		routeFixture(t, a, core, row.method, row.expected, row.result)
-		a.event(nativeui.Event{ID: row.event})
+		a.event(webui.Event{ID: row.event})
 		ui.apply(t)
 		if a.busy || !strings.Contains(a.status, "completed") {
 			t.Fatal("settings operation contract changed")
 		}
 	}
 	a, _, _ := fixture(t)
-	a.event(nativeui.Event{ID: "settingsWallet"})
+	a.event(webui.Event{ID: "settingsWallet"})
 	if a.fields["settings"] != "Wallet" {
 		t.Fatal("wallet settings navigation failed")
 	}
-	a.event(nativeui.Event{ID: "field/group", Value: "7"})
+	a.event(webui.Event{ID: "field/group", Value: "7"})
 	if a.active != "group/7" {
 		t.Fatal("deterministic group selector ignored")
 	}
-	a.event(nativeui.Event{ID: "field/showHidden", Value: "true"})
-	a.event(nativeui.Event{ID: "showHidden", Value: "true"})
-	a.event(nativeui.Event{ID: "field/tooLong", Value: strings.Repeat("x", 4097)})
+	a.event(webui.Event{ID: "field/showHidden", Value: "true"})
+	a.event(webui.Event{ID: "showHidden", Value: "true"})
+	a.event(webui.Event{ID: "field/tooLong", Value: strings.Repeat("x", 4097)})
 	if _, ok := a.fields["tooLong"]; ok {
 		t.Fatal("public field exceeded limit")
 	}
@@ -428,7 +428,7 @@ func TestExchangeRequestContractsAndResponsesRemainSeparateFromWalletResults(t *
 			expected = map[string]string{"accountId": account, "assetId": asset, "amount": "1.25"}
 		}
 		routeFixture(t, a, core, method, expected, json.RawMessage(`{"publicResult":"route-fixture"}`))
-		a.event(nativeui.Event{ID: method})
+		a.event(webui.Event{ID: method})
 		ui.apply(t)
 		if !strings.Contains(a.status, "completed") {
 			t.Fatal("exchange request body changed")
@@ -544,10 +544,10 @@ func TestPublicErrorCodesAreFixedAndBusyClosedViewsDoNotAuthorizeWork(t *testing
 	}
 	a, _, _ := fixture(t)
 	a.busy = true
-	a.event(nativeui.Event{ID: "unlock"})
+	a.event(webui.Event{ID: "unlock"})
 	a.work("unreachable", func(uint64) (func(), error) { t.Fatal("busy duplicate work accepted"); return nil, nil })
 	a.closed = true
-	a.event(nativeui.Event{ID: "refresh"})
+	a.event(webui.Event{ID: "refresh"})
 	a.render()
 	a.tick()
 	if !a.closed {
@@ -597,7 +597,7 @@ func TestValueFreeActivityAndTabNavigationDoNotCarryFormValues(t *testing.T) {
 		return errors.New("unexpected public activity route")
 	}
 	a.lastActivity = time.Now().Add(-time.Minute)
-	a.event(nativeui.Event{ID: "activity", Value: "ignored-public-canary"})
+	a.event(webui.Event{ID: "activity", Value: "ignored-public-canary"})
 	select {
 	case <-activity:
 	case <-time.After(time.Second):
@@ -606,26 +606,26 @@ func TestValueFreeActivityAndTabNavigationDoNotCarryFormValues(t *testing.T) {
 	if time.Since(a.lastActivity) > time.Second {
 		t.Fatal("native activity failed to extend user session")
 	}
-	a.event(nativeui.Event{ID: "tab", Value: "group/0"})
+	a.event(webui.Event{ID: "tab", Value: "group/0"})
 	if a.active != "group/0" {
 		t.Fatal("ordinary tab did not activate")
 	}
 	routeFixture(t, a, core, "exchangeStatus", map[string]string{}, json.RawMessage(`{"connected":false}`))
-	a.event(nativeui.Event{ID: "tab", Value: "exchange"})
+	a.event(webui.Event{ID: "tab", Value: "exchange"})
 	ui.apply(t)
 	if a.active != "exchange" || len(a.exchange) == 0 {
 		t.Fatal("exchange tab did not read current connection")
 	}
-	a.event(nativeui.Event{ID: "field/exchangeAccount", Value: a.state.Accounts[0].ID})
+	a.event(webui.Event{ID: "field/exchangeAccount", Value: a.state.Accounts[0].ID})
 	if a.fields["exchangeAsset"] == "" {
 		t.Fatal("wallet selection did not choose its registered asset")
 	}
-	a.event(nativeui.Event{ID: "lock"})
+	a.event(webui.Event{ID: "lock"})
 	if !a.state.Locked {
 		t.Fatal("explicit lock event failed")
 	}
 	a, ui, core = fixture(t)
-	a.event(nativeui.Event{ID: "close"})
+	a.event(webui.Event{ID: "close"})
 	if !a.closed || ui.closes.Load() != 1 || core.killed.Load() != 1 {
 		t.Fatal("explicit close event retained backend")
 	}
@@ -698,10 +698,10 @@ func TestJournalAndHistoryFailuresCannotReplacePreviousResults(t *testing.T) {
 	}
 	a, ui, core = fixture(t)
 	routeFixture(t, a, core, "history", map[string]string{"cursor": ""}, journalPage{Operations: []journal.Operation{}})
-	a.event(nativeui.Event{ID: "journalRefresh"})
+	a.event(webui.Event{ID: "journalRefresh"})
 	ui.apply(t)
-	a.event(nativeui.Event{ID: "journalPrevious"})
-	a.event(nativeui.Event{ID: "journalNext"})
+	a.event(webui.Event{ID: "journalPrevious"})
+	a.event(webui.Event{ID: "journalNext"})
 	if a.journalOffset != 0 {
 		t.Fatal("empty journal paging exceeded bounds")
 	}
@@ -772,7 +772,7 @@ func TestReadOnlyPrivateDisplaysPreservePreparedPlanBalancesAndMetadata(t *testi
 				return answer(out, json.RawMessage(`{"ok":true}`))
 			}
 			if method == "backupPhrase" {
-				a.event(nativeui.Event{ID: method})
+				a.event(webui.Event{ID: method})
 			} else {
 				a.walletEvent(method + "/" + account.ID)
 			}

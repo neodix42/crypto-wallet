@@ -21,4 +21,4 @@ if ! command -v node >/dev/null 2>&1 || [ "$(node --version 2>/dev/null || true)
 fi
 [ "$(node --version)" = "v$node_pin" ] || fail "Expected Node $node_pin after bootstrap. Remove an incomplete .tools/node-v$node_pin-linux-x64 directory and retry."
 [ "$(npm --version)" = "$npm_pin" ] || fail "Expected npm $npm_pin in the pinned Node distribution."
-exec "$@"
+exec ./scripts/with-go.sh "$@"

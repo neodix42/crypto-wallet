@@ -1,63 +1,48 @@
-# One-file native Go wallet
+# One-file Go wallet with Wails UI
 
-The owner's 2026-10-27 request replaces the default Electron distribution with a **single portable Go executable**, `cryptowallet`, using native GTK3 windows. The executable also starts its coordinator and signer as child roles of itself over inherited private pipes. No Electron, Chromium, web view, `chrome-sandbox`, helper program, Node runtime or bundled application directory is needed. No syscall sandbox is installed by this mode.
+The owner's 2026-10-28 request replaces the handwritten native Go/GTK interface with the approach used by the sibling `charting` project: **Wails v2.17.0, React and TypeScript**, using system **WebKitGTK 4.1** on Linux. The charting application's main UI is not Electron/Chromium; its optional Screener separately bundles Chromium. CryptoWallet does not include that Screener or Chromium.
 
-## Build and runtime
+The wallet remains one portable Go executable, `cryptowallet`, containing compiled frontend assets, coordinator and signer self-roles, and third-party notices. It needs system GTK3/WebKitGTK libraries rather than a bundled browser runtime. Node/npm are build-time dependencies; downloaded wallets need neither them nor `.tools/`. No `chrome-sandbox`, SUID helper, root ownership adjustment, AppArmor change or kernel sandbox setting is required. The Go roles apply no syscall sandbox. The pinned Wails implementation also explicitly disables WebKitGTK's renderer sandbox before creating its WebView, as requested; it uses no environment bypass or Chromium flags. Ephemeral storage, embedded-only assets and strict browser/bridge restrictions remain application policy rather than kernel confinement.
+
+## Build and run
 
 Ubuntu 24.04/26.04 amd64 runtime prerequisites:
 
 ```sh
 sudo apt update
-sudo apt install -y ca-certificates libgtk-3-0t64
+sudo apt install -y ca-certificates libgtk-3-0t64 libwebkit2gtk-4.1-0
 ```
 
-Build prerequisites add `build-essential golang-go python3`. Go 1.27.3 is pinned; a Go 1.21+ bootstrap installation downloads it if needed. The handwritten GTK3 ABI binding uses system runtime libraries and does not require GTK development headers. The resulting file is dynamically linked to GTK/glib/libc, rather than statically embedding those operating-system libraries.
+Build prerequisites additionally require `build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev golang-go python3`. The build pins Go 1.27.3 and Node 24.19.0/npm 11.17.0, installs the locked frontend dependencies without lifecycle scripts, compiles React/TypeScript, inventories actual shipped dependencies, then builds Go with `production,webkit2_41,portable`. See [WAILS_UI.md](WAILS_UI.md) for the project-local SDK alternative.
 
 ```sh
 make                           # bin/cryptowallet
 bin/cryptowallet --version
-bin/cryptowallet --runtime-info # native-gtk3; portable-go; sandbox=none
-bin/cryptowallet --licenses     # embedded upstream texts
-make install                   # repository-root ./cryptowallet
+bin/cryptowallet --runtime-info # wails-webkitgtk4.1; portable-go; sandbox=none
+bin/cryptowallet --licenses
+make install                   # repository-root ./cryptowallet; no sudo
 make package-portable          # alias: make package-go
-make test-portable              # inspect actual local ELF and archive
+make test-portable             # actual ELF/version/notices/dependency/archive checks
 ```
 
-`dist/cryptowallet-<version>-linux-amd64.tar.gz` contains exactly one regular executable named `cryptowallet`, with mode 0755 and fixed archive ownership/time metadata. No directory wrapper, evidence, JSON, third-party sidecar, separate launcher, backend helper or installer is archived. Upstream notices are collected from the actual `cmd/cryptowallet` dependency closure using checksum-verified module sources, plus the selected Go standard-library texts, and embedded before compilation. Independent legal/license-obligation review is **NOT_RUN**.
+`dist/cryptowallet-<version>-linux-amd64.tar.gz` contains exactly one regular 0755 executable, `cryptowallet`, at archive root. No folder wrapper, JSON, evidence, helper or license sidecar is archived. Required Go/Wails/React dependency notices are embedded and available with `--licenses`; independent legal review remains NOT_RUN.
 
-The default build/install/release never invokes npm or packages Electron. Node remains an independent developer/test/signing dependency. The publisher uses its pinned Node signing toolkit in a separate job, without rebuilding the wallet. The single archive is a regular GitHub Release asset; release name, bare tag and embedded version match and automatically increment across both numeric and legacy `v` tag histories. Detached signature records stay in the publishing run's Actions artifact, outside release assets.
+`make install` verifies and atomically replaces only its managed root executable, retaining the installation marker for safe upgrades. Existing managed Electron launcher links can be replaced; previous `wallet-runtime/` generations and user profiles are preserved. An unrelated file/link or unsafe destination is rejected. Downloaded wallets run directly after extraction.
 
-`make install` verifies the locally built candidate, stages a regular executable and atomically replaces the managed root entry. An existing managed Electron symlink is recognized; its previous `wallet-runtime/` generations are not removed. Subsequent native upgrades recognize a current-user-owned `.cryptowallet-install.json` marker and the current executable's hash. Unrelated files, symlinks, linked/unsafe markers and unsafe destinations are rejected. The marker is local installation metadata and is not a runtime dependency or release asset. Downloaded executables run directly after extraction.
+The release workflow compiles/packages once and publishes that exact authenticated artifact in a separate job. Version, bare numeric tag and regular Release name match and automatically increment across numeric and legacy `v` tags. Tests run independently; the release build marks them NOT_RUN and links the exact commit's checks. Detached verification records remain an Actions artifact, not extra release assets. Existing published Electron/GTK binaries are not changed by this source update.
 
-## Data and secret handling
+## Data and security
 
-Existing profile paths remain `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`; testnet stays separate. No installation/build target reads user secret files, creates replacement wallets, migrates derivation profiles or deletes old data. All nine networks/twelve asset identities and existing vault/recovery formats remain required.
+Profile paths remain `~/.config/localwallet/mainnet` or `$XDG_CONFIG_HOME/localwallet/mainnet`, with a separate testnet profile. Installation does not read, replace or migrate a real vault. All nine networks/twelve asset identities, deterministic profiles, encrypted vault formats, real transaction adapters and journal reservations remain required.
 
-The coordinator and signer retain bounded framed IPC, current-user process checks, signer-owned encrypted state and password-authenticated exact-operation approval. The native GTK UI and coordinator necessarily handle temporary password/phrase input/display, so both belong to the trusted secret boundary. Binary seeds and private/extended keys remain in signer code. Existing locked/pending/recovery state rules, secret-memory protections, encrypted credentials, narrow authenticated phrase-copy permission, journal reservation/reconciliation and no-automatic-mainnet-send requirements still apply.
+Go owns random phrase generation, password/word verification, immutable transaction plans, exact approvals, signatures and encrypted storage. Binary seeds/private and extended keys remain in the signer. The UI and coordinator remain trusted with temporary credential/phrase transport and display. Moving to WebKit adds browser-engine and JavaScript memory copies to this boundary; generation in Go does not protect against a compromised trusted UI. No secrets belong in ordinary portfolio state, logs, browser storage, plaintext files, network requests or QR codes. The authenticated backup dialog's explicit Copy phrase action is the sole phrase clipboard exception; clipboard history can retain it.
 
-The owner explicitly requested **no sandbox**. This mode therefore does not apply seccomp, Chromium sandboxing or filesystem/user/network namespaces to the application roles. It does not install a root-owned helper, change kernel settings, add AppArmor rules or require `--no-sandbox`. The OS does **not** enforce the previous signer's network denial. Separate processes and private pipes preserve protocol separation, but are not a substitute for syscall confinement. Previously passing sandbox/network-denial tests certify the retained legacy mode only; they must not be cited as evidence for this native build.
-
-The mainnet profile remains the default and no command automatically transmits mainnet funds. An unavailable RPC balance remains unknown, never a verified zero. No real user passwords, phrases or API credentials may be used for tests.
+The signer remains a distinct process with protected memory and bounded inherited private pipes, but no OS-enforced network confinement. Legacy seccomp/network-denial evidence cannot be assigned to this mode. The browser UI's permitted bridge and origin/session restrictions require their own current evidence; see [WAILS_UI.md](WAILS_UI.md).
 
 ## Evidence checklist
 
-Local checks on 2026-10-27 are deliberately scoped. The final candidate is version 0.1.1, SHA256 `bfc3652c18274f807eb823084bfd68b0c94c9fc0cd3e4d12d7e5612bb4dc18dd`; exact hashes in each report identify what ran. A rebuilt executable or changed source must rerun affected checks. Passing legacy Electron evidence is never assigned to the native build.
+Current Wails evidence and exact candidate identities are recorded in [WAILS_UI.md](WAILS_UI.md). Historical GTK results are retained in [NATIVE_GTK_HISTORICAL.md](NATIVE_GTK_HISTORICAL.md); earlier Electron reports remain historical. None certifies a new Wails binary. A rebuilt executable requires affected tests to run against its exact hash.
 
-| State | Check and evidence |
-| --- | --- |
-| PASS, recorded candidate | Actual `make package-portable` / `scripts/go-build-test.py`: one regular executable, ELF64 amd64/version/runtime marker, system GTK dependencies with no Electron/Chromium/libseccomp dependency, embedded upstream dependency/toolchain notices, isolated extraction without cache/toolchain or profile creation, and no invocation of prohibited Node/npm/Electron/Debian tools. `reports/go-only-build.json` and `dist/portable-build-verification.json` retain exact hashes. |
-| PASS, local regression scope | 58 build/installation regressions, preserving 48 legacy cases and adding 10 native cases: malformed/link/extra archive entries, runtime/license/version/hash mismatch, managed upgrades, interrupted switches, unsafe destinations/markers, unrelated-file refusal and prior-data preservation. `reports/build-tools.json` binds the scripts/workflow inputs. |
-| PASS, recorded binary | Six actual temporary-directory installation checks; `reports/portable-install.json` records the exact tested executable SHA256. This temporary-directory proof does not touch the repository-root executable or a real profile. A rebuilt executable with different bytes requires its own rerun. |
-| PASS, headless recorded candidate | Three fresh Go application copies recover all nine network wallets at account indices 0, 1 and 127 from the recorded phrase, including changed local-password restoration and tested secret-canary containment. `reports/portable-phrase-recovery.json` records its binary hash. This is not a second physical machine or native GUI acceptance result. |
-| PASS, narrowly scoped tests | CLI/root/profile/internal-role/error boundaries pass with race detection; command statement coverage measured 97.4%. Controller routing/lifecycle tests pass with synthetic backend replies; they are not transaction/network acceptance. |
-| PASS floors; aggregate FAIL/BLOCKED | The final source-stable five-profile measurement passes all 31 unchanged 90%/95% floors: native GTK 95.61%, controller 96.66%, session monitor 95.87%, supervisor 97.47%, isolation 100%. All required base/native/memory/runtime suites pass. The original Decred simnet prerequisite remains BLOCKED, so `reports/go-coverage.json` honestly remains FAIL; TON and local USDT execution gates PASS. [COVERAGE.md](COVERAGE.md) records skips and all unexecuted blocks. |
-| PASS, actual native GUI scope | `reports/native-wallet.json` passes all nine ordinary-candidate scenarios with sourceStable=true: password/generated phrase/recorded-word setup, all nine wallet addresses and copy controls, tab closing, Receive QR, Send presentation/units, authenticated phrase backup/copy, independent fresh-profile phrase restore with a different app password, and locked restart. A separate instrumented GUI run passes for coverage. These are isolated private-X11 workflows, not public-network acceptance. |
-| PASS, headless private-node integration | `reports/portable-send.json` binds the final binary and passes eight real private-geth scenarios with actual receipts, amount/fee/nonce checks and no external route. It does not operate the graphical Send/approval path. |
-| NOT_RUN / unfinished integration gate | A native production-evidence verifier and combined native GUI/local-node Send campaign remain unfinished. The retained `make verify-release` checks the legacy Electron layout and cannot certify this native build. |
-| NOT_RUN until separately evidenced | Clean Ubuntu 24.04/26.04 X11/Wayland matrix, OS suspend/session-lock acceptance, full upgrade/uninstall recovery, public funded testnets, full 24-hour soak, independent security/license review and funded private Bybit acceptance. |
+The native production-evidence verifier and combined GUI-approved real-node Send acceptance remain separate gates until actually implemented and executed. Headless real-geth integration proves real signing/execution only within its recorded scope. Clean Ubuntu 24.04/26.04 X11/Wayland, OS lifecycle, full upgrade/uninstall recovery, funded public testnets, 24-hour soak, independent security/legal review and private funded Bybit acceptance remain NOT_RUN unless separately evidenced.
 
-`make test-portable` inspects the actual binary/archive. `make coverage` measures all shipped Go packages and merges original base, retained GTK prompt, new native GTK adapter, separately instrumented full native GUI runtime and targeted portable memory-kernel profiles without excluding shipped production paths. Only tagged test automation/reference generators are explicitly excluded; C ABI statement coverage is not measured by Go. Missing profiles, changed source/counter inputs or below-floor packages remain failures. A successful portable build does not establish production readiness.
-
-## Retained legacy tooling
-
-`make build-components` compiles the previous Go backend helpers. `make build-desktop`, `make package-desktop` and `make install-desktop` retain the historical Go + Electron package for explicit regressions. `make test-packaged-desktop` and `make test-packaged-send-desktop` operate that legacy layout and keep its sandbox requirements. These targets do not produce the default native release. Legacy evidence documents remain useful historical records, not certification of the native implementation.
+Explicit `make build-desktop`, `make package-desktop`, `make install-desktop`, `make test-packaged-desktop` and `make test-packaged-send-desktop` retain the historical Electron tooling. The handwritten GTK test driver remains explicitly `make test-native-wallet-legacy`. Neither produces the default release.

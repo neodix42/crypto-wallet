@@ -1,6 +1,24 @@
 # Implementation and release evidence
 
-## Current native Go distribution — 2026-10-28
+## Current Wails / React distribution — 2026-10-28
+
+The owner selected the sibling charting project's main UI architecture: Wails v2.17.0 and React/TypeScript with system WebKitGTK 4.1, replacing the handwritten GTK interface. Charting's optional Chromium Screener is not included. CryptoWallet retains one Go executable containing embedded frontend assets and coordinator/signer self-roles, unchanged profile/vault/derivation identities and all nine networks/twelve asset identities. Node/npm compile the frontend only; runtime prerequisites are system GTK3/WebKitGTK. There is no Electron/Chromium bundle or SUID-helper setup. The Go roles apply no syscall sandbox; the pinned Wails implementation also explicitly disables WebKitGTK's renderer sandbox while enforcing local-asset and ephemeral-storage policy. [Current trust boundary and evidence](WAILS_UI.md).
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS — local build-tool regressions | 58 build/install/archive/release continuity checks and 15 dependency-license provenance checks passed after adapting their runtime identity to Wails/WebKitGTK. Twenty CI-only namespace-helper regressions and all three pinned actionlint workflow checks pass. These are tool regressions, not an actual Wails GUI pass. |
+| PASS, current recorded candidate | Actual Wails build/package/extracted diagnostics and six disposable actual-binary installation checks bind the b82b8c executable. No Electron/Debian tool was used, the archive has one regular executable, system WebKitGTK is required and notices/frontend assets are embedded. |
+| PASS, actual Wails GUI | `reports/wails-wallet.json`: nine uninstrumented workflows plus an extra graceful-exit row covering all three window closes pass with sourceStable=true, including random phrase/word confirmation, full wallet addresses/tabs/copy, Receive QR, Send presentation, authenticated numbered phrase backup/copy, fresh restoration under a different password and locked restart/unlock. Actual GUI payments and clean OS/Wayland acceptance remain separate. |
+| PASS, root installed candidate | Atomically installed regular 0755 `./cryptowallet` has exact tested SHA256 `b82b8c06efd7f7ed849e9467f0a0aabd328f08f0e92f81e4a740ce47eaabb260`, version 0.1.1 and runtime `wails-webkitgtk4.1; portable-go; sandbox=none`. Installation opened no real profile. |
+| PASS, recorded headless candidate | Six fresh-copy recovery checks compare 27 canonical descriptors on nine networks/three indices; eight actual private-geth Send checks verify a real receipt, exact balances/fee, nonce 1/no duplicate and durable reconciliation after locked restart. Both bind version 0.1.1 executable SHA256 `b82b8c06efd7f7ed849e9467f0a0aabd328f08f0e92f81e4a740ce47eaabb260`. No GUI payment approval, real user secret or mainnet funds were used. |
+| PASS, current source-stable Go scope | `reports/wails-go-tests.json` binds full Go package tests, focused Wails/controller/session/IPC/CLI race checks and repository vet to unchanged sources and exact logs. Optional integration gates retain their own scopes. |
+| PASS, focused local test scope | Fourteen Wails adapter tests, controller and CLI race tests cover current private lifecycle/copy guards. Sixteen React component tests pass on unchanged frontend sources. These are separate from actual WebKit/GUI and funded-network acceptance; historical GTK results are not reused. |
+| NOT_RUN, coverage driver implemented | Current Wails frontend/runtime coverage measurement must run on unchanged sources; historical GTK/Electron counters do not certify Wails. The production-evidence verifier remains a separate migration gate. |
+| NOT_RUN / unfinished integration | Combined Wails-GUI-approved real-node Send acceptance, clean Ubuntu 24.04/26.04 X11/Wayland lifecycle/upgrade/uninstall matrix, funded public-network/Bybit acceptance, 24-hour soak and independent security/legal review. |
+
+This checklist distinguishes implemented migration work from executed acceptance. No real profile, user secret or mainnet payment is authorized for tests. [Detailed commands and current results](WAILS_UI.md) retain remaining gates. Earlier sections below are historical, not evidence for a rebuilt Wails executable.
+
+## Historical handwritten GTK distribution — 2026-10-28
 
 The owner's portable-binary request replaces the default Electron distribution with one Go executable using system GTK3. The old launcher started Chromium, which required a configured sandbox; renaming that launcher did not make it a self-contained Go wallet. The new `cryptowallet` contains the UI, coordinator and signer roles and starts its own child roles through private inherited pipes. It installs no syscall sandbox or SUID helper. The existing vault formats, configuration paths and all nine networks/twelve asset identities remain unchanged. [Build, security boundary and evidence checklist](PORTABLE_GO.md).
 

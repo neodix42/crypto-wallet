@@ -721,7 +721,9 @@ class BuildTools(unittest.TestCase):
         self.assertLess(release.index('scripts/release_assets.py check'), release.index('node .github/provenance/attest.mjs'))
         self.assertLess(text.index('scripts/package-portable.py --verify-only'), publish)
         self.assertNotIn('scripts/verify-artifact.cjs', build)
-        self.assertNotIn('setup-node', build)
+        self.assertIn('Set up pinned frontend compiler', build)
+        self.assertIn('cache-dependency-path: internal/webui/frontend/package-lock.json', build)
+        self.assertNotIn('attest.mjs', build)
         self.assertNotIn('npm ', build)
         self.assertNotIn('libseccomp', build)
         self.assertNotIn('package-go', text)
@@ -909,19 +911,22 @@ class PortableBuildTools(unittest.TestCase):
         cls.addClassCleanup(cls.fixtures.cleanup)
         cls.elf = {}
         for key, value, marker, license_ok, seccomp in (
-                ('0.1.10', '0.1.10', 'native-gtk3; portable-go; sandbox=none', True, False),
-                ('0.1.11', '0.1.11', 'native-gtk3; portable-go; sandbox=none', True, False),
+                ('0.1.10', '0.1.10', 'wails-webkitgtk4.1; portable-go; sandbox=none', True, False),
+                ('0.1.11', '0.1.11', 'wails-webkitgtk4.1; portable-go; sandbox=none', True, False),
                 ('foreign-runtime', '0.1.10', 'electron; sandbox=none', True, False),
-                ('missing-notices', '0.1.10', 'native-gtk3; portable-go; sandbox=none', False, False),
-                ('sandbox-library', '0.1.10', 'native-gtk3; portable-go; sandbox=none', True, True)):
+                ('missing-webkit', '0.1.10', 'wails-webkitgtk4.1; portable-go; sandbox=none', True, False),
+                ('missing-notices', '0.1.10', 'wails-webkitgtk4.1; portable-go; sandbox=none', False, False),
+                ('sandbox-library', '0.1.10', 'wails-webkitgtk4.1; portable-go; sandbox=none', True, True)):
             folder = pathlib.Path(cls.fixtures.name) / key
             folder.mkdir()
             source, binary = folder / 'public.c', folder / 'fixture'
             notices = 'CryptoWallet third-party redistribution texts\ngo-toolchain: PUBLIC FIXTURE\ngo:example.invalid/public\n' + 'public fixture text\n' * 300 if license_ok else 'not been generated'
             declaration = 'extern void *seccomp_init(unsigned int);' if seccomp else ''
             reference = 'if(n==99)seccomp_init(0);' if seccomp else ''
-            source.write_text('#include <stdio.h>\n#include <string.h>\nextern const char *gtk_check_version(unsigned int,unsigned int,unsigned int);\n' + declaration + '\nint main(int n,char **v){if(gtk_check_version(3,0,0))return 9;' + reference + 'if(n==2&&!strcmp(v[1],"--version")){puts(' + json.dumps(value) + ');return 0;}if(n==2&&!strcmp(v[1],"--runtime-info")){puts(' + json.dumps(marker) + ');return 0;}if(n==2&&!strcmp(v[1],"--licenses")){fputs(' + json.dumps(notices) + ',stdout);return 0;}return 2;}\n')
-            subprocess.run(['cc', '-O0', '-o', str(binary), str(source), '-l:libgtk-3.so.0'] + (['-l:libseccomp.so.2'] if seccomp else []), check=True, capture_output=True)
+            source.write_text('#include <stdio.h>\n#include <string.h>\nextern const char *gtk_check_version(unsigned int,unsigned int,unsigned int);\nextern unsigned int webkit_get_major_version(void);\n' + declaration + '\nint main(int n,char **v){if(gtk_check_version(3,0,0)||webkit_get_major_version()==0)return 9;' + reference + 'if(n==2&&!strcmp(v[1],"--version")){puts(' + json.dumps(value) + ');return 0;}if(n==2&&!strcmp(v[1],"--runtime-info")){puts(' + json.dumps(marker) + ');return 0;}if(n==2&&!strcmp(v[1],"--licenses")){fputs(' + json.dumps(notices) + ',stdout);return 0;}return 2;}\n')
+            if key == 'missing-webkit':
+                source.write_text(source.read_text().replace('||webkit_get_major_version()==0', ''))
+            subprocess.run(['cc', '-O0', '-o', str(binary), str(source), '-l:libgtk-3.so.0'] + ([] if key == 'missing-webkit' else ['-l:libwebkit2gtk-4.1.so.0']) + (['-l:libseccomp.so.2'] if seccomp else []), check=True, capture_output=True)
             cls.elf[key] = binary
 
     def setUp(self):
@@ -972,7 +977,7 @@ class PortableBuildTools(unittest.TestCase):
         self.assertEqual(archive.read_bytes(), first)
 
     def test_foreign_runtime_missing_notices_and_sandbox_library_are_rejected(self):
-        for key in ('foreign-runtime', 'missing-notices', 'sandbox-library'):
+        for key in ('foreign-runtime', 'missing-webkit', 'missing-notices', 'sandbox-library'):
             with self.subTest(key=key):
                 binary, manifest = self.candidate(key)
                 with self.assertRaises(ValueError):
@@ -1132,10 +1137,13 @@ class PortableBuildTools(unittest.TestCase):
     def test_default_build_install_and_package_are_native_without_legacy_runtime(self):
         script = (ROOT / 'scripts/build-pinned.sh').read_text()
         native = script.split('[ "$#" -eq 0 ]', 1)[1]
-        for required in ('-tags portable', '-o bin/cryptowallet ./cmd/cryptowallet', 'license-notices.py --portable'):
+        for required in ('-tags production,webkit2_41,portable', '-o bin/cryptowallet ./cmd/cryptowallet', 'license-notices.py --portable', './scripts/build-frontend.sh', 'pkg-config --exists gtk+-3.0 webkit2gtk-4.1'):
             self.assertIn(required, native)
-        for forbidden in ('npm ', 'node ', 'wallet-launcher', 'libseccomp', 'pkg-config', 'dpkg-deb'):
+        for forbidden in ('electron ', 'wallet-launcher', 'libseccomp', 'dpkg-deb'):
             self.assertNotIn(forbidden, native)
+        frontend = (ROOT / 'scripts/build-frontend.sh').read_text()
+        self.assertIn('npm --prefix internal/webui/frontend ci --ignore-scripts', frontend)
+        self.assertIn('npm --prefix internal/webui/frontend run build', frontend)
         makefile = (ROOT / 'Makefile').read_text()
         self.assertIn('install: build\n\tpython3 scripts/install.py', makefile)
         self.assertIn('package-go: package-portable', makefile)
@@ -1170,7 +1178,7 @@ class EvidenceRunner(unittest.TextTestRunner):
 
     def run(self, test):
         result = super().run(test)
-        filenames = ['scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/package-portable.py', 'scripts/license-notices.py', 'internal/redistribution/notices.go', 'scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
+        filenames = ['scripts/build.sh', 'scripts/build-pinned.sh', 'scripts/build-frontend.sh', 'scripts/with-go.sh', 'scripts/native-env.sh', 'scripts/package-portable.py', 'scripts/license-notices.py', 'internal/redistribution/notices.go', 'scripts/version.py', 'scripts/next-version.py', 'scripts/install.py', 'scripts/verify-version.py', 'scripts/package.cjs', 'scripts/package-go.py', 'scripts/with-toolchain.sh', 'scripts/bootstrap-node.py', 'scripts/sbom.py', 'scripts/build-tools-test.py', 'Makefile', '.github/workflows/ci.yml', '.github/workflows/release.yml']
         report = {
             'status': 'PASS' if result.wasSuccessful() and not result.skipped else 'FAIL' if not result.wasSuccessful() else 'NOT_RUN',
             'command': [sys.executable, 'scripts/build-tools-test.py'],

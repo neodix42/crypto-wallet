@@ -14,10 +14,10 @@ import (
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
-	"localwallet/internal/nativeui"
 	"localwallet/internal/sessionwatch"
 	"localwallet/internal/supervisor"
 	"localwallet/internal/uiprompt"
+	"localwallet/internal/webui"
 	"os"
 	"os/signal"
 	"sort"
@@ -29,7 +29,7 @@ import (
 )
 
 type frontend interface {
-	Render(nativeui.View)
+	Render(webui.View)
 	Dispatch(func())
 	DispatchControl(func())
 	Prompt(uiprompt.Prompt) (uiprompt.Reply, error)
@@ -103,7 +103,7 @@ func Run(environment string) error {
 	app := &App{environment: environment, state: snapshot{Locked: true, VaultState: "checking"}, fields: map[string]string{"region": "https://api.bybit.com", "side": "Sell", "slippage": "0.5", "index": "1", "from": "0", "count": "10", "gap": "20", "limit": "1000", "birthday": "0", "blockBudget": "1000"}, balances: map[string][]model.Balance{}, balanceErrors: map[string]bool{}, sendForms: map[string]bool{}, active: "group/0", lastActivity: time.Now()}
 	child := &supervisor.Child{Path: "/proc/self/exe", SelfRole: "--internal-core", Environment: environment}
 	app.core = child
-	window, err := nativeui.New(app.event)
+	window, err := webui.New(app.event)
 	if err != nil {
 		return err
 	}
@@ -135,9 +135,9 @@ func Run(environment string) error {
 	}()
 	app.render()
 	app.refresh()
-	window.Run()
+	err = window.Run()
 	app.core.Kill()
-	return nil
+	return err
 }
 
 const unavailableMonitoring = "OS screen-lock monitoring is unavailable. Lock the wallet manually before leaving this session."
@@ -195,7 +195,7 @@ func (a *App) privatePrompt(raw json.RawMessage) error {
 		return err
 	}
 	generation := a.core.Generation()
-	// The GTK thread checks lifecycle identity immediately before opening the
+	// The serialized UI queue checks lifecycle identity immediately before opening the
 	// modal. A goroutine-side check alone would race a lock before queuing it.
 	// Prompt data never enters public View, fields, status, logs or storage.
 	a.ui.Dispatch(func() {
@@ -593,7 +593,7 @@ func completeObservation(b model.Balance) bool {
 	}
 	return true
 }
-func (a *App) event(e nativeui.Event) {
+func (a *App) event(e webui.Event) {
 	if a.closed {
 		return
 	}
@@ -620,6 +620,7 @@ func (a *App) event(e nativeui.Event) {
 	}
 	if e.ID == "tab" {
 		a.active = e.Value
+		a.render()
 		if e.Value == "exchange" && !a.state.Locked {
 			a.exchangeAction("exchangeStatus", map[string]string{})
 		}
@@ -1020,36 +1021,36 @@ func (a *App) exchangeAction(method string, body any) {
 		}, nil
 	})
 }
-func node(kind, id, text, value string) nativeui.Node {
-	return nativeui.Node{Kind: kind, ID: id, Text: text, Value: value}
+func node(kind, id, text, value string) webui.Node {
+	return webui.Node{Kind: kind, ID: id, Text: text, Value: value}
 }
-func label(text string) nativeui.Node   { return node("label", "", text, "") }
-func heading(text string) nativeui.Node { return node("heading", "", text, "") }
-func row(children ...nativeui.Node) nativeui.Node {
-	return nativeui.Node{Kind: "row", Children: children}
+func label(text string) webui.Node   { return node("label", "", text, "") }
+func heading(text string) webui.Node { return node("heading", "", text, "") }
+func row(children ...webui.Node) webui.Node {
+	return webui.Node{Kind: "row", Children: children}
 }
-func (a *App) button(id, text string, disabled bool) nativeui.Node {
+func (a *App) button(id, text string, disabled bool) webui.Node {
 	n := node("button", id, text, "")
 	n.Disabled = disabled || a.busy
 	return n
 }
-func (a *App) entry(key, title string) nativeui.Node {
+func (a *App) entry(key, title string) webui.Node {
 	n := node("entry", "field/"+key, title, a.fields[key])
 	n.Disabled = a.busy
 	return n
 }
-func (a *App) combo(key, title string, options []nativeui.Option) nativeui.Node {
+func (a *App) combo(key, title string, options []webui.Option) webui.Node {
 	n := node("combo", "field/"+key, title, a.fields[key])
 	n.Options = options
 	n.Disabled = a.busy
 	return n
 }
-func (a *App) check(key, title string) nativeui.Node {
+func (a *App) check(key, title string) webui.Node {
 	n := node("check", "field/"+key, title, a.fields[key])
 	n.Disabled = a.busy
 	return n
 }
-func (a *App) groupSelector() nativeui.Node {
+func (a *App) groupSelector() webui.Node {
 	seen := map[uint32]bool{}
 	var ids []int
 	for _, account := range a.state.Accounts {
@@ -1059,9 +1060,9 @@ func (a *App) groupSelector() nativeui.Node {
 		}
 	}
 	sort.Ints(ids)
-	options := make([]nativeui.Option, 0, len(ids))
+	options := make([]webui.Option, 0, len(ids))
 	for _, index := range ids {
-		options = append(options, nativeui.Option{ID: strconv.Itoa(index), Text: groupName(uint32(index))})
+		options = append(options, webui.Option{ID: strconv.Itoa(index), Text: groupName(uint32(index))})
 	}
 	return a.combo("group", "Account group", options)
 }
@@ -1078,14 +1079,14 @@ func (a *App) render() {
 	v := a.view()
 	a.ui.Render(v)
 }
-func (a *App) view() nativeui.View {
-	view := nativeui.View{Title: "CryptoWallet · " + buildinfo.Version + " · " + a.environment, Status: a.status, StatusRevision: a.statusRevision, Active: a.active}
+func (a *App) view() webui.View {
+	view := webui.View{Title: "CryptoWallet · " + buildinfo.Version + " · " + a.environment, Status: a.status, StatusRevision: a.statusRevision, Active: a.active}
 	if a.state.Locked {
 		title := "Unlock local wallet"
-		nodes := []nativeui.Node{heading(title)}
+		nodes := []webui.Node{heading(title)}
 		switch a.state.VaultState {
 		case "missing":
-			nodes = []nativeui.Node{heading("Create your app password"), label("Choose your app password in the private wallet dialog. Go generates one recovery phrase for all supported wallets. Record the words offline, then confirm them. Restore an existing phrase instead to recover the same wallets."), row(a.button("create12", "Create wallet · 12 words", false), a.button("create24", "Create wallet · 24 words", false), a.button("restore", "Restore from recovery phrase", false))}
+			nodes = []webui.Node{heading("Create your app password"), label("Choose your app password in the private wallet dialog. Go generates one recovery phrase for all supported wallets. Record the words offline, then confirm them. Restore an existing phrase instead to recover the same wallets."), row(a.button("create12", "Create wallet · 12 words", false), a.button("create24", "Create wallet · 24 words", false), a.button("restore", "Restore from recovery phrase", false))}
 		case "present":
 			nodes = append(nodes, label("Your encrypted wallet is on this device. Unlock through its private password dialog."), a.button("unlock", "Unlock", false))
 		case "checking":
@@ -1094,7 +1095,7 @@ func (a *App) view() nativeui.View {
 			nodes = append(nodes, label("Wallet storage is unavailable. Creation and restoration are blocked until its state can be read safely."))
 		}
 		nodes = append(nodes, a.button("refresh", "Retry storage check", false))
-		view.Pages = []nativeui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: []nativeui.Node{label("Unlock the local wallet to configure it."), label(a.monitorState), label("Portable Go desktop. No Electron, SUID helper or sandbox setup. Wallet data stays in your existing localwallet configuration directory.")}}}
+		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: []webui.Node{label("Unlock the local wallet to configure it."), label(a.monitorState), label("Portable Go desktop. No Electron, SUID helper or sandbox setup. Wallet data stays in your existing localwallet configuration directory.")}}}
 		if view.Active != "settings" {
 			view.Active = "group/0"
 		}
@@ -1134,7 +1135,7 @@ func (a *App) view() nativeui.View {
 			view.Pages = append(view.Pages, a.walletPage(account))
 		}
 	}
-	view.Pages = append(view.Pages, nativeui.Page{ID: "exchange", Title: "Exchange", Nodes: a.exchangePage()}, nativeui.Page{ID: "settings", Title: "Settings", Nodes: a.settingsPage()})
+	view.Pages = append(view.Pages, webui.Page{ID: "exchange", Title: "Exchange", Nodes: a.exchangePage()}, webui.Page{ID: "settings", Title: "Settings", Nodes: a.settingsPage()})
 	found := false
 	for _, page := range view.Pages {
 		found = found || page.ID == view.Active
@@ -1144,8 +1145,8 @@ func (a *App) view() nativeui.View {
 	}
 	return view
 }
-func (a *App) groupPage(index uint32) nativeui.Page {
-	page := nativeui.Page{ID: "group/" + strconv.FormatUint(uint64(index), 10), Title: groupName(index), Nodes: []nativeui.Node{a.groupSelector(), row(a.button("refresh", "Refresh wallet state", false), a.button("lock", "Lock wallet", false))}}
+func (a *App) groupPage(index uint32) webui.Page {
+	page := webui.Page{ID: "group/" + strconv.FormatUint(uint64(index), 10), Title: groupName(index), Nodes: []webui.Node{a.groupSelector(), row(a.button("refresh", "Refresh wallet state", false), a.button("lock", "Lock wallet", false))}}
 	if !a.state.RecoveryConfirmed {
 		page.Nodes = append(page.Nodes, label("Record and confirm the recovery phrase to enable receiving and spending."), a.button("confirmRecovery", "Record and confirm recovery phrase", false))
 	}
@@ -1196,13 +1197,13 @@ func (a *App) groupPage(index uint32) nativeui.Page {
 	}
 	return page
 }
-func (a *App) walletPage(account model.Account) nativeui.Page {
+func (a *App) walletPage(account model.Account) webui.Page {
 	asset := a.asset(account)
 	network := a.network(account.Network)
 	value, _ := a.balance(account, asset)
-	page := nativeui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
-	page.Nodes = []nativeui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.button("copyReceive/"+account.ID, "⧉ Copy address", !a.state.RecoveryConfirmed)), heading(value + " " + asset.Symbol)}
-	var assets []nativeui.Node
+	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
+	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.button("copyReceive/"+account.ID, "⧉ Copy address", !a.state.RecoveryConfirmed)), heading(value + " " + asset.Symbol)}
+	var assets []webui.Node
 	for _, item := range network.Assets {
 		assets = append(assets, a.button("asset/"+account.ID+"/"+item.ID, item.Symbol, item.ID == asset.ID))
 	}
@@ -1252,13 +1253,13 @@ func (a *App) walletPage(account model.Account) nativeui.Page {
 	}
 	return page
 }
-func (a *App) settingsPage() []nativeui.Node {
-	nodes := []nativeui.Node{row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", false), a.button("settingsJournal", "Journal", false)), label(a.monitorState)}
+func (a *App) settingsPage() []webui.Node {
+	nodes := []webui.Node{row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", false), a.button("settingsJournal", "Journal", false)), label(a.monitorState)}
 	switch a.fields["settings"] {
 	case "Exchange":
-		options := []nativeui.Option{}
+		options := []webui.Option{}
 		for _, endpoint := range bybit.Endpoints() {
-			options = append(options, nativeui.Option{ID: endpoint, Text: endpoint})
+			options = append(options, webui.Option{ID: endpoint, Text: endpoint})
 		}
 		nodes = append(nodes, heading("Bybit connection"), a.combo("region", "Official API region", options), label("Enter API key and HMAC secret only in the private password-authenticated wallet dialogs. Bybit credentials are stored encrypted and cannot be recovered from the wallet phrase."), row(a.button("exchangeConnect", "Connect Bybit", false), a.button("exchangeDisconnect", "Disconnect Bybit", false), a.button("exchangeStatus", "Refresh connection", false)), label(publicText(a.exchange)))
 	case "Journal":
@@ -1296,34 +1297,34 @@ func (a *App) settingsPage() []nativeui.Node {
 	}
 	return nodes
 }
-func (a *App) exchangePage() []nativeui.Node {
+func (a *App) exchangePage() []webui.Node {
 	var connection struct {
 		Connected bool `json:"connected"`
 	}
 	_ = json.Unmarshal(a.exchange, &connection)
 	disabled := !a.state.RecoveryConfirmed || !connection.Connected
-	var accounts []nativeui.Option
+	var accounts []webui.Option
 	for _, account := range a.state.Accounts {
 		if !account.Hidden {
-			accounts = append(accounts, nativeui.Option{ID: account.ID, Text: a.network(account.Network).Name + " · " + groupName(account.Index)})
+			accounts = append(accounts, webui.Option{ID: account.ID, Text: a.network(account.Network).Name + " · " + groupName(account.Index)})
 		}
 	}
-	var assets []nativeui.Option
+	var assets []webui.Option
 	var address, contract string
 	if account, ok := a.account(a.fields["exchangeAccount"]); ok {
 		address = account.Address
 		for _, asset := range a.network(account.Network).Assets {
-			assets = append(assets, nativeui.Option{ID: asset.ID, Text: asset.Symbol})
+			assets = append(assets, webui.Option{ID: asset.ID, Text: asset.Symbol})
 			if asset.ID == a.fields["exchangeAsset"] {
 				contract = asset.Contract
 			}
 		}
 	}
-	nodes := []nativeui.Node{heading("Bybit Exchange"), label("Assets deposited to Bybit are held by Bybit. Each deposit, spot trade, internal transfer and withdrawal requires its own exact confirmation in your private wallet dialog."), row(a.combo("exchangeAccount", "Wallet / network", accounts), a.combo("exchangeAsset", "Wallet asset", assets)), node("address", "", "Owned wallet receive address", address)}
+	nodes := []webui.Node{heading("Bybit Exchange"), label("Assets deposited to Bybit are held by Bybit. Each deposit, spot trade, internal transfer and withdrawal requires its own exact confirmation in your private wallet dialog."), row(a.combo("exchangeAccount", "Wallet / network", accounts), a.combo("exchangeAsset", "Wallet asset", assets)), node("address", "", "Owned wallet receive address", address)}
 	if contract != "" {
 		nodes = append(nodes, node("address", "", "Token contract (not your receive address)", contract))
 	}
-	nodes = append(nodes, row(a.combo("side", "Spot direction", []nativeui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}}), a.entry("exchangeAmount", "Amount to spend / withdraw"), a.entry("slippage", "Slippage limit (%)")), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled), label(publicText(a.quote)), row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || len(a.quote) == 0), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh Bybit status", false), label(publicText(a.exchange)))
+	nodes = append(nodes, row(a.combo("side", "Spot direction", []webui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}}), a.entry("exchangeAmount", "Amount to spend / withdraw"), a.entry("slippage", "Slippage limit (%)")), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled), label(publicText(a.quote)), row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || len(a.quote) == 0), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh Bybit status", false), label(publicText(a.exchange)))
 	if !connection.Connected {
 		nodes = append(nodes, label("Connect your Bybit account in Settings → Exchange to enable these actions."))
 	}

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Permit sandboxed desktop tests in a named, ephemeral GitHub-hosted CI profile.
+"""Permit isolated desktop tests in a named, ephemeral GitHub-hosted CI profile.
 
 Ubuntu 24.04 restricts user namespaces for otherwise unconfined processes.
 The named AppArmor profile grants that permission only to commands explicitly
 started with aa-exec. It has no executable attachment, persistent policy file,
-setuid helper change or system-wide sysctl change. Electron's Chromium sandbox
-and the wallet launcher's seccomp restrictions remain enabled.
+setuid helper change or system-wide sysctl change. Wails uses namespaces only
+for its owned test infrastructure, not application sandboxing. Retained legacy
+Electron/launcher sandbox protections remain enabled in their explicit tests.
 """
 import argparse
 import hashlib
@@ -28,6 +29,10 @@ PROFILE_LIMIT = 1048576
 PROFILE_TIMEOUT = 10
 COMMANDS = frozenset({
     ('make', 'test-packaged'),
+    ('make', 'test-wails-wallet'),
+    ('make', 'test-send-portable'),
+    ('make', 'test-packaged-desktop'),
+    ('make', 'test-packaged-send-desktop'),
     ('./scripts/with-toolchain.sh', 'python3', 'scripts/packaged-send.py'),
     ('./scripts/with-toolchain.sh', 'python3', 'scripts/display-startup.py', '--backend', 'x11'),
 })

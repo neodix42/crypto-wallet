@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package and verify the one-file native Go desktop. No Electron or sandbox."""
+"""Package and verify the one-file Wails Go desktop. No Electron/Chromium."""
 import argparse
 import gzip
 import hashlib
@@ -49,12 +49,13 @@ def verify_binary(binary, version, manifest=None):
             b'not been generated' not in notices and len(notices) > 4096,
             'Required upstream notices are not embedded')
     require(subprocess.check_output([str(binary.resolve()), '--runtime-info'], text=True, timeout=15).strip() ==
-            'native-gtk3; portable-go; sandbox=none', 'Portable runtime declaration differs')
+            'wails-webkitgtk4.1; portable-go; sandbox=none', 'Portable runtime declaration differs')
     # The native executable may dynamically link system GTK/glib/libc, but must
     # not depend on a bundled Chromium/Electron or libseccomp runtime.
     result = subprocess.run(['readelf', '-d', str(binary)], check=True, capture_output=True, text=True, timeout=15)
     needed = re.findall(r'\(NEEDED\).*?\[([^\]]+)\]', result.stdout)
     require(needed and any('libgtk-3.so' in item for item in needed), 'Native GTK3 dependency is missing')
+    require(any('libwebkit2gtk-4.1.so' in item for item in needed), 'System WebKitGTK 4.1 dependency is missing')
     require(not any(any(word in item.lower() for word in ('electron', 'chrom', 'seccomp')) for item in needed),
             'Forbidden Chromium/Electron/sandbox runtime dependency')
     return dict(file='cryptowallet', sha256=sha256(binary), version=version,
@@ -101,11 +102,11 @@ def package(root=ROOT, verify_only=False):
             finally:
                 temporary_path.unlink(missing_ok=True)
     verify_archive(archive, binary, version)
-    report = dict(schemaVersion=1, status='PASS', scope='Local native Go ELF/version, embedded notices, dynamic dependencies and exact single-file archive',
+    report = dict(schemaVersion=1, status='PASS', scope='Local Wails Go ELF/version, embedded frontend/notices, system WebKitGTK dependencies and exact single-file archive',
                   checks=checked, archive=dict(file=archive.name, sha256=sha256(archive)),
                   notRun=['clean Ubuntu X11/Wayland OS matrix', 'live funded testnets', 'independent security and redistribution review'])
     (dist / 'portable-build-verification.json').write_text(json.dumps(report, indent=2) + '\n')
-    print('PASS one-file native Go portable: ' + str(archive))
+    print('PASS one-file Wails Go portable: ' + str(archive))
     return report
 
 

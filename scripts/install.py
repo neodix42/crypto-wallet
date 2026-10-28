@@ -244,7 +244,7 @@ def install_portable(source, destination):
         finally:
             staged.unlink(missing_ok=True)
     print('Installed portable Go wallet at ' + str(target) + '; run ./cryptowallet as an ordinary user.')
-    print('One executable; system GTK3 required. No Electron or sandbox runtime. Existing data is preserved.')
+    print('One executable; system GTK3/WebKitGTK 4.1 required. No Electron or SUID sandbox helper. Existing data is preserved.')
 
 
 if __name__ == '__main__':

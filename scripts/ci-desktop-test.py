@@ -205,6 +205,8 @@ class CIDesktop(unittest.TestCase):
     def test_helper_rejects_arbitrary_shells_commands_and_sandbox_bypass_arguments(self):
         self.mark_loaded()
         for command in [[], ['/bin/sh'], ['make', 'test'], ['make', 'test-packaged', '--no-sandbox'],
+                        ['make', 'test-wails-wallet', '--no-sandbox'], ['make', 'test-send-portable', 'EXTRA=arbitrary'],
+                        ['make', 'test-packaged-desktop', 'EXTRA=arbitrary'],
                         ['sudo', 'make', 'test-packaged'], ['make test-packaged'],
                         ['./scripts/with-toolchain.sh', 'python3', 'scripts/packaged-send.py', '--no-sandbox']]:
             with self.assertRaisesRegex(RuntimeError, 'Only explicit packaged'):
@@ -250,11 +252,14 @@ class CIDesktop(unittest.TestCase):
                 ci.main(arguments)
 
     def test_workflows_install_utils_wrap_both_checks_and_cleanup_even_on_failure(self):
-        for name in ['ci.yml']:
-            text = (ROOT / '.github/workflows' / name).read_text()
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        wails, legacy = workflow.split('  checks:\n', 1)
+        for text, gui, payment in [
+                (wails, 'make test-wails-wallet', 'make test-send-portable'),
+                (legacy, 'make test-packaged-desktop', './scripts/with-toolchain.sh python3 scripts/packaged-send.py')]:
             setup = text.index('run: python3 scripts/ci-desktop.py setup')
-            packaged = text.index('run: python3 scripts/ci-desktop.py run -- make test-packaged')
-            send = text.index('run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/packaged-send.py')
+            packaged = text.index('run: python3 scripts/ci-desktop.py run -- ' + gui)
+            send = text.index('run: python3 scripts/ci-desktop.py run -- ' + payment)
             cleanup = text.index('run: python3 scripts/ci-desktop.py cleanup')
             upload = text.index('uses: actions/upload-artifact@')
             self.assertLess(text.index('util-linux apparmor-utils'), setup)
@@ -263,10 +268,12 @@ class CIDesktop(unittest.TestCase):
             self.assertLess(send, cleanup)
             self.assertLess(cleanup, upload)
             self.assertIn('if: always()', text[text.rfind('      - name:', 0, cleanup):cleanup])
-            self.assertNotIn('run: make test-packaged', text)
-            self.assertNotIn('run: ./scripts/with-toolchain.sh python3 scripts/packaged-send.py', text)
-            for forbidden in ['--no-sandbox', 'chmod 4755', 'sysctl ', 'apparmor_restrict_unprivileged_userns=0']:
-                self.assertNotIn(forbidden, text)
+            self.assertNotIn('run: ' + gui, text)
+            self.assertNotIn('run: ' + payment, text)
+            self.assertIn(tuple(gui.split()), ci.COMMANDS)
+            self.assertIn(tuple(payment.split()), ci.COMMANDS)
+        for forbidden in ['--no-sandbox', 'chmod 4755', 'sysctl ', 'apparmor_restrict_unprivileged_userns=0']:
+            self.assertNotIn(forbidden, workflow)
         release = (ROOT / '.github/workflows/release.yml').read_text()
         for test_only in ['scripts/ci-desktop.py', 'make test-packaged', 'scripts/packaged-send.py']:
             self.assertNotIn(test_only, release)

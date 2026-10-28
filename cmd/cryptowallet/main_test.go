@@ -21,7 +21,7 @@ func testRuntime(t *testing.T) (commandRuntime, *bytes.Buffer, *bytes.Buffer) {
 }
 
 func TestPublicInspectionDoesNotOpenWalletDisplayOrProtectMemory(t *testing.T) {
-	for _, row := range []struct{ flag, expected string }{{"--version", buildinfo.Version + "\n"}, {"--runtime-info", "native-gtk3; portable-go; sandbox=none\n"}, {"--licenses", redistribution.Text}} {
+	for _, row := range []struct{ flag, expected string }{{"--version", buildinfo.Version + "\n"}, {"--runtime-info", "wails-webkitgtk4.1; portable-go; sandbox=none\n"}, {"--licenses", redistribution.Text}} {
 		t.Run(row.flag, func(t *testing.T) {
 			r, out, diagnostic := testRuntime(t)
 			r.uid = func() int { t.Fatal("public inspection queried execution identity"); return 0 }
@@ -77,7 +77,7 @@ func TestDesktopFailureHasFixedErrorAndNoFallbackOrUserDetails(t *testing.T) {
 	r, out, diagnostic := testRuntime(t)
 	calls := 0
 	r.desktop = func(string) error { calls++; return errors.New("private-runtime-canary") }
-	if run([]string{"cryptowallet"}, r) != 4 || calls != 1 || out.Len() != 0 || strings.Contains(diagnostic.String(), "canary") || !strings.Contains(diagnostic.String(), "GTK runtime") {
+	if run([]string{"cryptowallet"}, r) != 4 || calls != 1 || out.Len() != 0 || strings.Contains(diagnostic.String(), "canary") || !strings.Contains(diagnostic.String(), "WebKitGTK runtime") {
 		t.Fatal("desktop failure leaked detail or attempted a fallback")
 	}
 }

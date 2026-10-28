@@ -1,10 +1,64 @@
 # Go coverage and remaining-path review
 
-The 2026-10-27 source-stable measurement passes **all 31 package floors**. Native GTK Go code measures **95.61%**, the native wallet controller **96.66%**, OS session monitoring **95.87%**, supervisor **97.47%**, portable/legacy memory protection **100%**, and the application command **97.37%**. The original 90%/95% floors are unchanged; native UI, controller and session monitoring enforce 95%.
+## Current Wails migration: full measurement NOT_RUN
+
+The 2026-10-28 Wails/WebKit replacement changes the shipped UI and invalidates
+previous GTK coverage for the current candidate. Coverage integration is now
+implemented: `internal/webui` is a **critical package with a 95% floor**, and all
+existing 90%/95% floors remain unchanged. **No current full Wails package-floor
+pass is claimed.** The combined campaign has not been run after this migration;
+old raw counters and percentages below are historical.
+
+`make coverage` now builds a separate instrumented executable with
+`production,webkit2_41,portable`, instruments the command/controller/**webui**/
+memory-protection packages, and drives its actual Wails windows through
+`scripts/wails-wallet-test.py`. Its report is `wails-wallet-coverage.json`; the
+raw profile remains `go-native-runtime.cover` for verifier compatibility.
+The base suite uses production/WebKitGTK 4.1 build tags while retaining legacy
+seccomp tests. Existing GTK regression profiles and all original Decred/TON/USDT
+integration gates remain required. No shipped production path is excluded to
+improve a percentage. Go counters do not measure React/JavaScript, C or WebKit
+library behavior.
+
+Current source binding includes Go/C/header code, React/TypeScript/CSS/HTML
+sources and tests, frontend package/configuration pins, the complete reviewed
+Wails fork and both fork manifests, fork verification/security drivers, and the
+actual Wails GUI coverage driver. Missing required current UI inputs fail.
+Historical Electron-only toy fixtures without any Wails module/package marker
+retain their historical verifier scope. A Wails build cannot reuse a GTK runtime
+report or omit `internal/webui` statement counters.
+
+The migration's six coverage-integrity regressions and 34 release-evidence
+regressions **PASS**. These include synthetic 94% Wails counters failing the
+unchanged 95% floor, forged lower floors, changed React/fork pins, missing UI
+sources and reassigned GTK runtime evidence. Synthetic counters test enforcement;
+they do not measure the wallet. Standalone GUI/security/recovery acceptance does
+not substitute for this still-unrun combined coverage campaign. The retained
+Electron production verifier also remains unable to certify a Wails production
+release.
+
+Private-process counter collection remains an explicit verification gap: the
+secret prompt's restricted environment currently omits `GOCOVERDIR`, and the
+parent retires that process after receiving its reply. A future combined run
+must prove private-process counters are collected before claiming the 95% UI
+floor. These paths remain in the denominator; no environment/secret handling
+rule is weakened and no artificial production coverage hook is added.
+
+Separately, `scripts/wails-inspector-test.py` passes on the current executable:
+actual WebKit helper processes initialize while inherited TCP/HTTP inspector
+settings produce zero listeners. Its binary/source-bound report is
+`reports/wails-inspector.json`; it is security regression evidence, not statement
+coverage. Disabling developer extras alone was experimentally insufficient;
+trusted Go startup also clears inspector/engine injection settings before WebKit
+initializes.
+
+## Historical GTK measurement (2026-10-27; not current Wails evidence)
+
+The historical 2026-10-27 source-stable GTK measurement passed **all 31 then-measured package floors**. Native GTK Go code measures **95.61%**, the native wallet controller **96.66%**, OS session monitoring **95.87%**, supervisor **97.47%**, portable/legacy memory protection **100%**, and the application command **97.37%**. The original 90%/95% floors are unchanged; native UI, controller and session monitoring enforce 95%.
 
 The **aggregate remains FAIL** because the original pinned Decred `dcrd v1.10.9` simnet prerequisite is **BLOCKED** on this machine. This does not turn passing packages or executed tests into failures, and it does not turn the missing integration test into a pass. The TON V5R1 emulator and actual local USDT EVM execution gates both pass. Decred work was excluded from the owner's current implementation scope; its gate remains present.
 
-Go measures statements, not branches, C ABI behavior, cryptographic soundness or independent security review. Passing local coverage does not establish production readiness. Historical Electron reports and narrower initial measurements are superseded for current source by the exact reports below, and are not assigned to the new executable.
+Go measures statements, not branches, C ABI behavior, cryptographic soundness or independent security review. Passing local coverage does not establish production readiness. The exact reports below describe the historical GTK source snapshot only. They are not assigned to the current Wails executable.
 
 ## Reproduction and evidence integrity
 

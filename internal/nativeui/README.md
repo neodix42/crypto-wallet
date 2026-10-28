@@ -1,4 +1,8 @@
-This package is the native GTK3 front end for the single Go executable. It has
+This is the historical handwritten GTK3 adapter, retained for explicit legacy
+regressions. The default wallet uses Wails/React in `internal/webui`; this
+package is not imported by the current `cmd/cryptowallet` application.
+
+The old adapter has
 no Chromium, Electron, HTTP server or sandbox helper. Its narrow C ABI binding
 links the installed GTK3 runtime libraries; it does not require GTK development
 headers to compile.

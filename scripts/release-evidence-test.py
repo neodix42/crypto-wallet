@@ -162,6 +162,93 @@ class ReleaseEvidence(unittest.TestCase):
             self.assert_blocked(row['id'])
             row['status'] = original
 
+    def current_wails_fixture(self, *, include_counters=True):
+        # Explicit public toy files enable only source/verifier control-flow
+        # checks. They are never executable desktop or production evidence.
+        self.write('go.mod', 'module localwallet\nrequire github.com/wailsapp/wails/v2 v2.17.0\n')
+        self.write('internal/webui/window.go', 'package webui\nfunc publicFixture() {}\n')
+        for name in binding.WAILS_COVERAGE_INPUTS:
+            self.write(name, 'Public Wails source/pin fixture: ' + name)
+        self.write('third_party/wails/internal/frontend/desktop/linux/wallet_security.h', '/* Public browser policy fixture */')
+        self.write('third_party/wails/internal/frontend/runtime/runtime.js', '// Public fork runtime fixture')
+        profile = 'mode: atomic\nlocalwallet/internal/vault/vault.go:2.1,2.30 1 1\n'
+        if include_counters:
+            profile += 'localwallet/internal/webui/window.go:2.1,2.30 1 1\n'
+        inputs = ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover')
+        for name in (*inputs, 'go.cover'):
+            self.write('reports/' + name, profile)
+        report = self.report('go-coverage')
+        report['sourceSHA256'] = binding.go_sources(self.root)
+        report['profiles'] = [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in inputs]
+        report['nativeRuntime'] = {'status': 'PASS', 'sourceStable': True, 'instrumented': True,
+            'producerSHA256': binding.sha256(self.root / 'scripts/wails-wallet-test.py'),
+            'instrumentedBinarySHA256': 'a' * 64,
+            'artifact': {'runtime': 'wails-webkitgtk4.1; portable-go; sandbox=none', 'sha256': 'a' * 64}}
+        self.write_json('reports/go-coverage.json', report)
+        self.write_json('reports/coverage.json', {'packages': binding.go_rows(self.root / 'reports/go.cover')})
+
+    def test_current_wails_coverage_binds_react_html_css_pins_fork_and_drivers(self):
+        self.current_wails_fixture()
+        self.assertEqual(self.failures(), [])
+        for name in (*binding.WAILS_COVERAGE_INPUTS,
+                     'third_party/wails/internal/frontend/desktop/linux/wallet_security.h',
+                     'third_party/wails/internal/frontend/runtime/runtime.js'):
+            with self.subTest(changed=name):
+                path = self.root / name
+                original = path.read_bytes()
+                path.write_bytes(original + b' public mutation')
+                self.assert_blocked('go-coverage-stale-or-incomplete-source-set')
+                path.write_bytes(original)
+        self.write('internal/webui/frontend/src/NewPage.tsx', '// Public added component')
+        self.assert_blocked('go-coverage-stale-or-incomplete-source-set')
+
+    def test_current_wails_cannot_drop_required_frontend_or_fork_pin(self):
+        self.current_wails_fixture()
+        for name in ('internal/webui/frontend/src/PrivateApp.tsx',
+                     'internal/webui/frontend/package-lock.json', 'third_party/wails/WALLET-PATCHES.json'):
+            with self.subTest(missing=name):
+                path = self.root / name
+                original = path.read_bytes()
+                path.unlink()
+                self.assert_blocked('go-coverage-binding')
+                path.write_bytes(original)
+        # Deleting the whole adapter cannot silently select historical mode:
+        # the current module requirement remains an independent Wails marker.
+        import shutil
+        shutil.rmtree(self.root / 'internal/webui')
+        self.assert_blocked('go-coverage-binding')
+
+    def test_current_wails_requires_adapter_counters_and_wails_runtime(self):
+        self.current_wails_fixture(include_counters=False)
+        self.assert_blocked('go-coverage-shipped-webui-missing')
+        self.current_wails_fixture()
+        report = self.report('go-coverage')
+        original = json.loads(json.dumps(report))
+        for field, value in (('producerSHA256', 'b' * 64), ('instrumentedBinarySHA256', 'b' * 64)):
+            report['nativeRuntime'][field] = value
+            self.write_json('reports/go-coverage.json', report)
+            self.assert_blocked('go-coverage-wails-runtime-not-bound')
+            report = json.loads(json.dumps(original))
+        report['nativeRuntime']['artifact']['runtime'] = 'native-gtk3; portable-go; sandbox=none'
+        self.write_json('reports/go-coverage.json', report)
+        self.assert_blocked('go-coverage-wails-runtime-not-bound')
+
+    def test_wails_94_percent_fails_original_critical_floor(self):
+        self.current_wails_fixture()
+        profile = 'mode: atomic\nlocalwallet/internal/webui/window.go:1.1,2.1 94 1\nlocalwallet/internal/webui/window.go:3.1,4.1 6 0\n'
+        inputs = ('go-base.cover', 'go-native.cover', 'go-nativeui.cover', 'go-native-runtime.cover', 'go-portable-memory.cover')
+        for name in (*inputs, 'go.cover'):
+            self.write('reports/' + name, profile)
+        report = self.report('go-coverage')
+        report['profiles'] = [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in inputs]
+        self.write_json('reports/go-coverage.json', report)
+        rows = binding.go_rows(self.root / 'reports/go.cover')
+        self.assertEqual((rows[0]['floor'], rows[0]['percent'], rows[0]['status']), (95, 94.0, 'FAIL'))
+        # A forged PASS label/floor cannot override independently recomputed raw counters.
+        rows[0].update(status='PASS', floor=90)
+        self.write_json('reports/coverage.json', {'packages': rows})
+        self.assert_blocked('go-coverage-floors-or-measurement-mismatch')
+
     def test_go_snapshot_rejects_added_deleted_and_changed_source_or_pins(self):
         for name in ('internal/vault/vault.go', 'internal/vault/vault_test.go', 'go.mod', 'go.sum'):
             path = self.root / name

@@ -4,11 +4,19 @@ TOOLS := ./scripts/with-toolchain.sh
 GO_TOOLS := ./scripts/with-go.sh
 FUZZ_SECONDS ?= 60
 SOAK_SECONDS ?= 86400
-.PHONY: test-recovery-portable test-send-portable test-native-wallet
+.PHONY: test-recovery-portable test-send-portable test-native-wallet test-wails-wallet test-native-wallet-legacy
+.PHONY: frontend
+.PHONY: test-wails-security
+.PHONY: test-install-portable
 .PHONY: test-packaged-desktop test-packaged-send-desktop build-components install-desktop package-portable package-components test-portable build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
 build-go: build
+frontend:
+	$(TOOLS) ./scripts/build-frontend.sh
+# Fresh checkouts contain frontend sources, not an outdated embedded bundle.
+# Build once per make invocation before Go tools load the webui go:embed files.
+test test-go test-security test-race test-interop test-integration test-fuzz test-fuzz-long test-exchange check-deps coverage: frontend
 build-components:
 	./scripts/build.sh --components
 # Retained Electron regression runtime. New releases use package-portable.
@@ -23,6 +31,7 @@ install-desktop: package-desktop
 dev: install
 	./cryptowallet
 test:
+	$(TOOLS) npm --prefix internal/webui/frontend test
 	python3 scripts/build-tools-test.py
 	python3 scripts/mutation-test.py
 	python3 scripts/ci-desktop-test.py
@@ -78,10 +87,20 @@ test-dialogs:
 	$(TOOLS) npm --prefix desktop test
 test-native:
 	$(TOOLS) python3 scripts/native-input.py
-test-native-wallet: build
+test-wails-wallet: build
+	$(GO_TOOLS) python3 scripts/wails-wallet-test.py
+test-native-wallet: test-wails-wallet
+test-wails-security: build
+	$(GO_TOOLS) python3 scripts/verify-wails-fork.py
+	$(GO_TOOLS) go -C third_party/wails test -race ./internal/frontend/walletpolicy ./internal/logger ./pkg/assetserver ./internal/frontend/dispatcher
+	$(GO_TOOLS) python3 scripts/test-wails-security.py
+	$(GO_TOOLS) python3 scripts/wails-inspector-test.py
+test-install-portable: build
+	$(GO_TOOLS) python3 scripts/portable-install-test.py
+test-native-wallet-legacy:
 	$(GO_TOOLS) python3 scripts/native-wallet-test.py
 test-packaged: package-portable
-	$(GO_TOOLS) python3 scripts/native-wallet-test.py
+	$(GO_TOOLS) python3 scripts/wails-wallet-test.py
 test-packaged-send: test-send-portable
 test-packaged-desktop: install-desktop
 	$(TOOLS) python3 scripts/packaged-recovery.py
@@ -115,6 +134,7 @@ check-deps:
 	$(TOOLS) go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/fuzz.yml
 	$(TOOLS) go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 	$(TOOLS) npm --prefix desktop audit --audit-level=high
+	$(TOOLS) npm --prefix internal/webui/frontend audit --audit-level=high
 	$(TOOLS) npm --prefix .github/provenance audit --audit-level=high
 package-desktop: build-desktop
 	$(TOOLS) node scripts/package.cjs

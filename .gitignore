@@ -57,3 +57,10 @@ go.work.sum
 
 # Local portable Go installer provenance marker
 /.cryptowallet-install.json
+
+# Embedded Wails frontend is rebuilt from locked sources
+/internal/webui/frontend/dist/
+
+# Preserve the complete checksum-pinned upstream Wails source inventory.
+# This upstream Windows stub is never bundled into the Linux wallet.
+!third_party/wails/internal/webview2runtime/MicrosoftEdgeWebview2Setup.exe

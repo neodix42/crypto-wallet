@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure all shipped Go packages, including real GTK, without hiding skips.
+"""Measure all shipped Go packages, including Wails/WebKit and retained GTK, without hiding skips.
 No public-chain funds or user secrets are used. Local node gates are separate
 from the required external testnet/release evidence.
 """
@@ -22,8 +22,8 @@ report = {"status": "NOT_RUN", "measurement": "Go statement coverage, not branch
 
 
 def source_hashes():
-    # The native GTK C ABI and private-display drivers affect the exercised
-    # behavior even though Go statement instrumentation does not measure C.
+    # WebKit/GTK C and embedded React/fork inputs affect exercised behavior;
+    # Go instrumentation does not measure C, JavaScript or TypeScript statements.
     return go_sources(root)
 
 
@@ -76,7 +76,7 @@ def local_gates(env):
 
 
 def all_packages(env):
-    command = ["go", "test", "-timeout=10m", "-count=1", "-covermode=atomic", "-coverpkg=./...",
+    command = ["go", "test", "-tags", "production,webkit2_41", "-timeout=10m", "-count=1", "-covermode=atomic", "-coverpkg=./...",
                "-coverprofile=" + str(reports / "go-base.cover"), "-json", "./..."]
     packages = {}
     failures = []
@@ -181,17 +181,17 @@ def portable_runtime_coverage(env):
         binary = folder / "cryptowallet-instrumented"
         counters = folder / "counters"
         counters.mkdir(mode=0o700)
-        subprocess.run(["go", "build", "-tags", "portable", "-cover", "-covermode=atomic",
-                        "-coverpkg=./cmd/cryptowallet,./internal/nativewallet,./internal/nativeui,./internal/isolation",
+        subprocess.run(["go", "build", "-tags", "production,webkit2_41,portable", "-cover", "-covermode=atomic",
+                        "-coverpkg=./cmd/cryptowallet,./internal/nativewallet,./internal/webui,./internal/isolation",
                         "-trimpath", "-ldflags=-X localwallet/internal/buildinfo.Version=" + selected_version(root),
                         "-o", str(binary), "./cmd/cryptowallet"],
                        cwd=root, env=env, check=True, timeout=180)
         runtime_env = {**env, "GOCOVERDIR": str(counters)}
-        result = subprocess.run(["python3", "scripts/native-wallet-test.py", "--binary", str(binary),
-                                 "--report-name", "native-wallet-coverage", "--instrumented"],
+        result = subprocess.run(["python3", "scripts/wails-wallet-test.py", "--binary", str(binary),
+                                 "--report-name", "wails-wallet-coverage", "--instrumented"],
                                 cwd=root, env=runtime_env, timeout=900)
-        evidence = reports / "native-wallet-coverage.json"
-        report["nativeRuntime"] = json.loads(evidence.read_text()) if evidence.is_file() else {"status": "BLOCKED", "reason": "Instrumented native runtime report missing"}
+        evidence = reports / "wails-wallet-coverage.json"
+        report["nativeRuntime"] = json.loads(evidence.read_text()) if evidence.is_file() else {"status": "BLOCKED", "reason": "Instrumented Wails runtime report missing"}
         report["nativeRuntime"]["instrumentedBinarySHA256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
         if not any(counters.glob("covmeta.*")):
             raise RuntimeError("Instrumented native runtime produced no Go coverage metadata")

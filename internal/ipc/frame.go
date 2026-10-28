@@ -41,6 +41,7 @@ func (c *Channel) Read() (Message, error) {
 		return m, ErrFrame
 	}
 	b := make([]byte, n)
+	defer clear(b)
 	if _, e := io.ReadFull(c.R, b); e != nil {
 		return m, ErrFrame
 	}
@@ -64,6 +65,7 @@ func (c *Channel) Accept(m Message) error {
 }
 func (c *Channel) Write(m Message) error {
 	b, e := json.Marshal(m)
+	defer clear(b)
 	if e != nil || len(b) > MaxFrame || len(b) == 0 {
 		return ErrFrame
 	}

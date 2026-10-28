@@ -5,6 +5,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 source = pathlib.Path(__file__).resolve().with_name("go-coverage.py")
 spec = importlib.util.spec_from_file_location("wallet_go_coverage", source)
@@ -71,13 +72,35 @@ class CoverageEvidence(unittest.TestCase):
 
     def test_critical_security_packages_enforce_95_percent(self):
         for name in ("internal/vault", "internal/secureui", "internal/uiprompt", "internal/supervisor",
-                     "cmd/wallet-core", "cmd/wallet-signer", "internal/walletcore", "internal/walletsigner", "internal/nativeui", "internal/nativewallet", "internal/sessionwatch"):
+                     "cmd/wallet-core", "cmd/wallet-signer", "internal/walletcore", "internal/walletsigner", "internal/nativeui", "internal/nativewallet", "internal/webui", "internal/sessionwatch"):
             profile = self.profile("critical.cover", [f"localwallet/{name}/sample.go:1.1,2.1 94 1", f"localwallet/{name}/sample.go:3.1,4.1 6 0"])
             result = subprocess.run(["python3", str(source.with_name("coverage.py")), str(profile)], cwd=coverage.root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.assertNotEqual(result.returncode, 0, name)
             self.assertIn("95%", result.stdout)
             self.assertEqual(binding.go_rows(profile)[0]["floor"], 95, name)
             self.assertEqual(binding.go_rows(profile)[0]["status"], "FAIL", name)
+
+    def test_wails_runtime_campaign_targets_shipped_adapter_and_keeps_raw_profile(self):
+        commands = []
+        evidence = coverage.reports / 'wails-wallet-coverage.json'
+        evidence.write_text('{"status":"PASS","instrumented":true,"sourceStable":true}')
+        def run(command, **kwargs):
+            commands.append(command)
+            if command[:2] == ['go', 'build']:
+                binary = pathlib.Path(command[command.index('-o') + 1])
+                binary.write_bytes(b'public instrumented executable fixture')
+                (binary.parent / 'counters' / 'covmeta.fixture').write_bytes(b'public metadata fixture')
+            return mock.Mock(returncode=0)
+        with mock.patch.object(coverage.subprocess, 'run', side_effect=run), mock.patch.object(coverage, 'selected_version', return_value='1.2.3'):
+            self.assertEqual(coverage.portable_runtime_coverage({}), 0)
+        build, driver, convert = commands
+        self.assertIn('production,webkit2_41,portable', build)
+        self.assertIn('-coverpkg=./cmd/cryptowallet,./internal/nativewallet,./internal/webui,./internal/isolation', build)
+        self.assertNotIn('./internal/nativeui', ' '.join(build))
+        self.assertEqual(driver[1], 'scripts/wails-wallet-test.py')
+        self.assertIn('wails-wallet-coverage', driver)
+        self.assertIn('--instrumented', driver)
+        self.assertTrue(convert[-1].endswith('go-native-runtime.cover'))
 
 
 if __name__ == "__main__":

@@ -70,7 +70,7 @@ def directory(path):
         raise NoticeError('Unsafe or unavailable notice source directory') from None
 
 
-def read_file(root, relative, maximum=MAX_FILE, text=True):
+def read_file(root, relative, maximum=MAX_FILE, text=True, allow_empty=False):
     parts = relative_parts(relative)
     parent = directory(root)
     descriptor = None
@@ -83,7 +83,8 @@ def read_file(root, relative, maximum=MAX_FILE, text=True):
         descriptor = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK,
                              dir_fd=parent)
         before = os.fstat(descriptor)
-        require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1 and 0 < before.st_size <= maximum,
+        require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1 and
+                (allow_empty or before.st_size > 0) and before.st_size <= maximum,
                 'Missing, linked, empty or oversized redistribution text')
         chunks = []
         size = 0
@@ -218,18 +219,44 @@ def collect_go(root, components, texts, commands=COMMANDS, portable=False):
     cache = Path(run(root, 'go', 'env', 'GOMODCACHE').strip())
     modules = {}
     for package in json_stream(run(root, 'go', 'list', '-deps', '-json',
-                                   '-mod=readonly', *(['-tags=portable'] if portable else []),
+                                   '-mod=readonly', *(['-tags=production,webkit2_41,portable'] if portable else []),
                                    *('./cmd/' + command for command in commands))):
         module = package.get('Module')
         if module and not module.get('Main'):
-            require('Replace' not in module and module.get('Version', '').startswith('v') and
-                    valid_sum(module.get('Sum')), 'Unpinned or replaced shipped Go dependency')
+            replacement = module.get('Replace')
+            if 'Replace' in module:
+                require(isinstance(replacement, dict) and portable and module.get('Path') == 'github.com/wailsapp/wails/v2' and
+                        module.get('Version') == 'v2.17.0' and
+                        replacement.get('Path') == './third_party/wails' and
+                        Path(replacement.get('Dir', '')).resolve() == (root / 'third_party/wails').resolve(),
+                        'Unreviewed local Go dependency replacement')
+            else:
+                require(module.get('Version', '').startswith('v') and valid_sum(module.get('Sum')),
+                        'Unpinned or replaced shipped Go dependency')
             old = modules.setdefault(module['Path'], module)
-            require((old['Version'], old['Sum']) == (module['Version'], module['Sum']),
+            require((old['Version'], old.get('Sum'), old.get('Replace')) ==
+                    (module['Version'], module.get('Sum'), module.get('Replace')),
                     'Conflicting shipped Go module identity')
     require(modules, 'Production Go dependency closure is empty')
     for name, module in sorted(modules.items()):
         source = Path(module.get('Dir', ''))
+        if module.get('Replace'):
+            source = root / 'third_party/wails'
+            require(not source.is_symlink(), 'Unsafe local Wails dependency root')
+            inventory = {}
+            for path in sorted(source.rglob('*')):
+                require(not path.is_symlink(), 'Linked local Wails dependency source')
+                if path.is_file():
+                    relative = path.relative_to(source).as_posix()
+                    inventory[relative] = sha256(read_file(source, relative, text=False, allow_empty=True))
+            require(inventory and 'go.mod' in inventory and 'LICENSE' in inventory,
+                    'Incomplete pinned local Wails dependency')
+            add_component(components, texts, 'go:' + name + '@' + module['Version'] + '+wallet-hardening',
+                          dict(kind='local-reviewed-go-fork', module=name, version=module['Version'],
+                               sourceFilesSHA256=inventory,
+                               verification='Explicit pinned Wails-only replacement; complete actual fork source hashes; see third_party/wails/CRYPTO_WALLET_PATCHES.md'),
+                          collect_texts(source))
+            continue
         require(source.is_absolute() and source.is_relative_to(cache) and source != cache,
                 'Go module source is outside the pinned module cache')
         add_component(components, texts, 'go:' + name + '@' + module['Version'],
@@ -246,6 +273,35 @@ def collect_go(root, components, texts, commands=COMMANDS, portable=False):
     return dict(commands=list(commands), dependencySelection='Actual production command dependency closure; excludes graph-only and test-only modules',
                 goModSHA256=sha256(read_file(root, 'go.mod')), goSumSHA256=sha256(read_file(root, 'go.sum')),
                 toolchain=tool_version)
+
+
+def collect_frontend(root, components, texts):
+    """Inventory installed locked production npm texts embedded by the React build."""
+    frontend = root / 'internal/webui/frontend'
+    lock_bytes = read_file(frontend, 'package-lock.json')
+    lock = json.loads(lock_bytes)
+    require(lock.get('lockfileVersion') == 3 and isinstance(lock.get('packages'), dict),
+            'Unsupported Wails frontend lock schema')
+    count = 0
+    for location, item in sorted(lock['packages'].items()):
+        if not location or item.get('dev', False):
+            continue
+        relative_parts(location)
+        require(location.startswith('node_modules/') and not item.get('link') and
+                item.get('version') and valid_integrity(item.get('integrity')),
+                'Unpinned frontend production dependency')
+        source = frontend / location
+        package = json.loads(read_file(source, 'package.json'))
+        require(package.get('version') == item['version'] and package.get('name'),
+                'Installed frontend npm identity differs from lock')
+        add_component(components, texts, 'npm:' + package['name'] + '@' + item['version'],
+                      dict(kind='embedded-frontend-npm', name=package['name'], version=item['version'],
+                           npmIntegrity=item['integrity'],
+                           verification='npm ci lock integrity and installed production dependency texts before frontend embedding'),
+                      collect_texts(source, prune_node_modules=True))
+        count += 1
+    require(count > 0, 'Wails frontend production dependency closure is empty')
+    return dict(productionNpmPackages=count, npmLockSHA256=sha256(lock_bytes))
 
 
 ASAR_INSPECT = r'''
@@ -363,6 +419,8 @@ def generate(root, go_only=False, runtime=None, portable=False):
     root = Path(root).absolute()
     components, texts = [], []
     provenance = collect_go(root, components, texts, ('cryptowallet',) if portable else COMMANDS, portable)
+    if portable:
+        provenance['frontend'] = collect_frontend(root, components, texts)
     if not go_only and not portable:
         runtime = Path(runtime or root / 'dist/CryptoWallet-linux-x64').absolute()
         provenance['desktop'] = collect_desktop(root, runtime, components, texts)
@@ -372,7 +430,7 @@ def generate(root, go_only=False, runtime=None, portable=False):
     text, manifest = render(components, texts, scope, provenance)
     if portable:
         value = json.loads(manifest)
-        value['externalRuntimeLibraries'] = 'System GTK3/glib/libc libraries are runtime prerequisites, not bundled libraries; review their use/distribution obligations separately.'
+        value['externalRuntimeLibraries'] = 'System GTK3/WebKitGTK 4.1/libsoup/glib/libc libraries are runtime prerequisites, not bundled libraries; review their use/distribution obligations separately.'
         manifest = json_bytes(value)
     prefix = 'portable-' if portable else 'go-' if go_only else ''
     for extension, data in (('txt', text), ('json', manifest)):

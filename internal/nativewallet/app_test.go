@@ -7,8 +7,8 @@ import (
 	"localwallet/internal/chains"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
-	"localwallet/internal/nativeui"
 	"localwallet/internal/uiprompt"
+	"localwallet/internal/webui"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -17,13 +17,13 @@ import (
 
 type testFrontend struct {
 	queue           chan func()
-	views           []nativeui.View
+	views           []webui.View
 	prompt          func(uiprompt.Prompt) (uiprompt.Reply, error)
 	cancels, closes atomic.Int32
 	controls        atomic.Int32
 }
 
-func (f *testFrontend) Render(v nativeui.View)    { f.views = append(f.views, v) }
+func (f *testFrontend) Render(v webui.View)       { f.views = append(f.views, v) }
 func (f *testFrontend) Dispatch(fn func())        { f.queue <- fn }
 func (f *testFrontend) DispatchControl(fn func()) { f.controls.Add(1); f.queue <- fn }
 func (f *testFrontend) Prompt(p uiprompt.Prompt) (uiprompt.Reply, error) {
@@ -100,7 +100,7 @@ func fixture(t *testing.T) (*App, *testFrontend, *testBackend) {
 	return a, ui, core
 }
 func viewText(v any) string { raw, _ := json.Marshal(v); return string(raw) }
-func findNode(nodes []nativeui.Node, id string) (nativeui.Node, bool) {
+func findNode(nodes []webui.Node, id string) (webui.Node, bool) {
 	for _, n := range nodes {
 		if n.ID == id {
 			return n, true
@@ -109,7 +109,7 @@ func findNode(nodes []nativeui.Node, id string) (nativeui.Node, bool) {
 			return found, true
 		}
 	}
-	return nativeui.Node{}, false
+	return webui.Node{}, false
 }
 func ethAccount(t *testing.T, a *App) model.Account {
 	t.Helper()
@@ -328,14 +328,14 @@ func TestNativeControllerPreparePassesWholeUnitsAndInvalidatesEditedPlan(t *test
 	}
 	a.walletEvent("prepare/" + account.ID)
 	<-entered
-	a.event(nativeui.Event{ID: "field/recipient/" + account.ID, Value: "public-edited-recipient"})
+	a.event(webui.Event{ID: "field/recipient/" + account.ID, Value: "public-edited-recipient"})
 	close(release)
 	ui.apply(t)
 	if a.plan != nil {
 		t.Fatal("stale prepare restored a plan after recipient edit")
 	}
 	a.plan = &model.Plan{ID: "fixture-plan", Account: account}
-	a.event(nativeui.Event{ID: "field/amount/" + account.ID, Value: "2"})
+	a.event(webui.Event{ID: "field/amount/" + account.ID, Value: "2"})
 	if a.plan != nil {
 		t.Fatal("editing amount retained review authority")
 	}
@@ -364,7 +364,7 @@ func TestNativeControllerJournalPaginationRemainsBoundedAndNavigable(t *testing.
 	if !strings.Contains(text, "new-operation-128") || strings.Contains(text, "old-operation-000") {
 		t.Fatal("journal visible window not bounded")
 	}
-	a.event(nativeui.Event{ID: "journalPrevious"})
+	a.event(webui.Event{ID: "journalPrevious"})
 	text = viewText(a.settingsPage())
 	if !strings.Contains(text, "old-operation-000") || strings.Contains(text, "new-operation-128") {
 		t.Fatal("prior loaded journal page inaccessible")
@@ -435,7 +435,7 @@ func TestNativeControllerExchangeAndWalletContextsStaySeparate(t *testing.T) {
 	}
 	for _, key := range []string{"exchangeAsset", "side", "slippage"} {
 		a.quote = json.RawMessage(`{"lastPrice":"123"}`)
-		a.event(nativeui.Event{ID: "field/" + key, Value: "changed-public-value"})
+		a.event(webui.Event{ID: "field/" + key, Value: "changed-public-value"})
 		if a.quote != nil {
 			t.Fatal("changed exchange terms retained stale quote")
 		}
@@ -545,7 +545,7 @@ func TestNativeControllerInflightExchangeSelectionInvalidatesQuote(t *testing.T)
 	}
 	a.exchangeAction("exchangeQuote", map[string]string{})
 	<-entered
-	a.event(nativeui.Event{ID: "field/side", Value: "Buy"})
+	a.event(webui.Event{ID: "field/side", Value: "Buy"})
 	close(release)
 	ui.apply(t)
 	if a.quote != nil {
@@ -624,7 +624,7 @@ func TestNativeControllerPrivateAndMetadataActionsPreserveBackendContracts(t *te
 					return answer(out, json.RawMessage(`{"public":"result"}`))
 				}
 			}
-			a.event(nativeui.Event{ID: tc.event})
+			a.event(webui.Event{ID: tc.event})
 			ui.apply(t)
 			expectedCalls := 3
 			if tc.event == "backupPhrase" {

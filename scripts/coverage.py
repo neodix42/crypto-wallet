@@ -10,7 +10,7 @@ for line in pathlib.Path(sys.argv[1]).read_text().splitlines()[1:]:
     if int(count):totals[package][0]+=int(n)
 rows=[]
 for package,(hit,total) in sorted(totals.items()):
-    critical=any('/'+x in package for x in ['vault','derivation','signer','amount','chains','exchange','ipc','journal','qr','strictjson','isolation','secureui','uiprompt','supervisor','wallet-core','wallet-signer','walletcore','walletsigner','nativeui','nativewallet','sessionwatch'])
+    critical=any('/'+x in package for x in ['vault','derivation','signer','amount','chains','exchange','ipc','journal','qr','strictjson','isolation','secureui','uiprompt','supervisor','wallet-core','wallet-signer','walletcore','walletsigner','nativeui','nativewallet','webui','sessionwatch'])
     floor=95 if critical else 90;percent=100*hit/total if total else 100
     rows.append({'package':package,'statements':total,'covered':hit,'percent':round(percent,2),'floor':floor,'status':'PASS' if percent>=floor else 'FAIL'})
 if not rows:

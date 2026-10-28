@@ -22,6 +22,20 @@ AUTH_INPUTS = ('scripts/release_assets.py', 'scripts/release-auth-test.py',
 GO_COVERAGE_INPUTS = ('scripts/go-coverage.py', 'scripts/coverage.py',
                       'scripts/native-input.py', 'scripts/native-wallet-test.py',
                       'internal/nativeui/test-x11.py', 'tests/e2e/x11.py', 'tests/e2e/phrase.py')
+# These inputs are mandatory for current Wails builds. Historical Electron toy
+# fixtures/checkouts without any Wails package/module retain their old verifier
+# scope; their absence cannot waive files once a current Wails marker is present.
+WAILS_COVERAGE_INPUTS = ('scripts/wails-wallet-test.py', 'scripts/wails-inspector-test.py', 'scripts/test-wails-security.py',
+                         'scripts/verify-wails-fork.py',
+                         'internal/webui/frontend/package.json', 'internal/webui/frontend/package-lock.json',
+                         'internal/webui/frontend/tsconfig.json', 'internal/webui/frontend/vite.config.ts',
+                         'internal/webui/frontend/index.html', 'internal/webui/frontend/secret/index.html',
+                         'internal/webui/frontend/src/PublicApp.tsx', 'internal/webui/frontend/src/PrivateApp.tsx',
+                         'internal/webui/frontend/src/main.tsx', 'internal/webui/frontend/src/private-main.tsx',
+                         'internal/webui/frontend/src/protocol.ts', 'internal/webui/frontend/src/types.ts',
+                         'internal/webui/frontend/src/icons.tsx', 'internal/webui/frontend/src/styles.css',
+                         'third_party/wails/go.mod', 'third_party/wails/go.sum',
+                         'third_party/wails/WALLET-UPSTREAM.json', 'third_party/wails/WALLET-PATCHES.json')
 EVIDENCE_INPUTS = (*GO_COVERAGE_INPUTS, 'scripts/evidence_binding.py', 'scripts/verify-release.py',
                    'scripts/frontend-coverage.py', 'scripts/verify-artifact.cjs',
                    'scripts/release-evidence-test.py')
@@ -92,8 +106,21 @@ def hash_names(root, names):
     return {name: sha256(regular(root, name)) for name in sorted(set(names))}
 
 
+def wails_build(root):
+    return ((pathlib.Path(root) / 'internal/webui').exists() or
+            'github.com/wailsapp/wails/v2' in regular(root, 'go.mod').read_text())
+
+
 def go_sources(root):
     names = files_below(root, '.', '.go') + files_below(root, '.', '.c') + files_below(root, '.', '.h')
+    if wails_build(root):
+        # Hash frontend production sources/tests and package pins as well as Go:
+        # identical Go code paired with changed React is a different candidate.
+        names.extend(WAILS_COVERAGE_INPUTS)
+        names.extend(files_below(root, 'internal/webui/frontend/src'))
+        # Bind the complete reviewed fork, including its shipped runtime JS/C
+        # and the manifests that enumerate every explicit local modification.
+        names.extend(files_below(root, 'third_party/wails'))
     return hash_names(root, [*names, 'go.mod', 'go.sum', *GO_COVERAGE_INPUTS])
 
 
@@ -222,7 +249,7 @@ def go_rows(profile):
         totals[package] = covered + (number if count else 0), total + number
     rows = []
     for package, (covered, total) in sorted(totals.items()):
-        critical = any('/' + name in package for name in ('vault', 'derivation', 'signer', 'amount', 'chains', 'exchange', 'ipc', 'journal', 'qr', 'strictjson', 'isolation', 'secureui', 'uiprompt', 'supervisor', 'wallet-core', 'wallet-signer', 'walletcore', 'walletsigner', 'nativeui', 'nativewallet', 'sessionwatch'))
+        critical = any('/' + name in package for name in ('vault', 'derivation', 'signer', 'amount', 'chains', 'exchange', 'ipc', 'journal', 'qr', 'strictjson', 'isolation', 'secureui', 'uiprompt', 'supervisor', 'wallet-core', 'wallet-signer', 'walletcore', 'walletsigner', 'nativeui', 'nativewallet', 'webui', 'sessionwatch'))
         floor = 95 if critical else 90
         percent = 100 * covered / total if total else 100
         rows.append({'package': package, 'statements': total, 'covered': covered, 'percent': round(percent, 2), 'floor': floor,
@@ -251,6 +278,15 @@ def validate_go(root, report, floor_report):
     if (not isinstance(runtime, dict) or runtime.get('status') != 'PASS' or
             runtime.get('instrumented') is not True or runtime.get('sourceStable') is not True):
         raise EvidenceError('go-coverage-native-runtime-incomplete')
+    if wails_build(root):
+        artifact = runtime.get('artifact')
+        if (not isinstance(artifact, dict) or
+                artifact.get('runtime') != 'wails-webkitgtk4.1; portable-go; sandbox=none' or
+                runtime.get('producerSHA256') != sha256(regular(root, 'scripts/wails-wallet-test.py')) or
+                not isinstance(artifact.get('sha256'), str) or
+                not re.fullmatch(r'[0-9a-f]{64}', artifact['sha256']) or
+                artifact['sha256'] != runtime.get('instrumentedBinarySHA256')):
+            raise EvidenceError('go-coverage-wails-runtime-not-bound')
     profiles = report.get('profiles')
     required = {'reports/go-base.cover', 'reports/go-native.cover', 'reports/go-nativeui.cover', 'reports/go-native-runtime.cover', 'reports/go-portable-memory.cover'}
     if not isinstance(profiles, list) or len(profiles) != 5 or any(not isinstance(row, dict) for row in profiles) or {row.get('file') for row in profiles} != required:
@@ -284,5 +320,7 @@ def validate_go(root, report, floor_report):
     if profile.read_text() != merged:
         raise EvidenceError('go-coverage-union-profile-mismatch')
     rows = go_rows(profile)
+    if wails_build(root) and not any(row['package'] == 'localwallet/internal/webui' for row in rows):
+        raise EvidenceError('go-coverage-shipped-webui-missing')
     if floor_report.get('packages') != rows or any(row['status'] != 'PASS' for row in rows):
         raise EvidenceError('go-coverage-floors-or-measurement-mismatch')

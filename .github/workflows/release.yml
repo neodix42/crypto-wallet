@@ -25,8 +25,14 @@ jobs:
         with:
           go-version: 1.27.3
           cache: true
+      - name: Set up pinned frontend compiler
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: internal/webui/frontend/package-lock.json
       - name: Install compilation prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential libgtk-3-0t64 ca-certificates
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev ca-certificates
       - name: Choose the next version
         id: version
         run: |
@@ -59,7 +65,7 @@ jobs:
           run=f'https://github.com/{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
           pathlib.Path('dist/RELEASE-NOTES.md').write_text(f'''CryptoWallet {v} — development release; mainnet profile by default.
 
-          Download cryptowallet-{v}-linux-amd64.tar.gz, extract it, then run ./cryptowallet as an ordinary user. The archive contains exactly one portable Go executable with native GTK3 windows. Install Ubuntu runtime prerequisites with sudo apt install ca-certificates libgtk-3-0t64. No Electron, Chromium, bundled runtime, sandbox helper or Debian installer is included. Third-party notices are embedded: ./cryptowallet --licenses.
+          Download cryptowallet-{v}-linux-amd64.tar.gz, extract it, then run ./cryptowallet as an ordinary user. The archive contains exactly one portable Go executable with Wails/React windows rendered by system WebKitGTK 4.1. Install Ubuntu runtime prerequisites with sudo apt install ca-certificates libgtk-3-0t64 libwebkit2gtk-4.1-0. No Electron, Chromium, bundled browser runtime, SUID sandbox helper or Debian installer is included. The pinned Wails implementation explicitly disables WebKitGTK's renderer sandbox as requested; local-asset and ephemeral-storage policies remain enabled. No Chromium sandbox setup is required. Third-party notices are embedded: ./cryptowallet --licenses.
 
           The tag, release name and Go application version are all {v}. This owner-requested native build applies no syscall sandbox; the signer remains a separate child process with inherited private pipes, protected memory and password-authenticated approvals.
           Tests were NOT_RUN in this build workflow; they run independently in ci.yml. Check this exact source commit's results: {checks}

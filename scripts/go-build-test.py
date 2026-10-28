@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual one-file Go build; prohibit Node/Electron/package-manager execution."""
+"""Actual Wails Go build; permit frontend compilation, prohibit Electron/Debian tools."""
 import hashlib
 import json
 import os
@@ -30,13 +30,13 @@ before = debian_artifacts()
 with tempfile.TemporaryDirectory(prefix='wallet-go-only-proof-') as temporary:
     folder = pathlib.Path(temporary)
     marker = folder / 'unexpected-tool'
-    for name in ('node', 'npm', 'electron', 'dpkg-deb'):
+    for name in ('electron', 'dpkg-deb'):
         executable = folder / name
         executable.write_text('#!/bin/sh\nprintf "%s\\n" ' + shlex.quote(name) + ' >> ' + shlex.quote(str(marker)) + '\nexit 97\n')
         executable.chmod(0o755)
     env = {**os.environ, 'PATH': str(folder) + ':' + os.environ['PATH']}
     result = subprocess.run(['make', 'package-go'], cwd=root, env=env, text=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
     (reports / 'go-only-build.log').write_text(result.stdout)
     unexpected = marker.read_text().splitlines() if marker.exists() else []
     checks = {}
@@ -63,7 +63,7 @@ with tempfile.TemporaryDirectory(prefix='wallet-go-only-proof-') as temporary:
                                                env=isolated_env, text=True, timeout=15)
         licenses = subprocess.check_output([str(binary), '--licenses'], cwd=extracted,
                                            env=isolated_env, timeout=15)
-        if runtime_version != version + '\n' or runtime_info != 'native-gtk3; portable-go; sandbox=none\n':
+        if runtime_version != version + '\n' or runtime_info != 'wails-webkitgtk4.1; portable-go; sandbox=none\n':
             raise ValueError('Extracted version/native runtime differs')
         if b'CryptoWallet third-party redistribution texts' not in licenses or b'go-toolchain:' not in licenses or b'go:' not in licenses:
             raise ValueError('Extracted binary lacks embedded notices')
@@ -82,7 +82,7 @@ with tempfile.TemporaryDirectory(prefix='wallet-go-only-proof-') as temporary:
               'checks': checks, 'forbiddenToolsInvoked': unexpected,
               'debianArtifactsUnchanged': before == debian_artifacts(),
               'seconds': round(time.monotonic() - started, 3),
-              'scope': 'Actual compiled native Go executable/one-file archive inspected from isolated extraction without developer cache or toolchain; GUI/recovery/blockchain acceptance is separate',
+              'scope': 'Actual compiled Wails Go executable/one-file archive, with embedded React frontend, inspected from isolated extraction without developer cache or toolchain; Node/npm build-time only; GUI/recovery/blockchain acceptance is separate',
               'notRun': ['clean Ubuntu OS/display matrix', 'live funded testnets', 'independent security/license review']}
     if reason:
         report['reason'] = reason

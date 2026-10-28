@@ -175,6 +175,56 @@ class NoticeTests(unittest.TestCase):
             with mock.patch.object(notices, 'run', fake), self.assertRaises(notices.NoticeError):
                 notices.collect_go(self.root, [], [])
 
+    def test_portable_fork_is_narrowly_pinned_and_actual_sources_are_hashed(self):
+        source = self.root / 'third_party/wails'
+        self.put('third_party/wails/LICENSE')
+        self.put('third_party/wails/go.mod', b'module github.com/wailsapp/wails/v2\n')
+        implementation = self.put('third_party/wails/runtime.go', b'package wails\n')
+        self.put('third_party/wails/template/gitkeep', b'')
+        module = dict(Path='github.com/wailsapp/wails/v2', Version='v2.17.0', Dir=str(source),
+                      Replace=dict(Path='./third_party/wails', Dir=str(source)))
+        fake, calls = self.go_tool(module)
+        components, texts = [], []
+        with mock.patch.object(notices, 'run', fake):
+            notices.collect_go(self.root, components, texts, ('cryptowallet',), portable=True)
+        fork = components[0]
+        self.assertEqual(fork['provenance']['kind'], 'local-reviewed-go-fork')
+        self.assertEqual(fork['provenance']['sourceFilesSHA256']['template/gitkeep'], notices.sha256(b''))
+        self.assertEqual(fork['provenance']['sourceFilesSHA256']['runtime.go'], notices.sha256(implementation.read_bytes()))
+        self.assertIn('-tags=production,webkit2_41,portable', calls[2])
+        for version, path in [('v2.17.1', './third_party/wails'), ('v2.17.0', '../other')]:
+            bad = copy.deepcopy(module)
+            bad['Version'], bad['Replace']['Path'] = version, path
+            fake, _ = self.go_tool(bad)
+            with mock.patch.object(notices, 'run', fake), self.assertRaises(notices.NoticeError):
+                notices.collect_go(self.root, [], [], ('cryptowallet',), portable=True)
+        implementation.unlink()
+        implementation.symlink_to(self.put('untrusted-go-source', b'package wails\n'))
+        fake, _ = self.go_tool(module)
+        with mock.patch.object(notices, 'run', fake), self.assertRaises(notices.NoticeError):
+            notices.collect_go(self.root, [], [], ('cryptowallet',), portable=True)
+
+    def test_embedded_frontend_inventory_requires_locked_production_identities(self):
+        location = 'node_modules/react'
+        packages = {'': dict(name='frontend'), location: dict(version='19.3.1', integrity=INTEGRITY),
+                    'node_modules/dev-only': dict(version='1.0.0', dev=True, integrity=INTEGRITY)}
+        lock = self.put('internal/webui/frontend/package-lock.json', json.dumps(dict(lockfileVersion=3, packages=packages)).encode())
+        metadata = self.put('internal/webui/frontend/node_modules/react/package.json', json.dumps(dict(name='react', version='19.3.1')).encode())
+        license_file = self.put('internal/webui/frontend/node_modules/react/LICENSE', b'Exact public React fixture attribution.\n')
+        components, texts = [], []
+        provenance = notices.collect_frontend(self.root, components, texts)
+        self.assertEqual(provenance['productionNpmPackages'], 1)
+        self.assertEqual(components[0]['id'], 'npm:react@19.3.1')
+        self.assertEqual(texts[0][2], license_file.read_bytes())
+        metadata.write_text(json.dumps(dict(name='react', version='19.3.2')))
+        with self.assertRaises(notices.NoticeError):
+            notices.collect_frontend(self.root, [], [])
+        metadata.write_text(json.dumps(dict(name='react', version='19.3.1')))
+        packages[location]['link'] = True
+        lock.write_text(json.dumps(dict(lockfileVersion=3, packages=packages)))
+        with self.assertRaises(notices.NoticeError):
+            notices.collect_frontend(self.root, [], [])
+
     def test_checksum_syntax_is_not_treated_as_provenance(self):
         self.assertTrue(notices.valid_integrity(INTEGRITY))
         for value in (None, 'sha512-missing', 'unknown-' + base64.b64encode(bytes(64)).decode(), 'sha512-' + base64.b64encode(bytes(32)).decode()):
