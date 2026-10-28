@@ -1,5 +1,17 @@
 # Implementation and release evidence
 
+## CI checkout repair — 2026-10-28
+
+Release run [40631055106](https://github.com/neodix42/crypto-wallet/actions/runs/40631055106) failed in `setup-node` because the configured npm lockfile was absent from commit `b874fde`. The Wails adapter/frontend, pinned fork and new helpers existed only as untracked local files. The cache path was correct; disabling caching would have hidden the first missing input without repairing the build. This repair commits the complete source inventory and adds a Python-only checkout preflight before compiler/cache setup.
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS | Full pinned-fork inventory verification: 963 upstream files, 20 explicit wallet patch entries, 976 final files. Generated frontend output, `node_modules/`, `.tools/`, executable artifacts and profiles stay excluded from Git. |
+| PASS | 58 build/install/release regressions, 15 license-inventory regressions, 16 React tests and focused Wails/controller race tests. The Go results reused valid cached test results for unchanged code. All three workflows pass pinned actionlint. |
+| PASS | Twelve checkout-preflight regressions, including missing/untracked lockfile and fork sources, ignored uncommitted frontend source, lock drift and fork tampering. The actual index contains all 1,015 checked build inputs. |
+| PASS, clean Git checkout | `python3 scripts/go-build-test.py` rebuilt locked npm dependencies, production frontend, notices and the one-file Go archive from a disposable committed worktree. No application source or generated asset was copied from the development tree; only development SDK/compiler/module caches were reused. Extracted diagnostics work without those caches or toolchains and create no profile. Electron/Debian tool invocations: zero. Report: `reports/ci-checkout-build.json`; this build check does not certify a new GUI/network campaign. |
+| NOT_RUN | Hosted build/release for the repair commit, pending push. No additional security, funded-network, OS-matrix or production-readiness gate is claimed. |
+
 ## Current Wails / React distribution — 2026-10-28
 
 The owner selected the sibling charting project's main UI architecture: Wails v2.17.0 and React/TypeScript with system WebKitGTK 4.1, replacing the handwritten GTK interface. Charting's optional Chromium Screener is not included. CryptoWallet retains one Go executable containing embedded frontend assets and coordinator/signer self-roles, unchanged profile/vault/derivation identities and all nine networks/twelve asset identities. Node/npm compile the frontend only; runtime prerequisites are system GTK3/WebKitGTK. There is no Electron/Chromium bundle or SUID-helper setup. The Go roles apply no syscall sandbox; the pinned Wails implementation also explicitly disables WebKitGTK's renderer sandbox while enforcing local-asset and ephemeral-storage policy. [Current trust boundary and evidence](WAILS_UI.md).

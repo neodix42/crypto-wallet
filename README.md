@@ -56,6 +56,8 @@ The compiler is pinned to Go **1.27.3**, bootstrapped from Go 1.21+; first-time 
 
 `.tools/` is an ignored developer/test cache: **do not commit it**. Neither local nor downloaded executables need it. Legacy Electron code and its isolated regressions remain available through explicitly named `make build-desktop`, `make package-desktop`, `make install-desktop` and `make test-packaged-desktop`; they are not part of the default build/install/release. `make build-components` and `make package-components` retain the earlier backend-only development layout. No target creates a Debian package.
 
+The Wails adapter, React sources and npm lockfile under `internal/webui/`, the checksum-pinned `third_party/wails/` fork and build helpers under `scripts/` **are required committed build inputs**. Keep them in source control; generated `frontend/dist/` and `node_modules/` remain ignored. CI checks these inputs immediately after checkout, before setting up the npm cache. Run `python3 scripts/check-build-inputs.py` to detect missing or untracked inputs locally.
+
 ## Data and network connections
 
 Wallet data remains in **`~/.config/localwallet/mainnet`**, or **`$XDG_CONFIG_HOME/localwallet/mainnet`**. The retained `localwallet` storage name ensures existing keys reopen without a migration or a replacement wallet. The default network is mainnet; `./cryptowallet --profile=testnet` opens the separate existing testnet profile. Replacing the executable does not copy, convert or delete a vault.
@@ -73,6 +75,7 @@ CI-only signing regressions require `./scripts/with-toolchain.sh npm --prefix .g
 The public-pixel OCR regression in `make test` requires `python3-pil` and `tesseract-ocr` (`sudo apt-get install python3-pil tesseract-ocr`). It uses a committed public tooltip fixture and does not open a wallet or display.
 
 ```sh
+python3 scripts/check-build-inputs-test.py # missing/untracked source and lockfile regressions
 make test-go              # compile embedded frontend, then Go unit/corpus tests
 make frontend             # prepare embedded assets before direct go test ./...
 make test-exchange        # Bybit/signing/IPC/UI guards, mutations and explicit local USDT integration

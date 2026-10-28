@@ -1,0 +1,56 @@
+import type { Node, Prompt, View } from './types';
+
+const kinds = new Set(['label', 'heading', 'separator', 'row', 'column', 'button', 'entry', 'combo', 'check', 'address']);
+const encoder = new TextEncoder();
+export function boundedText(value: unknown, max: number, empty = true): value is string {
+  return typeof value === 'string' && (empty || value.length > 0) && !value.includes('\0') && encoder.encode(value).length <= max;
+}
+function object(value: unknown): value is Record<string, unknown> { return !!value && typeof value === 'object' && !Array.isArray(value); }
+function list(value: unknown, max: number): value is unknown[] | null { return value === null || Array.isArray(value) && value.length <= max; }
+export function validView(value: unknown): value is View {
+  if (!object(value) || !boundedText(value.Title, 256) || !boundedText(value.Status, 65536) || !boundedText(value.Active, 256) || !Number.isSafeInteger(value.StatusRevision) || Number(value.StatusRevision) < 0 || !list(value.Pages, 1000)) return false;
+  let remaining = 20000;
+  function nodes(values: unknown[] | null, depth: number): boolean {
+    if (depth > 32 || !list(values, 20000)) return false;
+    return (values || []).every(n => {
+      if (--remaining < 0 || !object(n) || !kinds.has(String(n.Kind)) || !boundedText(n.ID, 256) || !boundedText(n.Text, 65536) || !boundedText(n.Tooltip, 65536) || !boundedText(n.Value, 4096) || typeof n.Disabled !== 'boolean' || !list(n.Options, 10000) || !list(n.Children, 20000)) return false;
+      if (n.Kind === 'entry' && /password|phrase|mnemonic|secret|apikey|api_key|credential|passphrase/i.test(n.ID)) return false;
+      return (n.Options || []).every(option => object(option) && boundedText(option.ID, 4096) && boundedText(option.Text, 4096)) && nodes(n.Children, depth + 1);
+    });
+  }
+  const seen = new Set<string>();
+  return (value.Pages || []).every(page => {
+    if (!object(page) || !boundedText(page.ID, 256, false) || seen.has(page.ID) || !boundedText(page.Title, 256) || !list(page.Nodes, 20000) || !nodes(page.Nodes, 0)) return false;
+    seen.add(page.ID); return true;
+  });
+}
+export function isWalletRow(node: Node): boolean {
+  return node.Kind === 'row' && node.ID.startsWith('open/') && (node.Children || []).length === 4 && node.Children?.[2]?.Kind === 'address';
+}
+export function validPrompt(value: unknown): value is Prompt {
+  if (!object(value) || typeof value.id !== 'string' || !/^[a-f0-9]{32}$/.test(value.id) || !boundedText(value.title, 256, false)) return false;
+  let fields = ['id', 'kind', 'title'];
+  switch (value.kind) {
+    case 'input':
+      fields = fields.concat('labels');
+      if (!Array.isArray(value.labels) || value.labels.length < 1 || value.labels.length > 8 || !value.labels.every(v => boundedText(v, 256, false))) return false;
+      break;
+    case 'recovery': case 'recoveryBackup':
+      fields = fields.concat('phrase');
+      if (!boundedText(value.phrase, 512, false) || !/^[a-z]+(?: [a-z]+)*$/.test(value.phrase) || ![12, 15, 18, 21, 24].includes(value.phrase.split(' ').length)) return false;
+      break;
+    case 'receive':
+      fields = fields.concat('summary', 'address', 'png');
+      if (!boundedText(value.address, 512, false) || !boundedText(value.png, 349528, false) || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(value.png)) return false;
+      if (!boundedText(value.summary, 65536)) return false;
+      break;
+    case 'confirm': case 'notice':
+      fields = fields.concat('summary');
+      if (!boundedText(value.summary, 65536)) return false;
+      break;
+    default: return false;
+  }
+  return Object.keys(value).length === fields.length && fields.every(field => Object.hasOwn(value, field));
+}
+export function inputWithinLimit(value: string): boolean { return boundedText(value, 4096); }
+export function phraseWords(prompt: Prompt): string[] { return prompt.kind === 'recovery' || prompt.kind === 'recoveryBackup' ? (prompt.phrase || '').split(' ') : []; }

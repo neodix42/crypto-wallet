@@ -1,0 +1,5 @@
+export function Mark() {
+  return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 11 6v14l-11 6L5 23V9L16 3Z" stroke="currentColor" strokeWidth="1.8"/><path d="m10 12 6-3 6 3v8l-6 3-6-3v-8Z" stroke="currentColor" strokeWidth="1.8"/><path d="m10 12 6 4 6-4m-6 4v7" stroke="currentColor" strokeWidth="1.8"/></svg>;
+}
+export function CopyIcon() { return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M12 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3" stroke="currentColor" strokeWidth="1.5"/></svg>; }
+export function SettingsIcon() { return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 3 .5-1h3l.5 1 1 .6 1.2-.1 1.5 2.6-.6 1.1v1.2l.6 1.1-1.5 2.6-1.2-.1-1 .6-.5 1h-3l-.5-1-1-.6-1.2.1-1.5-2.6.6-1.1V7.2l-.6-1.1 1.5-2.6 1.2.1L8 3Z" transform="translate(0 2)" stroke="currentColor" strokeWidth="1.4"/><circle cx="10" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.4"/></svg>; }
