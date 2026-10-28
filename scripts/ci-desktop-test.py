@@ -268,6 +268,7 @@ class CIDesktop(unittest.TestCase):
         self.assertLess(cleanup, upload)
         self.assertIn('if: always()', text[text.rfind('      - name:', 0, cleanup):cleanup])
         self.assertIn('reports/wails-*-near-public-contract.png', text)
+        self.assertIn('reports/wails-*-evm-public-contract.png', text)
         self.assertIn('reports/wails-*-main-row-public-controls.png', text)
         for broad_pixels in ['reports/*.png', 'reports/**/*.png']:
             self.assertNotIn(broad_pixels, text)

@@ -37,6 +37,7 @@ test:
 	$(TOOLS) npm --prefix internal/webui/frontend test
 	python3 scripts/build-tools-test.py
 	python3 scripts/ci-go-test.py
+	python3 scripts/crash-security-test.py
 	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
 	python3 scripts/ci-desktop-test.py
@@ -58,6 +59,7 @@ test-ci:
 	$(TOOLS) npm --prefix internal/webui/frontend test
 	python3 scripts/build-tools-test.py --current-ui
 	python3 scripts/ci-go-test.py
+	python3 scripts/crash-security-test.py
 	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
 	python3 scripts/ci-desktop-test.py

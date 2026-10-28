@@ -1,5 +1,41 @@
 # Current desktop checks in GitHub Actions
 
+## Hosted ERC-20 hover-text observation — 2026-10-29
+
+[Run 40760159215](https://github.com/neodix42/crypto-wallet/actions/runs/40760159215/job/123069590093)
+at `abd29c8` passes the repaired phrase reader and seven complete graphical steps,
+then fails to recognize the complete USDT contract in its hover tooltip. Its
+artifact has no tooltip crop or per-attempt decoding results. The failure does
+not establish that the application displayed the wrong address.
+
+A fresh disposable-profile reproduction with official Ubuntu 24 Tesseract 5.3.4
+and verified DejaVu Sans Mono establishes a decoder failure. The label/fill
+locator repeatedly finds the complete tooltip; its two-line block contains the
+correct full address. Native and 3× paragraph OCR misread the prefix, while the
+single-line modes incorrectly receive both header and address. The earlier
+blanket font configuration selects proportional Sans for `monospace`; its passing
+control is explicitly not evidence of mono-font equivalence. Family-scoped
+font checks are required before a configuration is used as that reproduction.
+
+The additional reader separates exactly two complete ink lines inside the same
+guarded public tooltip and reads the entire address line. It permits only
+whitespace joining and case-insensitive comparison of the complete identity.
+OCR alone can confuse a capital `O` with `0`; the mono fallback independently
+requires the observed zero's closed ring and detached enclosed dot. Other dotted
+zeros identify that font's shape without an expected-address pixel template.
+An initial hollow `O` in that font rejects before any OCR mode can accept it.
+The original observations remain available for proportional rendering. No glyph
+is replaced, no expected-character whitelist is supplied, and the original shared
+15-second deadline remains. Unsupported or ambiguous fallback shapes fail closed.
+
+Only numeric/hash decoder metadata and the already guard-checked, bounded public
+tooltip crop can be retained on failure. The artifact upload adds only
+`reports/wails-*-evm-public-contract.png`; private/unexpected windows still stop
+the original capture. Public fixture metadata distinguishes actual mono and
+proportional crops from synthetic altered-address controls. The source-specific
+checklist in [STATUS.md](STATUS.md) records complete-run and hosted results
+separately; none of these observations changes application signing or RPC policy.
+
 ## Hosted recovery-phrase grid fallback — 2026-10-28
 
 [Run 40752321716](https://github.com/neodix42/crypto-wallet/actions/runs/40752321716)

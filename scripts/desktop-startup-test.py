@@ -1285,6 +1285,181 @@ class WailsEVMContractTooltip(unittest.TestCase):
             block(rows,picture,(0,0,401,320),(100,260))
 
 
+class WailsEVMContractDecoder(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('palette','exact_evm_contract_text','evm_contract_address_line','evm_dotted_zero_structure',
+               'decode_evm_contract_tooltip','verify_evm_public_contract')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.folder=tempfile.TemporaryDirectory(prefix='wallet-public-evm-contract-')
+        self.addCleanup(self.folder.cleanup)
+        self.report={}
+        self.capture=mock.Mock()
+        self.block=mock.Mock()
+        self.scope={'Image':Image,'ImageOps':ImageOps,'io':io,'time':time,'hashlib':hashlib,'re':re,
+                    'subprocess':subprocess,'appearance':{'theme':'light'},'report':self.report,
+                    'public_rows':self.capture,'evm_contract_tooltip_block':self.block,
+                    'REPORTS':pathlib.Path(self.folder.name),'args':SimpleNamespace(report_name='owned-contract')}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'wails-public-evm-helper','exec'),self.scope)
+        self.metadata=json.loads((ROOT/'tests/e2e/fixtures/evm-public-contract.json').read_text())
+        self.contract=self.metadata['contract']
+        self.fixture=ROOT/'tests/e2e/fixtures'/self.metadata['actualMono']['file']
+
+    def decode(self,picture):
+        return self.scope['decode_evm_contract_tooltip'](picture,self.contract,time.monotonic()+10)
+
+    def test_actual_mono_and_proportional_crops_pass_the_complete_combined_decoder(self):
+        for kind in ('actualMono','actualProportional'):
+            metadata=self.metadata[kind];path=self.fixture.parent/metadata['file']
+            with self.subTest(kind=kind):
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),metadata['fixtureSHA256'])
+                self.report.clear()
+                with Image.open(path) as picture:self.assertTrue(self.decode(picture))
+                self.assertEqual(self.report['ethereumContractLine']['dottedZeroPrefix'],kind=='actualMono')
+                last=self.report['ethereumContractOCR'][-1]
+                self.assertEqual((last['region'],last['scale'],last['psm']),('line',4,7) if kind=='actualMono' else ('block',3,6))
+                self.assertTrue(all(set(row)=={'region','scale','psm','matched','recognizedBytes','recognizedSHA256'} for row in self.report['ethereumContractOCR']))
+        self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
+
+    def test_complete_decoder_rejects_all_rendered_negative_images(self):
+        control=self.metadata['syntheticMono'];path=self.fixture.parent/control['file']
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),control['fixtureSHA256'])
+        with Image.open(path) as picture:self.assertTrue(self.decode(picture),'negative controls must use a supported positive rendering')
+        for name,metadata in self.metadata['negativeFixtures'].items():
+            path=self.fixture.parent/name
+            with self.subTest(fixture=name):
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),metadata['fixtureSHA256'])
+                self.report.clear()
+                with Image.open(path) as picture:self.assertFalse(self.decode(picture))
+                if name.endswith('capital-o-prefix.png'):
+                    self.assertFalse(self.report['ethereumContractLine']['dottedZeroPrefix'])
+                    self.assertGreater(self.report['ethereumContractLine']['otherDottedZeroGlyphs'],0)
+                    self.assertNotIn('ethereumContractOCR',self.report,'structurally contradicted Ox must reject before every OCR mode')
+
+    def test_single_line_decoder_preserves_every_nonwhitespace_byte_and_caps_ocr(self):
+        values=((self.contract+'\n',True),('0x'+self.contract[2:].upper(),True),
+                (self.contract[:22]+' '+self.contract[22:],True),
+                (self.contract.replace('1','l',1),False),(self.contract.replace('1','I',1),False),
+                (self.contract.replace('0x','Ox',1),False),('@'+self.contract,False),
+                (self.contract+'0',False),('0'+self.contract,False),
+                (self.contract+'\n'+self.contract,False))
+        for value,expected in values:
+            with self.subTest(value=value),mock.patch.object(subprocess,'check_output',side_effect=[b'not a contract\n']*4+[value.encode()]) as decoder:
+                with Image.open(self.fixture) as picture:self.assertEqual(self.decode(picture),expected)
+                self.assertEqual(decoder.call_count,5)
+                self.assertEqual([call.args[0] for call in decoder.call_args_list],
+                                 [['tesseract','stdin','stdout','--psm',str(psm)] for psm in (6,6,7,7,7)])
+                self.assertTrue(all(0<call.kwargs['timeout']<=10 for call in decoder.call_args_list))
+                with Image.open(io.BytesIO(decoder.call_args.kwargs['input'])) as prepared:self.assertEqual(prepared.size,(2784,184))
+
+    def test_address_line_requires_two_complete_unclipped_ink_bands_and_supported_fill(self):
+        with Image.open(self.fixture) as source:picture=source.copy()
+        captured=self.scope['evm_contract_address_line'](picture)
+        self.assertEqual(captured[1],(8,39,680,61))
+        variants=[]
+        blank=Image.new('L',picture.size,240);variants.append(blank)
+        missing=picture.copy();missing.paste(240,(8,35,picture.width-8,65));variants.append(missing)
+        third=picture.copy();ImageDraw.Draw(third).rectangle((20,65,80,70),fill=39);variants.append(third)
+        clipped=picture.copy();ImageDraw.Draw(clipped).rectangle((1,44,8,55),fill=39);variants.append(clipped)
+        wrong_fill=picture.copy();wrong_fill.putpixel((picture.width//2,2),239);variants.append(wrong_fill)
+        variants.extend((picture.convert('RGB'),Image.new('L',(711,74),240),Image.new('L',(688,141),240)))
+        for variant in variants:
+            with self.subTest(size=variant.size,mode=variant.mode):self.assertIsNone(self.scope['evm_contract_address_line'](variant))
+
+    def test_dark_supported_fill_is_normalized_before_structural_observation(self):
+        with Image.open(self.fixture) as picture:
+            dark=picture.point(lambda value:max(0,min(255,round(25+(240-value)*195/201))))
+        self.assertIsNone(self.scope['evm_contract_address_line'](dark),'dark pixels cannot masquerade as Light')
+        self.scope['appearance']['theme']='dark'
+        captured=self.scope['evm_contract_address_line'](dark)
+        self.assertIsNotNone(captured)
+        self.assertEqual(self.scope['evm_dotted_zero_structure'](captured[0]),(True,2))
+
+    def glyph(self):
+        picture=Image.new('L',(100,24),240)
+        draw=ImageDraw.Draw(picture)
+        draw.rectangle((5,4,13,18),outline=39,width=2)
+        draw.rectangle((8,10,9,11),fill=39)
+        return picture
+
+    def test_dotted_zero_requires_a_complete_ring_and_one_detached_enclosed_dot(self):
+        self.assertEqual(self.scope['evm_dotted_zero_structure'](self.glyph()),(True,0))
+        variants=[]
+        opened=self.glyph();ImageDraw.Draw(opened).rectangle((8,3,10,7),fill=240);variants.append(opened)
+        hollow=self.glyph();ImageDraw.Draw(hollow).rectangle((8,10,9,11),fill=240);variants.append(hollow)
+        outside=hollow.copy();ImageDraw.Draw(outside).rectangle((18,10,19,11),fill=39);variants.append(outside)
+        attached=self.glyph();ImageDraw.Draw(attached).rectangle((6,10,9,11),fill=39);variants.append(attached)
+        fake=Image.new('L',(100,24),240);ImageDraw.Draw(fake).rectangle((8,10,9,11),fill=39);variants.append(fake)
+        extra=self.glyph();extra.putpixel((10,14),39);variants.append(extra)
+        clipped=Image.new('L',(100,24),240);clipped.paste(self.glyph(),(-5,0));variants.append(clipped)
+        variants.extend((Image.new('L',(695,24),240),Image.new('L',(100,41),240),self.glyph().convert('RGB')))
+        for variant in variants:
+            with self.subTest(size=variant.size,mode=variant.mode):self.assertFalse(self.scope['evm_dotted_zero_structure'](variant)[0])
+
+    def test_expired_budget_and_ocr_failure_cannot_become_a_match_or_extend_timeout(self):
+        with Image.open(self.fixture) as picture,mock.patch.object(subprocess,'check_output') as decoder:
+            self.assertFalse(self.scope['decode_evm_contract_tooltip'](picture,self.contract,time.monotonic()-1))
+            decoder.assert_not_called()
+        for error in (subprocess.TimeoutExpired('tesseract',1),subprocess.CalledProcessError(1,'tesseract')):
+            with Image.open(self.fixture) as picture,mock.patch.object(subprocess,'check_output',side_effect=error) as decoder:
+                with self.assertRaises(type(error)):self.scope['decode_evm_contract_tooltip'](picture,self.contract,time.monotonic()+.1)
+                self.assertLessEqual(decoder.call_args.kwargs['timeout'],.1)
+        with mock.patch.object(subprocess,'check_output') as decoder:
+            for picture in (Image.new('L',(711,74)),Image.new('L',(688,141)),Image.new('RGB',(688,74))):self.assertFalse(self.decode(picture))
+            decoder.assert_not_called()
+
+    def test_only_already_guarded_bounded_public_crop_is_saved_on_failure(self):
+        with Image.open(self.fixture) as picture:crop=picture.copy()
+        self.capture.return_value=([],Image.new('RGB',(1600,1100)),(80,32,1440,1036))
+        self.block.return_value=(crop,(159,543,847,617))
+        self.scope['decode_evm_contract_tooltip']=mock.Mock(return_value=False)
+        self.scope['time']=SimpleNamespace(monotonic=mock.Mock(side_effect=[0,1,2]),sleep=mock.Mock())
+        self.assertIsNone(self.scope['verify_evm_public_contract']((200,647),self.contract,1))
+        self.capture.assert_called_once_with(with_picture=True,with_geometry=True)
+        files=list(pathlib.Path(self.folder.name).iterdir())
+        self.assertEqual([path.name for path in files],['owned-contract-evm-public-contract.png'])
+        with Image.open(files[0]) as saved:self.assertEqual(saved.tobytes(),crop.tobytes())
+        self.assertEqual(self.report['ethereumContractPublicRegion']['failureArtifactSHA256'],hashlib.sha256(files[0].read_bytes()).hexdigest())
+        self.scope['time'].sleep.assert_called_once_with(0)
+
+    def test_private_capture_error_never_creates_a_failure_artifact_even_after_a_public_crop(self):
+        private=type('PrivateWindowVisible',(RuntimeError,),{})
+        with Image.open(self.fixture) as picture:crop=picture.copy()
+        public=([],Image.new('RGB',(1600,1100)),(80,32,1440,1036))
+        self.block.return_value=(crop,(159,543,847,617))
+        self.scope['decode_evm_contract_tooltip']=mock.Mock(return_value=False)
+        self.scope['time']=SimpleNamespace(monotonic=lambda:0,sleep=mock.Mock())
+        for observations in ([private('private pixels refused')],[public,private('private pixels refused')]):
+            self.capture.side_effect=observations
+            with self.assertRaises(private):self.scope['verify_evm_public_contract']((200,647),self.contract,1)
+            self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
+
+    def test_ocr_timeout_keeps_only_guarded_numeric_region_metadata_and_no_new_capture(self):
+        with Image.open(self.fixture) as picture:crop=picture.copy()
+        self.capture.return_value=([],Image.new('RGB',(1600,1100)),(80,32,1440,1036))
+        self.block.return_value=(crop,(159,543,847,617))
+        self.scope['decode_evm_contract_tooltip']=mock.Mock(side_effect=subprocess.TimeoutExpired('tesseract',.1))
+        with self.assertRaises(subprocess.TimeoutExpired):self.scope['verify_evm_public_contract']((200,647),self.contract,time.monotonic()+.1)
+        self.capture.assert_called_once_with(with_picture=True,with_geometry=True)
+        self.assertEqual(self.report,{'ethereumContractPublicRegion':{'bounds':[159,543,847,617],'size':[688,74]}})
+        self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
+
+
+class WailsHostedFontFamilies(unittest.TestCase):
+    def test_font_profile_has_no_blanket_family_replacement_and_preserves_monospace(self):
+        import xml.etree.ElementTree as ET
+        path=ROOT/'tests/e2e/fixtures/hosted-font-families.conf'
+        profile=ET.parse(path).getroot()
+        for match in profile.findall('match'):
+            self.assertTrue(match.findall("test[@name='family']"),'unscoped font replacement can silently turn mono into proportional text')
+        env=dict(os.environ,FONTCONFIG_FILE=str(path))
+        for family,expected in ((r'sans\-serif','DejaVu Sans'),(r'system\-ui','DejaVu Sans'),
+                                (r'ui\-monospace','DejaVu Sans Mono'),(r'SFMono\-Regular','DejaVu Sans Mono'),
+                                ('Consolas','DejaVu Sans Mono'),('monospace','DejaVu Sans Mono')):
+            with self.subTest(family=family):
+                self.assertEqual(subprocess.check_output(['fc-match','-f','%{family}',family],env=env,timeout=5).decode(),expected)
+
+
 
 
 class WailsPrivatePhraseGrid(unittest.TestCase):
@@ -1454,7 +1629,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
+    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

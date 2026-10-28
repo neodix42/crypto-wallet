@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Owned-process crash/canary drill using real Go binaries and disposable roots.
 
-The client emulates only the typed Electron prompt channel. No GUI automation,
+The client exercises the shared typed backend prompt channel. No GUI automation,
 live network request, Decred operation, public testnet, or real user profile is
 used. No private prompt bytes or secret diagnostics are written to reports.
 """
@@ -34,6 +34,18 @@ class DrillFailure(Exception):
 def require(value, reason):
     if not value:
         raise DrillFailure(reason)
+
+
+def failure_site(error):
+    # Only a fixed function/line from this source, never exception text, a
+    # traceback or locals that might contain private prompt material.
+    site = None
+    trace = error.__traceback__
+    while trace is not None:
+        if os.path.abspath(trace.tb_frame.f_code.co_filename) == os.path.abspath(__file__):
+            site = dict(function=trace.tb_frame.f_code.co_name, line=trace.tb_lineno)
+        trace = trace.tb_next
+    return site
 
 
 def read_exact(stream, size):
@@ -69,6 +81,7 @@ class Client:
         self.request = None
         self.prompt = None
         self.signers = set()
+        self.signer_handles = {}
         self.stopped = False
         self.reader = threading.Thread(target=self.pump, daemon=True)
         self.reader.start()
@@ -149,17 +162,32 @@ class Client:
         for children in pathlib.Path('/proc', str(self.process.pid), 'task').glob('*/children'):
             try:
                 descendants.update(int(p) for p in children.read_text().split())
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 pass
 
         for pid in descendants:
+            if pid in self.signer_handles:
+                continue
             path = pathlib.Path('/proc', str(pid))
+            handle = None
             try:
-                if b'wallet-signer' not in (path / 'cmdline').read_bytes():
+                # Pin the observed process before inspecting it. A numeric PID
+                # remembered at a prompt may be recycled before an intentional
+                # crash; pidfd signaling cannot target its replacement.
+                handle = os.pidfd_open(pid)
+                if (path / 'cmdline').read_bytes().split(b'\0', 1)[0] != os.fsencode(self.install / 'wallet-signer'):
+                    continue
+                stat = (path / 'stat').read_text().rsplit(') ', 1)[1].split()
+                if int(stat[1]) != self.process.pid:
                     continue
                 self.signers.add(pid)
-            except FileNotFoundError:
+                self.signer_handles[pid] = handle
+                handle = None
+            except (FileNotFoundError, ProcessLookupError):
                 pass
+            finally:
+                if handle is not None:
+                    os.close(handle)
 
     def inspect_processes(self):
         self.discover_signers()
@@ -167,29 +195,49 @@ class Client:
         for pid in (self.process.pid, *self.signers):
             path = pathlib.Path('/proc', str(pid))
             require(path.exists(), 'Secret process disappeared before probe')
-            for name in ('cmdline', 'environ'):
-                try:
-                    raw = (path / name).read_bytes()
-                except PermissionError:
-                    # Non-dumpability deliberately denies the parent access to
-                    # /proc/<pid>/environ. Do not weaken it for test inspection.
-                    require(name == 'environ', 'Unexpected proc inspection denial')
-                    continue
-                require(not contains_secret(raw, self.canaries), 'Secret reached argv/environment')
-            limits = (path / 'limits').read_text()
+            try:
+                for name in ('cmdline', 'environ'):
+                    try:
+                        raw = (path / name).read_bytes()
+                    except PermissionError:
+                        # Non-dumpability deliberately denies the parent access
+                        # to environ. Do not weaken it for test inspection.
+                        require(name == 'environ', 'Unexpected proc inspection denial')
+                        continue
+                    require(not contains_secret(raw, self.canaries), 'Secret reached argv/environment')
+                limits = (path / 'limits').read_text()
+            except (FileNotFoundError, ProcessLookupError):
+                raise DrillFailure('Required secret process disappeared during active inspection') from None
             require(re.search(r'Max core file size\s+0\s+0\s+bytes', limits),
                     'Secret process core limits are not zero')
+
+    def crash_signers(self, sig):
+        require(self.signers and all(pid in self.signer_handles for pid in self.signers),
+                'No pinned signer observed for the requested crash')
+        for pid in self.signers:
+            try:
+                signal.pidfd_send_signal(self.signer_handles[pid], sig)
+            except ProcessLookupError:
+                raise DrillFailure('Expected signer exited before the requested crash') from None
+
+    def close_handles(self):
+        for handle in self.signer_handles.values():
+            os.close(handle)
+        self.signer_handles.clear()
 
     def stop(self, sig=signal.SIGTERM):
         if self.stopped:
             return
         if self.process.poll() is None:
             self.discover_signers()
-            os.kill(self.process.pid, sig)
+            # Popen.send_signal rechecks/reaps the owned child and handles the
+            # poll-to-signal ESRCH race. Raw os.kill can spuriously fail after a
+            # healthy child exits during this cleanup interval.
+            self.process.send_signal(sig)
             try:
                 self.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                os.killpg(self.process.pid, signal.SIGKILL)
+                self.process.kill()
                 self.process.wait(timeout=10)
                 raise DrillFailure('Application did not stop within deadline')
         self.reader.join(timeout=5)
@@ -203,7 +251,7 @@ class Client:
                 for task in pathlib.Path('/proc', str(pid), 'task').glob('*/stat'):
                     try:
                         live |= task.read_text().split(') ', 1)[1][0] != 'Z'
-                    except FileNotFoundError:
+                    except (FileNotFoundError, ProcessLookupError):
                         pass
                 if not live:
                     break
@@ -226,6 +274,7 @@ class Client:
                     os.close(descriptor)
                 time.sleep(.05)
         self.stopped = True
+        self.close_handles()
 
 
 def contains_secret(raw, canaries):
@@ -264,7 +313,7 @@ def main():
     harness_hash = hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()
     report = dict(status='RUNNING', scope=__doc__, checks=[],
         sourceSHA256={'scripts/crash-security.py': harness_hash},
-        notRun=['Electron/Chromium crash collection and browser storage/clipboard/QR/network capture',
+        notRun=['Graphical UI crash collection and webview storage/clipboard/QR/network capture',
                 'Live send-boundary crash acceptance', 'Physical OS lock/suspend/Wayland',
                 'Independent review', 'Decred-specific work and public testnet tests excluded by owner'])
     (REPORTS / 'crash-security.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -312,7 +361,9 @@ def main():
                     if stage == 'challenge':
                         c.reply()
                         c.expect_prompt('input')
+                report['lastCase'] = stage + ': core SIGKILL'
                 c.stop(signal.SIGKILL)
+                require(c.process.returncode == -signal.SIGKILL, 'Requested core SIGKILL did not occur')
                 report['lastCase'] = stage + ': reopen'
                 reopened = client(home)
                 snapshot = reopened.call('accounts')
@@ -338,7 +389,9 @@ def main():
                     require(reopened.finish()['body']['recoveryConfirmed'],
                             'Correct words failed after crash recovery')
                     reopened.inspect_processes()
+                    report['lastCase'] = stage + ': confirmed core SIGABRT'
                     reopened.stop(signal.SIGABRT)
+                    report['lastCase'] = stage + ': confirmed root reopen'
                     third = client(home)
                     require(third.call('accounts')['locked'], 'Aborted process restarted unlocked')
                     third.begin('unlock')
@@ -346,10 +399,13 @@ def main():
                     third.reply([password])
                     require(third.finish()['body']['recoveryConfirmed'],
                             'Abort lost durable confirmation')
+                    report['lastCase'] = stage + ': stop confirmed core'
                     third.stop()
+                report['lastCase'] = stage + ': stop reopened core'
                 reopened.stop()
                 passed('Actual core SIGKILL at ' + stage + '; restart preserves root/confirmation boundaries')
             for abrupt in (signal.SIGKILL, signal.SIGABRT):
+                report['lastCase'] = 'signer ' + signal.Signals(abrupt).name + ': create'
                 home = folder / ('signer-' + str(abrupt))
                 c = client(home)
                 c.begin('create', dict(words=12))
@@ -357,18 +413,23 @@ def main():
                 c.reply([password, password])
                 phrase = c.expect_prompt('recovery')['phrase'].encode()
                 add_root_canaries(phrase, canaries, words)
-                for pid in c.signers:
-                    os.kill(pid, abrupt)
+                report['lastCase'] = 'signer ' + signal.Signals(abrupt).name + ': crash pinned signer'
+                c.crash_signers(abrupt)
+                report['lastCase'] = 'signer ' + signal.Signals(abrupt).name + ': revoked prompt'
                 event = c.finish()
                 require(event.get('error') in ('REQUEST_FAILED_STATE_UNKNOWN', 'REQUEST_CANCELLED'),
                         'Signer crash lacked sanitized failure')
+                report['lastCase'] = 'signer ' + signal.Signals(abrupt).name + ': stop core'
                 c.stop()
+                report['lastCase'] = 'signer ' + signal.Signals(abrupt).name + ': reopen'
                 reopened = client(home)
                 snapshot = reopened.call('accounts')
                 require(snapshot['locked'] and snapshot['walletExists'] and not snapshot['recoveryConfirmed'],
                         'Signer crash fabricated readiness or lost the wallet')
+                report['lastCase'] = 'signer ' + signal.Signals(abrupt).name + ': stop reopened core'
                 reopened.stop()
                 passed('Actual signer ' + signal.Signals(abrupt).name + ' revokes the pending prompt and preserves encrypted root')
+            report['lastCase'] = 'cancellation and reauthentication'
             home = folder / 'cancel'
             c = client(home)
             c.begin('create', dict(words=12))
@@ -408,12 +469,15 @@ def main():
         # Only our fixed messages are safe; parser/runtime exceptions can embed inputs.
         report.update(status='FAIL', errorClass=type(error).__name__, reason=str(error) if isinstance(error, DrillFailure) else
                       'Owned-process crash/canary drill failed; no secret diagnostic retained')
+        report['failureSite'] = failure_site(error)
     finally:
         for c in clients:
             try:
                 c.stop()
             except Exception:
                 report.update(status='FAIL', reason='Process teardown failed')
+            finally:
+                c.close_handles()
         for log in logs:
             log.close()
         if hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest() != harness_hash:

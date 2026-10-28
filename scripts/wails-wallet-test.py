@@ -1020,6 +1020,125 @@ def evm_contract_tooltip_block(rows,picture,bounds,point):
     box=(left,top,right+1,bottom+1)
     return picture.crop(box).convert("L"),box
 
+def evm_contract_address_line(picture):
+    # This receives only the immutable, label/fill-bounded public tooltip.
+    # Separate its two real ink lines, without looking for expected glyphs or
+    # trimming a prefix/suffix that might change the displayed identity.
+    if picture.mode!="L" or not (100<=picture.width<=710 and 35<=picture.height<=140):return None
+    if appearance["theme"] not in ("light","dark"):return None
+    fill=Image.new("RGB",(1,1),palette()["chrome"]).convert("L").getpixel((0,0))
+    if any(picture.getpixel(point)!=fill for point in ((picture.width//2,2),(picture.width//2,picture.height-3))):return None
+    gray=ImageOps.invert(picture) if appearance["theme"]=="dark" else picture
+    ink=[]
+    for yy in range(1,gray.height-1):
+        columns=[xx for xx in range(1,gray.width-1) if gray.getpixel((xx,yy))<160]
+        if columns:ink.append((yy,min(columns),max(columns)))
+    groups=[]
+    for row in ink:
+        if not groups or row[0]!=groups[-1][-1][0]+1:groups.append([])
+        groups[-1].append(row)
+    if len(groups)!=2:return None
+    if any(not (8<=len(group)<=30) for group in groups):return None
+    if not (4<=groups[1][0][0]-groups[0][-1][0]-1<=30):return None
+    if any(left<8 or right>=gray.width-8 for _,left,right in ink):return None
+    top,bottom=groups[1][0][0]-4,groups[1][-1][0]+5
+    if top<=groups[0][-1][0] or bottom>=gray.height-1:return None
+    box=(8,top,gray.width-8,bottom)
+    return gray.crop(box),box
+
+def evm_dotted_zero_structure(line):
+    # DejaVu Sans Mono's zero has a detached central dot inside a complete
+    # ring. Capital O does not. Independently require that observed structure
+    # before the additional mono-font decoder: OCR alone can turn Ox into 0x.
+    # Hollow/slashed/ambiguous zero fonts cannot use this fallback.
+    if line.mode!="L" or not (84<=line.width<=694 and 16<=line.height<=40):return False,0
+    ink={(xx,yy) for yy in range(line.height) for xx in range(line.width) if line.getpixel((xx,yy))<160}
+    if not ink or len(ink)>12000:return False,0
+    columns=sorted({xx for xx,_ in ink})
+    spans=[]
+    for xx in columns:
+        if not spans or xx!=spans[-1][-1]+1:spans.append([])
+        spans[-1].append(xx)
+    if len(spans)>64:return False,0
+    def dotted(span):
+        left,right=span[0],span[-1]
+        glyph={(xx,yy) for xx,yy in ink if left<=xx<=right}
+        top=min(yy for _,yy in glyph);bottom=max(yy for _,yy in glyph)
+        if not (2<=left and 5<=right-left+1<=24 and 8<=bottom-top+1<=30 and top>=2 and bottom<line.height-2):return False
+        if right+2>=line.width:return False
+        components=[]
+        remaining=set(glyph)
+        while remaining:
+            if len(components)>=2:return False
+            pending=[remaining.pop()];component=set(pending)
+            while pending:
+                xx,yy=pending.pop()
+                for neighbour in ((xx-1,yy),(xx+1,yy),(xx,yy-1),(xx,yy+1)):
+                    if neighbour in remaining:
+                        remaining.remove(neighbour);component.add(neighbour);pending.append(neighbour)
+            components.append(component)
+        if len(components)!=2:return False
+        ring,dot=sorted(components,key=len,reverse=True)
+        if not (1<=len(dot)<=16 and len(ring)>=20):return False
+        if any(not (left+2<=xx<=right-2 and top+2<=yy<=bottom-2) for xx,yy in dot):return False
+        if max(xx for xx,_ in dot)-min(xx for xx,_ in dot)>3 or max(yy for _,yy in dot)-min(yy for _,yy in dot)>3:return False
+        # The outside background must not reach the detached dot's neighbours.
+        outside={(left-1,top-1)};pending=list(outside)
+        while pending:
+            xx,yy=pending.pop()
+            for neighbour in ((xx-1,yy),(xx+1,yy),(xx,yy-1),(xx,yy+1)):
+                nx,ny=neighbour
+                if left-1<=nx<=right+1 and top-1<=ny<=bottom+1 and neighbour not in glyph and neighbour not in outside:
+                    outside.add(neighbour);pending.append(neighbour)
+        return not any((xx+dx,yy+dy) in outside for xx,yy in dot for dx,dy in ((-1,0),(1,0),(0,-1),(0,1)))
+    observed=[dotted(span) for span in spans]
+    return observed[0],sum(observed[1:])
+
+def decode_evm_contract_tooltip(picture,expected,deadline):
+    if picture.mode!="L" or not (100<=picture.width<=710 and 35<=picture.height<=140):return False
+    line=evm_contract_address_line(picture)
+    dotted,other_dots=evm_dotted_zero_structure(line[0]) if line else (False,0)
+    report["ethereumContractLine"]={"twoCompleteInkLines":line is not None,"dottedZeroPrefix":dotted,"otherDottedZeroGlyphs":other_dots}
+    # In a dotted-zero font an initial hollow O cannot be reinterpreted by
+    # any of the baseline OCR modes either. Other observed zero glyphs supply
+    # the font-shape evidence independently of the expected address text.
+    if other_dots and not dotted:return False
+    # Preserve the original bounded two-line observations. The one added path
+    # uses a whole single line and an independently disambiguated zero glyph.
+    observations=[("block",picture,scale,psm) for scale,psm in ((1,6),(3,6),(1,7),(3,7))]
+    if dotted:observations.append(("line",line[0],4,7))
+    for region,crop,scale,psm in observations:
+        remaining=deadline-time.monotonic()
+        if remaining<=0:return False
+        data=io.BytesIO()
+        ImageOps.expand(crop.resize((crop.width*scale,crop.height*scale),Image.Resampling.LANCZOS),border=12 if region=="block" else 12*scale,fill=255).save(data,format="PNG")
+        raw=subprocess.check_output(["tesseract","stdin","stdout","--psm",str(psm)],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=min(10,remaining))
+        compact="".join(raw.decode("utf-8",errors="replace").split())
+        matched=compact.lower()==expected.lower() if region=="line" else exact_evm_contract_text(raw,expected)
+        report.setdefault("ethereumContractOCR",[]).append({"region":region,"scale":scale,"psm":psm,"matched":matched,"recognizedBytes":len(compact.encode()),"recognizedSHA256":hashlib.sha256(compact.encode()).hexdigest()})
+        if matched:return True
+    return False
+
+def verify_evm_public_contract(point,contract,deadline):
+    last=None
+    while time.monotonic()<deadline:
+        rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
+        captured=evm_contract_tooltip_block(rows,picture,bounds,point)
+        if captured:
+            crop,box=captured
+            last=(crop,box,bounds)
+            report["ethereumContractPublicRegion"]={"bounds":list(box),"size":list(crop.size)}
+            if decode_evm_contract_tooltip(crop,contract,deadline):return last
+        time.sleep(min(.15,max(0,deadline-time.monotonic())))
+    if last:
+        # Already classified/captured under the same public X11 guard and
+        # bounded by the exact public label and complete tooltip fill.
+        path=REPORTS/(args.report_name+"-evm-public-contract.png")
+        last[0].save(path)
+        report["ethereumContractPublicRegion"]["failureArtifact"]=path.name
+        report["ethereumContractPublicRegion"]["failureArtifactSHA256"]=hashlib.sha256(path.read_bytes()).hexdigest()
+    return None
+
 def public_decimal_cell(rows,picture,bounds,row_y,expected):
     headers=[row for row in rows if row[11]=="Decimals" and int(row[7])<row_y]
     if len(headers)!=1:raise RuntimeError("Unique asset precision column was not observed")
@@ -1386,21 +1505,10 @@ def ethereum_tokens(expected_address=None):
     if contract.lower() in re.sub(r"\s+","",visible).lower():raise RuntimeError("Token contract is permanently visible instead of hover-only")
     point=asset_button("USDT",require_enabled=True)
     mod.T.XTestFakeMotionEvent(desktop.d,-1,*point,0);mod.X.XFlush(desktop.d)
-    matched=False
-    deadline=time.monotonic()+15
-    while time.monotonic()<deadline:
-        hover_rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
-        captured=evm_contract_tooltip_block(hover_rows,picture,bounds,point)
-        if captured:
-            crop,box=captured
-            for scale,psm in ((1,6),(3,6),(1,7),(3,7)):
-                data=io.BytesIO();ImageOps.expand(crop.resize((crop.width*scale,crop.height*scale),Image.Resampling.LANCZOS),border=12,fill=255).save(data,format="PNG")
-                raw=subprocess.check_output(["tesseract","stdin","stdout","--psm",str(psm)],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=15)
-                if exact_evm_contract_text(raw,contract):matched=True;break
-            if matched:break
-        time.sleep(.15)
+    captured=verify_evm_public_contract(point,contract,time.monotonic()+15)
     desktop.park_pointer()
-    if not matched:raise RuntimeError("Exact full USDT contract was not readable in its actual public hover tooltip")
+    if not captured:raise RuntimeError("Exact full USDT contract was not readable in its actual public hover tooltip")
+    crop,box,bounds=captured
     _,after_picture,after_bounds=public_rows(with_picture=True,with_geometry=True)
     if after_bounds!=bounds:raise RuntimeError("Public wallet geometry changed during hover verification")
     after_crop=after_picture.crop(box).convert("L")

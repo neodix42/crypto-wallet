@@ -1,0 +1,69 @@
+{
+  "scope": "Public ERC-20 tooltip decoder fixtures only; no wallet profile, private prompt, secret, payment or network data. Actual crops were captured by a fresh isolated public BIP39 fixture campaign under the normal public-window X11 guard and exact label/fill bounds.",
+  "contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+  "actualMono": {
+    "file": "evm-public-contract-mono.png",
+    "fixtureSHA256": "67b568c028bb6edf3a018050e043b73d77f591e96682d1084a5b7f7a9490fb3f",
+    "sourceReport": "reports/ci-tooltip-correct-mono-baseline.json",
+    "bounds": [
+      159,
+      543,
+      847,
+      617
+    ],
+    "executableSHA256": "112db058866e2b353b57d1b4fdfcfaba5b501a0b25c03f524454d2fd30a5f59e"
+  },
+  "actualProportional": {
+    "file": "evm-public-contract-proportional.png",
+    "fixtureSHA256": "1c973bfc5249e660fe139cb95c38447c32bd85856c987f4d20bb41bc31e3d756",
+    "sourceReport": "reports/ci-tooltip-mono-baseline.json",
+    "limits": "The old blanket fontconfig produced proportional text; this is not mono rendering evidence."
+  },
+  "negativeFixtures": {
+    "evm-public-contract-capital-o-prefix.png": {
+      "fixtureSHA256": "b116a95697c91b8956d2255ac001f5ec504dd7ff7b0a60c2b82a35540f391213",
+      "publicText": "OxdAC17F958D2ee523a2206206994597C13D831ec7",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-wrong-l.png": {
+      "fixtureSHA256": "8f34a6083b8c1ae058e7547c07d54da6ffd4a8ddea96e60ff6621c910565e235",
+      "publicText": "0xdACl7F958D2ee523a2206206994597C13D831ec7",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-wrong-i.png": {
+      "fixtureSHA256": "b40c1c53ecd133fc5136e4225ff135ad972e73b08c440ab42815f680e87c75fd",
+      "publicText": "0xdACI7F958D2ee523a2206206994597C13D831ec7",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-wrong-hex.png": {
+      "fixtureSHA256": "173305f0bab0dc3a132d76814886e7b9a1c09c6d073c0f95e37c5e493cc69292",
+      "publicText": "0xdAC17F958D2ee523a2206206994597C13D831ec8",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-short.png": {
+      "fixtureSHA256": "3777ef7c7549366e0c1ebcca9d6098f1dfdb0a5af0e28a6d9335bea3a8686f79",
+      "publicText": "0xdAC17F958D2ee523a2206206994597C13D831ec",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-leading-extra.png": {
+      "fixtureSHA256": "bf49c10fe6fec3eca1931de93466bbd699aa8ee2241e7461dc5eb5ca072d76ae",
+      "publicText": "00xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-trailing-extra.png": {
+      "fixtureSHA256": "893dfc0ad8cc2dd1d5d80e763e2dfb9762a3ea1a9f4db2d2d173d18d72f8b918",
+      "publicText": "0xdAC17F958D2ee523a2206206994597C13D831ec70",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    },
+    "evm-public-contract-duplicate.png": {
+      "fixtureSHA256": "16a0bfcd04f21a7eb66da10302eed137bf3912c14ac566c8d987be23065b9e05",
+      "publicText": "0xdAC17F958D2ee523a2206206994597C13D831ec7\n0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "producer": "Synthetic public DejaVu Sans Mono 18px text, independent from the actual guarded positive crop; no OCR hint or pixel replacement."
+    }
+  },
+  "syntheticMono": {
+    "file": "evm-public-contract-synthetic-mono.png",
+    "fixtureSHA256": "ce4375a5ba443a3ffd412df5a35f10d7a8aa7b73b37e99b6c36f5eead86fec6c",
+    "scope": "Positive control rendered with the identical Pillow font, size, baseline, fill and bounds as the synthetic negative controls; not actual app pixels."
+  }
+}
