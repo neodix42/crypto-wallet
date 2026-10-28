@@ -682,6 +682,18 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 			return model.Signed{}, err
 		}
 		p := o.Plan
+		adapter, err := e.adapter(p.Account.Network)
+		if err != nil || adapter.ValidatePlan(p) != nil {
+			return model.Signed{}, e.cancelOperation(o)
+		}
+		approvalTitle := "Authorize exact transfer — Go signer"
+		passwordTitle := "Reauthenticate this transfer"
+		amountLabel := "Atomic amount"
+		if near.IsStakingPlan(p) {
+			approvalTitle = "Authorize NEAR staking operation — Go signer"
+			passwordTitle = "Reauthenticate this NEAR staking operation"
+			amountLabel = "Staking effect amount (yoctoNEAR; see method effects)"
+		}
 		feeLabel := "Maximum network fee"
 		if p.Account.Family == "ton" {
 			feeLabel = "Estimated fee reserve (TON protocol has no signed fee cap)"
@@ -692,23 +704,23 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 		if p.Account.Family == "near" {
 			feeLabel = "Estimated fee reserve (NEAR protocol has no signed fee cap)"
 		}
-		summary := fmt.Sprintf("Network: %s\nSource: %s\nDestination: %s\nAsset identity: %s\nAtomic amount: %s\n%s: %s %s\nNonce/sequence: %s\nExpiry (Unix): %d\nMemo: %q\nExact chain effects:\n%s", p.Account.Network, p.Account.Address, p.Recipient, p.Asset, p.Amount, feeLabel, p.MaxFee, p.FeeAsset, p.Nonce, p.Expires, p.Memo, nativeEffects(p))
-		if !e.UI.Confirm("Authorize exact transfer — Go signer", summary) {
+		summary := fmt.Sprintf("Network: %s\nSource: %s\nDestination: %s\nAsset identity: %s\n%s: %s\n%s: %s %s\nNonce/sequence: %s\nExpiry (Unix): %d\nMemo: %q\nExact chain effects:\n%s", p.Account.Network, p.Account.Address, p.Recipient, p.Asset, amountLabel, p.Amount, feeLabel, p.MaxFee, p.FeeAsset, p.Nonce, p.Expires, p.Memo, nativeEffects(p))
+		if !e.UI.Confirm(approvalTitle, summary) {
 			o.State = "CANCELLED"
 			return model.Signed{}, e.cancelError()
 		}
 		if !e.canAuthorize() {
 			return model.Signed{}, e.cancelOperation(o)
 		}
-		in, err := e.UI.Input("Reauthenticate this transfer", "Storage password")
+		in, err := e.UI.Input(passwordTitle, "Storage password")
 		if err != nil {
 			return model.Signed{}, e.cancelOperation(o)
 		}
 		defer wipeInputs(in)
-		if len(in) != 1 || !hmac.Equal(in[0], e.password) || p.Expires <= time.Now().Unix() || !e.canAuthorize() {
+		if len(in) != 1 || !hmac.Equal(in[0], e.password) || p.Expires <= time.Now().Unix() || !e.canAuthorize() || journal.Digest(p) != o.Digest || journal.Digest(o.Plan) != o.Digest {
 			return model.Signed{}, e.cancelOperation(o)
 		}
-		adapter, err := e.adapter(p.Account.Network)
+		adapter, err = e.adapter(p.Account.Network)
 		if err != nil || adapter.ValidatePlan(p) != nil {
 			return model.Signed{}, e.cancelOperation(o)
 		}
@@ -954,6 +966,12 @@ func (e *Engine) Associate(updated model.Account) error {
 }
 
 func nativeEffects(p model.Plan) string {
+	if near.IsStakingPlan(p) {
+		if effects, valid := near.StakingEffects(p); valid {
+			return effects
+		}
+		return "Invalid staking effects — approval must be rejected"
+	}
 	if p.Account.Family != "decred" {
 		return string(p.Payload)
 	}

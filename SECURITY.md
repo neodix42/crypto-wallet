@@ -100,6 +100,8 @@ Build and publish reproducible instructions, package hashes and publisher-signat
 
 No production-readiness claim until the test plan and independent security-review gates are satisfied. The security report must distinguish verified behavior, design intent, missing evidence and residual risks.
 
+Owner NEAR staking amendment (2026-10-28): the narrow staking-pool extension permits only `deposit_and_stake`, `unstake`, `unstake_all` and `withdraw_all` on the selected network's supported pool namespaces. The signer reconstructs the exact Borsh call, validates canonical arguments, fixed prepaid gas and attached amount, and requires private exact-effect confirmation plus current app password for every operation. Unstake/withdraw attach zero; all-method amounts shown during approval are observations. No generic contract-call or raw-signing authority is added. Root-call success cannot conceal failed/missing child receipts; retain UNKNOWN, the original signed artifact and account reservation. Pool namespace and provider state are not an audit, a consensus proof or a promise of rewards. Public-testnet acceptance uses newly generated disposable roots, bounded amounts and explicit opt-in; committed public seed vectors must never be funded.
+
 ## S-09: Owner-authorized custodial Exchange — 2026-10-24
 
 Bybit is an optional custodial service. Its API key permissions, IP restrictions, account eligibility, whitelisted destinations, fees and availability determine what that account can do. Local encryption cannot protect exchange-held assets from service compromise, insolvency or account restrictions. Connecting must never send funds. Wallet key creation, recovery and ordinary transfers must remain available independently of that service.

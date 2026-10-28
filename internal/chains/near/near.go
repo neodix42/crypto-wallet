@@ -277,9 +277,11 @@ type protocol struct {
 		Costs    struct {
 			Receipt cost `json:"action_receipt_creation_config"`
 			Actions struct {
-				Transfer cost `json:"transfer_cost"`
-				Create   cost `json:"create_account_cost"`
-				Add      struct {
+				Transfer         cost `json:"transfer_cost"`
+				FunctionCall     cost `json:"function_call_cost"`
+				FunctionCallByte cost `json:"function_call_cost_per_byte"`
+				Create           cost `json:"create_account_cost"`
+				Add              struct {
 					Full cost `json:"full_access_cost"`
 				} `json:"add_key_cost"`
 			} `json:"action_creation_config"`
@@ -287,16 +289,17 @@ type protocol struct {
 	} `json:"runtime_config"`
 }
 type Payload struct {
-	Version         int    `json:"version"`
-	BlockHash       string `json:"blockHash"`
-	BlockHeight     string `json:"blockHeight"`
-	Protocol        string `json:"protocol"`
-	Gas             string `json:"gas"`
-	GasPrice        string `json:"gasPrice"`
-	StorageReserve  string `json:"storageReserve"`
-	RecipientExists bool   `json:"recipientExists"`
-	Prepared        int64  `json:"prepared"`
-	FeePolicy       string `json:"feePolicy"`
+	Version         int          `json:"version"`
+	BlockHash       string       `json:"blockHash"`
+	BlockHeight     string       `json:"blockHeight"`
+	Protocol        string       `json:"protocol"`
+	Gas             string       `json:"gas"`
+	GasPrice        string       `json:"gasPrice"`
+	StorageReserve  string       `json:"storageReserve"`
+	RecipientExists bool         `json:"recipientExists"`
+	Prepared        int64        `json:"prepared"`
+	FeePolicy       string       `json:"feePolicy"`
+	Staking         *StakingCall `json:"staking,omitempty"`
 }
 
 func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfer) (model.Plan, error) {
@@ -436,7 +439,14 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 		}
 	}
 	gas, e := chainutil.Big(d.Gas, 64)
-	if e != nil || gas.Sign() == 0 || gas.Cmp(big.NewInt(30_000_000_000_000)) > 0 {
+	maxGas := int64(30_000_000_000_000)
+	if d.Staking != nil {
+		maxGas = 110_000_000_000_000
+		if e := validateStaking(p, d); e != nil {
+			return e
+		}
+	}
+	if e != nil || gas.Sign() == 0 || gas.Cmp(big.NewInt(maxGas)) > 0 {
 		return errInvalid
 	}
 	price, e := chainutil.Big(d.GasPrice, 128)
@@ -482,7 +492,19 @@ func transaction(p model.Plan) ([]byte, error) {
 	writeString(p.Recipient)
 	buf.Write(base58.Decode(d.BlockHash))
 	_ = binary.Write(buf, binary.LittleEndian, uint32(1))
-	buf.WriteByte(3)
+	if d.Staking != nil {
+		if e := validateStaking(p, d); e != nil {
+			return nil, e
+		}
+		buf.WriteByte(2) // Borsh Action::FunctionCall; Transfer remains variant 3.
+		writeString(d.Staking.Method)
+		writeString(d.Staking.Args)
+		gas, _ := chainutil.Uint(d.Staking.Gas, 64)
+		_ = binary.Write(buf, binary.LittleEndian, gas)
+		value, _ = chainutil.Big(d.Staking.Deposit, 128)
+	} else {
+		buf.WriteByte(3)
+	}
 	v := value.FillBytes(make([]byte, 16))
 	for i := len(v) - 1; i >= 0; i-- {
 		buf.WriteByte(v[i])
@@ -568,6 +590,12 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	if e := a.rpc(ctx, p.Account.Network, "send_tx", map[string]string{"signed_tx_base64": base64.StdEncoding.EncodeToString(s.Bytes), "wait_until": "FINAL"}, &r); e != nil {
 		return z, e
 	}
+	if d.Staking != nil && (r.Transaction.Signer != p.Account.Address || r.Transaction.Receiver != p.Recipient) {
+		return z, errInvalid
+	}
+	if d.Staking != nil {
+		return stakingReceipt(p, s.Identity, r)
+	}
 	return receipt(s.Identity, r)
 }
 
@@ -580,8 +608,12 @@ type execution struct {
 		Receiver string `json:"receiver_id"`
 	} `json:"transaction"`
 	Outcome struct {
-		Block string `json:"block_hash"`
+		Block   string `json:"block_hash"`
+		Outcome struct {
+			ReceiptIDs []string `json:"receipt_ids"`
+		} `json:"outcome"`
 	} `json:"transaction_outcome"`
+	Receipts []receiptOutcome `json:"receipts_outcome"`
 }
 
 func receipt(id string, r execution) (model.Receipt, error) {
@@ -625,6 +657,9 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 	}
 	if r.Transaction.Signer != p.Account.Address || r.Transaction.Receiver != p.Recipient {
 		return z, errInvalid
+	}
+	if IsStakingPlan(p) {
+		return stakingReceipt(p, s.Identity, r)
 	}
 	return receipt(s.Identity, r)
 }

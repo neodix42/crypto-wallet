@@ -19,6 +19,7 @@ import signal
 import subprocess
 import tempfile
 import time
+from collections import Counter
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -28,7 +29,9 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--binary", type=pathlib.Path, default=ROOT / "bin/cryptowallet")
 parser.add_argument("--report-name", default="wails-wallet")
 parser.add_argument("--instrumented", action="store_true")
-parser.add_argument("--quick-import", action="store_true", help="Targeted public fixture import/restart check; omits generated-root address comparison")
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--quick-import", action="store_true", help="Targeted public fixture import/restart check; omits generated-root address comparison")
+mode.add_argument("--staking-only", action="store_true", help="Targeted actual NEAR Staking page check after disposable public-fixture import; no RPC server or transaction approval")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
     raise SystemExit("Report name must be a simple owned test name")
@@ -37,6 +40,9 @@ report["instrumented"] = args.instrumented
 if args.quick_import:
     report["scope"]="Targeted isolated WebKitGTK import/restart/Unlock check using the public abandon/about BIP39 fixture. This is not the full generated-root nine-wallet restore campaign."
     report["notRun"].append("Generated-root setup, backup and exact nine-wallet address comparison (quick mode)")
+if args.staking_only:
+    report["scope"]="Actual uninstrumented NEAR Wallet/Staking navigation after importing a public disposable BIP39 fixture into a fresh isolated profile. Full AstroStakers contract, whole-NEAR units, unknown observed state, real offline RPC failure and disabled Withdraw are checked through X11 pixels/OCR/input. No RPC response is mocked and no transaction is prepared, approved or sent."
+    report["notRun"].extend(["Generated-root setup, backup and exact nine-wallet address comparison (staking-only mode)", "Funded stake/unstake/withdraw execution and public testnet acceptance"])
 if args.instrumented:
     report["scope"] = "Instrumented Go statement-coverage run of the real native desktop workflows. " + __doc__.replace("Uninstrumented", "Instrumented")
 report_path = REPORTS / (args.report_name+".json")
@@ -480,6 +486,108 @@ def addresses():
             else:raise RuntimeError("Middle click did not close the selected wallet tab")
     return result
 
+def scroll_public(button, count=5):
+    if button not in (4,5):raise RuntimeError("Only owned workspace scrolling is permitted")
+    if desktop.secret_window():raise PrivateWindowVisible("Refusing public scroll while a private prompt is visible")
+    window,_=desktop.wait("CryptoWallet");x,y,w,h=desktop.geometry(window)
+    mod.T.XTestFakeMotionEvent(desktop.d,-1,x+w-22,y+h//2,0)
+    for _ in range(count):
+        mod.T.XTestFakeButtonEvent(desktop.d,button,1,0)
+        mod.T.XTestFakeButtonEvent(desktop.d,button,0,0)
+    mod.X.XFlush(desktop.d)
+    time.sleep(.25)
+
+def public_words_position(words, rows=None):
+    wanted=[word.lower() for word in words.split()]
+    rows=public_rows() if rows is None else rows
+    for index,row in enumerate(rows):
+        segment=rows[index:index+len(wanted)]
+        if [r[11].lower().strip("·.,:") for r in segment]!=wanted or not all(r[1:5]==row[1:5] for r in segment):continue
+        left=int(segment[0][6]);right=int(segment[-1][6])+int(segment[-1][8])
+        return (left+right)//2,int(row[7])+int(row[9])//2
+    return None
+
+def scroll_to_public_words(words):
+    for _ in range(12):
+        position=public_words_position(words)
+        if position:return position
+        scroll_public(5,3)
+    raise RuntimeError("Expected staking control or disclosure missing: "+words)
+
+def staking_page():
+    stage("Open actual NEAR wallet Staking page")
+    click("Main account",top=True)
+    scroll_public(4,35)
+    click("NEAR")
+    wait(lambda:"Copy address" in text())
+    scroll_public(4,35)
+    click("Staking")
+    wait(lambda:"AstroStakers" in text())
+    wait(lambda:"astro-stakers.poolv1.near" in text())
+    if desktop.secret_window():raise RuntimeError("Opening staking unexpectedly requested private approval")
+    report["stakingValidator"]="astro-stakers.poolv1.near"
+    passed("Actual NEAR inner Staking tab displays AstroStakers and its complete mainnet contract without a private prompt")
+    stage("Verify unqueried staking remains unknown and actual offline query fails honestly")
+    scroll_to_public_words("Staked")
+    visible=text()
+    if not re.search(r"Staked[: ]+Unknown",visible,re.I):raise RuntimeError("Unqueried staking amount was not shown as unknown")
+    scroll_public(4,35)
+    scroll_to_public_words("Refresh staking state")
+    click("Refresh staking state")
+    deadline=time.monotonic()+45
+    while time.monotonic()<deadline:
+        if desktop.secret_window():raise RuntimeError("Read-only staking refresh opened a private approval")
+        visible=text()
+        if "state is unavailable" in visible:break
+        scroll_public(5,2)
+        time.sleep(.15)
+    else:raise RuntimeError("Actual offline staking query did not show unavailable state")
+    if "No pool balance" not in visible:raise RuntimeError("Failed real staking query did not disclaim verified pool balance")
+    scroll_public(4,35)
+    scroll_to_public_words("Staked")
+    if not re.search(r"Staked[: ]+Unknown",text(),re.I):raise RuntimeError("Failed real staking query invented a staked balance")
+    passed("Actual RPC request with no service available leaves pool balance unknown and reports unavailable instead of mocked success or zero")
+    stage("Verify staking whole-NEAR amount and disabled unknown-state withdrawal")
+    withdraw=scroll_to_public_words("Withdraw all")
+    visible=text()
+    if "1 means 1 NEAR" not in visible:raise RuntimeError("Staking form omitted whole-NEAR amount units")
+    rows=public_rows()
+    stake=public_words_position("Stake",rows)
+    withdraw=public_words_position("Withdraw all",rows)
+    if not stake or not withdraw:raise RuntimeError("Staking action row could not be located independently")
+    # Assert the actual rendered disabled style, independently of application
+    # DOM/bridge state. Then attempt only the disabled unknown-state control;
+    # an enabled preparation/confirmation button is never clicked in this drill.
+    mod.X.XGrabServer(desktop.d);mod.X.XSync(desktop.d,0)
+    try:
+        if desktop.secret_window():raise PrivateWindowVisible("Refusing staking public pixels while a private prompt is visible")
+        picture=desktop.image().convert("RGB")
+    finally:
+        mod.X.XUngrabServer(desktop.d);mod.X.XFlush(desktop.d)
+    def background(point):
+        x,y=point
+        return Counter(picture.getpixel((x+dx,y+dy)) for dx in range(-8,9) for dy in range(11,15)).most_common(1)[0][0]
+    enabled,disabled=background(stake),background(withdraw)
+    expected_enabled,expected_disabled=(34,41,51),(28,34,43)
+    if max(abs(a-b) for a,b in zip(enabled,expected_enabled))>2 or max(abs(a-b) for a,b in zip(disabled,expected_disabled))>2:
+        report["stakingButtonBackgroundRGB"]={"stake":list(enabled),"withdraw":list(disabled)}
+        raise RuntimeError("Actual staking Withdraw did not have the disabled appearance while pool state was unknown")
+    report["stakingButtonBackgroundRGB"]={"stake":list(enabled),"withdraw":list(disabled)}
+    desktop.click(*withdraw)
+    time.sleep(.6)
+    if desktop.secret_window():raise RuntimeError("Unknown-state Withdraw opened a private approval")
+    if "Prepared staking operation" in text():raise RuntimeError("Unknown-state Withdraw prepared a transaction")
+    passed("Actual staking form uses whole NEAR and its disabled Withdraw remains inert when pool state is unknown")
+    stage("Return from staking to ordinary NEAR Wallet and all-network table")
+    scroll_public(4,35)
+    click("Wallet")
+    wait(lambda:"Send" in text() and "Receive" in text())
+    if "Validator:" in text():raise RuntimeError("Wallet section retained staking controls")
+    click("Main account",top=True)
+    scroll_public(4,35)
+    wait(lambda:"Account group" in text() and "Ethereum" in text())
+    passed("Returning from Staking restores the ordinary NEAR Wallet and all-network overview without preparing or approving a transaction")
+
 save()
 try:
     binary = args.binary.resolve()
@@ -518,7 +626,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import:
+        if args.quick_import or args.staking_only:
             recorded=b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -530,17 +638,20 @@ try:
             desktop.accept("Imported account recovery limits")
             wait(lambda:not desktop.secret_window())
             wait(lambda:"Main account" in text())
+            if args.staking_only:
+                staking_page()
             close_gracefully()
             passed("Targeted public-fixture import reaches all-wallet overview and closes successfully")
-            launch(installations[0],home)
-            click_primary_public("Unlock local wallet")
-            desktop.wait("Unlock local wallet",30)
-            desktop.inputs("Unlock local wallet",[different_password])
-            desktop.accept("Unlock local wallet")
-            wait(lambda:not desktop.secret_window())
-            wait(lambda:"Main account" in text())
-            close_gracefully()
-            passed("Targeted restart starts locked, unlocks through its actual masked prompt and exits successfully")
+            if args.quick_import:
+                launch(installations[0],home)
+                click_primary_public("Unlock local wallet")
+                desktop.wait("Unlock local wallet",30)
+                desktop.inputs("Unlock local wallet",[different_password])
+                desktop.accept("Unlock local wallet")
+                wait(lambda:not desktop.secret_window())
+                wait(lambda:"Main account" in text())
+                close_gracefully()
+                passed("Targeted restart starts locked, unlocks through its actual masked prompt and exits successfully")
         else:
             launch(installations[0], folder / "machine-a/home")
             click_primary_public("Create your app password")
@@ -554,6 +665,7 @@ try:
             wait(lambda: not desktop.secret_window(), 30)
             wait(lambda: "Main account" in text(), 30)
             passed("Single Go executable generates a random phrase after masked app-password entry and verifies recorded words in separate private WebKitGTK windows")
+            staking_page()
             stage("Main account row copy action")
             row = next(r for r in public_rows() if r[11].lower()=="ethereum" and int(r[7])>100)
             main_x,_,main_width,_=desktop.geometry(desktop.wait("CryptoWallet")[0])

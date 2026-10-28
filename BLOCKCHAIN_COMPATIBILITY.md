@@ -4,7 +4,7 @@ Research baseline: **2026-10-23**. This is an implementation requirement, not ev
 
 ## 1. Required coverage and identity
 
-Implement native ETH on Ethereum, NEAR, APT, DCR, TON, native HYPE on HyperEVM, spot HYPE on HyperCore, and ERC-20 ZEN on both Base and current Horizen Chain. Include native ETH on Base and Horizen for receiving and paying gas. The owner-authorized Bybit extension dated 2026-10-24 adds only pinned Ethereum USDT and custodial spot asset/USDT trading. These are twelve independently selectable asset identities across nine mainnet networks. Arbitrary token discovery, other tokens, other trading, staking, NFTs, bridges, legacy migration claims and dApp signing remain outside v1; TON USDT jettons are not added.
+Implement native ETH on Ethereum, NEAR, APT, DCR, TON, native HYPE on HyperEVM, spot HYPE on HyperCore, and ERC-20 ZEN on both Base and current Horizen Chain. Include native ETH on Base and Horizen for receiving and paying gas. The owner-authorized Bybit extension dated 2026-10-24 adds only pinned Ethereum USDT and custodial spot asset/USDT trading. These are twelve independently selectable asset identities across nine mainnet networks. Arbitrary token discovery, other tokens, trading/staking beyond the authorized Bybit and NEAR staking-pool operations, NFTs, bridges, legacy migration claims and dApp signing remain outside v1; TON USDT jettons are not added.
 
 Every asset is identified by network/environment plus native-asset ID, verified contract address or Core token ID. A ticker or `0x` address alone never identifies the network. Confirmation screens and receive QR views must show the exact network and asset. Importing a seed does not move funds between networks.
 
@@ -93,6 +93,12 @@ Default to Ed25519 implicit accounts: lowercase 64-character hex public keys. Na
 Allow explicit association/discovery of named accounts only after verifying the derived key's on-chain authority. Native transfer requires adequate permission; a function-call-only key is insufficient. Use exact yoctoNEAR integers, current storage/fee rules, per-access-key nonces and recent block hashes. A missing implicit recipient can be created by transfer; a missing named recipient fails. Test both, revoked keys, restricted keys, expired block references and nonce races.
 
 Distinguish submission from execution and finality. The [transaction guide](https://docs.near.org/integrations/create-transactions) discusses double-payment risks from naive retrying. Reconcile existing signed transactions after ambiguous errors. Compare derivation with the pinned NEAR reference and transaction bytes/signatures with an independent official SDK.
+
+### Owner-authorized NEAR staking — 2026-10-28
+
+Support one Borsh `FunctionCall` action (variant 2) for `deposit_and_stake`, `unstake`, `unstake_all` or `withdraw_all`. Transfer remains variant 3 with unchanged fixtures. Preserve the existing Ed25519 account profile and full-access-key/nonce checks. Canonical arguments, 100 Tgas and exact attached deposit are signed; unstake and withdrawal attach zero. Pool state comes from final-block `get_account` for the owned account. Four epochs and compounded rewards follow the [pinned official contract](https://github.com/near/core-contracts/blob/1b0436c96379c63aee7d2429c6d5d24019031ab8/staking-pool/src/lib.rs).
+
+Restrict mainnet contracts to direct children of `poolv1.near` or `pool.near`, testnet to `pool.f863973.m0`, and local acceptance to `pool.sandbox`. Factory namespace membership is not a code audit. Require exact private approval and preserve ambiguous child-receipt execution as UNKNOWN; never replace an unresolved staking transaction automatically. Independent SDK bytes/signatures, actual local WASM execution, graphical presentation and funded public-testnet execution have separate evidence in [NEAR_STAKING.md](docs/NEAR_STAKING.md).
 
 ## 6. Aptos
 

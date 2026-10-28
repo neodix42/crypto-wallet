@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"localwallet/internal/amount"
 	"localwallet/internal/buildinfo"
+	"localwallet/internal/chains/near"
 	"localwallet/internal/exchange/bybit"
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
@@ -75,7 +76,13 @@ type App struct {
 	tabs                                  []string
 	sendForms                             map[string]bool
 	plan                                  *model.Plan
+	planIsStaking                         bool
 	planRevision                          uint64
+	staking                               map[string]near.StakingState
+	stakingErrors                         map[string]bool
+	stakingPending                        map[string]model.Plan
+	stakingReading                        string
+	stakingRevision                       uint64
 	journal                               []journal.Operation
 	journalCursor, journalRevision        string
 	journalOffset                         int
@@ -247,7 +254,13 @@ func (a *App) lock() {
 	a.state.Accounts = nil
 	a.tabs = nil
 	a.plan = nil
+	a.planIsStaking = false
 	a.planRevision++
+	a.staking = nil
+	a.stakingErrors = nil
+	a.stakingPending = nil
+	a.stakingReading = ""
+	a.stakingRevision++
 	a.balances = map[string][]model.Balance{}
 	a.balanceQueue = nil
 	a.exchange = nil
@@ -262,7 +275,7 @@ func (a *App) lock() {
 	a.background = false
 	a.active = "group/0"
 	for key := range a.fields {
-		if strings.Contains(key, "recipient") || strings.Contains(key, "amount") || strings.Contains(key, "memo") {
+		if strings.Contains(key, "recipient") || strings.Contains(key, "amount") || strings.Contains(key, "memo") || strings.HasPrefix(key, "stakingAmount/") {
 			delete(a.fields, key)
 		}
 	}
@@ -346,6 +359,7 @@ func (a *App) work(title string, fn func(uint64) (func(), error)) {
 				return
 			}
 			a.busy = false
+			a.stakingReading = ""
 			if err != nil {
 				a.privateRevision.Add(1)
 				a.ui.CancelPrompt()
@@ -413,17 +427,28 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 	a.state = state
 	a.networks = networks
 	a.plan = nil
+	a.planIsStaking = false
 	a.planRevision++
+	a.staking = nil
+	a.stakingErrors = nil
+	a.stakingRevision++
 	a.quote = nil
 	a.balances = map[string][]model.Balance{}
 	a.balanceErrors = map[string]bool{}
 	a.balanceQueue = nil
 	if state.Locked {
+		a.stakingPending = nil
 		a.tabs = nil
 		a.journal = nil
 		a.exchange = nil
 		a.active = "group/0"
 		return
+	}
+	for id, plan := range a.stakingPending {
+		account, ok := a.account(id)
+		if !ok || account.Address != plan.Account.Address || account.PublicKey != plan.Account.PublicKey || account.Network != plan.Account.Network || account.Profile != plan.Account.Profile {
+			delete(a.stakingPending, id)
+		}
 	}
 	for _, account := range state.Accounts {
 		if !account.Hidden {
@@ -642,6 +667,15 @@ func (a *App) event(e webui.Event) {
 	}
 	if strings.HasPrefix(e.ID, "field/") {
 		key := strings.TrimPrefix(e.ID, "field/")
+		for _, prefix := range []string{"stakingPool/", "stakingAmount/"} {
+			if strings.HasPrefix(key, prefix) {
+				if _, pending := a.pendingStaking(strings.TrimPrefix(key, prefix)); pending {
+					a.notice("Cancel the original prepared staking operation before changing its contract or amount.")
+					a.render()
+					return
+				}
+			}
+		}
 		if len(e.Value) <= 4096 {
 			a.fields[key] = e.Value
 		}
@@ -652,6 +686,20 @@ func (a *App) event(e webui.Event) {
 			if hadPlan {
 				a.render()
 			}
+		}
+		if strings.HasPrefix(key, "stakingPool/") || strings.HasPrefix(key, "stakingAmount/") {
+			a.stakingRevision++
+			if a.planIsStaking {
+				a.plan = nil
+				a.planIsStaking = false
+				a.planRevision++
+			}
+			if strings.HasPrefix(key, "stakingPool/") {
+				id := strings.TrimPrefix(key, "stakingPool/")
+				delete(a.staking, id)
+				delete(a.stakingErrors, id)
+			}
+			a.render()
 		}
 		if key == "group" {
 			a.active = "group/" + e.Value
@@ -762,6 +810,9 @@ func (a *App) walletEvent(action string) {
 		return
 	}
 	kind, id := parts[0], parts[1]
+	if a.stakingEvent(kind, id) {
+		return
+	}
 	if kind == "open" {
 		if _, ok := a.account(id); !ok {
 			return
@@ -856,6 +907,7 @@ func (a *App) walletEvent(action string) {
 					return
 				}
 				a.plan = &plan
+				a.planIsStaking = false
 				if kind == "max" {
 					value, e := amount.Format(plan.Amount, asset.Decimals)
 					if e == nil {
@@ -865,13 +917,19 @@ func (a *App) walletEvent(action string) {
 			}, err
 		})
 	case "send":
-		if a.plan != nil && a.plan.Account.ID == id {
+		if a.plan != nil && !a.planIsStaking && a.plan.Account.ID == id {
 			a.paymentAction("send", a.plan.ID)
 		}
 	}
 }
 func (a *App) paymentAction(method, id string) {
 	owner := strings.TrimPrefix(a.active, "wallet/")
+	for accountID, pending := range a.stakingPending {
+		if pending.ID == id {
+			owner = accountID
+			break
+		}
+	}
 	for _, operation := range a.journal {
 		if operation.Plan.ID == id {
 			owner = operation.Plan.Account.ID
@@ -886,6 +944,15 @@ func (a *App) paymentAction(method, id string) {
 			a.result = value
 			a.resultOwner = owner
 			a.plan = nil
+			a.planIsStaking = false
+			for accountID, pending := range a.stakingPending {
+				if pending.ID == id {
+					delete(a.stakingPending, accountID)
+				}
+			}
+			delete(a.staking, owner)
+			delete(a.stakingErrors, owner)
+			a.stakingRevision++
 			if account, ok := a.account(strings.TrimPrefix(a.active, "wallet/")); ok {
 				a.balanceQueue = append(a.balanceQueue, account.ID)
 			}
@@ -1203,6 +1270,19 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	value, _ := a.balance(account, asset)
 	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
 	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.button("copyReceive/"+account.ID, "⧉ Copy address", !a.state.RecoveryConfirmed)), heading(value + " " + asset.Symbol)}
+	if account.Family == "near" {
+		section := a.fields["walletSection/"+account.ID]
+		if section != "Staking" {
+			section = "Wallet"
+		}
+		tabs := row(a.button("walletSection/"+account.ID+"/Wallet", "Wallet", section == "Wallet"), a.button("walletSection/"+account.ID+"/Staking", "Staking", section == "Staking"))
+		tabs.ID, tabs.Text, tabs.Value = "walletSections/"+account.ID, "NEAR wallet sections", section
+		page.Nodes = append(page.Nodes, tabs)
+		if section == "Staking" {
+			page.Nodes = append(page.Nodes, a.stakingNodes(account)...)
+			return page
+		}
+	}
 	var assets []webui.Node
 	for _, item := range network.Assets {
 		assets = append(assets, a.button("asset/"+account.ID+"/"+item.ID, item.Symbol, item.ID == asset.ID))
@@ -1216,7 +1296,7 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	page.Nodes = append(page.Nodes, row(a.button("sendForm/"+account.ID, "Send", false), a.button("receive/"+account.ID, "Receive", false), a.button("saveQR/"+account.ID, "Save receive QR", !a.state.RecoveryConfirmed), a.button("refresh", "Refresh", false)))
 	if a.sendForms[account.ID] {
 		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), a.entry("recipient/"+account.ID, "Recipient address"), a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), a.entry("memo/"+account.ID, "Memo / tag (when required)"), row(a.button("prepare/"+account.ID, "Prepare payment", !a.state.RecoveryConfirmed), a.button("max/"+account.ID, "Maximum spend", !a.state.RecoveryConfirmed)))
-		if a.plan != nil && a.plan.Account.ID == account.ID {
+		if a.plan != nil && !a.planIsStaking && a.plan.Account.ID == account.ID {
 			amountText, _ := amount.Format(a.plan.Amount, asset.Decimals)
 			fee := a.plan.MaxFee
 			symbol := a.plan.FeeAsset
@@ -1276,6 +1356,9 @@ func (a *App) settingsPage() []webui.Node {
 				}
 			}
 			title := operation.Plan.ID + " · " + operation.State + "\n" + operation.Plan.Account.Network + " · " + operation.Plan.Account.Address + " → " + operation.Plan.Recipient + "\nAmount: " + amountText + " " + symbol
+			if staking, ok := stakingJournalDescription(operation.Plan); ok {
+				title = operation.Plan.ID + " · " + operation.State + "\n" + staking
+			}
 			if operation.Receipt != nil {
 				title += "\n" + operation.Receipt.Identity + " · " + operation.Receipt.State + " · " + operation.Receipt.Detail
 			}

@@ -437,6 +437,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}
 	switch m.Method {
+	case "nearStakingState", "prepareNearStaking":
+		return c.nearStakingAt(m, epoch)
 	case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
 		return c.exchangeAt(m, epoch)
 	case "networks":

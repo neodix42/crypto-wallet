@@ -46,6 +46,31 @@ func TestPublicBridgeAuthorizesOnlyCurrentEnabledControls(t *testing.T) {
 	}
 }
 
+func TestStakingBridgeAcceptsOnlyVisibleTypedControlsAndNeverPromptPayloads(t *testing.T) {
+	page := Page{ID: "wallet/near-mainnet:0", Title: "NEAR", Nodes: []Node{
+		{Kind: "entry", ID: "field/stakingPool/near-mainnet:0", Value: "astro-stakers.poolv1.near"},
+		{Kind: "entry", ID: "field/stakingAmount/near-mainnet:0", Value: "1.25"},
+		{Kind: "button", ID: "stakingState/near-mainnet:0"},
+		{Kind: "button", ID: "stakingPrepare/near-mainnet:0/stake"},
+		{Kind: "button", ID: "stakingPrepare/near-mainnet:0/withdraw_all", Disabled: true},
+	}}
+	v := View{Active: page.ID, Pages: []Page{page}}
+	for _, e := range []Event{{ID: "stakingState/near-mainnet:0"}, {ID: "stakingPrepare/near-mainnet:0/stake"}, {ID: "field/stakingPool/near-mainnet:0", Value: "other.poolv1.near"}, {ID: "field/stakingAmount/near-mainnet:0", Value: "0.000000000000000000000001"}} {
+		if !validEvent(v, e, false) || validEvent(v, e, true) {
+			t.Fatal("staking control did not follow current public/modal authority:", e.ID)
+		}
+	}
+	for _, e := range []Event{{ID: "stakingPrepare/near-mainnet:0/withdraw_all"}, {ID: "stakingPrepare/near-mainnet:0/arbitrary"}, {ID: "stakingSend/near-mainnet:0"}, {ID: "stakingPrepare/near-mainnet:0/stake", Value: `{"gas":"1","method":"call","accepted":true}`}, {ID: "field/stakingPassword/near-mainnet:0", Value: "canary"}} {
+		if validEvent(v, e, false) {
+			t.Fatal("unavailable or payload-bearing staking authority accepted:", e.ID)
+		}
+	}
+	v.Pages[0].Nodes = nil
+	if validEvent(v, Event{ID: "stakingPrepare/near-mainnet:0/stake"}, false) {
+		t.Fatal("stale staking action survived removal from current page")
+	}
+}
+
 func TestQueuedEventsRecheckCurrentViewAndModalState(t *testing.T) {
 	var received []Event
 	w, _ := New(func(e Event) { received = append(received, e) })

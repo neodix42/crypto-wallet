@@ -1,5 +1,18 @@
 # Implementation and release evidence
 
+## NEAR staking extension — 2026-10-28
+
+Implemented **NEAR Wallet → Staking** through the actual Go FunctionCall/signing/journal pipeline: stake, partial/all unstake, withdraw all, exact `get_account` state and private password-authenticated approvals. No generic contract call or new secret export is exposed. [TP-100–104 checklist, commands, trust limits and precise test evidence](NEAR_STAKING.md).
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS | Twelve independent official SDK staking vectors, unchanged transfer vectors, strict state/plan tests, 10,000 malformed cases, 36 submission/reconciliation cases and 104 downstream-receipt checks. |
+| PASS | Actual official contract on pinned local NEAR: full stake → partial/all unstake → epoch-gated withdraw, independent liquid/delegated balances, four encrypted durable confirmations, cancellation and lost-ack restart/original-hash reconciliation. Validator proposals are explicitly paused; consensus rewards are outside this fixture. |
+| PASS, recorded GUI scope | Five actual isolated Wails checks for Staking navigation, exact pool/units, unknown/offline state, disabled Withdraw and graceful exit. No mocked RPC and no funded graphical approval. |
+| PASS, scoped | Affected race/vet/frontend/type checks; seven semantic mutants killed; 10-second staking-policy fuzz campaign; fresh NEAR/signer/core/dispatcher statement coverage exceeds unchanged 95% floors. |
+| PASS, partial public-testnet scope | Fresh random faucet-funded account, actual password-authenticated 0.01-NEAR stake and unstake_all confirmed; independent pool state verified. No public seed fixture or mainnet funds were used. |
+| PARTIAL / NOT_RUN | Testnet withdrawal awaits real pool epochs (`can_withdraw=false`). Actual GUI-approved staking execution, full clean-OS/Wayland/coverage/soak and independent review remain separate. Existing production gates are not waived. |
+
 ## CI checkout repair — 2026-10-28
 
 Release run [40631055106](https://github.com/neodix42/crypto-wallet/actions/runs/40631055106) failed in `setup-node` because the configured npm lockfile was absent from commit `b874fde`. The Wails adapter/frontend, pinned fork and new helpers existed only as untracked local files. The cache path was correct; disabling caching would have hidden the first missing input without repairing the build. This repair commits the complete source inventory and adds a Python-only checkout preflight before compiler/cache setup.

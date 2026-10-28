@@ -30,6 +30,7 @@ def node(name,args,url,test,extra=None):
         except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL);process.wait()
         log.close()
 run('near-sandbox',['node','tests/oracles/near/run-local.mjs'])
+run('near-staking-contract',['node','tests/oracles/near/run-staking-local.mjs'])
 run('aptos-local-validator',['node','tests/oracles/aptos/run-local.mjs'])
 binary=root/'.tools/dcrd/dcrd'
 if not binary.exists():

@@ -23,7 +23,7 @@ The security and test documents are normative parts of this task. Words such as 
 
 Mainnet identifiers and migration facts are documented with primary sources in [BLOCKCHAIN_COMPATIBILITY.md](BLOCKCHAIN_COMPATIBILITY.md). Revalidate them during implementation. Do not show retired Horizen mainchain/EON as ordinary current receiving networks.
 
-The owner-authorized Bybit spot/USDT extension below narrowly supersedes the original exclusion of trading/swaps and adds one pinned Ethereum USDT asset. General ERC-20/NEP-141/Aptos fungible-token/TON jetton support, NFTs, DeFi, other trading/swaps, staking, bridging, multisig, dApp browsers, WalletConnect, hardware wallets, legacy Horizen claims, and arbitrary message signing remain outside this first version. ZEN ERC-20 support remains required. There are nine mainnet network wallets and twelve supported asset identities; existing blockchain coverage and secret-handling requirements are preserved.
+The owner-authorized Bybit spot/USDT extension below narrowly supersedes the original exclusion of trading/swaps and adds one pinned Ethereum USDT asset. The 2026-10-28 NEAR staking extension below separately authorizes only the specified staking-pool operations. General ERC-20/NEP-141/Aptos fungible-token/TON jetton support, NFTs, other DeFi/trading/staking, bridging, multisig, dApp browsers, WalletConnect, hardware wallets, legacy Horizen claims, and arbitrary message signing remain outside this first version. ZEN ERC-20 support remains required. There are nine mainnet network wallets and twelve supported asset identities; existing blockchain coverage and secret-handling requirements are preserved.
 
 ## 3. Wallet creation, accounts and recovery
 
@@ -103,6 +103,12 @@ Deposit through the existing real on-chain wallet plan, approval, signing and jo
 UAE withdrawals may collect the eight documented beneficiary fields privately for the UAE endpoint. Required but unimplemented Türkiye/Kazakhstan/EU/Indonesia withdrawal questionnaires must gate withdrawal before an internal transfer. Unknown/suspended/ambiguous routes stay explicit; do not guess chain IDs or imply every wallet asset has a Bybit listing. Preserve all existing wallet networks.
 
 Persist operation identities before transmission. Lost acknowledgments and incomplete receipts remain UNKNOWN, block conflicting writes and must never cause automatic replacement. Bybit does not expose withdrawal request-ID lookup; do not infer a match from amount/address/time. Last prices are not execution guarantees, market orders can fill partially, and exchange-reported withdrawal completion is not independently verified chain finality. API credentials, beneficiary details and local remote-operation journals are not recoverable from the BIP39 phrase. [Exchange requirements and evidence](docs/EXCHANGE.md) supplement all existing security and release gates.
+
+### 6.2 Owner-authorized NEAR staking extension — 2026-10-28
+
+Provide a Staking tab within each NEAR wallet. Default mainnet to the exact `astro-stakers.poolv1.near` contract; require an explicit supported pool on testnet. Support stake (`deposit_and_stake`), partial/all unstake (`unstake`, `unstake_all`) and withdrawal (`withdraw_all`). Only stake attaches the approved NEAR; other operations attach zero. Read `get_account` using the actual owned account, display exact staked/unstaked amounts and `can_withdraw`, and retain unknown states on unavailable RPC. Staked balances include compounded rewards; do not invent a separate earnings figure or fixed withdrawal date.
+
+Serialize a single allowlisted Borsh FunctionCall, preserve Ed25519/nonces, and reuse the existing private approval, password authentication and encrypted journal. Show exact pool, method, arguments, gas, attached NEAR, effect amount and fee reserve in signer-authored confirmation. All-method amounts are observations, not limits on the contract's current balance. Root-call success alone cannot establish successful downstream withdrawal: failed/missing/ambiguous receipts retain UNKNOWN and the original reservation. Actual local-contract acceptance and optional fresh-secret, capped public-testnet acceptance are separate evidence. No mainnet spending or external seed import is authorized.
 
 ## 7. Completion definition
 

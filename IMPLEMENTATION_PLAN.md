@@ -127,6 +127,8 @@ Go checks normally include `go test`, `go test -race`, `go vet`, an appropriate 
 
 ## Final implementation report
 
+The owner-authorized NEAR staking extension (2026-10-28) adds `make test-near-staking` for focused security/race/frontend/mutation checks, `make test-near-staking-local` for the real pinned contract cycle, `make test-near-staking-gui` for actual isolated Wails presentation, and explicitly selected `make test-near-staking-testnet` for capped fresh-secret public-testnet acceptance. The existing local integration and fuzz campaigns include staking; release compilation remains separate from tests. The concrete TP-100–104 checklist and independent fixture provenance are in [docs/NEAR_STAKING.md](docs/NEAR_STAKING.md). This narrow extension does not enable arbitrary smart-contract signing or waive any original network, recovery or review gate.
+
 Provide source commit, build/package paths, installation commands, exact supported OS matrix, per-chain capability/evidence table, coverage per critical package, mutation/fuzz/race results, stress environment/results, clean recovery evidence, dependency/security findings and review status.
 
 Use explicit statuses: **PASS**, **FAIL**, **BLOCKED**, **NOT_RUN**, or **NOT_APPLICABLE with reason**. State why a blocked test matters, what unaffected work is complete, and the precise next action needed. Lack of a public faucet or external reviewer does not justify leaving the remaining local implementation unfinished, and does not justify calling the missing gate passed.

@@ -25,12 +25,15 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'label': return node.Text ? <p className="node-label" title={node.Tooltip}>{node.Text}</p> : null;
     case 'separator': return <hr/>;
     case 'column': return <div className="node-column">{children()}</div>;
-    case 'row': return <div className="node-row" title={node.Tooltip}>{children()}</div>;
+    case 'row': {
+      if (node.ID.startsWith('walletSections/')) return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
+      return <div className="node-row" title={node.Tooltip}>{children()}</div>;
+    }
     case 'address': return <div className="address-field" title={node.Tooltip}>{node.Text && <span className="address-label">{node.Text}</span>}<code className="address">{node.Value}</code></div>;
     case 'entry': case 'combo': case 'check': return <Field node={node} emit={emit}/>;
     case 'button': {
       const copy = node.ID.startsWith('copyReceive/');
-      const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|exchangeConnect|exchangeSwap)/.test(node.ID);
+      const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap)/.test(node.ID);
       return <button type="button" data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : undefined} onClick={() => emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : node.Text}</button>;
     }
   }

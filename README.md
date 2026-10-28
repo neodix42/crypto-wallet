@@ -161,6 +161,24 @@ The implemented hardening and its exact test scopes are tracked in the [hardenin
 
 Accounts and the local payment journal now use bounded pages, including large encrypted archives. **Settings → Journal** exposes previous/next journal pages; wallet tabs expose **Next chain-history page**. Their continuations expire on lock or context/generation change. TON traverses exact hash-linked archival transactions and Core traverses inclusive timestamp pages within their documented budgets. Incomplete or saturated queries remain explicit. See [history limits and tests](docs/HISTORY_PAGINATION.md).
 
+## NEAR staking
+
+Open a NEAR wallet, then its **Staking** tab. Mainnet defaults to **AstroStakers**, `astro-stakers.poolv1.near`. Enter a whole-NEAR amount (`1` means 1 NEAR), choose **Stake**, review the prepared operation, then use **Review and confirm staking transaction**. The private Go-authored confirmation shows the exact pool, method, attached NEAR, 100 Tgas, effects and estimated fee reserve; your app password is required.
+
+**Unstake amount** and **Unstake all** move stake into the pool's unstaked balance. **Withdraw all** returns available unstaked NEAR after the pool permits it, normally after four epochs. A precise number of hours is not guaranteed. Unstake and withdrawal attach zero NEAR but still require wallet NEAR for gas. Staked funds leave the available wallet balance; **Refresh staking state** queries this wallet's `get_account` state. Compounded rewards are included in staked balance; this method cannot identify a separate earnings amount. Failed reads remain unknown, and missing/failed downstream execution remains unresolved in the journal.
+
+Supported pools are direct children of `poolv1.near` / `pool.near` on mainnet and `pool.f863973.m0` on testnet. Testnet requires an explicit pool; the mainnet address is never substituted. Namespace membership is not a contract audit or validator-performance guarantee. No external wallet or recovery-phrase import is needed. See [implementation, trust limits and evidence](docs/NEAR_STAKING.md).
+
+```sh
+make test-near-staking       # offline-after-dependency-setup security/race/UI/mutation checks
+make test-near-staking-local # actual pinned sandbox + official staking-pool contract
+make test-near-staking-gui   # uninstrumented Wails page on an isolated display/network
+# Separate explicit public-testnet acceptance; fresh disposable root, capped funds:
+make test-near-staking-testnet
+```
+
+Local-node tests require `npm ci --ignore-scripts --prefix tests/oracles/near` and `tests/oracles/near/install-sandbox.sh` first. The local fixture pauses validator proposals through the contract owner's official method: it proves real contract accounting, approvals, transfers and epoch-gated recovery, not validator election or reward performance. The public-testnet campaign is separate from ordinary tests and CI: it stakes exactly 0.01 testnet NEAR, caps cumulative fee reserves below 1 testnet NEAR, and resumes its encrypted disposable fixture under `.tools/near-staking-testnet/`. The command returns nonzero while funding or the real epoch wait leaves the full cycle incomplete; rerun it later to reconcile the original operations and withdraw. Never use real user secrets or fund committed public seed fixtures.
+
 ## Exchange with Bybit
 
 Open the main **Settings** tab, choose its **Exchange** tab, select your Bybit API region and use **Connect Bybit API key**. Enter the **API key** and matching **API secret** from a Bybit system-generated key only in the separate masked wallet dialogs. The API key identifies the connection; the secret signs authenticated requests using HMAC. A key alone cannot authorize trading or withdrawals. “System-generated” refers to the key type created in Bybit, not a new wallet-generated credential; self-generated RSA keys are not supported. Credentials are stored in the encrypted local vault; the ordinary portfolio receives connection status and a key suffix. Configure only the required spot, account-transfer and withdrawal permissions, restrict the key to an appropriate IP, and whitelist the exact owned withdrawal addresses in Bybit. Withdrawals require a master-account key. Connecting or refreshing performs no trade or transfer. Deposit, Swap and Withdraw stay in the main **Exchange** tab.

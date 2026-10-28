@@ -31,6 +31,8 @@ jobs:
         run: |
           ./scripts/with-go.sh go test -race ./internal/nativewallet ./internal/sessionwatch ./internal/webui
           ./scripts/with-toolchain.sh npm --prefix internal/webui/frontend test
+      - name: Exercise NEAR staking authorization and semantic security mutants
+        run: make test-near-staking
       - name: Restore all wallets using only independent copies of cryptowallet
         run: make test-recovery-portable
       - name: Verify the pinned Wails fork and actual ephemeral WebKit restrictions

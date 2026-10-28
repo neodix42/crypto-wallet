@@ -56,6 +56,35 @@ describe('public React renderer', () => {
     await click([...host.querySelectorAll('[role="tab"]')].find(tab => tab.textContent === 'Settings')!);
     expect(emit).toHaveBeenCalledWith('tab', 'settings');
   });
+  it('renders NEAR Wallet/Staking tabs with selection and only typed public control events', async () => {
+    const tabs = node('row', 'walletSections/near-mainnet:0', 'NEAR wallet sections', 'Staking');
+    tabs.Children = [node('button', 'walletSection/near-mainnet:0/Wallet', 'Wallet'), node('button', 'walletSection/near-mainnet:0/Staking', 'Staking')];
+    tabs.Children[1].Disabled = true;
+    const emit = vi.fn();
+    await mount(<PublicNode node={tabs} emit={emit}/>);
+    const list = host.querySelector('[role="tablist"]')!;
+    expect(list.getAttribute('aria-label')).toBe('NEAR wallet sections');
+    expect([...list.querySelectorAll('[role="tab"]')].map(tab => [tab.textContent, tab.getAttribute('aria-selected')])).toEqual([['Wallet', 'false'], ['Staking', 'true']]);
+    await click(list.querySelector('[data-action="walletSection/near-mainnet:0/Wallet"]'));
+    expect(emit.mock.calls).toEqual([['walletSection/near-mainnet:0/Wallet']]);
+    expect(host.querySelector('form')).toBeNull();
+  });
+  it('keeps staking contract and exact amount inert, without generic contract or secret bridge methods', async () => {
+    const contract = node('address', '', 'Exact contract · near-mainnet', 'astro-stakers.poolv1.near');
+    const amount = node('entry', 'field/stakingAmount/near-mainnet:0', 'Amount (NEAR; 1 means 1 NEAR)', '1.25');
+    const prepare = node('button', 'stakingPrepare/near-mainnet:0/stake', 'Stake');
+    const confirmation = node('button', 'stakingSend/near-mainnet:0', 'Review and confirm staking transaction');
+    const emit = vi.fn();
+    await mount(<PublicContent page={{ ID: 'wallet/near-mainnet:0', Title: 'NEAR', Nodes: [contract, amount, prepare, confirmation] }} emit={emit}/>);
+    expect(host.querySelector('code')!.textContent).toBe('astro-stakers.poolv1.near');
+    expect(host.querySelector('input')!.value).toBe('1.25');
+    expect(host.textContent).toContain('1 means 1 NEAR');
+    await click(host.querySelector('[data-action="stakingPrepare/near-mainnet:0/stake"]'));
+    expect(emit.mock.calls).toEqual([['stakingPrepare/near-mainnet:0/stake']]);
+    await click(host.querySelector('[data-action="stakingSend/near-mainnet:0"]'));
+    expect(emit.mock.calls[1]).toEqual(['stakingSend/near-mainnet:0']);
+    expect(host.querySelector('[data-action="stakingSend/near-mainnet:0"]')!.classList.contains('primary')).toBe(true);
+  });
   it('does not overwrite a fresh event with a stale snapshot and serializes public actions', async () => {
     let resolve!: (value: View) => void;
     const snapshot = new Promise<View>(done => { resolve = done; });
