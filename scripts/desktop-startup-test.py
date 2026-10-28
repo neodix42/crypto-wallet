@@ -844,6 +844,23 @@ class WailsOwnedServerGuard(unittest.TestCase):
         self.x.XGrabServer.assert_called_once_with(self.desktop.d)
         self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
 
+    def test_one_to_one_public_ocr_preserves_exact_word_coordinates_and_guard(self):
+        decoder=self.scope['subprocess'].check_output
+        decoder.return_value=b'header\n5\t1\t1\t1\t1\t1\t1\t2\t3\t4\t99\tUse\n'
+        rows=self.scope['public_rows'](ocr_scale=1)
+        self.assertEqual(rows[0][6:10],['1','2','3','4'])
+        self.assertEqual(self.events,['grab','enumerate','pixels','ungrab'])
+        self.assertEqual(decoder.call_args.args[0],['tesseract','stdin','stdout','--psm','11','tsv'])
+        with Image.open(io.BytesIO(decoder.call_args.kwargs['input'])) as capture:self.assertEqual(capture.size,(4,4))
+
+    def test_unexpected_public_ocr_scale_is_rejected_before_any_pixels(self):
+        for scale in (0,3,-1):
+            with self.subTest(scale=scale),self.assertRaisesRegex(RuntimeError,'OCR scale'):
+                self.scope['public_rows'](ocr_scale=scale)
+        self.desktop.image.assert_not_called()
+        self.scope['subprocess'].check_output.assert_not_called()
+        self.assertEqual(self.events,[])
+
     def test_geometry_and_original_public_pixels_are_captured_under_the_same_guard(self):
         def geometry(window):
             self.assertEqual(window,1)
@@ -1165,6 +1182,17 @@ class WailsEVMAssetSelector(unittest.TestCase):
     def test_exact_symbol_in_bounded_button_left_of_balance_is_selected(self):
         self.assertEqual(self.locate(),(77,121))
 
+    def test_value_only_balance_cell_does_not_repeat_the_token_symbol(self):
+        self.rows=self.rows[:2]
+        self.assertEqual(self.locate(),(77,121))
+
+    def test_ocr_box_merged_with_border_is_rejected_without_weakening_clean_glyph_bounds(self):
+        clean=list(self.rows[0])
+        self.rows[0][7]='99';self.rows[0][9]='44'
+        self.assertIsNone(self.locate())
+        self.rows[0]=clean
+        self.assertEqual(self.locate(),(77,121))
+
     def test_balance_glyph_cannot_replace_missing_button_text(self):
         self.rows=self.rows[1:]
         self.assertIsNone(self.locate())
@@ -1188,11 +1216,80 @@ class WailsEVMAssetSelector(unittest.TestCase):
         self.assertIsNone(self.locate())
 
 
+class WailsEVMContractTooltip(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        definition=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='exact_evm_contract_text')
+        scope={'re':re}
+        exec(compile(ast.Module(body=[definition],type_ignores=[]),'exact-contract-helper','exec'),scope)
+        self.decode=scope['exact_evm_contract_text']
+        self.contract='0xdAC17F958D2ee523a2206206994597C13D831ec7'
+
+    def decimal(self,rows,picture,bounds,row_y,expected):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        definition=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='public_decimal_cell')
+        scope={'ImageOps':ImageOps,'Image':Image,'io':io,'subprocess':subprocess}
+        exec(compile(ast.Module(body=[definition],type_ignores=[]),'decimal-cell-helper','exec'),scope)
+        return scope['public_decimal_cell'](rows,picture,bounds,row_y,expected)
+
+    def test_full_exact_contract_survives_only_spacing_and_hex_case(self):
+        self.assertTrue(self.decode(('ERC-20 contract · ethereum-mainnet\n'+self.contract).encode(),self.contract))
+        self.assertTrue(self.decode(('0x'+self.contract[2:].upper()).encode(),self.contract))
+        self.assertTrue(self.decode((self.contract[:22]+' '+self.contract[22:]).encode(),self.contract))
+
+    def test_confusable_characters_are_never_repaired(self):
+        for value in [self.contract.replace('1','l',1),self.contract.replace('1','I',1),self.contract.replace('0x','Ox',1)]:
+            with self.subTest(value=value):self.assertFalse(self.decode(value.encode(),self.contract))
+
+    def test_partial_longer_prefixed_or_suffixed_contracts_are_rejected(self):
+        for value in [self.contract[:-1],self.contract+'0','0'+self.contract,'g'+self.contract,self.contract+'g']:
+            with self.subTest(value=value):self.assertFalse(self.decode(value.encode(),self.contract))
+
+    def test_wrong_address_and_ambiguous_multiple_contracts_are_rejected(self):
+        self.assertFalse(self.decode((self.contract[:-1]+'8').encode(),self.contract))
+        self.assertFalse(self.decode((self.contract+'\n'+self.contract).encode(),self.contract))
+
+    def test_precision_cell_requires_exact_unrestricted_integer_ocr(self):
+        header=['5','1','1','1','1','1','90','20','80','14','95','Decimals']
+        picture=Image.new('RGB',(220,150),'white')
+        with mock.patch.object(subprocess,'check_output',return_value=b'16\n') as decoder:
+            self.assertFalse(self.decimal([header],picture,(0,0,220,150),70,'6'))
+            self.assertEqual(decoder.call_count,2)
+            for call in decoder.call_args_list:self.assertEqual(call.args[0],['tesseract','stdin','stdout','--psm','7'])
+        with mock.patch.object(subprocess,'check_output',return_value=b'6\n'):
+            self.assertTrue(self.decimal([header],picture,(0,0,220,150),70,'6'))
+
+    def test_precision_cell_without_a_unique_header_never_reaches_ocr(self):
+        with mock.patch.object(subprocess,'check_output') as decoder:
+            with self.assertRaisesRegex(RuntimeError,'Unique asset precision'):
+                self.decimal([],Image.new('RGB',(220,150),'white'),(0,0,220,150),70,'6')
+            decoder.assert_not_called()
+
+    def test_contract_block_requires_observed_label_and_bounded_tooltip_fill(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        definition=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='evm_contract_tooltip_block')
+        scope={'palette':lambda:{'chrome':(237,241,246)}}
+        exec(compile(ast.Module(body=[definition],type_ignores=[]),'tooltip-block-helper','exec'),scope)
+        block=scope['evm_contract_tooltip_block']
+        picture=Image.new('RGB',(400,320),'white')
+        ImageDraw.Draw(picture).rectangle((60,150,299,224),fill=(237,241,246))
+        def word(text,left):return ['5','1','1','1','1','1',str(left),'167','60','14','95',text]
+        rows=[word('ERC-20',75),word('contract',145)]
+        captured=block(rows,picture,(0,0,400,320),(100,260))
+        self.assertEqual(captured[1],(60,150,300,225))
+        self.assertEqual(captured[0].size,(240,75))
+        self.assertIsNone(block(rows+rows,picture,(0,0,400,320),(100,260)))
+        rows[0][11]='ERC2O'
+        self.assertIsNone(block(rows,picture,(0,0,400,320),(100,260)))
+        with self.assertRaisesRegex(RuntimeError,'owned bounds'):
+            block(rows,picture,(0,0,401,320),(100,260))
+
+
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector):
+    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

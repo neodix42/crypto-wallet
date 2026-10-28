@@ -86,7 +86,7 @@ test-erc20: frontend
 	WALLET_ERC20_EVM=1 $(TOOLS) go test ./internal/chains/evm -run '^TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache$$' -v -count=1
 test-exchange:
 	$(GO_TOOLS) go test ./internal/exchange/...
-	$(GO_TOOLS) go test ./internal/signer ./internal/walletsigner ./internal/walletcore ./internal/chains/evm -run 'Exchange|Bybit|USDT'
+	$(GO_TOOLS) go test ./internal/signer ./internal/walletsigner ./internal/walletcore ./internal/chains/evm -run 'Exchange|Bybit|USDT|USDC'
 	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	WALLET_USDT_EVM=1 $(TOOLS) go test ./internal/chains/evm -run USDT -count=1

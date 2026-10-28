@@ -28,7 +28,7 @@ func (f *lifecycleFrontend) control(t *testing.T) {
 	}
 }
 
-func TestSessionMonitorStartupFailureRemainsVisibleAfterFeedbackExpiryAndUnlock(t *testing.T) {
+func TestSessionMonitorDiagnosticsRemainAccurateWithoutUIExposition(t *testing.T) {
 	a, ui, _ := fixture(t)
 	a.state.Locked = true
 	a.active = "settings"
@@ -36,20 +36,20 @@ func TestSessionMonitorStartupFailureRemainsVisibleAfterFeedbackExpiryAndUnlock(
 	// making any D-Bus connection. Only its controller completion is queued.
 	a.startSessionMonitor(nil)
 	ui.apply(t)
-	if a.monitorState != unavailableMonitoring || a.status != unavailableMonitoring || !a.state.Locked {
-		t.Fatal("monitor startup failure was hidden or claimed active protection")
+	if a.monitorState != unavailableMonitoring || strings.Contains(a.status, "OS screen-lock monitoring") || !a.state.Locked {
+		t.Fatal("monitor diagnostic was inaccurate or its removed exposition appeared")
 	}
 	a.statusUntil = time.Now().Add(-time.Second)
 	a.lastStatus = time.Now()
 	a.tick()
-	if a.status != "" || !strings.Contains(viewText(a.view()), unavailableMonitoring) {
-		t.Fatal("seven-second feedback expiry removed persistent monitoring guidance")
+	if a.status != "" || strings.Contains(viewText(a.view()), "OS screen-lock monitoring") {
+		t.Fatal("monitor exposition appeared after feedback expiry")
 	}
 	a.state.Locked = false // Presentation check; no signer authorization is inferred.
 	a.notice("Public unrelated operation completed.")
-	if !strings.Contains(viewText(a.view()), unavailableMonitoring) ||
+	if strings.Contains(viewText(a.view()), "OS screen-lock monitoring") ||
 		strings.Contains(a.monitorState, "is active") {
-		t.Fatal("unlocked Settings lost unsupported-monitoring guidance")
+		t.Fatal("unlocked Settings exposed monitor diagnostics or claimed unavailable protection")
 	}
 }
 

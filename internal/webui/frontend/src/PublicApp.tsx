@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Node, Page, View, WalletEvent } from './types';
-import { applyAppearance, isWalletRow, validView } from './protocol';
-import { CopyIcon, Mark, SettingsIcon } from './icons';
+import { applyAppearance, isAssetTable, isWalletRow, validView } from './protocol';
+import { AddressBookIcon, CopyIcon, Mark, SaveAddressIcon, SettingsIcon } from './icons';
 
 type Emit = (id: string, value?: string) => void;
 const blank: View = { Title: 'CryptoWallet', Status: '', StatusRevision: 0, Active: '', Pages: [] };
+
+function AssetSelector({ node, tooltip, emit }: { node: Node; tooltip: string; emit: Emit }) {
+  const [hovered, setHovered] = useState(false), [focused, setFocused] = useState(false), [dismissed, setDismissed] = useState(false);
+  const visible = (hovered || focused) && !dismissed;
+  const tooltipID = 'asset-identity-' + encodeURIComponent(node.ID);
+  return <span className="asset-selector" tabIndex={node.Disabled ? 0 : undefined} onMouseEnter={() => { setHovered(true); setDismissed(false); }} onMouseLeave={() => setHovered(false)} onFocus={() => { setFocused(true); setDismissed(false); }} onBlur={() => setFocused(false)} onKeyDown={event => { if (event.key === 'Escape') setDismissed(true); }} aria-describedby={visible && tooltip ? tooltipID : undefined}><button type="button" data-action={node.ID} disabled={node.Disabled} aria-describedby={visible && tooltip ? tooltipID : undefined} onClick={() => emit(node.ID)}>{node.Text}</button>{visible && tooltip && <span className="asset-tooltip" role="tooltip" id={tooltipID}>{tooltip}</span>}</span>;
+}
+
+export function AssetTable({ node, emit }: { node: Node; emit: Emit }) {
+  return <div className="asset-table-wrap"><table className="asset-table" aria-label={node.Text || 'Wallet assets'}><thead><tr><th scope="col">Token</th><th scope="col">Balance</th><th scope="col">Decimals</th></tr></thead><tbody>{(node.Children || []).map(row => {
+    const [selection, balance, decimals] = row.Children!;
+    return <tr key={row.ID}><td><AssetSelector node={selection} tooltip={row.Tooltip || selection.Tooltip} emit={emit}/></td><td><PublicNode node={balance} emit={emit}/></td><td><PublicNode node={decimals} emit={emit}/></td></tr>;
+  })}</tbody></table></div>;
+}
 
 export function Field({ node, emit }: { node: Node; emit: Emit }) {
   const [value, setValue] = useState(node.Value);
@@ -24,17 +38,19 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'heading': return <h2 className="node-heading" title={node.Tooltip}>{node.Text}</h2>;
     case 'label': return node.Text ? <p className="node-label" title={node.Tooltip}>{node.Text}</p> : null;
     case 'separator': return <hr/>;
-    case 'column': return <div className="node-column">{children()}</div>;
+    case 'column': return isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
+      if (node.ID.startsWith('recipientField/')) return <div className="recipient-field">{children()}</div>;
       return <div className="node-row" title={node.Tooltip}>{children()}</div>;
     }
-    case 'address': return <div className="address-field" title={node.Tooltip}>{node.Text && <span className="address-label">{node.Text}</span>}<code className="address">{node.Value}</code></div>;
+    case 'address': return <div className={`address-field ${/^(Receive address|Owned wallet receive address)$/.test(node.Text) ? 'receive-address-line' : ''}`} title={node.Tooltip}>{node.Text && <span className="address-label">{node.Text}{/^(Receive address|Owned wallet receive address)$/.test(node.Text) ? ':' : ''}</span>}<code className="address">{node.Value}</code></div>;
     case 'entry': case 'combo': case 'check': return <Field node={node} emit={emit}/>;
     case 'button': {
       const copy = node.ID.startsWith('copyReceive/');
+      const loadAddress = node.ID.startsWith('addressBookLoad/'), saveAddress = node.ID.startsWith('addressBookSave/');
       const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap)/.test(node.ID);
-      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : undefined} onClick={() => emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : node.Text}</button>;
+      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''} ${loadAddress || saveAddress ? 'addressbook-action' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : loadAddress || saveAddress ? node.Text : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : loadAddress || saveAddress ? node.Text : undefined} onClick={() => emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : loadAddress ? <AddressBookIcon/> : saveAddress ? <SaveAddressIcon/> : node.Text}</button>;
     }
   }
 }
@@ -69,7 +85,7 @@ export function WalletShell({ view, status, emit }: { view: View; status: string
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
   }, [unlock, emit]);
-  return <div className="wallet-shell"><header className="app-header"><a className="brand" href="#" onClick={event => { event.preventDefault(); const first = pages.find(page => page.ID.startsWith('group/')); if (first) emit('tab', first.ID); }}><Mark/><span>CryptoWallet</span></a><span className="build-metadata">{metadata}</span></header><nav className="tabs" aria-label="Wallet tabs">{pages.map(page => <div className={`tab ${active?.ID === page.ID ? 'active' : ''} ${page.ID === 'exchange' ? 'utility-start' : ''}`} key={page.ID} onAuxClick={event => { if (event.button === 1 && page.ID.startsWith('wallet/')) { event.preventDefault(); emit('closeTab', page.ID); } }}><button type="button" role="tab" aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" onClick={() => emit('tab', page.ID)}>{page.ID === 'settings' && <SettingsIcon/>}{page.Title}</button>{page.ID.startsWith('wallet/') && <button className="close-tab" type="button" aria-label={`Close ${page.Title}`} onClick={() => emit('closeTab', page.ID)}>×</button>}</div>)}</nav><main className={`workspace ${portfolio ? 'portfolio-workspace' : active?.ID.startsWith('group/') ? 'welcome-workspace' : ''}`} id="wallet-panel" role="tabpanel" aria-label={active?.Title}>{active ? <PublicContent page={active} emit={emit}/> : <div className="connecting"><Mark/><p>Opening your encrypted wallet…</p></div>}</main><footer className="status-bar" aria-live="polite" aria-atomic="true"><span className={status ? 'status-dot visible' : 'status-dot'} aria-hidden="true"/><span>{status}</span></footer></div>;
+  return <div className="wallet-shell"><header className="app-header"><a className="brand" href="#" onClick={event => { event.preventDefault(); const first = pages.find(page => page.ID.startsWith('group/')); if (first) emit('tab', first.ID); }}><Mark/><span>CryptoWallet</span></a><span className="build-metadata">{metadata}</span></header><nav className="tabs" aria-label="Wallet tabs">{pages.map(page => <div className={`tab ${active?.ID === page.ID ? 'active' : ''} ${page.ID === 'exchange' ? 'utility-start' : ''}`} key={page.ID} onAuxClick={event => { if (event.button === 1 && page.ID.startsWith('wallet/')) { event.preventDefault(); emit('closeTab', page.ID); } }}><button type="button" role="tab" aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" onClick={() => emit('tab', page.ID)}>{page.ID === 'settings' && <SettingsIcon/>}{page.ID === 'addressbook' && <AddressBookIcon/>}{page.Title}</button>{page.ID.startsWith('wallet/') && <button className="close-tab" type="button" aria-label={`Close ${page.Title}`} onClick={() => emit('closeTab', page.ID)}>×</button>}</div>)}</nav><main className={`workspace ${portfolio ? 'portfolio-workspace' : active?.ID.startsWith('group/') ? 'welcome-workspace' : ''}`} id="wallet-panel" role="tabpanel" aria-label={active?.Title}>{active ? <PublicContent page={active} emit={emit}/> : <div className="connecting"><Mark/><p>Opening your encrypted wallet…</p></div>}</main><footer className="status-bar" aria-live="polite" aria-atomic="true"><span className={status ? 'status-dot visible' : 'status-dot'} aria-hidden="true"/><span>{status}</span></footer></div>;
 }
 
 export function PublicApp() {

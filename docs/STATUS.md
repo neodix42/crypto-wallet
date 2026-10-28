@@ -1,5 +1,24 @@
 # Implementation and release evidence
 
+## Address book, compact assets and USDC spot directions — 2026-10-28
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, encrypted contacts and protocol | Contacts are scoped to each owned account and exact automatically assigned network, with existing chain-specific validators for all eight active mainnets and 11 testnet/local descriptors. Tests cover old-vault compatibility, encrypted reload, malformed/duplicate/oversized data, Unicode display controls, retired-network refusal, final-delete recovery identity, strict IPC, persistence failures and unchanged prepared payments. Backend and focused race logs: `reports/addressbook-backend-tests.log`, `reports/addressbook-backend-hardening-race.log`. |
+| PASS, controller/race | Recipient save/load icons, named contact edit/delete, TON comment, same-account asset-preserving draft fill, no implicit signing, stale/foreign reply rejection, lock cleanup, draft-preserving tab navigation and ongoing-read completion. Removed monitor exposition preserves actual session-lock callbacks and internal fault state. `reports/addressbook-controller-race.log`. |
+| PASS, USDC backend | Exact USDT/USDC quote allowlist, checked provider base/quote, buy/sell wire/HMAC, received-asset fees/taxes, separately approved funding, price/spend/fee private summaries, tamper rejection and encrypted restart/no replay. Existing USDT digests and pinned on-chain assets remain unchanged. Full affected-package tests/race and focused USDC regressions pass; `reports/usdc-exchange.json`. Live authenticated/funded acceptance is NOT_RUN. |
+| PASS, current units/security/stress | `make test-ci` passes current Go suites, all 59 frontend tests and stress regressions. All 82 final GUI helper regressions pass. Full affected-package race and focused controller/backend hardening race pass. Ten Bybit-client/signer semantic overlay mutants are killed. Five-second Bybit-auth and strict-JSON fuzz campaigns execute 16,271 and 84,933 cases without failure. Public scope only, no real credentials. |
+| FAIL, retained desktop attempts | Initial sparse OCR omitted the USDT decimal cell; later broad OCR confused the contract prefix, merged an enabled selector with its border, and misread a contact button/recipient. Guarded public crops established the correct app output. The final driver uses exact bounded cells/tooltip blocks, independently guarded normal/contrast selectors and 1×/2× label/recipient observations, with no character repairs or weakened private-window guards. Earlier failed reports remain separate, including `reports/wails-addressbook-tokens-first-failed.json`, `reports/addressbook-tooltip-failed-wails-wallet.json` and `reports/addressbook-recipient-ocr-failed-wails-wallet.json`; their later steps were not passed. |
+| PASS, actual targeted and complete GUI | Four targeted steps and all 24 complete uninstrumented Wails steps pass with `sourceStable=true`: exact Token/Balance/Decimals rows, full hover-only contract and dismissal, USDT selection/units/owned receive address, and actual recipient Save → persist → Use → clear → Load → Use. The complete campaign repeats token/contact checks after independent phrase restore, compares all eight owned addresses, and checks Settings, backup, Appearance, Bybit cancellation, restart and Enter unlock. `reports/wails-addressbook-tokens.json`, `reports/wails-wallet.json`. No transaction is prepared or approved by the contact flow. |
+| PASS, final portable artifact | Fresh Go build/extraction and exact four-file archive; ten disposable installation checks; seven headless independent-profile recovery/migration checks covering all 24 descriptors; eight real private-geth payment checks; eight actual WebKit security and three inspector checks. Reports: `go-only-build.json`, `portable-install.json`, `portable-phrase-recovery.json`, `portable-send.json`, `wails-security.json`, `wails-inspector.json` under `reports/`. |
+| NOT_RUN | New hosted workflow, real Bybit account eligibility/funded USDC trade, public funded-network roundtrips, clean OS/Wayland matrix and independent security review. No real user storage/secrets or mainnet funds are used. |
+
+See [address-book behavior and checklist](ADDRESS_BOOK.md) and [Exchange scope](EXCHANGE.md).
+
+The recorded local executable is SHA256 `300fa572bf8fcb5a3d1cdc3963a735f3df0b920e80fbb113072e79100a578c72`.
+Release builds have their own version/artifact identity and require their own checks;
+this record does not certify a later executable or a funded Bybit account.
+
 ## Storage directory rename — 2026-10-28
 
 | State | Evidence and limits |

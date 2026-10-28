@@ -2,7 +2,7 @@
 
 The Exchange extension is explicitly requested by the owner. It introduces a custodial exchange account alongside the existing local wallet. API access does not make exchange-held funds noncustodial. The HTTP client is `internal/exchange/bybit`; Go core performs requests and the isolated Go signer owns credentials and authorization. No third-party exchange SDK was added.
 
-API research was checked against the official documentation on 2026-10-24. Private exchange calls and funded transactions were **NOT_RUN**: development uses public synthetic credentials and isolated HTTP/TLS fixtures. Package tests establish wire/schema and failure behavior; they do not establish Bybit acceptance, account eligibility, liquidity or successful mainnet deposits/withdrawals.
+API research was checked against the official documentation on 2026-10-24; the USDT/USDC instrument, market-unit and execution-fee contracts were rechecked on 2026-10-28. Private exchange calls and funded transactions were **NOT_RUN**: development uses public synthetic credentials and isolated HTTP/TLS fixtures. Package tests establish wire/schema and failure behavior; they do not establish Bybit acceptance, account eligibility, liquidity or successful mainnet deposits/withdrawals.
 
 ## Transport and authentication
 
@@ -24,7 +24,7 @@ HTTP errors expose numeric status only; exchange errors expose numeric `retCode`
 | `CoinInfo` | [Coin information](https://bybit-exchange.github.io/docs/v5/asset/coin-info): full chain IDs/types, full token contracts, deposit/withdrawal suspension, precision, minima and fees |
 | `DepositAddress` | [Master deposit address](https://bybit-exchange.github.io/docs/v5/asset/deposit/master-deposit-addr): exact selected coin and chain, address and tag/memo; rejects a different/ambiguous returned chain |
 | `AccountBalance` | [Single-coin balance](https://bybit-exchange.github.io/docs/v5/asset/balance/account-coin-balance): FUND or UNIFIED, distinct wallet/transfer/safe amounts; requests transfer safety for the opposite account type |
-| `SpotInstrument` | [Instrument information](https://bybit-exchange.github.io/docs/v5/market/instrument): a Trading spot pair with USDT quote, exact precision, current market maximum and minimum order value |
+| `SpotInstrument` | [Instrument information](https://bybit-exchange.github.io/docs/v5/market/instrument): a Trading spot pair with the exact selected USDT or USDC quote, exact precision, current market maximum and minimum order value |
 | `SpotTicker` | [Ticker](https://bybit-exchange.github.io/docs/v5/market/tickers): last/best bid/best ask prices for the exact spot symbol; the last price is an observation, never a guaranteed execution price |
 | `SpotFeeRate` | [Trading fee rate](https://bybit-exchange.github.io/docs/v5/account/fee-rate): exact symbol's maker/taker rate |
 | `CreateOrder` | [Place order](https://bybit-exchange.github.io/docs/v5/order/create-order): `spot`, `Market`, `isLeverage=0`, unique `orderLinkId`; Buy spends `quoteCoin`, Sell spends `baseCoin`; explicit Percent slippage 0.01–10 with at most two decimals |
@@ -33,6 +33,8 @@ HTTP errors expose numeric status only; exchange errors expose numeric `retCode`
 | `Transfer`, `TransferStatus` | [Internal transfer](https://bybit-exchange.github.io/docs/v5/asset/transfer/create-inter-transfer) and [records](https://bybit-exchange.github.io/docs/v5/asset/transfer/inter-transfer-list): UUID identity, only FUND ↔ UNIFIED under the same UID, exact amount and explicit pending/unknown states |
 | `Withdraw`, `WithdrawalRecords` | [Withdraw](https://bybit-exchange.github.io/docs/v5/asset/withdraw) and [records](https://bybit-exchange.github.io/docs/v5/asset/withdraw/withdraw-record): FUND, forced on-chain, exact selected chain/address/tag, `feeType=1` and alphanumeric 1–32 character request ID |
 | `DepositRecords` | [On-chain deposit records](https://bybit-exchange.github.io/docs/v5/asset/deposit/deposit-record): coin/transaction identity, up to 50 records per explicit page; preserves chain/address/tag, deposit status, fee, deposit restrictions and Travel Rule state |
+
+Only USDT and USDC quote currencies are allowed. `SpotPair` parses these exact suffixes; the signer additionally binds the base to the selected pinned wallet asset. Public quote/swap requests accept optional `quoteCoin`, defaulting to USDT for compatibility. The canonical order payload already contains the complete exact symbol, so no exchange-vault schema or old USDT operation digest changes. Selecting USDC does not authorize a new on-chain USDC contract, generic token exchange route or arbitrary pair.
 
 FUND/UNIFIED transfers and spot execution are distinct operations. Transferable balance is not labeled as free spot balance; debt, locks and margin collateral may restrict a UNIFIED account. There is no borrowing, leverage, derivatives, arbitrary order, API-key management or generic authenticated HTTP API.
 

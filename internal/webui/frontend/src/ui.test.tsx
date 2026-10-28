@@ -47,6 +47,64 @@ describe('public React renderer', () => {
     await click(host.querySelector('td:nth-child(2)'));
     expect(emit.mock.calls[1]).toEqual(['open/a']);
   });
+  it('renders token balances in three columns and exposes exact contract identity only on hover or focus', async () => {
+    const table = node('column', 'walletAssets/ethereum:0', 'Wallet assets');
+    const contracts = ['Native currency · ethereum-mainnet', 'ethereum-mainnet\nERC-20 contract: 0xdAC17F958D2ee523a2206206994597C13D831ec7', 'ethereum-mainnet\nERC-20 contract: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'];
+    table.Children = ['ETH', 'USDT', 'USDC'].map((symbol, index) => {
+      const row = node('row', `walletAsset/exact-${index}`);
+      const selection = node('button', `asset/owned/exact-${index}`, symbol);
+      selection.Disabled = index === 0;
+      row.Tooltip = contracts[index];
+      row.Children = [selection, node('label', '', index === 1 ? '1.25' : 'Unknown'), node('label', '', index === 0 ? '18' : '6')];
+      return row;
+    });
+    const emit = vi.fn(); await mount(<PublicNode node={table} emit={emit}/>);
+    expect([...host.querySelectorAll('th')].map(cell => cell.textContent)).toEqual(['Token', 'Balance', 'Decimals']);
+    expect([...host.querySelectorAll('tbody tr')].map(row => [...row.querySelectorAll('td')].map(cell => cell.textContent))).toEqual([['ETH', 'Unknown', '18'], ['USDT', '1.25', '6'], ['USDC', 'Unknown', '6']]);
+    expect(host.textContent).not.toContain('0xdAC17');
+    const selectors = host.querySelectorAll('.asset-selector');
+    expect(selectors[0].getAttribute('tabindex')).toBe('0');
+    await act(async () => { selectors[1].dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
+    expect(host.querySelector('[role="tooltip"]')!.textContent).toBe(contracts[1]);
+    expect(selectors[1].querySelector('button')!.hasAttribute('title')).toBe(false);
+    await act(async () => { selectors[1].dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })); });
+    expect(host.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => { selectors[0].dispatchEvent(new FocusEvent('focusin', { bubbles: true })); });
+    expect(host.querySelector('[role="tooltip"]')!.textContent).toBe(contracts[0]);
+    await act(async () => { selectors[0].dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); selectors[0].dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })); });
+    expect(host.querySelector('[role="tooltip"]')!.textContent).toBe(contracts[0]);
+    await act(async () => { selectors[0].dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); selectors[0].dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
+    expect(host.querySelector('[role="tooltip"]')!.textContent).toBe(contracts[0]);
+    await act(async () => { selectors[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(host.querySelector('[role="tooltip"]')).toBeNull();
+    await click(selectors[2].querySelector('button'));
+    expect(emit.mock.calls).toEqual([['asset/owned/exact-2']]);
+  });
+  it('keeps receive labels and full addresses together while recipient book icons send only exact Go actions', async () => {
+    const address = node('address', '', 'Receive address', '0x' + 'a'.repeat(64));
+    const row = node('row', 'recipientField/owned');
+    row.Children = [node('entry', 'field/recipient/owned', 'Recipient address', '0x111'), node('button', 'addressBookLoad/owned', 'Load from address book'), node('button', 'addressBookSave/owned', 'Save address to address book')];
+    const emit = vi.fn(); await mount(<><PublicNode node={address} emit={emit}/><PublicNode node={row} emit={emit}/></>);
+    expect(host.querySelector('.receive-address-line .address-label')!.textContent).toBe('Receive address:');
+    expect(host.querySelector('.receive-address-line code')!.textContent).toBe(address.Value);
+    expect(host.querySelector('.recipient-field input')!.getAttribute('value')).toBe('0x111');
+    const load = host.querySelector('[aria-label="Load from address book"]')!, save = host.querySelector('[aria-label="Save address to address book"]')!;
+    expect(load.querySelector('svg')).not.toBeNull(); expect(save.querySelector('svg')).not.toBeNull();
+    await click(load); await click(save);
+    expect(emit.mock.calls).toEqual([['addressBookLoad/owned'], ['addressBookSave/owned']]);
+  });
+  it('escapes tooltip metadata and retains a normal rendering for malformed asset groups', async () => {
+    const table = node('column', 'walletAssets/test', 'Wallet assets'), row = node('row', 'walletAsset/test');
+    row.Tooltip = '<img src=x onerror=alert(1)>';
+    row.Children = [node('button', 'asset/exact', 'TOKEN'), node('label', '', 'Unknown'), node('label', '', '6')];
+    table.Children = [row]; await mount(<PublicNode node={table} emit={() => {}}/>);
+    await act(async () => { host.querySelector('.asset-selector')!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
+    expect(host.querySelector('[role="tooltip"]')!.textContent).toBe(row.Tooltip);
+    expect(host.querySelector('[role="tooltip"] img')).toBeNull();
+    row.Children.pop(); await act(async () => { root!.render(<PublicNode node={table} emit={() => {}}/>); });
+    expect(host.querySelector('table')).toBeNull();
+    expect(host.textContent).toContain('TOKEN');
+  });
   it('handles wallet middle close and keeps Exchange and Settings as top tabs', async () => {
     const state = view(); state.Pages!.push({ ID: 'wallet/a', Title: 'ETH · Ethereum', Nodes: [] }, { ID: 'exchange', Title: 'Exchange', Nodes: [] }, { ID: 'settings', Title: 'Settings', Nodes: [] });
     const emit = vi.fn(); await mount(<WalletShell view={state} status="" emit={emit}/>);

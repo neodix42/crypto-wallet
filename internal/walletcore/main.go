@@ -438,6 +438,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}
 	switch m.Method {
+	case "addressBook", "saveAddress", "removeAddress":
+		return c.addressBookAt(m, epoch)
 	case "discoverTokens":
 		return c.discoverTokensAt(m, epoch)
 	case "importToken":

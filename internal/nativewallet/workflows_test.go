@@ -422,9 +422,9 @@ func TestExchangeRequestContractsAndResponsesRemainSeparateFromWalletResults(t *
 		case "exchangeStatus":
 			expected = struct{}{}
 		case "exchangeQuote":
-			expected = map[string]string{"accountId": account, "assetId": asset, "side": "Sell"}
+			expected = map[string]string{"accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT"}
 		case "exchangeSwap":
-			expected = map[string]string{"accountId": account, "assetId": asset, "side": "Sell", "amount": "1.25", "slippage": "0.5"}
+			expected = map[string]string{"accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT", "amount": "1.25", "slippage": "0.5"}
 		default:
 			expected = map[string]string{"accountId": account, "assetId": asset, "amount": "1.25"}
 		}
@@ -560,7 +560,7 @@ func TestPublicErrorCodesAreFixedAndBusyClosedViewsDoNotAuthorizeWork(t *testing
 		a.state.VaultState = state
 		a.active = "settings"
 		v := a.view()
-		if v.Active != "settings" || len(v.Pages) != 2 {
+		if v.Active != "settings" || len(v.Pages) != 3 || v.Pages[2].ID != "addressbook" {
 			t.Fatal("locked UI navigation changed")
 		}
 	}

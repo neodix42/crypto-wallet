@@ -22,7 +22,7 @@ var (
 	ErrInvalidResponse = errors.New("invalid or incomplete Bybit response")
 	ErrUnavailable     = errors.New("Bybit connection unavailable; operation may require reconciliation")
 	ErrAuthorization   = errors.New("Bybit authorization unavailable")
-	ErrNotListed       = errors.New("Bybit has no active spot listing for this USDT pair")
+	ErrNotListed       = errors.New("Bybit has no active spot listing for this selected pair")
 )
 
 var productionEndpoints = []string{
@@ -86,7 +86,29 @@ func coinName(s string) bool {
 	return true
 }
 func symbolName(s string) bool {
-	return coinName(s) && len(s) > 4 && strings.HasSuffix(s, "USDT") && s != "USDTUSDT"
+	_, _, ok := SpotPair(s)
+	return ok
+}
+
+// SpotQuote restricts this wallet's exchange quote currencies. It does not
+// authorize a wallet token, deposit/withdrawal route, or arbitrary trading pair.
+func SpotQuote(s string) bool { return s == "USDT" || s == "USDC" }
+
+// SpotPair splits only the two explicitly supported spot quote currencies.
+// Callers additionally bind the base coin to the selected pinned wallet asset.
+func SpotPair(s string) (base, quote string, ok bool) {
+	if !coinName(s) {
+		return "", "", false
+	}
+	for _, quote := range []string{"USDT", "USDC"} {
+		if strings.HasSuffix(s, quote) {
+			base := strings.TrimSuffix(s, quote)
+			if coinName(base) && base != quote {
+				return base, quote, true
+			}
+		}
+	}
+	return "", "", false
 }
 func decimal(s string, positive bool) bool {
 	n, e := amount.Parse(s, 36)

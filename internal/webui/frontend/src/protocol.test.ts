@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inputWithinLimit, isWalletRow, phraseWords, validPrompt, validView } from './protocol';
+import { inputWithinLimit, isAssetTable, isWalletRow, phraseWords, validPrompt, validView } from './protocol';
 import type { Node, Prompt } from './types';
 import { id, node, phrase, view } from './test-fixtures';
 
@@ -22,6 +22,14 @@ describe('public representation', () => {
   it('recognizes a wallet table row only from its complete structural identity', () => {
     const row = node('row', 'open/public-account'); row.Children = [node('button'), node('label'), node('address'), node('button')];
     expect(isWalletRow(row)).toBe(true); row.Children.pop(); expect(isWalletRow(row)).toBe(false);
+  });
+  it('recognizes assets only as complete three-cell Go-authored rows', () => {
+    const table = node('column', 'walletAssets/owned'), row = node('row', 'walletAsset/exact');
+    row.Children = [node('button', 'asset/owned/exact', 'TOKEN'), node('label', '', 'Unknown'), node('label', '', '6')];
+    table.Children = [row]; expect(isAssetTable(table)).toBe(true);
+    row.Children[0].Kind = 'label'; expect(isAssetTable(table)).toBe(false);
+    row.Children[0].Kind = 'button'; row.Children.pop(); expect(isAssetTable(table)).toBe(false);
+    table.Children = []; expect(isAssetTable(table)).toBe(false);
   });
   it('validates every combo option before accepting a settings view', () => {
     const state = view(), select = node('combo', 'field/region', 'Region');

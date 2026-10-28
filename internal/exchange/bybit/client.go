@@ -266,7 +266,7 @@ func (c *Client) SpotInstrument(ctx context.Context, symbol string) (Instrument,
 		return Instrument{}, ErrInvalidResponse
 	}
 	i := r.List[0]
-	if i.Symbol != symbol || !coinName(i.BaseCoin) || i.QuoteCoin != "USDT" || i.BaseCoin+i.QuoteCoin != symbol || i.Status != "Trading" || !decimal(i.LotSizeFilter.BasePrecision, true) || !decimal(i.LotSizeFilter.QuotePrecision, true) || !decimal(i.LotSizeFilter.MinOrderAmt, true) || !decimal(i.LotSizeFilter.MaxMarketOrderQty, true) || !decimal(i.PriceFilter.TickSize, true) {
+	if i.Symbol != symbol || !coinName(i.BaseCoin) || !SpotQuote(i.QuoteCoin) || i.BaseCoin == i.QuoteCoin || i.BaseCoin+i.QuoteCoin != symbol || i.Status != "Trading" || !decimal(i.LotSizeFilter.BasePrecision, true) || !decimal(i.LotSizeFilter.QuotePrecision, true) || !decimal(i.LotSizeFilter.MinOrderAmt, true) || !decimal(i.LotSizeFilter.MaxMarketOrderQty, true) || !decimal(i.PriceFilter.TickSize, true) {
 		return Instrument{}, ErrInvalidResponse
 	}
 	return i, nil

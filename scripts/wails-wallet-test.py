@@ -319,7 +319,8 @@ def private_primary(prefix):
     report.setdefault("privateFooterFailures",[]).append({"title":prefix,"window":[w,h],"expectedPrimary":list(palette()["primary"]),"commonColors":[[list(color),count] for color,count in counts.most_common(6)]})
     raise RuntimeError("Private prompt did not finish rendering its enabled footer action")
 
-def public_rows(contrast=False, with_picture=False, with_geometry=False):
+def public_rows(contrast=False, with_picture=False, with_geometry=False, ocr_scale=2):
+    if ocr_scale not in (1,2):raise RuntimeError("Unexpected public OCR scale")
     # Make classification and pixel capture one X11 operation. An async Go
     # prompt cannot become visible between the allowlist check and image read.
     # This is only the owned private :18x test server; release it before OCR.
@@ -343,13 +344,13 @@ def public_rows(contrast=False, with_picture=False, with_geometry=False):
     if contrast and appearance["theme"]=="light":
         picture=ImageOps.grayscale(picture).point(lambda value:0 if value<210 else 255)
     data = io.BytesIO()
-    picture.resize((picture.width*2,picture.height*2),Image.Resampling.LANCZOS).save(data, format="PNG")
+    picture.resize((picture.width*ocr_scale,picture.height*ocr_scale),Image.Resampling.LANCZOS).save(data, format="PNG")
     raw = subprocess.check_output(["tesseract", "stdin", "stdout", "--psm", "11", "tsv"], input=data.getvalue(), stderr=subprocess.DEVNULL)
     rows = []
     for line in raw.decode().splitlines()[1:]:
         fields = line.split("\t")
         if len(fields) == 12 and fields[11].strip():
-            for position in (6,7,8,9):fields[position]=str(int(fields[position])//2)
+            for position in (6,7,8,9):fields[position]=str(int(fields[position])//ocr_scale)
             rows.append(fields)
     if with_geometry:return rows,captured,geometry
     return (rows,captured) if with_picture else rows
@@ -941,12 +942,12 @@ def backup_phrase(expected,secret):
 
 def evm_asset_button_target(symbol,rows,picture,bounds,heading_y,require_enabled=False):
     # An exact glyph alone is insufficient: the balance repeats the symbol.
-    # Require an independently observed Unknown balance and its bounded filled
+    # Require an independently observed value-only Unknown balance and its bounded filled
     # button to the left. Never substitute balance text or repair OCR glyphs.
     if symbol not in ("ETH","USDT"):raise RuntimeError("Unexpected asset selector target")
     x,y,w,h=bounds
     if x<0 or y<0 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Asset selector capture exceeds owned bounds")
-    balances=[r for i,r in enumerate(rows[:-1]) if r[11]=="Unknown" and rows[i+1][11]==symbol and r[1:5]==rows[i+1][1:5] and int(r[7])>heading_y]
+    balances=[r for r in rows if r[11]=="Unknown" and int(r[7])>heading_y]
     found=set()
     for row in rows:
         if row[11]!=symbol:continue
@@ -966,6 +967,50 @@ def evm_asset_button_target(symbol,rows,picture,bounds,heading_y,require_enabled
         while run_bottom<y+h-1 and picture.getpixel((edge_x,run_bottom+1))==fill:run_bottom+=1
         if 36<=run_right-run_left+1<=180 and 30<=run_bottom-run_top+1<=70 and run_left<left and left+width<run_right and run_top<top and top+height<run_bottom:found.add((cx,cy))
     return next(iter(found)) if len(found)==1 else None
+
+def exact_evm_contract_text(raw,expected):
+    # Preserve every non-whitespace glyph. No hex whitelist, character repair
+    # or expected-address substring can turn a confusable or longer identity
+    # into the reviewed contract.
+    candidates=[]
+    for line in raw.decode("utf-8").splitlines():
+        compact=re.sub(r"\s+","",line)
+        candidates.extend(re.findall(r"(?<![0-9A-Za-z])0x[0-9a-fA-F]{40}(?![0-9A-Za-z])",compact))
+    return [value.lower() for value in candidates]==[expected.lower()]
+
+def evm_contract_tooltip_block(rows,picture,bounds,point):
+    x,y,w,h=bounds
+    if x<0 or y<0 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Contract hover capture exceeds owned bounds")
+    labels=[r for i,r in enumerate(rows[:-1]) if r[11]=="ERC-20" and rows[i+1][11]=="contract" and r[1:5]==rows[i+1][1:5] and point[0]-70<int(r[6])<point[0]+710 and max(y+145,point[1]-190)<int(r[7])<point[1]-20]
+    if len(labels)!=1:return None
+    label=labels[0]
+    sample_x,sample_y=int(label[6])+10,int(label[7])-4
+    fill=palette()["chrome"]
+    if not (x<sample_x<x+w and y<sample_y<y+h) or picture.getpixel((sample_x,sample_y))!=fill:return None
+    left=right=sample_x
+    while left>x and picture.getpixel((left-1,sample_y))==fill:left-=1
+    while right<x+w-1 and picture.getpixel((right+1,sample_y))==fill:right+=1
+    edge_x=left+5
+    top=bottom=sample_y
+    while top>y and picture.getpixel((edge_x,top-1))==fill:top-=1
+    while bottom<y+h-1 and picture.getpixel((edge_x,bottom+1))==fill:bottom+=1
+    if not (100<=right-left+1<=710 and 35<=bottom-top+1<=140):return None
+    box=(left,top,right+1,bottom+1)
+    return picture.crop(box).convert("L"),box
+
+def public_decimal_cell(rows,picture,bounds,row_y,expected):
+    headers=[row for row in rows if row[11]=="Decimals" and int(row[7])<row_y]
+    if len(headers)!=1:raise RuntimeError("Unique asset precision column was not observed")
+    left=int(headers[0][6])-8
+    x,y,w,h=bounds
+    box=(left,row_y-23,min(left+145,x+w-1),row_y+23)
+    if box[0]<x or box[1]<y or box[3]>y+h:raise RuntimeError("Asset precision cell exceeds owned public bounds")
+    cell=picture.crop(box).convert("L")
+    for scale in (1,3):
+        data=io.BytesIO();ImageOps.expand(cell.resize((cell.width*scale,cell.height*scale),Image.Resampling.LANCZOS),border=12,fill=255).save(data,format="PNG")
+        raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","7"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=10)
+        if raw.decode().strip()==expected:return True
+    return False
 
 def public_words_position(words, rows=None):
     wanted=[word.lower() for word in words.split()]
@@ -1289,45 +1334,59 @@ def ethereum_tokens(expected_address=None):
         expected_address=wait(lambda:(value if re.fullmatch(r"0x[0-9a-fA-F]{40}",value:=clipboard()) else None))
     scroll_public(4,35)
     wait(lambda:"Assets on Ethereum" in text())
-    rows=public_rows()
+    rows=public_rows(contrast=True)
     visible=" ".join(row[11] for row in rows)
-    report["ethereumAssetPublicOCR"]=[{"word":row[11],"line":row[1:5],"box":[int(row[index]) for index in (6,7,8,9)]} for row in rows if row[11].strip("·.,:") in ("ETH","USDT","Unknown","Decimals","18","6")]
+    report["ethereumAssetPublicOCR"]=[{"word":row[11],"line":row[1:5],"box":[int(row[index]) for index in (6,7,8,9)]} for row in rows if row[11].strip("·.,:") in ("Token","Balance","ETH","USDT","Unknown","Decimals","18","6")]
     asset_heading=public_words_position("Assets on Ethereum",rows)
     if not asset_heading:raise RuntimeError("Ethereum asset list heading was not visible")
     def asset_button(symbol,require_enabled=False):
         desktop.park_pointer()
-        observed,picture,bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
-        point=evm_asset_button_target(symbol,observed,picture,bounds,asset_heading[1],require_enabled)
+        # Ordinary OCR can retain a clean glyph where contrast merges its
+        # border into the glyph box; contrast recovers low-opacity disabled
+        # labels. Both observations must independently pass identical bounds,
+        # exact-symbol, balance and button-fill checks before any click.
+        point=None
+        for contrast in (False,True):
+            observed,picture,bounds=public_rows(contrast=contrast,with_picture=True,with_geometry=True)
+            point=evm_asset_button_target(symbol,observed,picture,bounds,asset_heading[1],require_enabled)
+            if point is not None:break
         if point is None:raise RuntimeError("Exact Ethereum asset button was not identified independently of its balance: "+symbol)
-        report.setdefault("ethereumAssetButtonTargets",[]).append({"symbol":symbol,"center":list(point),"requireEnabled":require_enabled})
+        report.setdefault("ethereumAssetButtonTargets",[]).append({"symbol":symbol,"center":list(point),"requireEnabled":require_enabled,"contrastOCR":contrast})
         return point
-    for symbol in ("ETH","USDT"):
+    if not all(public_words_position(title,rows) for title in ("Token","Balance","Decimals")):raise RuntimeError("Ethereum assets did not have Token, Balance and Decimals table headers")
+    for symbol,decimals in (("ETH","18"),("USDT","6")):
         _,button_y=asset_button(symbol)
-        lines={}
-        for row in rows:
-            if abs(int(row[7])+int(row[9])//2-button_y)<45:
-                lines.setdefault(tuple(row[1:5]),[]).append(row[11])
-        if not any(re.search(r"\bUnknown\s+"+symbol+r"\b"," ".join(words)) for words in lines.values()):
+        words=[row[11] for row in rows if abs(int(row[7])+int(row[9])//2-button_y)<20]
+        cell_rows,cell_picture,cell_bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
+        if "Unknown" not in words or not public_decimal_cell(cell_rows,cell_picture,cell_bounds,button_y,decimals):
             raise RuntimeError("Offline Ethereum asset row did not display its separate unknown balance: "+symbol)
-    if not re.search(r"Decimals[: ]+18\b",visible) or not re.search(r"Decimals[: ]+6\b",visible):
-        raise RuntimeError("Ethereum native/token decimal metadata was not visible")
-    # Require all forty contract digits from actual public pixels. Restrict OCR
-    # to hexadecimal glyphs; pixels and OCR stay in memory and never enter an
-    # artifact. X11 classification and capture remain one atomic operation.
-    desktop.grab_server()
-    try:
-        mod.X.XSync(desktop.d,0)
-        if desktop.secret_window():raise PrivateWindowVisible("Refusing Ethereum public contract OCR while a private prompt is visible")
-        picture=desktop.image().convert("L")
-    finally:
-        desktop.ungrab_server()
-    data=io.BytesIO()
-    picture.resize((picture.width*3,picture.height*3),Image.Resampling.LANCZOS).save(data,format="PNG")
-    raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","11","-c","tessedit_char_whitelist=0x0123456789abcdefABCDEF"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=15)
     contract="0xdAC17F958D2ee523a2206206994597C13D831ec7"
-    if contract.lower() not in re.sub(r"\s+","",raw.decode()).lower():
-        raise RuntimeError("Complete pinned USDT contract was not readable in Ethereum public pixels")
-    passed("Actual Ethereum wallet displays separate unknown ETH and USDT balances, full token contract and 18/6 decimal metadata without mocked RPC or zero-balance claims")
+    if contract.lower() in re.sub(r"\s+","",visible).lower():raise RuntimeError("Token contract is permanently visible instead of hover-only")
+    point=asset_button("USDT",require_enabled=True)
+    mod.T.XTestFakeMotionEvent(desktop.d,-1,*point,0);mod.X.XFlush(desktop.d)
+    matched=False
+    deadline=time.monotonic()+15
+    while time.monotonic()<deadline:
+        hover_rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
+        captured=evm_contract_tooltip_block(hover_rows,picture,bounds,point)
+        if captured:
+            crop,box=captured
+            for scale,psm in ((1,6),(3,6),(1,7),(3,7)):
+                data=io.BytesIO();ImageOps.expand(crop.resize((crop.width*scale,crop.height*scale),Image.Resampling.LANCZOS),border=12,fill=255).save(data,format="PNG")
+                raw=subprocess.check_output(["tesseract","stdin","stdout","--psm",str(psm)],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=15)
+                if exact_evm_contract_text(raw,contract):matched=True;break
+            if matched:break
+        time.sleep(.15)
+    desktop.park_pointer()
+    if not matched:raise RuntimeError("Exact full USDT contract was not readable in its actual public hover tooltip")
+    _,after_picture,after_bounds=public_rows(with_picture=True,with_geometry=True)
+    if after_bounds!=bounds:raise RuntimeError("Public wallet geometry changed during hover verification")
+    after_crop=after_picture.crop(box).convert("L")
+    data=io.BytesIO();ImageOps.expand(after_crop.resize((after_crop.width*3,after_crop.height*3),Image.Resampling.LANCZOS),border=12,fill=255).save(data,format="PNG")
+    after_raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","11"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=15)
+    if after_crop.tobytes()==crop.tobytes() or exact_evm_contract_text(after_raw,contract):raise RuntimeError("Token contract tooltip remained visible after the pointer left")
+    report["ethereumAssetHover"]={"exactContract":True,"contractHiddenBeforeHover":True,"dismissedAfterPointerLeave":True,"tokenTableColumns":["Token","Balance","Decimals"]}
+    passed("Actual Ethereum table shows separate ETH/USDT balances and 18/6 decimals, with the exact token contract visible only on hover")
     stage("Select USDT and inspect its ordinary Send presentation")
     desktop.click(*asset_button("USDT",require_enabled=True))
     time.sleep(.3)
@@ -1359,6 +1418,58 @@ def ethereum_tokens(expected_address=None):
         raise RuntimeError("Returning to ETH retained token-send authority or an open form")
     report["ethereumTokenPresentation"]={"network":"ethereum-mainnet","assets":["ETH","USDT"],"decimals":[18,6],"tokenContract":contract,"receiveAddressSHA256":hashlib.sha256(expected_address.encode()).hexdigest(),"balanceObservation":"Unknown: no RPC service in owned network namespace","preparedOrSent":False}
     passed("Explicit USDT selection uses whole-token Send units and the same verified owned receive address, then closes Send and returns to ETH without preparing or approving a payment")
+    address_book_campaign()
+
+def address_book_campaign():
+    stage("Save and load a disposable Ethereum recipient through its address-book icons")
+    recipient="0x"+"2"*40
+    def use_position():
+        for scale in (1,2):
+            position=public_words_position("Use address",public_rows(ocr_scale=scale))
+            if position:return position
+        return None
+    def recipient_loaded():
+        rows=public_rows(ocr_scale=1)
+        label=public_words_position("Recipient address",rows)
+        # Compare the complete observed input token below its own label,
+        # excluding a receive address, longer identity or repaired glyph.
+        return bool(label) and any(row[11]==recipient and label[1]+20<int(row[7])<label[1]+65 for row in rows)
+    def field(label,value):
+        position=public_words_position(label)
+        if not position:raise RuntimeError("Address-book input label was not visible")
+        desktop.click(position[0],position[1]+40)
+        desktop.key("a",ctrl=True)
+        if value:desktop.type(value)
+        else:desktop.key("BackSpace")
+        time.sleep(.25)
+    stage("Address book: open ordinary Send and fill disposable recipient")
+    click("Send")
+    wait(lambda:"Recipient address" in text())
+    field("Recipient address",recipient)
+    # Real keyboard focus visits input, Load icon, then Save icon. These are
+    # the ordinary accessible controls, with no bridge or clipboard injection.
+    desktop.key("Tab");desktop.key("Tab");desktop.key("Return")
+    stage("Address book: inspect scoped form after keyboard Save icon activation")
+    wait(lambda:"Save address" in text() and "Wallet / network" in text())
+    field("Name","Disposable recipient")
+    click("Save address")
+    stage("Address book: inspect persisted disposable entry")
+    use=wait(lambda:"Disposable recipient" in text() and use_position())
+    desktop.click(*use);time.sleep(.25)
+    stage("Address book: inspect saved recipient after Use address")
+    wait(recipient_loaded)
+    field("Recipient address","")
+    desktop.key("Tab");desktop.key("Return")
+    stage("Address book: inspect scoped entries after keyboard Load icon activation")
+    use=wait(lambda:"Wallet / network" in text() and use_position())
+    desktop.click(*use);time.sleep(.25)
+    stage("Address book: inspect loaded recipient after Use address")
+    wait(recipient_loaded)
+    if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Address-book selection requested authority or prepared a payment")
+    click("Send")
+    wait(lambda:"Recipient address" not in text())
+    report["addressBook"]={"saved":True,"loaded":True,"network":"ethereum-mainnet","recipientSHA256":hashlib.sha256(recipient.encode()).hexdigest(),"preparedOrSent":False}
+    passed("Recipient Save/Load icons persist and restore a scoped address-book entry without preparing or approving a payment")
 
 def staking_page():
     stage("Open actual NEAR wallet Staking page")

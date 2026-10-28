@@ -28,3 +28,21 @@
 .private-recovery .phrase-copy>.private-note{margin-top:8px}
 .private-recovery .copy-feedback{min-height:1.6em;margin-bottom:0}
 @media(min-width:760px){.private-recovery .recovery-words{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+.receive-address-line{flex-direction:row;align-items:baseline;gap:8px;white-space:nowrap;overflow-x:auto}
+.receive-address-line .address-label{flex:none;white-space:nowrap}
+.recipient-field{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:9px;margin:7px 0}
+.recipient-field>.field{margin:0}
+.recipient-field>.addressbook-action{height:45px;width:45px;min-width:45px;padding:10px}
+.asset-table-wrap{margin:10px 0 21px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.asset-table{border-collapse:collapse;text-align:left;width:100%;table-layout:fixed}
+.asset-table th,.asset-table td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+.asset-table th{background:var(--chrome);font-size:1rem;color:var(--muted);font-weight:580}
+.asset-table th:first-child{border-top-left-radius:7px}
+.asset-table th:last-child{border-top-right-radius:7px;width:22%}
+.asset-table tr:last-child td{border-bottom:0}
+.asset-table td>.node-label{margin:0;color:var(--text);font-variant-numeric:tabular-nums}
+.asset-selector{display:inline-flex;position:relative;max-width:100%}
+.asset-selector>button{max-width:100%;overflow-wrap:anywhere}
+.asset-selector:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:7px}
+.asset-tooltip{position:absolute;left:0;bottom:calc(100% + 8px);z-index:30;width:max-content;max-width:min(690px,78vw);padding:11px 14px;border:1px solid var(--border);border-radius:7px;background:var(--chrome);color:var(--text);box-shadow:0 5px 20px var(--shadow);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:1rem;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;pointer-events:none}

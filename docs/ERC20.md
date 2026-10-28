@@ -14,7 +14,9 @@ Horizen networks are explicitly retired under the later owner request; the exist
 3. Review the separate Go-authored confirmation: network, owned account,
    untrusted symbol, decimals and observed runtime code hash. Confirm with the
    current local app password. Adding a token sends no transaction or allowance.
-4. Its asset row shows the token balance, full contract and decimals. Select that
+4. Its **Token / Balance / Decimals** table row shows the exact token balance and
+   decimal precision. Hover or keyboard-focus the token button to see its full
+   contract and exact network; identities remain distinct even when symbols match. Select that
    row's asset button before **Send**. Amounts are whole token units: `1.25`
    means 1.25 of that token, using its verified decimal precision.
 5. **Receive** uses the same owned address and QR code for all tokens

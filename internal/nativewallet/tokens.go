@@ -14,21 +14,23 @@ import (
 func (a *App) walletAssets(account model.Account, selected model.Asset) []webui.Node {
 	network := a.network(account.Network)
 	nodes := []webui.Node{heading("Assets on " + network.Name)}
+	table := node("column", "walletAssets/"+account.ID, "Wallet assets", "")
 	for _, asset := range network.Assets {
 		value, _ := a.balance(account, asset)
-		identity := node("address", "", "ERC-20 contract · "+account.Network, asset.Contract)
+		identity := "ERC-20 contract · " + account.Network + " · " + asset.Contract
 		if asset.Contract == "" {
-			identity = label("Native currency · " + account.Network)
+			identity = "Native currency · " + account.Network
 		}
 		selection := a.button("asset/"+account.ID+"/"+asset.ID, asset.Symbol, selected.ID == asset.ID)
-		selection.Tooltip = "Select this exact asset for Send and Receive."
-		assetRow := row(selection, label(value+" "+asset.Symbol), identity, label("Decimals: "+strconv.Itoa(int(asset.Decimals))))
+		selection.Tooltip = identity
+		assetRow := row(selection, label(value), label(strconv.Itoa(int(asset.Decimals))))
 		assetRow.ID = "walletAsset/" + account.ID + "/" + asset.ID
-		nodes = append(nodes, assetRow)
+		assetRow.Tooltip = identity
+		table.Children = append(table.Children, assetRow)
 	}
-	nodes = append(nodes, label("Balances cover configured assets only. A standard EVM RPC cannot enumerate every token held by an address. Unknown balances are not zero."))
+	nodes = append(nodes, table)
 	if ethereumTokenNetwork(account) {
-		nodes = append(nodes, label("ETH and these ERC-20 tokens use the wallet's same receive address on this network. The token contract identifies the asset; never use it as your receive address."), heading("Track an ERC-20 token"), a.entry("tokenContract/"+account.ID, "Token contract address on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed), label("Go queries the exact contract, then shows its network, symbol and decimals in a private password-authenticated confirmation. Token names and metadata do not establish legitimacy. Adding a token does not send funds."))
+		nodes = append(nodes, heading("Track an ERC-20 token"), a.entry("tokenContract/"+account.ID, "Token contract address on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed))
 	}
 	return append(nodes, a.discoveredTokenRows(account)...)
 }

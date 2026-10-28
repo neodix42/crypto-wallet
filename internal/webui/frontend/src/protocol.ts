@@ -36,6 +36,9 @@ export function validView(value: unknown): value is View {
 export function isWalletRow(node: Node): boolean {
   return node.Kind === 'row' && node.ID.startsWith('open/') && (node.Children || []).length === 4 && node.Children?.[2]?.Kind === 'address';
 }
+export function isAssetTable(node: Node): boolean {
+  return node.Kind === 'column' && node.ID.startsWith('walletAssets/') && Array.isArray(node.Children) && node.Children.length > 0 && node.Children.every(row => row.Kind === 'row' && row.ID.startsWith('walletAsset/') && row.Children?.length === 3 && row.Children[0].Kind === 'button' && row.Children[1].Kind === 'label' && row.Children[2].Kind === 'label');
+}
 export function validPrompt(value: unknown): value is Prompt {
   if (!object(value) || typeof value.id !== 'string' || !/^[a-f0-9]{32}$/.test(value.id) || !boundedText(value.title, 256, false)) return false;
   let fields = ['id', 'kind', 'title'];

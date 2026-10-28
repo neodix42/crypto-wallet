@@ -238,19 +238,27 @@ func (e *Engine) PrepareExchange(in ExchangeIntent) (vault.ExchangeOperation, er
 	if err != nil {
 		return vault.ExchangeOperation{}, err
 	}
-	if in.LastPrice != "" && !exchangeDecimal(in.LastPrice, true) || in.Fee != "" && !exchangeDecimal(in.Fee, false) || in.FeeCoin != "" && in.FeeCoin != asset.Symbol && in.FeeCoin != "USDT" {
+	if in.LastPrice != "" && !exchangeDecimal(in.LastPrice, true) || in.Fee != "" && !exchangeDecimal(in.Fee, false) {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
 	id := ID()
 	var payload any
 	switch in.Kind {
 	case "swap":
-		if in.Order == nil || in.Transfer != nil || in.Withdrawal != nil || asset.Symbol == "USDT" {
+		if in.Order == nil || in.Transfer != nil || in.Withdrawal != nil {
 			return vault.ExchangeOperation{}, ErrDenied
 		}
 		o := *in.Order
 		o.OrderLinkID = id
-		if o.Symbol != asset.Symbol+"USDT" || bybit.ValidateSpotOrder(o) != nil {
+		base, quote, pairOK := bybit.SpotPair(o.Symbol)
+		if !pairOK || base != asset.Symbol || bybit.ValidateSpotOrder(o) != nil {
+			return vault.ExchangeOperation{}, ErrDenied
+		}
+		feeCoin := quote
+		if o.Side == "Buy" {
+			feeCoin = base
+		}
+		if in.FeeCoin != "" && in.FeeCoin != feeCoin {
 			return vault.ExchangeOperation{}, ErrDenied
 		}
 		b, _ := amount.Parse(o.SlippageTolerance, 2)
@@ -265,7 +273,7 @@ func (e *Engine) PrepareExchange(in ExchangeIntent) (vault.ExchangeOperation, er
 		}
 		t := *in.Transfer
 		t.TransferID = exchangeUUID(id)
-		if (t.Coin != asset.Symbol && t.Coin != "USDT") || bybit.ValidateTransfer(t) != nil {
+		if (t.Coin != asset.Symbol && !bybit.SpotQuote(t.Coin)) || bybit.ValidateTransfer(t) != nil || in.FeeCoin != "" && in.FeeCoin != t.Coin {
 			return vault.ExchangeOperation{}, ErrDenied
 		}
 		payload = t
@@ -284,7 +292,7 @@ func (e *Engine) PrepareExchange(in ExchangeIntent) (vault.ExchangeOperation, er
 			return vault.ExchangeOperation{}, ErrDenied
 		}
 		w.RequestID, w.Timestamp = id, time.Now().UnixMilli()
-		if bybit.ValidateWithdrawal(w) != nil || !exchangeWithdrawalNetwork(a, asset, w, in.ChainType, in.ContractAddress) {
+		if bybit.ValidateWithdrawal(w) != nil || !exchangeWithdrawalNetwork(a, asset, w, in.ChainType, in.ContractAddress) || in.FeeCoin != "" && in.FeeCoin != asset.Symbol {
 			return vault.ExchangeOperation{}, ErrDenied
 		}
 		if x.Credentials.Endpoint == "https://api.bybit.ae" {
@@ -337,17 +345,21 @@ func exchangeApproval(o vault.ExchangeOperation, a model.Account, asset model.As
 	switch o.Kind {
 	case "swap":
 		var order bybit.SpotOrder
-		if strictjson.Decode([]byte(o.Payload), &order) != nil || order.Symbol != asset.Symbol+"USDT" || order.OrderLinkID != o.ID {
+		if strictjson.Decode([]byte(o.Payload), &order) != nil || order.OrderLinkID != o.ID {
+			return "", ErrDenied
+		}
+		base, quote, pairOK := bybit.SpotPair(order.Symbol)
+		if !pairOK || base != asset.Symbol {
 			return "", ErrDenied
 		}
 		spend := asset.Symbol
 		if order.Side == "Buy" {
-			spend = "USDT"
+			spend = quote
 		}
-		summary += fmt.Sprintf("Spot market order: %s %s\nExact spending quantity: %s %s\nMaximum slippage: %s%% from Bybit's current best ask/bid\nMargin or borrowing: disabled\nLatest observed price (indicative): %s USDT per %s\nEstimated trading fee: %s %s\nMarket orders can fill partially or not fill. The last price is not an execution guarantee.\n", order.Side, order.Symbol, order.Qty, spend, order.SlippageTolerance, o.LastPrice, asset.Symbol, o.Fee, o.FeeCoin)
+		summary += fmt.Sprintf("Spot market order: %s %s\nExact spending quantity: %s %s\nMaximum slippage: %s%% from Bybit's current best ask/bid\nMargin or borrowing: disabled\nLatest observed price (indicative): %s %s per %s\nEstimated trading fee: %s %s\nMarket orders can fill partially or not fill. The last price is not an execution guarantee.\n", order.Side, order.Symbol, order.Qty, spend, order.SlippageTolerance, o.LastPrice, quote, asset.Symbol, o.Fee, o.FeeCoin)
 	case "transfer":
 		var transfer bybit.TransferRequest
-		if strictjson.Decode([]byte(o.Payload), &transfer) != nil || transfer.TransferID != exchangeUUID(o.ID) || transfer.Coin != asset.Symbol && transfer.Coin != "USDT" {
+		if strictjson.Decode([]byte(o.Payload), &transfer) != nil || transfer.TransferID != exchangeUUID(o.ID) || transfer.Coin != asset.Symbol && !bybit.SpotQuote(transfer.Coin) {
 			return "", ErrDenied
 		}
 		summary += fmt.Sprintf("Transfer inside your Bybit account\nExact amount: %s %s\nFrom account: %s\nTo account: %s\nThis transfers the selected amount only; it does not place a trade.\n", transfer.Amount, transfer.Coin, transfer.FromAccountType, transfer.ToAccountType)

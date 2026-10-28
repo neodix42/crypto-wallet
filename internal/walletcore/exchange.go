@@ -94,6 +94,7 @@ type exchangeQuote struct {
 	AccountID      string            `json:"accountId"`
 	AssetID        string            `json:"assetId"`
 	Coin           string            `json:"coin"`
+	QuoteCoin      string            `json:"quoteCoin"`
 	Symbol         string            `json:"symbol"`
 	Side           string            `json:"side"`
 	LastPrice      string            `json:"lastPrice"`
@@ -236,7 +237,7 @@ func exchangePublicOperations(operations []vault.ExchangeOperation) []exchangePu
 				continue
 			}
 			row.Symbol, row.Amount = request.Symbol, request.Qty
-			row.Coin = strings.TrimSuffix(request.Symbol, "USDT")
+			row.Coin, _, _ = bybit.SpotPair(request.Symbol)
 		case "transfer":
 			var request bybit.TransferRequest
 			if strictjson.Decode([]byte(op.Payload), &request) != nil {
@@ -343,6 +344,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			AccountID strictjson.Text `json:"accountId"`
 			AssetID   strictjson.Text `json:"assetId"`
 			Side      strictjson.Text `json:"side"`
+			QuoteCoin strictjson.Text `json:"quoteCoin,omitempty"`
 		}
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
@@ -352,7 +354,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, err
 		}
 		defer client.Close()
-		quote, _, _, err := c.exchangeQuoteAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side))
+		quote, _, _, err := c.exchangeQuoteAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.QuoteCoin))
 		return quote, err
 	case "exchangeDeposit", "exchangeWithdraw":
 		var in struct {
@@ -379,6 +381,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			Side      strictjson.Text `json:"side"`
 			Amount    strictjson.Text `json:"amount"`
 			Slippage  strictjson.Text `json:"slippage"`
+			QuoteCoin strictjson.Text `json:"quoteCoin,omitempty"`
 		}
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
@@ -388,7 +391,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, err
 		}
 		defer client.Close()
-		return c.exchangeSwapAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage))
+		return c.exchangeSwapAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage), string(in.QuoteCoin))
 	}
 	return nil, errExchange
 }
@@ -457,9 +460,13 @@ func exchangeBalances(ctx context.Context, client exchangeAPI, coins ...string) 
 	}
 	return out, nil
 }
-func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, assetID, side string) (exchangeQuote, bybit.Chain, bybit.APIKeyInformation, error) {
-	quote := exchangeQuote{AccountID: accountID, AssetID: assetID, Side: side, Balances: []exchangeBalance{}, ObservedAt: strconv.FormatInt(time.Now().UnixMilli(), 10)}
-	if side != "Buy" && side != "Sell" {
+func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, assetID, side string, selectedQuote ...string) (exchangeQuote, bybit.Chain, bybit.APIKeyInformation, error) {
+	quoteCoin := "USDT"
+	if len(selectedQuote) == 1 && selectedQuote[0] != "" {
+		quoteCoin = selectedQuote[0]
+	}
+	quote := exchangeQuote{AccountID: accountID, AssetID: assetID, Side: side, QuoteCoin: quoteCoin, Balances: []exchangeBalance{}, ObservedAt: strconv.FormatInt(time.Now().UnixMilli(), 10)}
+	if len(selectedQuote) > 1 || !bybit.SpotQuote(quoteCoin) || side != "Buy" && side != "Sell" {
 		return quote, bybit.Chain{}, bybit.APIKeyInformation{}, errExchange
 	}
 	account, asset, _, err := c.exchangeAsset(accountID, assetID)
@@ -487,14 +494,14 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	} else {
 		quote.Route.Reason = "No unambiguous Bybit deposit/withdrawal route matches this exact wallet network and token contract."
 	}
-	quote.Balances, err = exchangeBalances(ctx, client, asset.Symbol, "USDT")
+	quote.Balances, err = exchangeBalances(ctx, client, asset.Symbol, quoteCoin)
 	if err != nil {
 		return quote, chain, info, err
 	}
-	if asset.Symbol == "USDT" {
+	if asset.Symbol == quoteCoin {
 		return quote, chain, info, nil
 	}
-	symbol := asset.Symbol + "USDT"
+	symbol := asset.Symbol + quoteCoin
 	instrument, err := client.SpotInstrument(ctx, symbol)
 	if err != nil {
 		var apiErr *bybit.APIError
@@ -503,7 +510,7 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 		}
 		return quote, chain, info, err
 	}
-	if instrument.Symbol != symbol || instrument.BaseCoin != asset.Symbol || instrument.QuoteCoin != "USDT" || instrument.Status != "Trading" {
+	if instrument.Symbol != symbol || instrument.BaseCoin != asset.Symbol || instrument.QuoteCoin != quoteCoin || instrument.Status != "Trading" {
 		return quote, chain, info, errExchange
 	}
 	ticker, err := client.SpotTicker(ctx, symbol)
@@ -603,7 +610,11 @@ func exchangeFeeEstimate(quote exchangeQuote, value, side string) (string, strin
 		fee.Mul(qty, price)
 		fee.Mul(fee, rate)
 		fee.Div(fee, new(big.Int).Mul(exchangeScale(), exchangeScale()))
-		coin = "USDT"
+		coin = quote.QuoteCoin
+		// Older internal callers construct USDT quotes without the newer field.
+		if coin == "" {
+			coin = "USDT"
+		}
 	} else {
 		fee.Mul(qty, rate)
 		fee.Div(fee, price)
@@ -715,8 +726,8 @@ func (c *core) ensureExchangeFunds(epoch uint64, client exchangeAPI, info bybit.
 	}
 	return nil, nil
 }
-func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage string) (exchangeResult, error) {
-	quote, _, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, side)
+func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage string, selectedQuote ...string) (exchangeResult, error) {
+	quote, _, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, side, selectedQuote...)
 	if err != nil {
 		return exchangeResult{}, err
 	}
@@ -725,7 +736,7 @@ func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, asset
 	}
 	coin, unit := quote.Coin, "baseCoin"
 	if side == "Buy" {
-		coin, unit = "USDT", "quoteCoin"
+		coin, unit = quote.QuoteCoin, "quoteCoin"
 	}
 	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, coin, value, "UNIFIED"); err != nil {
 		return exchangeResult{}, err
@@ -1035,9 +1046,12 @@ func verifiedExchangeExecutions(ctx context.Context, client exchangeAPI, request
 	seen := map[string]bool{}
 	cursors := map[string]bool{}
 	cursor := ""
-	feeCoin := "USDT"
+	baseCoin, feeCoin, validPair := bybit.SpotPair(request.Symbol)
+	if !validPair {
+		return "", "", nil, errExchange
+	}
 	if request.Side == "Buy" {
-		feeCoin = strings.TrimSuffix(request.Symbol, "USDT")
+		feeCoin = baseCoin
 	}
 	for pageIndex := 0; pageIndex < 32; pageIndex++ {
 		page, err := client.Executions(ctx, request.Symbol, request.OrderLinkID, cursor)

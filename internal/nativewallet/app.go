@@ -92,6 +92,10 @@ type App struct {
 	exchange                              json.RawMessage
 	quote                                 json.RawMessage
 	exchangeRevision                      uint64
+	bookEntries                           []model.AddressBookEntry
+	bookOwner, bookTarget, bookError      string
+	bookEdit                              string
+	bookRevision                          uint64
 	result                                string
 	resultOwner, chainOwner               string
 	busy, background, closed              bool
@@ -191,7 +195,6 @@ func (a *App) startSessionMonitor(ctx context.Context) {
 				a.ui.DispatchControl(func() {
 					if !a.closed {
 						a.monitorState = unavailableMonitoring
-						a.notice(unavailableMonitoring)
 						a.render()
 					}
 				})
@@ -203,7 +206,6 @@ func (a *App) startSessionMonitor(ctx context.Context) {
 			}
 			if err != nil || failed.Load() {
 				a.monitorState = unavailableMonitoring
-				a.notice(unavailableMonitoring)
 			} else {
 				a.monitorState = "OS screen-lock, suspend and shutdown monitoring is active."
 			}
@@ -285,6 +287,7 @@ func (a *App) lock() {
 	a.balances = map[string][]model.Balance{}
 	a.balanceQueue = nil
 	a.exchange = nil
+	a.clearAddressBook()
 	a.quote = nil
 	a.journal = nil
 	a.journalCursor, a.journalRevision, a.journalOffset = "", "", 0
@@ -392,6 +395,11 @@ func (a *App) work(title string, fn func(uint64) (func(), error)) {
 				a.notice("Request completed. Check its returned state and any limitations.")
 			}
 			a.render()
+			// Tabs remain navigable during work. Initialize a first address-book
+			// visit only after that request finishes, never invalidating it.
+			if a.active == "addressbook" && a.fields["bookAccount"] == "" && !a.state.Locked && a.state.RecoveryConfirmed {
+				a.openAddressBook("", false)
+			}
 		})
 	}()
 }
@@ -445,6 +453,7 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	return first, nil
 }
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
+	a.clearAddressBook()
 	a.tokenDiscovery = nil
 	a.state = state
 	a.networks = networks
@@ -671,6 +680,9 @@ func (a *App) event(e webui.Event) {
 		if e.Value == "exchange" && !a.state.Locked {
 			a.exchangeAction("exchangeStatus", map[string]string{})
 		}
+		if e.Value == "addressbook" && !a.state.Locked {
+			a.openAddressBook("", false)
+		}
 		return
 	}
 	if e.ID == "closeTab" {
@@ -691,6 +703,15 @@ func (a *App) event(e webui.Event) {
 		key := strings.TrimPrefix(e.ID, "field/")
 		if key == "appearanceTheme" || key == "appearanceFontSize" {
 			a.changeAppearance(key, e.Value)
+			return
+		}
+		if key == "bookAccount" {
+			if !a.busy && e.Value != a.fields[key] {
+				if _, ok := a.account(e.Value); ok {
+					a.selectBookAccount(e.Value)
+					a.loadAddressBook()
+				}
+			}
 			return
 		}
 		for _, prefix := range []string{"stakingPool/", "stakingAmount/"} {
@@ -752,6 +773,13 @@ func (a *App) event(e webui.Event) {
 		return
 	}
 	switch e.ID {
+	case "saveBookAddress":
+		a.saveBookAddress()
+	case "refreshAddressBook":
+		a.loadAddressBook()
+	case "cancelBookEdit":
+		a.clearBookDraft()
+		a.render()
 	case "refresh":
 		a.refresh()
 	case "create12", "create24", "restore":
@@ -817,7 +845,11 @@ func (a *App) event(e webui.Event) {
 	case "exchangeQuote", "exchangeDeposit", "exchangeWithdraw", "exchangeSwap":
 		body := map[string]string{"accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"]}
 		if e.ID == "exchangeQuote" || e.ID == "exchangeSwap" {
-			body["side"] = a.fields["side"]
+			side, quote, ok := spotDirection(a.fields["side"])
+			if !ok {
+				return
+			}
+			body["side"], body["quoteCoin"] = side, quote
 		}
 		if e.ID != "exchangeQuote" {
 			body["amount"] = a.fields["exchangeAmount"]
@@ -836,6 +868,9 @@ func (a *App) walletEvent(action string) {
 		return
 	}
 	kind, id := parts[0], parts[1]
+	if a.addressBookEvent(kind, id) {
+		return
+	}
 	if a.tokenEvent(kind, id) {
 		return
 	}
@@ -1108,7 +1143,7 @@ func (a *App) exchangeAction(method string, body any) {
 					a.quote = append(a.quote[:0], result...)
 				}
 			default:
-				a.result = publicText(result)
+				a.result = exchangeResultSummary(result)
 				a.resultOwner = "exchange"
 				a.quote = nil
 			}
@@ -1188,8 +1223,8 @@ func (a *App) view() webui.View {
 		default:
 			nodes = append(nodes, label("Wallet storage is unavailable. Creation and restoration are blocked until its state can be read safely."))
 		}
-		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: a.settingsPage()}}
-		if view.Active != "settings" {
+		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: a.settingsPage()}, {ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()}}
+		if view.Active != "settings" && view.Active != "addressbook" {
 			view.Active = "group/0"
 		}
 		return view
@@ -1228,7 +1263,7 @@ func (a *App) view() webui.View {
 			view.Pages = append(view.Pages, a.walletPage(account))
 		}
 	}
-	view.Pages = append(view.Pages, webui.Page{ID: "exchange", Title: "Exchange", Nodes: a.exchangePage()}, webui.Page{ID: "settings", Title: "Settings", Nodes: a.settingsPage()})
+	view.Pages = append(view.Pages, webui.Page{ID: "exchange", Title: "Exchange", Nodes: a.exchangePage()}, webui.Page{ID: "settings", Title: "Settings", Nodes: a.settingsPage()}, webui.Page{ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()})
 	found := false
 	for _, page := range view.Pages {
 		found = found || page.ID == view.Active
@@ -1309,17 +1344,14 @@ func (a *App) walletPage(account model.Account) webui.Page {
 			return page
 		}
 	}
-	if account.Family == "evm" {
-		if asset.Contract != "" {
-			page.Nodes = append(page.Nodes, node("address", "", "Selected ERC-20 contract · "+account.Network+" (not your receive address)", asset.Contract), label("Decimals: "+strconv.Itoa(int(asset.Decimals))+". Native ETH pays transaction fees on this network."))
-		}
-	}
 	if !a.state.RecoveryConfirmed {
 		page.Nodes = append(page.Nodes, label("Receiving and spending require recorded-word confirmation."), a.button("confirmRecovery", "Record and confirm recovery phrase", false))
 	}
 	page.Nodes = append(page.Nodes, row(a.button("sendForm/"+account.ID, "Send", false), a.button("receive/"+account.ID, "Receive", false), a.button("saveQR/"+account.ID, "Save receive QR", !a.state.RecoveryConfirmed), a.button("refresh", "Refresh", false)))
 	if a.sendForms[account.ID] {
-		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), a.entry("recipient/"+account.ID, "Recipient address"), a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), a.entry("memo/"+account.ID, "Memo / tag (when required)"), row(a.button("prepare/"+account.ID, "Prepare payment", !a.state.RecoveryConfirmed), a.button("max/"+account.ID, "Maximum spend", !a.state.RecoveryConfirmed)))
+		recipient := row(a.entry("recipient/"+account.ID, "Recipient address"), a.button("addressBookLoad/"+account.ID, "Load from address book", !a.state.RecoveryConfirmed), a.button("addressBookSave/"+account.ID, "Save address to address book", !a.state.RecoveryConfirmed))
+		recipient.ID = "recipientField/" + account.ID
+		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), recipient, a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), a.entry("memo/"+account.ID, "Memo / tag (when required)"), row(a.button("prepare/"+account.ID, "Prepare payment", !a.state.RecoveryConfirmed), a.button("max/"+account.ID, "Maximum spend", !a.state.RecoveryConfirmed)))
 		if a.plan != nil && !a.planIsStaking && a.plan.Account.ID == account.ID {
 			amountText, _ := amount.Format(a.plan.Amount, asset.Decimals)
 			fee := a.plan.MaxFee
@@ -1367,7 +1399,7 @@ func (a *App) settingsPage() []webui.Node {
 	}
 	sections := row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", a.state.Locked), a.button("settingsJournal", "Journal", a.state.Locked), a.button("settingsAppearance", "Appearance", false))
 	sections.ID, sections.Text, sections.Value = "settingsSections", "Settings sections", selected
-	nodes := []webui.Node{sections, label(a.monitorState)}
+	nodes := []webui.Node{sections}
 	if selected == "Appearance" {
 		return append(nodes, a.appearancePage()...)
 	}
@@ -1383,7 +1415,7 @@ func (a *App) settingsPage() []webui.Node {
 		for _, endpoint := range bybit.Endpoints() {
 			options = append(options, webui.Option{ID: endpoint, Text: endpoint})
 		}
-		nodes = append(nodes, heading("Bybit connection"), a.combo("region", "Official API region", options), label("Enter API key and HMAC secret only in the private wallet dialogs. Connecting confirms the exact service and custody terms; deposit, trade, transfer, withdrawal and disconnect keep their own required authorizations. Credentials are encrypted and are not recovered from the wallet phrase."), row(a.button("exchangeConnect", "Connect Bybit", false), a.button("exchangeDisconnect", "Disconnect Bybit", false), a.button("exchangeStatus", "Refresh connection", false)), label(publicText(a.exchange)))
+		nodes = append(nodes, heading("Bybit connection"), a.combo("region", "Official API region", options), label("Enter API key and HMAC secret only in the private wallet dialogs. Connecting confirms the exact service and custody terms; deposit, trade, transfer, withdrawal and disconnect keep their own required authorizations. Credentials are encrypted and are not recovered from the wallet phrase."), row(a.button("exchangeConnect", "Connect Bybit", false), a.button("exchangeDisconnect", "Disconnect Bybit", false), a.button("exchangeStatus", "Refresh connection", false)), label(exchangeConnectionSummary(a.exchange)))
 	case "Journal":
 		nodes = append(nodes, heading("Local payment journal"), label("An unresolved payment must be reconciled by its original identity. A provider observation is not finality."), row(a.button("journalRefresh", "Refresh journal", false), a.button("journalPrevious", "Previous journal page", a.journalOffset == 0), a.button("journalNext", "Next journal page", a.journalOffset+128 >= len(a.journal) && a.journalCursor == "")))
 		start := min(a.journalOffset, len(a.journal))
@@ -1418,7 +1450,7 @@ func (a *App) settingsPage() []webui.Node {
 			nodes = append(nodes, label(a.result))
 		}
 	default:
-		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels or the local payment/exchange journal."))
+		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels, the address book or the local payment/exchange journal."))
 	}
 	return nodes
 }
@@ -1455,7 +1487,9 @@ func (a *App) exchangePage() []webui.Node {
 	if contract != "" {
 		nodes = append(nodes, node("address", "", "Token contract (not your receive address)", contract))
 	}
-	nodes = append(nodes, row(a.combo("side", "Spot direction", []webui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}}), a.entry("exchangeAmount", "Amount to spend / withdraw"), a.entry("slippage", "Slippage limit (%)")), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled), label(publicText(a.quote)), row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || len(a.quote) == 0), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh Bybit status", false), label(publicText(a.exchange)))
+	nodes = append(nodes, row(a.combo("side", "Spot direction", []webui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}, {ID: "SellUSDC", Text: "Sell asset for USDC"}, {ID: "BuyUSDC", Text: "Buy asset with USDC"}}), a.entry("exchangeAmount", "Amount to spend / withdraw"), a.entry("slippage", "Slippage limit (%)")), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled))
+	nodes = append(nodes, exchangeQuoteNodes(a.quote)...)
+	nodes = append(nodes, row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || len(a.quote) == 0), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh Bybit status", false))
 	if !connection.Connected {
 		nodes = append(nodes, label("Connect your Bybit account in Settings → Exchange to enable these actions."))
 	}

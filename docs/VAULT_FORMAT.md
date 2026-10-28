@@ -1,5 +1,17 @@
 # Vault and recovery format v1
 
+Current address-book extension: optional `addressBook` entries are encrypted and
+authenticated inside the same schema-1 plaintext. Each records `id`, `accountId`,
+automatically assigned exact `network`, `name`, `address` and optional TON `memo`.
+Validation binds an existing active owned descriptor, its chain address syntax,
+unique bounded IDs/names/destinations and count/text limits. Older vaults without
+this member load unchanged; older applications that reject this member cannot be
+assumed to read newly written vaults. Final deletion uses canonical absent
+metadata, preserving encode/decode recovery verification. It grants no payment
+authority and is not reconstructed from a phrase. See [ADDRESS_BOOK.md](ADDRESS_BOOK.md).
+Current dialogs use Wails/WebKitGTK; Electron references below record historical
+interface details and do not describe the current shipped runtime.
+
 The live vault uses the authenticated binary envelope below. This document describes `internal/vault`; it is not a cryptographic audit. No plaintext keystore or OS-keyring wrapping is used. Product recovery now imports a recorded BIP39 phrase, rather than creating/verifying/restoring portable encrypted backup files. Existing local ciphertext remains encrypted with the same algorithms and resource bounds.
 
 All integers in the 72-byte header are unsigned big endian. The complete header is XChaCha20-Poly1305 associated data.

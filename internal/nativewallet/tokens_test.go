@@ -7,6 +7,7 @@ import (
 	"errors"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -42,23 +43,31 @@ func TestEthereumWalletShowsEveryConfiguredTokenAndNativeBalanceWithExactIdentit
 		asset   model.Asset
 		balance string
 	}{
-		{native, "3 ETH"}, {usdc, "1.250001 USDC"}, {dai, "2.000000000000000001 DAI"},
+		{native, "3"}, {usdc, "1.250001"}, {dai, "2.000000000000000001"},
 	} {
 		row, ok := findNode(page.Nodes, "walletAsset/"+account.ID+"/"+check.asset.ID)
-		if !ok || !strings.Contains(viewText(row), check.balance) {
+		if !ok || len(row.Children) != 3 || row.Children[0].Text != check.asset.Symbol || row.Children[1].Text != check.balance || row.Children[2].Text != strconv.Itoa(int(check.asset.Decimals)) {
 			t.Fatal("configured token or exact decimal balance missing")
 		}
 		if row.Children[0].Disabled != (check.asset.ID == native.ID) {
 			t.Fatal("selected asset was not explicit")
 		}
-		if check.asset.Contract != "" && row.Children[2].Value != check.asset.Contract {
+		if check.asset.Contract != "" && (!strings.Contains(row.Tooltip, check.asset.Contract) || !strings.Contains(row.Tooltip, account.Network) || row.Children[0].Tooltip != row.Tooltip) {
 			t.Fatal("token contract was truncated or confused with receive address")
 		}
 	}
 	text := viewText(page)
-	for _, required := range []string{account.Address, "Decimals: 6", "Decimals: 18", "configured assets only", "same receive address", "never use it as your receive address", "Verify and add token"} {
+	for _, required := range []string{account.Address, "Verify and add token"} {
 		if !strings.Contains(text, required) {
 			t.Fatal("wallet asset identity or tracking limitation missing")
+		}
+	}
+	if table, ok := findNode(page.Nodes, "walletAssets/"+account.ID); !ok || table.Kind != "column" || len(table.Children) != len(a.network(account.Network).Assets) {
+		t.Fatal("three-column asset table missing")
+	}
+	for _, removed := range []string{"Go queries the exact", "Balances cover configured", "same receive address", "Selected ERC-20 contract"} {
+		if strings.Contains(text, removed) {
+			t.Fatal("removed asset explanation still appears")
 		}
 	}
 	if strings.Contains(text, "Provider observed") {
@@ -78,7 +87,7 @@ func TestTokenObservationsStayIndependentAndUnavailableIsNeverZero(t *testing.T)
 	assertRow := func(asset model.Asset, expected string) {
 		t.Helper()
 		row, ok := findNode(a.walletPage(account).Nodes, "walletAsset/"+account.ID+"/"+asset.ID)
-		if !ok || row.Children[1].Text != expected+" "+asset.Symbol {
+		if !ok || row.Children[1].Text != expected {
 			t.Fatal("token's unavailable or observed zero state changed")
 		}
 	}
@@ -139,7 +148,7 @@ func TestDifferentContractsWithTheSameSymbolRemainSeparateAssets(t *testing.T) {
 			t.Fatal("symbol collision selected another contract")
 		}
 		row, ok := findNode(a.walletPage(account).Nodes, "walletAsset/"+account.ID+"/"+asset.ID)
-		if !ok || row.Children[2].Value != asset.Contract {
+		if !ok || !strings.Contains(row.Tooltip, asset.Contract) || row.Children[0].Tooltip != row.Tooltip {
 			t.Fatal("colliding symbol lost full contract distinction")
 		}
 	}

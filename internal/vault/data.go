@@ -29,13 +29,14 @@ type Data struct {
 	Birthday    int64  `json:"birthday"`
 	// DeprecatedBackupVerified exists solely to read existing v1 vaults. It is
 	// never an authority to reveal a phrase, receive funds or sign a payment.
-	DeprecatedBackupVerified bool                `json:"backupVerified,omitempty"`
-	RecoveryConfirmed        bool                `json:"recoveryConfirmed,omitempty"`
-	Accounts                 []model.Account     `json:"accounts"`
-	Operations               []journal.Operation `json:"operations"`
-	Endpoints                map[string]Endpoint `json:"endpoints"`
-	Exchange                 *ExchangeData       `json:"exchange,omitempty"`
-	ERC20Tokens              []model.ERC20Token  `json:"erc20Tokens,omitempty"`
+	DeprecatedBackupVerified bool                     `json:"backupVerified,omitempty"`
+	RecoveryConfirmed        bool                     `json:"recoveryConfirmed,omitempty"`
+	Accounts                 []model.Account          `json:"accounts"`
+	Operations               []journal.Operation      `json:"operations"`
+	Endpoints                map[string]Endpoint      `json:"endpoints"`
+	Exchange                 *ExchangeData            `json:"exchange,omitempty"`
+	ERC20Tokens              []model.ERC20Token       `json:"erc20Tokens,omitempty"`
+	AddressBook              []model.AddressBookEntry `json:"addressBook,omitempty"`
 }
 
 func (d *Data) Destroy() {
@@ -47,6 +48,7 @@ func (d *Data) Destroy() {
 	d.Operations = nil
 	d.Endpoints = nil
 	d.ERC20Tokens = nil
+	d.AddressBook = nil
 	if d.Exchange != nil {
 		d.Exchange.Destroy()
 		d.Exchange = nil
@@ -114,6 +116,9 @@ func (d *Data) Validate() error {
 	if err := validateExchange(d.Exchange, seen); err != nil {
 		return err
 	}
+	if err := d.validateAddressBook(); err != nil {
+		return err
+	}
 	if len(d.ERC20Tokens) > evm.MaxImportedTokens {
 		return ErrFormat
 	}
@@ -137,19 +142,21 @@ func VerifyRecovery(a, b *Data) error {
 		return errors.New("backup discovery birthday differs")
 	}
 	x, _ := json.Marshal(struct {
-		Accounts   []model.Account
-		Operations []journal.Operation
-		Endpoints  map[string]Endpoint
-		Exchange   *ExchangeData
-		Tokens     []model.ERC20Token
-	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens})
+		Accounts    []model.Account
+		Operations  []journal.Operation
+		Endpoints   map[string]Endpoint
+		Exchange    *ExchangeData
+		Tokens      []model.ERC20Token
+		AddressBook []model.AddressBookEntry
+	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens, a.AddressBook})
 	y, _ := json.Marshal(struct {
-		Accounts   []model.Account
-		Operations []journal.Operation
-		Endpoints  map[string]Endpoint
-		Exchange   *ExchangeData
-		Tokens     []model.ERC20Token
-	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens})
+		Accounts    []model.Account
+		Operations  []journal.Operation
+		Endpoints   map[string]Endpoint
+		Exchange    *ExchangeData
+		Tokens      []model.ERC20Token
+		AddressBook []model.AddressBookEntry
+	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens, b.AddressBook})
 	if sha256.Sum256(x) != sha256.Sum256(y) {
 		return errors.New("backup public descriptors differ")
 	}
