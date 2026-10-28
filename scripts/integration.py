@@ -31,6 +31,7 @@ def node(name,args,url,test,extra=None):
         log.close()
 run('near-sandbox',['node','tests/oracles/near/run-local.mjs'])
 run('near-staking-contract',['node','tests/oracles/near/run-staking-local.mjs'])
+run('near-staking-expiry-control',['node','tests/oracles/near/run-staking-local.mjs','--expiry-control'])
 run('aptos-local-validator',['node','tests/oracles/aptos/run-local.mjs'])
 binary=root/'.tools/dcrd/dcrd'
 if not binary.exists():

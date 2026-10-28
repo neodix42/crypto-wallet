@@ -1,5 +1,38 @@
 # Current desktop checks in GitHub Actions
 
+## Hosted recovery-phrase grid fallback — 2026-10-28
+
+[Run 40752321716](https://github.com/neodix42/crypto-wallet/actions/runs/40752321716)
+at `cf3c0e8` passes build/archive, controller/frontend/race, NEAR authorization,
+independent binary recovery and actual WebKit restrictions. The Wails graphical
+step fails before completing any workflow step: the whole-panel OCR finds twelve
+ordinals without a valid mnemonic, then its fallback finds zero grid rows. The
+source-stable report records a 920 × 650 private window and retains no phrase
+words or private pixels. Local five-step address-book and 24-step complete GUI
+passes remain tied to their own runs; they do not pass this hosted attempt.
+
+The fallback floors each CSS cell width and accumulates the rounded value. At
+920 pixels, four 209.5-pixel cells produce predicted left edges of
+29/246/463/680 instead of 29/246.5/464/681.5; probing all four edges at the rounded
+locations can miss the later borders entirely. Forced fallback on actual owned
+12- and 24-word windows reproduces zero rows; numeric border observations locate
+the real rasterized left edges at 29/247/464/682. Reports
+`ci-grid-old12.json` and `ci-grid-old24.json` under `reports/` retain only numeric
+geometry/counts, never private words or pixels. A proposed centered-panel cause
+was ruled out: both recovery kinds use `.private-recovery{max-width:none}`.
+
+The corrected reader validates both actual cell borders and adjacent fill around
+independently computed fractional edges, requires complete uniform rows, rejects
+incomplete or ambiguous grids and keeps word decoding exclusively in RAM.
+Exact BIP39 word membership/checksum and independent
+phrase recovery remain mandatory. No production layout, phrase, signing policy,
+timeout or private diagnostic-retention rule is changed. Forced-fallback actual
+12- and 24-word checks pass, including Go's generated-word confirmation and the
+exact authenticated backup fixture; 95 helper and current aggregate tests pass.
+These directly enter the grid branch even if whole-panel OCR would succeed.
+The complete independent recovery campaign and subsequent hosted result remain
+separate evidence. See [the source-specific checklist](STATUS.md).
+
 ## Hosted native-security display startup follow-up — 2026-10-28
 
 [Run 40701103846](https://github.com/neodix42/crypto-wallet/actions/runs/40701103846) at `44a8c69` passes archive/controller checks and independent binary recovery, then fails before the full GUI campaign: the actual WebKit policy probe receives no X11 display number within its existing startup bound. The probe sends Xvfb stderr to an undrained pipe and discards it on cleanup. The hosted evidence therefore cannot distinguish slow startup, blocked diagnostics or another server failure. This must be repaired and tested without treating a retry, missing security assertions or a larger unexplained timeout as success. The local full wallet campaign remains a separate passing result for its recorded source.

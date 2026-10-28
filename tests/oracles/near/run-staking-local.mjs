@@ -27,6 +27,17 @@ const bs58 = require('bs58');
 const keys = parseSeedPhrase('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
 const owner = Buffer.from(bs58.decode(keys.publicKey.slice(8))).toString('hex');
 const pool = 'pool.sandbox';
+if (process.argv.slice(2).some(arg => arg !== '--expiry-control') || process.argv.length > 3) {
+  throw new Error('Only the explicit local expiry-control mode is supported');
+}
+const expiryControl = process.argv.includes('--expiry-control');
+// Pinned nearcore requires transaction validity <= two epochs. With 500 ms
+// blocks, two 64-block epochs cover the wallet's unchanged 60-second approval
+// lifetime plus finality lag. The original two ten-block epochs allowed only
+// ten seconds for password KDFs and durable journal writes on shared runners.
+// Retain those short epochs solely for the real-node expiry control.
+const epochLength = expiryControl ? 10 : 64;
+const transactionValidityBlocks = epochLength * 2;
 let sandbox, child;
 const stop = () => child?.kill('SIGINT');
 process.once('SIGINT', stop);
@@ -35,11 +46,11 @@ const started = Date.now();
 let status = 'FAIL';
 try {
   sandbox = await Sandbox.start({ version: '2.13.4', config: {
-    // Short real epochs keep sandbox_fast_forward below the production
-    // maximum-future-head tolerance. The wallet's freshness checks stay intact.
-    additionalGenesis: { chain_id: 'localnet', epoch_length: 10, transaction_validity_period: 20 },
+    // The cycle bounds fast-forward to 48 seconds of timestamp displacement,
+    // then waits real epochs, retaining the production freshness guard.
+    additionalGenesis: { chain_id: 'localnet', epoch_length: epochLength, transaction_validity_period: transactionValidityBlocks },
     additionalConfig: { consensus: { min_block_production_delay: { secs: 0, nanos: 500000000 },
-      max_block_production_delay: { secs: 0, nanos: 800000000 } } },
+      max_block_production_delay: { secs: 0, nanos: 500000000 } } },
     additionalAccounts: [
       new GenesisAccount(owner, keys.publicKey, keys.secretKey, 1000n * 10n ** 24n),
       new GenesisAccount(pool, keys.publicKey, keys.secretKey, 50n * 10n ** 24n),
@@ -77,8 +88,9 @@ try {
   const pauseSignature = KeyPair.fromString(keys.secretKey).sign(createHash('sha256').update(pause.encode()).digest()).signature;
   const paused = await rpc('send_tx', { signed_tx_base64: Buffer.from(new SignedTransaction({ transaction: pause, signature: new Signature({ keyType: 0, data: pauseSignature }) }).encode()).toString('base64'), wait_until: 'FINAL' });
   if (!('SuccessValue' in paused.status)) throw new Error('Official fixture-pool pause failed');
-  child = spawn('go', ['test', './tests/staking', '-run', 'TestLocalStakingCycle', '-v', '-count=1'], {
-    stdio: 'inherit', env: { ...process.env, WALLET_NEAR_STAKING_LOCAL_RPC: sandbox.rpcUrl },
+  child = spawn('go', ['test', './tests/staking', '-run', expiryControl ? '^TestLocalStakingExpiry$' : '^TestLocalStakingCycle$', '-v', '-count=1'], {
+    stdio: 'inherit', env: { ...process.env, WALLET_NEAR_STAKING_LOCAL_RPC: sandbox.rpcUrl,
+      WALLET_NEAR_STAKING_EXPIRY_CONTROL: expiryControl ? '1' : '' },
   });
   const code = await new Promise(resolve => { child.once('exit', resolve); child.once('error', () => resolve(1)); });
   process.exitCode = code ?? 1;
@@ -88,11 +100,14 @@ try {
   if (sandbox) await sandbox.tearDown();
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
-  writeFileSync(resolve('reports/near-staking-local.json'), JSON.stringify({
+  writeFileSync(resolve(expiryControl ? 'reports/near-staking-expiry-local.json' : 'reports/near-staking-local.json'), JSON.stringify({
     status, network: 'localnet', sandboxVersion: '2.13.4',
+    epochLength, transactionValidityBlocks,
     contractSource: 'near/core-contracts@1b0436c96379c63aee7d2429c6d5d24019031ab8',
     contractSHA256: checksum(wasmFile), seconds: (Date.now() - started) / 1000,
-    scope: 'Actual upstream staking-pool WASM on pinned local NEAR, validator proposals paused through upstream owner method; real Go signer/password approvals, durable encrypted journal, independent state and original-transaction reconciliation; no contract state patched',
+    scope: expiryControl
+      ? 'Actual short-lived local NEAR transaction rejected as Expired; real Go signing and durable UNKNOWN nonce reservation, unchanged balance and nonce; no contract state patched'
+      : 'Actual upstream staking-pool WASM on pinned local NEAR, validator proposals paused through upstream owner method; real Go signer/password approvals, durable encrypted journal, independent state and original-transaction reconciliation; no contract state patched',
     notRun: ['funded public-testnet cycle', 'mainnet spending', 'validator consensus/reward earnings', 'graphical staking approval'],
   }, null, 2) + '\n');
 }

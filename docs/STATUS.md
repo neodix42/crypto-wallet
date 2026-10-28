@@ -1,5 +1,34 @@
 # Implementation and release evidence
 
+## Hosted phrase-reader and local staking CI repairs — 2026-10-29
+
+| State | Evidence and limits |
+| --- | --- |
+| FAIL, hosted at `cf3c0e8` | [Run 40752321716](https://github.com/neodix42/crypto-wallet/actions/runs/40752321716) passes Wails build/archive, controller/frontend/race, NEAR authorization, portable recovery and actual WebKit policy checks, then finds 12 ordinals but no valid phrase/grid rows before any complete GUI step. Sources are stable; phrase words/private pixels are not retained. Downloaded report: `reports/ci-wails-40752321716/wails-wallet.json`. Later graphical steps are not passed. |
+| PASS, diagnosis | Forced fallback on actual 12- and 24-word 920px windows reproduces zero rows. Numeric rasterized edges are 29/247/464/682; the old floored-width probes are 29/246/463/680. Both recovery kinds override the base shell width, ruling out the first centered-panel hypothesis. `reports/ci-grid-old12.json`, `reports/ci-grid-old24.json`. |
+| PASS, corrected helper/current units | Fractional edges are calculated independently and bounded actual border/interior pixels confirm each complete uniform row. Missing, shifted, ambiguous, wrong-fill and invalid-dimension grids reject. All 95 current helpers, 66 React tests and current Go/stress suites pass through `make test-ci`. `reports/ci-private-grid-helper-tests.log`, `reports/ci-grid-test-ci.log`. |
+| PASS, forced actual decoder | The same executable reproduces both old failures and passes corrected 12- and 24-word forced fallbacks with stable sources. Generated 12-word decoding is accepted by Go's private word confirmation; authenticated 24-word backup equals its complete public fixture and passes explicit copy/fit checks. Numeric geometry/counts only are retained. `reports/ci-grid-new12.json`, `reports/ci-grid-new24.json`. |
+| PASS, unchanged workflow assertions | AST comparison proves the forced complete-driver variant adds only a temporary broad-reader override/reference and explicit scope; every canonical assertion remains. The measured grid and all wordlist/checksum code are identical. `reports/ci-grid-forced-source-binding.json`. |
+| PASS, complete forced-grid recovery | All 24 complete uninstrumented steps pass with stable sources and eight matching restored wallets. Both generated-root and authenticated backup reads use the corrected grid, with broad phrase OCR deliberately disabled only during those reads. Fresh-copy recovery with a different app password, restart, all contact actions and no-payment/private-canary assertions remain. `reports/ci-grid-full.json`, `reports/ci-grid-full.log`. |
+| FAIL, separate hosted integration | The same run's checks job passes current units, security/mutation, race and interoperability gates. Local native NEAR, Aptos, Decred, TON and EVM/ERC-20 integrations pass, but the final NEAR staking withdrawal after sandbox epoch advancement returns UNKNOWN on an RPC rejection (`tests/staking/local_test.go:298`). Later fuzz, dependency and recovery/crash steps are skipped, not passed. [Actual job logs](https://github.com/neodix42/crypto-wallet/actions/runs/40752321716/job/123042004076). |
+| PASS, controlled staking diagnosis | With the former 20-block validity, a 12-second pre-submit delay on the old fixture produces an independently identified node `Expired` rejection. The corrected fixture completes the full four-transaction contract cycle with the same delay, including lost-ack restart/reconciliation. `reports/near-staking-baseline20-pre-submit12-canonical-tmp.log`, `reports/near-staking-fixed128-pre-submit12.log`. |
+| PASS, expiry safety control | A separate real-node 20-block fixture advances 21 blocks and rejects the exact signed transaction as `Expired`. Balance and nonce remain unchanged; restart retains the original UNKNOWN bytes, identity and conflicting-operation reservation. This control is added to the integration command rather than replacing the positive cycle. `reports/near-staking-expiry-control.log`, `reports/near-staking-expiry-local.json`. |
+| FAIL, retained diagnosis probes | A proposed 240-block validity with ten-block epochs is rejected by the pinned node, which requires validity at most twice the epoch length. An in-flight delayed RPC probe exceeds the unchanged production HTTP timeout. Neither is counted as a passing fixture; the final controlled comparison delays before submission. `reports/near-staking-startup-240.log`. |
+| PASS, publication only | The separate [build/publication run](https://github.com/neodix42/crypto-wallet/actions/runs/40752321795) publishes regular release `0.1.18` with matching app/tag/name. Publication does not pass the failed test workflow. |
+| PASS, final aggregate | `make test-ci` passes all current Go/stress suites, 66 React tests and 95 GUI-helper tests. The original integration command passes all nine actual local-chain gates, including the full staking cycle and separate expiry control. All tracked Go/MJS/WASM inputs remain unchanged during that run. `reports/ci-repair-test-ci.log`, `reports/ci-repair-integration.log`, `reports/ci-repair-integration-binding.json`, `reports/integration.json`. |
+| NOT_RUN at local commit checkpoint | New hosted execution of this test-only repair. Funded public-network acceptance, the full OS/Wayland matrix and independent review remain separate, unpassed gates. |
+
+See [the grid diagnosis and required guards](CI_DESKTOP.md).
+The grid reproductions and corrected decoder runs bind executable SHA256
+`112db058866e2b353b57d1b4fdfcfaba5b501a0b25c03f524454d2fd30a5f59e`,
+whose Go build metadata identifies clean commit `cf3c0e8`. The phrase-grid repair
+changes only the test reader and documentation, not the application. The staking
+repair changes test fixtures only: 64-block epochs and 128-block validity give
+64 seconds at fixed 500 ms blocks. Fast-forward adds a permanent timestamp
+offset, so it is bounded to 48 seconds and the remaining withdrawal epochs are
+waited in real time. Production approval, future-head, nonce, RPC and receipt
+checks are unchanged. See [the staking fixture scope](../tests/oracles/near/STAKING.md).
+
 ## Address-book Save diagnosis and repair — 2026-10-28
 
 The former controller assigned `Address book unavailable` before every read or

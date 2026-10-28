@@ -131,7 +131,8 @@ func liquid(t *testing.T, ctx context.Context, endpoint, account string) *big.In
 	return number(t, result.Amount)
 }
 
-func TestLocalStakingCycle(t *testing.T) {
+func localStakingFixture(t *testing.T) (context.Context, string, localAdapter, *approvals, *signer.Engine, model.Account) {
+	t.Helper()
 	endpoint := os.Getenv("WALLET_NEAR_STAKING_LOCAL_RPC")
 	if endpoint == "" {
 		t.Skip("NOT_RUN: use tests/oracles/near/run-staking-local.mjs with the pinned real sandbox and contract")
@@ -140,8 +141,8 @@ func TestLocalStakingCycle(t *testing.T) {
 	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" {
 		t.Fatal("owned loopback sandbox only")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	t.Cleanup(cancel)
 	var status struct {
 		Chain string `json:"chain_id"`
 	}
@@ -157,10 +158,10 @@ func TestLocalStakingCycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer files.Close()
+	t.Cleanup(func() { files.Close() })
 	ui := &approvals{allow: true}
 	engine := signer.New(files, ui, []model.Adapter{a})
-	defer engine.Lock()
+	t.Cleanup(engine.Lock)
 	if err := engine.Create("testnet", 12, true); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +169,19 @@ func TestLocalStakingCycle(t *testing.T) {
 	if len(accounts) != 1 || accounts[0].Network != "near-localnet" {
 		t.Fatal("fixture escaped the local network")
 	}
-	account := accounts[0]
+	return ctx, endpoint, a, ui, engine, accounts[0]
+}
+
+func TestLocalStakingCycle(t *testing.T) {
+	ctx, endpoint, a, ui, engine, account := localStakingFixture(t)
+	var protocol struct {
+		EpochLength uint64 `json:"epoch_length"`
+		Validity    uint64 `json:"transaction_validity_period"`
+	}
+	rpc(t, ctx, endpoint, "EXPERIMENTAL_protocol_config", map[string]string{"finality": "final"}, &protocol)
+	if protocol.EpochLength != 64 || protocol.Validity != 128 {
+		t.Fatal("ordinary staking cycle requires its approval-lifetime-aligned local genesis")
+	}
 	initial := observe(t, ctx, endpoint, account.Address)
 	if initial.Staked != "0" || initial.Unstaked != "0" {
 		t.Fatal("fixture is not initially empty")
@@ -220,9 +233,20 @@ func TestLocalStakingCycle(t *testing.T) {
 		if err := engine.Update(p.ID, "SUBMITTING", nil); err != nil {
 			t.Fatal(err)
 		}
+		var prepared near.Payload
+		if json.Unmarshal(p.Payload, &prepared) != nil {
+			t.Fatal("invalid local staking fixture payload")
+		}
+		var head struct {
+			Header struct {
+				Height uint64 `json:"height"`
+			} `json:"header"`
+		}
+		rpc(t, ctx, endpoint, "block", map[string]string{"finality": "final"}, &head)
+		t.Logf("Local %s submission: prepared block %s, current final block %d", action, prepared.BlockHeight, head.Header.Height)
 		receipt, err := a.Submit(ctx, p, signed)
 		if err != nil || receipt.State != "CONFIRMED" {
-			t.Fatalf("staking execution state %s: %v", receipt.State, err)
+			t.Fatalf("%s staking execution state %s: %v", action, receipt.State, err)
 		}
 		if lostAck {
 			engine.Lock()
@@ -281,18 +305,23 @@ func TestLocalStakingCycle(t *testing.T) {
 	if all.Staked != "0" || number(t, all.Unstaked).Sign() == 0 || all.CanWithdraw {
 		t.Fatal("unstake_all state does not match contract effects")
 	}
-	// Advance actual sandbox epochs; never patch contract storage or balances.
-	rpc(t, ctx, endpoint, "sandbox_fast_forward", map[string]uint64{"delta_height": 50}, nil)
-	deadline := time.Now().Add(45 * time.Second)
+	// Sandbox fast-forward adds a permanent timestamp offset of 500 ms per
+	// skipped block. Bound it to 96 blocks (at most 48 seconds), leaving margin
+	// inside the unchanged production one-minute future-head guard. Wait for
+	// the remaining actual epochs; never patch contract storage or balances.
+	rpc(t, ctx, endpoint, "sandbox_fast_forward", map[string]uint64{"delta_height": protocol.EpochLength * 3 / 2}, nil)
+	// Allow five ordinary epochs at 500 ms/block plus a 20-second finality
+	// margin. This is a bounded contract wait, not a transaction/RPC retry.
+	deadline := time.Now().Add(time.Duration(5*protocol.EpochLength)*500*time.Millisecond + 20*time.Second)
 	for {
 		all = observe(t, ctx, endpoint, account.Address)
 		if all.CanWithdraw {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("pool did not unlock after five local epochs")
+			t.Fatal("pool did not unlock after four local epochs")
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 	beforeWithdraw := liquid(t, ctx, endpoint, account.Address)
 	withdraw := execute("withdraw_all", "", "withdraw_all", false)

@@ -1286,6 +1286,80 @@ class WailsEVMContractTooltip(unittest.TestCase):
 
 
 
+
+class WailsPrivatePhraseGrid(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        helper=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='private_phrase_grid')
+        self.colors={'page':(245,247,250),'border':(197,207,219),'button':(233,238,245)}
+        self.scope={'palette':lambda:self.colors}
+        exec(compile(ast.Module(body=[helper],type_ignores=[]),'private-grid-geometry','exec'),self.scope)
+        self.measure=self.scope['private_phrase_grid']
+
+    def fixture(self,width=920,count=12,height=42):
+        picture=Image.new('RGB',(width,980),self.colors['page'])
+        columns=4 if width>=760 else 3
+        cell=(width-58-(columns-1)*8)/columns
+        boxes=[]
+        for row in range((count+columns-1)//columns):
+            for column in range(columns):
+                left=int(29+column*(cell+8)+.5)
+                right=int(29+(column+1)*cell+column*8+.5)-1
+                top=200+row*(height+8)
+                box=(left,top,right,top+height-1);boxes.append(box)
+                ImageDraw.Draw(picture).rounded_rectangle(box,radius=6,fill=self.colors['button'],outline=self.colors['border'])
+        return picture,boxes
+
+    def test_fractional_columns_measure_real_edges_independently_for_twelve_and_twenty_four(self):
+        for width in (560,736,760,761,880,881,920,1040):
+            for count in (12,24):
+                with self.subTest(width=width,count=count):
+                    picture,boxes=self.fixture(width,count)
+                    cells=self.measure(picture,count)
+                    self.assertEqual(len(cells),count)
+                    self.assertEqual([(c[0],c[2]-1) for c in cells],[(b[0],b[2]) for b in boxes])
+        picture,_=self.fixture()
+        self.assertEqual([c[0] for c in self.measure(picture,12)[:4]],[29,247,464,682])
+
+    def test_supported_font_card_heights_and_dark_palette_keep_complete_rows(self):
+        for height in (34,42,50):
+            picture,_=self.fixture(height=height)
+            self.assertEqual(len(self.measure(picture,12)),12)
+        self.colors={'page':(16,19,25),'border':(52,60,74),'button':(34,41,51)}
+        picture,_=self.fixture(count=24)
+        self.assertEqual(len(self.measure(picture,24)),24)
+
+    def test_partial_extra_wrong_palette_and_centered_legacy_panels_are_rejected(self):
+        picture,boxes=self.fixture()
+        ImageDraw.Draw(picture).rectangle(boxes[-1],fill=self.colors['page'])
+        self.assertEqual(self.measure(picture,12),[])
+        picture,_=self.fixture(count=24)
+        self.assertEqual(self.measure(picture,12),[])
+        picture,_=self.fixture()
+        self.colors['border']=(100,110,120)
+        self.assertEqual(self.measure(picture,12),[])
+        self.colors['border']=(197,207,219)
+        inner,_=self.fixture(width=880)
+        outer=Image.new('RGB',(920,980),self.colors['page']);outer.paste(inner,(20,0))
+        self.assertEqual(self.measure(outer,12),[])
+
+    def test_edges_require_both_borders_and_real_button_interiors(self):
+        picture,boxes=self.fixture()
+        for left,top,right,bottom in boxes:
+            ImageDraw.Draw(picture).rectangle((left+1,top+1,right-1,bottom-1),fill=self.colors['page'])
+        self.assertEqual(self.measure(picture,12),[])
+        picture,boxes=self.fixture()
+        for left,top,right,bottom in boxes[::4]:
+            ImageDraw.Draw(picture).rectangle((right-1,top,right+1,bottom),fill=self.colors['page'])
+        self.assertEqual(self.measure(picture,12),[])
+
+    def test_wrong_count_mode_and_out_of_app_bounds_cannot_supply_cells(self):
+        with self.assertRaisesRegex(RuntimeError,'word count'):
+            self.measure(Image.new('RGB',(920,650)),13)
+        for picture in (Image.new('RGB',(559,650)),Image.new('RGB',(920,249)),Image.new('RGBA',(920,650))):
+            self.assertEqual(self.measure(picture,12),[])
+
+
 class WailsAddressBookPublicObservation(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
@@ -1380,7 +1454,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsAddressBookPublicObservation):
+    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

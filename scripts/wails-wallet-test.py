@@ -397,6 +397,39 @@ def private_click(prefix, words):
         time.sleep(.2)
     raise RuntimeError("Private control could not be identified; no private OCR diagnostic retained")
 
+def private_phrase_grid(picture,count):
+    # Private geometry only: no OCR payload, word glyph or image is retained.
+    # Derive each CSS grid edge independently before checking its actual
+    # border/interior pixels; floored cell widths cannot accumulate here.
+    if count not in (12,24):raise RuntimeError("Unexpected private grid word count")
+    w,h=picture.size
+    if picture.mode!="RGB" or w<560 or h<250:return []
+    columns=4 if w>=760 else 3
+    cell=(w-58-(columns-1)*8)/columns
+    predicted=[(int(29+i*(cell+8)+.5),int(29+(i+1)*cell+i*8+.5)-1) for i in range(columns)]
+    colors=palette()
+    def near(x,y,color):return max(abs(a-b) for a,b in zip(picture.getpixel((x,y)),color))<8
+    scans=[]
+    for yy in range(145,h-75):
+        boxes=[]
+        for left,right in predicted:
+            ls=[xx for xx in range(left-1,left+2) if near(xx,yy,colors["border"]) and near(xx+2,yy,colors["button"])]
+            rs=[xx for xx in range(right-1,right+2) if near(xx,yy,colors["border"]) and near(xx-2,yy,colors["button"])]
+            if len(ls)!=1 or len(rs)!=1 or abs(rs[0]-ls[0]+1-cell)>2:break
+            boxes.append((ls[0],rs[0]))
+        if len(boxes)==columns and all(7<=boxes[i+1][0]-boxes[i][1]-1<=9 for i in range(columns-1)):
+            scans.append((yy,tuple(boxes)))
+    groups=[]
+    for scan in scans:
+        if not groups or scan[0]!=groups[-1][-1][0]+1 or scan[1]!=groups[-1][-1][1]:groups.append([])
+        groups[-1].append(scan)
+    groups=[g for g in groups if 15<=len(g)<=60]
+    if len(groups)!=(count+columns-1)//columns:return []
+    centers=[(g[0][0]+g[-1][0])//2 for g in groups]
+    steps=[b-a for a,b in zip(centers,centers[1:])]
+    if max(map(len,groups))-min(map(len,groups))>2 or max(steps)-min(steps)>2:return []
+    return [(left,center-15,right+1,center+15) for center,group in zip(centers,groups) for left,right in group[len(group)//2][1]]
+
 def numbered_phrase(prefix="Record recovery phrase", count=12):
     # Phrase pixels and OCR remain exclusively in RAM on the owned display.
     # Only ordinals and a word count may enter a failure report.
@@ -414,29 +447,18 @@ def numbered_phrase(prefix="Record recovery phrase", count=12):
     x,y,w,h=desktop.geometry(window)
     picture=desktop.image().crop((x,y,x+w,y+h)).convert("RGB")
     from PIL import ImageOps
-    columns=4 if w>=760 else 3
-    cell=(w-58-(columns-1)*8)//columns
-    lefts=[29+i*(cell+8) for i in range(columns)]
-    candidates=[yy for yy in range(h-75) if all(max(abs(v-t) for v,t in zip(picture.getpixel((xx,yy)),palette()["border"]))<8 for xx in lefts)]
-    groups=[]
-    for yy in candidates:
-        if not groups or yy!=groups[-1][-1]+1:groups.append([])
-        groups[-1].append(yy)
-    groups=[group for group in groups if 15<=len(group)<=60]
-    if len(groups)==(count+columns-1)//columns:
-        parsed={}
-        for row,group in enumerate(groups):
-            center=group[len(group)//2]
-            for column,left in enumerate(lefts):
-                crop=picture.crop((left+34,center-15,left+cell-7,center+15)).convert("L")
-                if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
-                data=io.BytesIO();crop.resize((crop.width*4,crop.height*4),Image.Resampling.LANCZOS).save(data,format="PNG")
-                value=subprocess.check_output(["tesseract","stdin","stdout","--psm","7","-c","tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz"],input=data.getvalue(),stderr=subprocess.DEVNULL).strip().lower()
-                if re.fullmatch(rb"[a-z]+",value):parsed[row*columns+column+1]=value
-        if len(parsed)==count:
-            phrase=b" ".join(parsed[i] for i in range(1,count+1))
-            if valid_mnemonic(phrase):return phrase
-    raise RuntimeError("Disposable private phrase OCR incomplete: "+str(len(found))+" ordinals; "+str(len(groups))+" grid rows; no words or pixels retained")
+    cells=private_phrase_grid(picture,count)
+    parsed={}
+    for index,(left,top,right,bottom) in enumerate(cells,1):
+        crop=picture.crop((left+34,top,right-7,bottom)).convert("L")
+        if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
+        data=io.BytesIO();crop.resize((crop.width*4,crop.height*4),Image.Resampling.LANCZOS).save(data,format="PNG")
+        value=subprocess.check_output(["tesseract","stdin","stdout","--psm","7","-c","tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz"],input=data.getvalue(),stderr=subprocess.DEVNULL).strip().lower()
+        if re.fullmatch(rb"[a-z]+",value):parsed[index]=value
+    if len(parsed)==count:
+        phrase=b" ".join(parsed[i] for i in range(1,count+1))
+        if valid_mnemonic(phrase):return phrase
+    raise RuntimeError("Disposable private phrase OCR incomplete: "+str(len(found))+" ordinals; "+str(len(cells)//(4 if w>=760 else 3))+" grid rows; no words or pixels retained")
 
 def record_phrase():
     deadline=time.monotonic()+30
