@@ -1,5 +1,18 @@
 # Implementation and release evidence
 
+## Hosted native-security display startup follow-up — 2026-10-28
+
+| State | Evidence and limits |
+| --- | --- |
+| FAIL, hosted at `44a8c69` | [Run 40701103846](https://github.com/neodix42/crypto-wallet/actions/runs/40701103846) passes archive, controller/security and independent binary recovery checks, then the native WebKit policy probe's private X11 display never signals readiness. Native policy runtime, inspector and complete wallet GUI steps are not passed. No display stderr was retained, so the historical report cannot establish the precise cause. |
+| PASS, separate hosted release | The same commit's build and publication workflow succeeds. That does not pass its failed test workflow. |
+| PASS, complete hosted checks job | Its checks job passes current units, mutation/security, the complete two-phase race command, interoperability, all local-chain integrations, fuzzing, isolated EVM transfers, dependency review and headless recovery/crash checks. The overall run remains failed because of the separate Wails startup. |
+| PASS, controlled diagnosis | The unchanged full driver reproduces the readiness timeout when public diagnostics exceed its stderr-pipe capacity. This demonstrates a real harness deadlock mechanism, without establishing the lost historical stderr. Shared display-file offsets alone did not reproduce failure. The failed reproduction is retained separately. |
+| PASS, repaired actual security probe | Frozen normal and noisy runs execute all eight checks with identical native policy/clipboard producers; 270,468 startup diagnostic bytes no longer block readiness. Both complete an owned X11 setup handshake within 0.08 seconds, preserve the five-second deadline, receive zero witness HTTP requests and clean their display processes. `reports/wails-security-stderr-deadlock-after.json`. |
+| PASS, negative control and regressions | Controlled early exit remains FAIL with exit 23, a bounded 4 KiB diagnostic tail and policy/clipboard explicitly NOT_RUN. Sixty-five current helper regressions cover announcement framing, owned PID/UID, delayed fragmented setup, bounds, descriptor closure and stubborn descendant cleanup. |
+| PASS, complete local security target | `make test-wails-security`: pinned fork verification, actual Go policy tests, native WebKit/clipboard policy and actual app inspector rejection all pass with stable sources. No production C/Go policy or wallet driver changes. The prior full 20-step GUI evidence still binds the unchanged application and driver. |
+| NOT_RUN at commit checkpoint | New hosted execution of this startup correction. Public funded operations, clean supported OS matrix and independent security review retain their separate gates. |
+
 ## Hosted table-copy and race-stress follow-up — 2026-10-28
 
 | State | Evidence and limits |

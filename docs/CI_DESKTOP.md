@@ -1,5 +1,15 @@
 # Current desktop checks in GitHub Actions
 
+## Hosted native-security display startup follow-up — 2026-10-28
+
+[Run 40701103846](https://github.com/neodix42/crypto-wallet/actions/runs/40701103846) at `44a8c69` passes archive/controller checks and independent binary recovery, then fails before the full GUI campaign: the actual WebKit policy probe receives no X11 display number within its existing startup bound. The probe sends Xvfb stderr to an undrained pipe and discards it on cleanup. The hosted evidence therefore cannot distinguish slow startup, blocked diagnostics or another server failure. This must be repaired and tested without treating a retry, missing security assertions or a larger unexplained timeout as success. The local full wallet campaign remains a separate passing result for its recorded source.
+
+The separate checks job subsequently passes every remaining gate, including the repaired two-phase race command, interoperability, local-chain integrations, fuzzing, dependency review and headless recovery/crash checks. The overall workflow remains failed because of the Wails job.
+
+A controlled wrapper emitting public diagnostics beyond pipe capacity reproduces the same timeout in the unchanged complete security driver. The corrected driver uses a temporary stderr file, a bounded numeric announcement pipe and an actual X11 setup handshake bound by peer PID/effective UID to its owned server. All startup work shares the existing five-second deadline. Only a 4 KiB diagnostic tail is retained on failure. Its owned process group is terminated, including helpers that survive the leader, and the leader is reaped; announcement descriptors and the HTTP witness close on failures too. Missing startup leaves runtime policy/clipboard explicitly NOT_RUN.
+
+Frozen clean/noisy full probes pass all eight security checks, including 270,468 diagnostic bytes before readiness, using the same native producer binaries as the failing reproduction. A controlled exit-23 case remains FAIL with runtime assertions NOT_RUN. Sixty-five current helper regressions and the complete `make test-wails-security` target pass. Production C/Go policy and the wallet GUI driver are unchanged. See [the evidence checklist](STATUS.md) for local/hosted distinctions; a new hosted execution follows commit/push.
+
 ## Hosted table-copy and race-stress follow-up — 2026-10-28
 
 [Run 40695614368](https://github.com/neodix42/crypto-wallet/actions/runs/40695614368) at `ece6768` confirms the NEAR correction on the hosted runner: first-attempt navigation, exact 25-byte contract recognition at native resolution, and all staking assertions pass. The next GUI step fails waiting for the verified receive dialog after clicking the Ethereum table-row copy icon. That click used a fixed point 55 pixels from the window edge rather than observing the button. Workspace padding and table geometry make that assumption unreliable. The failed report does not distinguish a missed click from a click on the adjacent row cell; neither is a passing copy test.

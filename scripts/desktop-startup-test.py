@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Pre-input diagnostics must explain startup failures without retaining workflow logs."""
 import ast
+import contextlib
 import hashlib
 import io
 import json
+import os
 import pathlib
 import re
+import select
+import signal
+import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -55,6 +61,178 @@ class StartupDiagnostics(unittest.TestCase):
         self.assertEqual(len(report['startupFailures'][0]['log']), 16384)
         self.assertTrue(report['startupFailures'][0]['logTruncated'])
         self.assertIsNone(report['startupFailures'][0]['exitCode'])
+
+
+class WailsDisplayStartup(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/test-wails-security.py').read_text())
+        names=('x11_setup_ready','wait_private_x11','private_x11_display')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.scope={'contextlib':contextlib,'os':os,'re':re,'select':select,'signal':signal,
+                    'socket':socket,'struct':struct,'subprocess':subprocess,'sys':sys,
+                    'tempfile':tempfile,'time':time,'Path':pathlib.Path}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'owned-x11-startup-helper','exec'),self.scope)
+        self.folder=tempfile.TemporaryDirectory(prefix='wallet-owned-x11-')
+        self.addCleanup(self.folder.cleanup)
+        self.report={}
+
+    def emitter(self,body):
+        path=pathlib.Path(self.folder.name)/'owned-display'
+        path.write_text('#!'+sys.executable+'\nimport os,sys,time,signal\nfd=int(sys.argv[sys.argv.index("-displayfd")+1])\n'+body+'\n')
+        path.chmod(0o700)
+        return str(path)
+
+    def test_stderr_larger_than_pipe_capacity_cannot_block_announcement_and_is_reaped(self):
+        emitter=self.emitter('os.write(2,b"PUBLIC_XVFB_DIAGNOSTIC\\n"*16384)\nos.write(fd,b"181\\n")\ntime.sleep(60)')
+        self.scope['x11_setup_ready']=mock.Mock(return_value=True)
+        with self.scope['private_x11_display'](emitter,self.report) as number:
+            self.assertEqual(number,'181')
+            self.assertGreater(self.report['displayStartup']['stderrBytes'],65536)
+        self.assertEqual(self.report['displayCleanup']['status'],'PASS')
+        self.assertEqual(self.report['displayStartup']['status'],'READY')
+        self.assertNotIn('stderrTail',self.report['displayStartup'])
+
+    def test_partial_newline_and_socket_readiness_are_both_required(self):
+        emitter=self.emitter('os.write(fd,b"18")\ntime.sleep(.02)\nos.write(fd,b"1\\n")\ntime.sleep(60)')
+        self.scope['x11_setup_ready']=mock.Mock(side_effect=[False,False,True])
+        with self.scope['private_x11_display'](emitter,self.report) as number:self.assertEqual(number,'181')
+        self.assertEqual(self.scope['x11_setup_ready'].call_count,3)
+        self.assertTrue(all(call.args[0]=='181' and call.args[2]>1 for call in self.scope['x11_setup_ready'].call_args_list))
+
+    def test_missing_newline_fails_within_budget_without_any_ambient_display_probe(self):
+        emitter=self.emitter('os.write(fd,b"181")\ntime.sleep(60)')
+        self.scope['x11_setup_ready']=mock.Mock(return_value=True)
+        with self.assertRaisesRegex(RuntimeError,'did not announce readiness'):
+            with self.scope['private_x11_display'](emitter,self.report,seconds=.1):self.fail('must not yield')
+        self.scope['x11_setup_ready'].assert_not_called()
+        self.assertFalse(self.report['displayStartup']['announcementReceived'])
+        self.assertEqual(self.report['displayCleanup']['status'],'PASS')
+
+    def test_invalid_oversized_or_multiple_announcements_never_reach_x11(self):
+        self.scope['x11_setup_ready']=mock.Mock(return_value=True)
+        for announcement in (b'../181\n',b'65536\n',b'181\n182\n',b'1'*17):
+            emitter=self.emitter('os.write(fd,'+repr(announcement)+')\ntime.sleep(60)')
+            with self.subTest(announcement=announcement),self.assertRaisesRegex(RuntimeError,'invalid announcement|oversized announcement'):
+                with self.scope['private_x11_display'](emitter,self.report):self.fail('must not yield')
+        self.scope['x11_setup_ready'].assert_not_called()
+
+    def test_early_child_exit_reports_bounded_public_stderr_and_precise_exit_code(self):
+        emitter=self.emitter('os.write(2,b"PUBLIC_STARTUP_ONLY\\n"*2048+b"PUBLIC_TAIL_CANARY\\n")\nos._exit(23)')
+        self.scope['x11_setup_ready']=mock.Mock(return_value=True)
+        with self.assertRaisesRegex(RuntimeError,'before readiness|before becoming ready'):
+            with self.scope['private_x11_display'](emitter,self.report):self.fail('must not yield')
+        diagnostic=self.report['displayStartup']
+        # Closing the announcement FD may wake the parent just before the
+        # exiting child becomes waitable; cleanup must still reap exact23.
+        self.assertIn(diagnostic['exitCode'],(None,23))
+        self.assertEqual(self.report['displayCleanup']['exitCode'],23)
+        self.assertTrue(diagnostic['stderrTruncated'])
+        self.assertLessEqual(len(diagnostic['stderrTail']),4096)
+        self.assertIn('PUBLIC_TAIL_CANARY',diagnostic['stderrTail'])
+        self.scope['x11_setup_ready'].assert_not_called()
+
+    def test_diagnostic_tail_does_not_move_the_childs_shared_file_offset(self):
+        server=SimpleNamespace(poll=lambda:None)
+        with tempfile.TemporaryFile() as diagnostic:
+            diagnostic.write(b'public diagnostic '*1000);diagnostic.flush()
+            offset=diagnostic.tell()
+            with self.assertRaisesRegex(RuntimeError,'did not announce readiness'):
+                self.scope['wait_private_x11'](server,-1,diagnostic,self.report,seconds=0)
+            self.assertEqual(diagnostic.tell(),offset)
+
+    def connection(self,reply,peer_pid=1234,peer_uid=None):
+        pending=bytearray(reply)
+        connection=mock.MagicMock()
+        connection.__enter__.return_value=connection
+        connection.getsockopt.return_value=struct.pack('=iII',peer_pid,os.geteuid() if peer_uid is None else peer_uid,os.getegid())
+        def read(count):
+            chunk=bytes(pending[:min(count,3)]);del pending[:len(chunk)];return chunk
+        connection.recv.side_effect=read
+        return connection
+
+    def reply(self,width=1280,height=800,accepted=1,major=11,units=None):
+        body=bytearray(72);body[20]=1
+        struct.pack_into('<HH',body,52,width,height)
+        return struct.pack('<BBHHH',accepted,0,major,0,len(body)//4 if units is None else units)+body
+
+    def test_owned_unix_socket_requires_complete_x11_setup_and_expected_screen(self):
+        connection=self.connection(self.reply())
+        with mock.patch.object(pathlib.Path,'is_socket',return_value=True),mock.patch.object(socket,'socket',return_value=connection):
+            self.assertTrue(self.scope['x11_setup_ready']('181',1,1234))
+        connection.connect.assert_called_once_with('/tmp/.X11-unix/X181')
+        connection.sendall.assert_called_once_with(struct.pack('<BBHHHHH',ord('l'),0,11,0,0,0,0))
+
+    def test_slow_fragmented_setup_uses_remaining_startup_budget_not_a_shorter_retry_timeout(self):
+        connection=self.connection(self.reply())
+        original=connection.recv.side_effect
+        delayed=False
+        def read(count):
+            nonlocal delayed
+            if not delayed:time.sleep(.15);delayed=True
+            return original(count)
+        connection.recv.side_effect=read
+        announcement,writer=os.pipe()
+        os.write(writer,b'181\n');os.close(writer)
+        server=SimpleNamespace(pid=1234,poll=lambda:None)
+        try:
+            with tempfile.TemporaryFile() as diagnostic,mock.patch.object(pathlib.Path,'is_socket',return_value=True),mock.patch.object(socket,'socket',return_value=connection):
+                self.assertEqual(self.scope['wait_private_x11'](server,announcement,diagnostic,self.report,seconds=2),'181')
+        finally:os.close(announcement)
+        self.assertGreaterEqual(self.report['displayStartup']['elapsedSeconds'],.15)
+        self.assertTrue(self.report['displayStartup']['x11SetupVerified'])
+
+    def test_foreign_pid_or_uid_is_rejected_before_any_setup_or_clipboard_request(self):
+        for pid,uid in ((4321,os.geteuid()),(1234,os.geteuid()+1)):
+            connection=self.connection(self.reply(),pid,uid)
+            with self.subTest(pid=pid,uid=uid),mock.patch.object(pathlib.Path,'is_socket',return_value=True),mock.patch.object(socket,'socket',return_value=connection):
+                self.assertFalse(self.scope['x11_setup_ready']('181',1,1234))
+            connection.sendall.assert_not_called()
+            connection.recv.assert_not_called()
+
+    def test_rejected_truncated_oversized_wrong_protocol_or_wrong_screen_never_becomes_ready(self):
+        for reply in (self.reply(accepted=0),self.reply(major=12),self.reply(width=1600),
+                      self.reply(units=16385),self.reply()[:12],b''):
+            connection=self.connection(reply)
+            with self.subTest(reply=reply[:8]),mock.patch.object(pathlib.Path,'is_socket',return_value=True),mock.patch.object(socket,'socket',return_value=connection):
+                self.assertFalse(self.scope['x11_setup_ready']('181',1,1234))
+        with mock.patch.object(pathlib.Path,'is_socket',return_value=False),mock.patch.object(socket,'socket') as creator:
+            self.assertFalse(self.scope['x11_setup_ready']('181',1,1234))
+            creator.assert_not_called()
+
+    def test_remaining_stubborn_descendant_is_killed_even_after_leader_exits(self):
+        marker=pathlib.Path(self.folder.name)/'unexpected-child-marker'
+        emitter=self.emitter('r,w=os.pipe()\npid=os.fork()\nif pid==0:\n os.close(r)\n signal.signal(signal.SIGTERM,signal.SIG_IGN)\n os.write(w,b"ready")\n os.close(w)\n time.sleep(.6)\n open('+repr(str(marker))+',"w").write("not cleaned")\n os._exit(0)\nos.close(w)\nos.read(r,5)\nos.close(r)\nos.write(fd,b"181\\n")\ntime.sleep(60)')
+        self.scope['x11_setup_ready']=mock.Mock(return_value=True)
+        with self.scope['private_x11_display'](emitter,self.report):pass
+        time.sleep(.65)
+        self.assertFalse(marker.exists())
+        self.assertTrue(self.report['displayCleanup']['forced'])
+
+    def test_cleanup_kill_reaps_leader_and_cannot_mask_the_primary_failure(self):
+        self.scope['wait_private_x11']=mock.Mock(return_value='181')
+        server=SimpleNamespace(pid=54321,returncode=-9,wait=mock.Mock(side_effect=[subprocess.TimeoutExpired('owned',5),-9]))
+        with mock.patch.object(subprocess,'Popen',return_value=server) as popen,mock.patch.object(os,'killpg') as kill:
+            with self.scope['private_x11_display']('owned-test-server',self.report):pass
+        self.assertTrue(popen.call_args.kwargs['start_new_session'])
+        self.assertIn(mock.call(54321,signal.SIGKILL),kill.call_args_list)
+        self.assertEqual(server.wait.call_count,2)
+        self.assertEqual(self.report['displayCleanup']['status'],'PASS')
+        server.wait.side_effect=subprocess.TimeoutExpired('owned',5)
+        with mock.patch.object(subprocess,'Popen',return_value=server),mock.patch.object(os,'killpg'):
+            with self.assertRaisesRegex(RuntimeError,'original policy failure'):
+                with self.scope['private_x11_display']('owned-test-server',self.report):raise RuntimeError('original policy failure')
+        self.assertEqual(self.report['displayCleanup']['status'],'FAIL')
+
+    def test_spawn_failure_closes_both_owned_pipe_descriptors(self):
+        original=os.pipe
+        pairs=[]
+        def pipe():
+            pair=original();pairs.append(pair);return pair
+        with mock.patch.object(os,'pipe',side_effect=pipe),mock.patch.object(subprocess,'Popen',side_effect=OSError('public spawn failure')):
+            with self.assertRaisesRegex(OSError,'public spawn failure'):
+                with self.scope['private_x11_display']('owned-test-server',self.report):self.fail('must not yield')
+        for descriptor in pairs[0]:
+            with self.assertRaises(OSError):os.fstat(descriptor)
 
 
 class WailsPrivateStartup(unittest.TestCase):
@@ -970,7 +1148,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
+    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 
