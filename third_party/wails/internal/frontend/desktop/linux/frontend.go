@@ -122,7 +122,6 @@ import (
 	"text/template"
 	"unsafe"
 
-	"github.com/wailsapp/wails/v2/internal/frontend/walletpolicy"
 	"github.com/wailsapp/wails/v2/pkg/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/assetserver/webview"
 
@@ -258,12 +257,9 @@ func (f *Frontend) startMessageProcessor() {
 
 func (f *Frontend) startBindingsMessageProcessor() {
 	for msg := range bindingsMessageBuffer {
-		// The only production origin is the embedded custom scheme. Additional
-		// origin options cannot widen this wallet-specific security boundary.
+		// The only production origin is the embedded custom scheme. The trusted app
+		// uses the ordinary Wails runtime and bindings at this local origin.
 		if msg.source != "wails://wails/" && msg.source != "wails://wails/index.html" {
-			continue
-		}
-		if !walletpolicy.BrowserMessage(msg.message) {
 			continue
 		}
 		f.processMessage(msg.message)
@@ -585,7 +581,7 @@ func processMessage(message *C.char) {
 func processBindingMessage(message *C.char, source *C.char) {
 	goMessage := C.GoString(message)
 	goSource := C.GoString(source)
-	if len(goMessage) > walletpolicy.MaxMessageBytes || len(goSource) > 128 {
+	if len(goMessage) > 256*1024 || len(goSource) > 128 {
 		return
 	}
 	select {

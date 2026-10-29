@@ -1,4 +1,7 @@
-# Implemented threat model and remaining trust
+# Historical threat model and remaining trust
+
+> Owner update (2026-10-29): the shipped Wails UI now uses one trusted main window with reusable in-page dialogs and ordinary Wails bindings. It no longer launches a private UI self-role, isolated prompt page or one-use UI pipe. Normal selection/copy/cut/paste are enabled. The main UI is trusted with entered/displayed secrets and approval intent. This supersedes the separate-renderer and noncopyable-secret requirements below, which describe earlier designs. Go signer/core isolation, cryptography, reauthentication and transaction validation remain. See [the current trust model](TRUSTED_UI.md).
+
 
 This is an implementation-author assessment, not independent security review. Protect recovery entropy/phrase, BIP39 passphrase/seed, derived keys, storage password/key and exact payment authorization. Address associations, journal and RPC credentials are privacy-sensitive too. A single recovery root shares compromise scope across every chain.
 

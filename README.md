@@ -2,6 +2,8 @@
 
 Portable Go multichain desktop wallet for Ubuntu amd64, with a Wails/React interface rendered by system WebKitGTK 4.1. The downloaded wallet is **one executable**, `cryptowallet`. It contains the UI, coordinator and signer roles and embedded third-party notices. There is no bundled Electron, Chromium or SUID sandbox helper. This uses the main UI approach from the sibling charting project; its separate Chromium-based Screener is not included. Implemented domains remain Ethereum ETH and USDT, NEAR, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN and approved standard ERC-20 tokens on Base (plus ETH gas), Decred and TON Wallet V5R1. The optional **Exchange** tab connects to Bybit for Deposit, Swap and Withdraw. [Repository implementation instructions](START_HERE.txt).
 
+Passwords, recovery phrases, Receive and payment confirmations now use dialogs **inside the main window**. There are no separate prompt executables or temporary WebKit windows. Copy buttons, text selection, Ctrl+C / Ctrl+Shift+C / Ctrl+Insert, paste and the native context menu work in the trusted UI. The UI can see entered passwords and displayed phrases; keep the installed application trusted. [Current UI trust and clipboard behavior](docs/TRUSTED_UI.md).
+
 **Mainnet is the default profile.** Public funded testnets, the full supported X11/Wayland OS matrix, the 24-hour soak and independent security review remain production gates. Current Wails acceptance is recorded separately; historical handwritten GTK and Electron results do not certify it. See [WAILS_UI.md](docs/WAILS_UI.md), [PORTABLE_GO.md](docs/PORTABLE_GO.md) and the [evidence checklist](docs/STATUS.md). Never fund public test fixtures.
 
 ## Download and run on Ubuntu 24.04 / 26.04

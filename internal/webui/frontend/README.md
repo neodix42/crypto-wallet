@@ -1,38 +1,11 @@
-CryptoWallet's Wails v2 interface uses React 19, TypeScript and Vite, following
-the neighboring charting project's frontend stack. Production builds embed
-`dist/` in the Go executable. Node/npm are build tools, not runtime dependencies.
-The application uses the installed WebKitGTK engine through Wails; it does not
-ship Electron or Chromium.
+CryptoWallet uses Wails v2, React 19, TypeScript and Vite, following the neighboring charting project's frontend stack. Production builds embed `dist/` in the Go executable. Node/npm are build tools, not runtime dependencies; the system WebKitGTK engine renders the interface without Electron/Chromium.
 
-Run `npm ci --ignore-scripts`, `npm test` and `npm run build` in this directory.
-Dependencies are pinned in `package-lock.json`. The generated outputs are
-`dist/index.html` and `dist/secret/index.html`, with fingerprinted JS/CSS assets.
-Source maps and development servers are not part of the production build.
+Run `npm ci --ignore-scripts`, `npm test` and `npm run build` here. Dependencies are pinned in `package-lock.json`. There is one `dist/index.html` and fingerprinted JS/CSS; no separate private HTML entry, development server or source map is shipped.
 
-The public entrypoint binds only `window.go.webui.PublicBridge.Snapshot()` and
-`Event({ID,Value})`, and listens for `wallet:view`. It renders the Go-authored,
-bounded public view as inert text. It has no password or phrase input, private
-bridge, clipboard API, browser storage or network requests.
+`PublicApp` renders the backend-authored pages via `PublicBridge.Snapshot/Event` and `wallet:view`. `DialogHost` renders reusable dialogs in the same React tree and WebKit view, using ordinary `DialogBridge.Snapshot/Reply/Copy/Activity` bindings and `wallet:dialog`. Snapshot can be repeated, so startup/reconnection never needs a one-use delivery channel. Dialog request IDs correlate current replies; they are not a renderer isolation boundary. No extra Go/UI process or inherited UI pipe exists.
 
-The private entrypoint runs in a separate short-lived Go/Wails process and
-webview data context. Only it binds `PrivateBridge.Prompt()`, `Reply(reply)`,
-argument-free `Copy()` and value-free `Activity()`. Go validates the current
-one-use prompt and remains authoritative for approval, copying and cancellation.
-Credential fields stay masked, phrases display as numbered words, and input/word
-DOM is cleared before reply. Initial phrase recording has no copy operation;
-authenticated backup explicitly offers Copy phrase with a clipboard-history
-warning. File and direct public-copy prompt kinds are handled in Go, not by
-path input or browser clipboard access. Runtime/JS memory copies are not subject
-to a guaranteed erasure claim.
+The entire packaged UI is trusted with prompted passwords, displayed/imported phrases and approval intent. Normal selection, copy/cut/paste and context menus are enabled. Recovery words have explicit Copy phrase controls and can be selected manually. Inputs stay masked, dialogs trap focus, Enter submits, Escape cancels, completed/replaced dialogs clear their DOM and lock/close removes pending content. Switching applications does not cancel input. No guarantee is made about erasing immutable JS/Go/runtime/display or clipboard-history copies.
 
-Both HTML documents use a strict local-assets CSP with no outbound connections,
-HTML insertion, eval, frames or form navigation. The Go host must retain its
-separate public/private bridge allowlists, deny standard privileged Wails runtime
-messages and navigation, and supply no secrets to the ordinary public view.
+The Go signer retains roots/private keys, at-rest encryption, transaction reconstruction and password/recovery checks. No secret is written to browser storage or logged. Local CSP rejects remote resources/network, eval, frames and form navigation; ordinary Wails bindings/runtime are available. See [the current architecture](../../../docs/TRUSTED_UI.md).
 
-Vitest tests validate allocation bounds, secret-field rejection, prompt kind and
-byte limits, inert provider text, stale snapshot ordering, table/copy actions,
-tab closing, seven-second status expiry, private masked input, clear-before-reply,
-explicit backup copying and revocation. These DOM tests complement the installed
-Go/WebKitGTK acceptance checks; they do not certify OS-wide secret erasure or
-funded transactions.
+Vitest covers view/protocol limits, inert provider text, table selection/copy, tabs/status expiry, repeated dialogs, startup event/snapshot ordering, focus/Enter/Escape, masked input, clear-before-reply, ordinary clipboard events and late async results. Actual built Go/WebKit acceptance remains a separate test.

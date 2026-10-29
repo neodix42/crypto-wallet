@@ -291,8 +291,8 @@ func TestPublicBridgeDeliversTypedValuesAndBoundsTheControlQueue(t *testing.T) {
 }
 
 func TestAssetErrorsAndFrameworkFormattingNeverExposeUnderlyingValues(t *testing.T) {
-	for _, private := range []bool{false, true} {
-		assets := roleAssets{private: private}
+	for range 1 {
+		assets := roleAssets{}
 		for _, name := range []string{"assets/missing.js", "assets\\secret.js", "assets/./index.js", "secret", "../index.html"} {
 			if file, err := assets.Open(name); !errors.Is(err, fs.ErrNotExist) {
 				if file != nil {
@@ -301,7 +301,7 @@ func TestAssetErrorsAndFrameworkFormattingNeverExposeUnderlyingValues(t *testing
 				t.Fatal("missing or escaped asset did not fail as unavailable")
 			}
 		}
-		opts := appOptions(private)
+		opts := appOptions()
 		if formatted := opts.ErrorFormatter(errors.New("synthetic-private-diagnostic")); formatted != "Wallet request unavailable." {
 			t.Fatal("framework exposed an underlying diagnostic")
 		}

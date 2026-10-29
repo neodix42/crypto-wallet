@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Node, Page, View, WalletEvent } from './types';
 import { applyAppearance, isAssetTable, isWalletRow, validView } from './protocol';
+import { DialogHost } from './Dialog';
 import { AddressBookIcon, CopyIcon, Mark, SaveAddressIcon, SettingsIcon } from './icons';
 
 type Emit = (id: string, value?: string) => void;
@@ -81,8 +82,12 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
 function Portfolio({ page, emit }: { page: Page; emit: Emit }) {
   const nodes = page.Nodes || [], rows = nodes.filter(isWalletRow);
   const headingRow = (node: Node) => node.Kind === 'row' && node.Children?.[0]?.Kind === 'heading' && node.Children[0].Text === 'Network';
+  const selectingRow = (row: HTMLTableRowElement) => {
+    const selection = window.getSelection();
+    return !!selection && !selection.isCollapsed && (row.contains(selection.anchorNode) || row.contains(selection.focusNode));
+  };
   const first = nodes.findIndex(isWalletRow), last = nodes.reduce((found, node, index) => isWalletRow(node) ? index : found, -1);
-  return <><div className="page-heading"><div><p className="eyebrow">YOUR WALLETS</p><h1>{page.Title}</h1></div><span className="network-count">{rows.length} networks</span></div><div className="portfolio-toolbar">{nodes.slice(0, first < 0 ? nodes.length : first).filter(node => !headingRow(node)).map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</div>{rows.length > 0 && <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Network</th><th>Native balance</th><th>Receive address</th><th><span className="sr-only">Copy</span></th></tr></thead><tbody>{rows.map(row => <tr key={row.ID} tabIndex={0} onClick={event => { if (!(event.target as HTMLElement).closest('button,input,select')) emit(row.ID); }} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); emit(row.ID); } }}>{(row.Children || []).map((node, index) => <td key={node.ID || index}>{index === 0 ? <div className="network-name"><span className="network-avatar" aria-hidden="true">{node.Text.slice(0, 1)}</span><PublicNode node={node} emit={emit}/></div> : <PublicNode node={node} emit={emit}/>}</td>)}</tr>)}</tbody></table></div>}{last >= 0 && nodes.slice(last + 1).map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</>;
+  return <><div className="page-heading"><div><p className="eyebrow">YOUR WALLETS</p><h1>{page.Title}</h1></div><span className="network-count">{rows.length} networks</span></div><div className="portfolio-toolbar">{nodes.slice(0, first < 0 ? nodes.length : first).filter(node => !headingRow(node)).map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</div>{rows.length > 0 && <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Network</th><th>Native balance</th><th>Receive address</th><th><span className="sr-only">Copy</span></th></tr></thead><tbody>{rows.map(row => <tr key={row.ID} tabIndex={0} onClick={event => { if (!(event.target as HTMLElement).closest('button,input,select,.address-field') && !selectingRow(event.currentTarget)) emit(row.ID); }} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); emit(row.ID); } }}>{(row.Children || []).map((node, index) => <td key={node.ID || index}>{index === 0 ? <div className="network-name"><span className="network-avatar" aria-hidden="true">{node.Text.slice(0, 1)}</span><PublicNode node={node} emit={emit}/></div> : <PublicNode node={node} emit={emit}/>}</td>)}</tr>)}</tbody></table></div>}{last >= 0 && nodes.slice(last + 1).map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</>;
 }
 
 export function PublicContent({ page, emit }: { page: Page; emit: Emit }) {
@@ -135,5 +140,5 @@ export function PublicApp() {
   }, []);
   useEffect(() => { setStatus(view.Status); }, [view.Status, view.StatusRevision]);
   useEffect(() => { if (!status) return; const timer = window.setTimeout(() => setStatus(''), 7000); return () => window.clearTimeout(timer); }, [status, view.StatusRevision]);
-  return <WalletShell view={view} status={status} emit={emit}/>;
+  return <><WalletShell view={view} status={status} emit={emit}/><DialogHost onError={setStatus}/></>;
 }

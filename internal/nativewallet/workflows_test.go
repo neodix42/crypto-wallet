@@ -125,7 +125,11 @@ func TestWalletPrivateActionsBindTheSelectedAccountAndTypedNetwork(t *testing.T)
 			routeFixture(t, a, core, kind, expected, json.RawMessage(`{}`))
 			a.walletEvent(kind + "/" + account.ID)
 			ui.apply(t)
-			if a.busy || !strings.Contains(a.status, "completed") {
+			status := "completed"
+			if kind == "copyReceive" {
+				status = "Address copied."
+			}
+			if a.busy || !strings.Contains(a.status, status) {
 				t.Fatal("selected wallet request contract changed")
 			}
 		})
@@ -788,8 +792,38 @@ func TestReadOnlyPrivateDisplaysPreservePreparedPlanBalancesAndMetadata(t *testi
 				a.walletEvent(method + "/" + account.ID)
 			}
 			ui.apply(t)
-			if a.busy || !strings.Contains(a.status, "completed") || calls != 1 || a.plan != plan || viewText(a.state) != beforeAccounts || viewText(a.balances) != beforeBalances || !reflect.DeepEqual(a.balanceQueue, []string{"public-pending-balance"}) {
+			status := "completed"
+			if method == "copyReceive" {
+				status = "Address copied."
+			}
+			if a.busy || !strings.Contains(a.status, status) || calls != 1 || a.plan != plan || viewText(a.state) != beforeAccounts || viewText(a.balances) != beforeBalances || !reflect.DeepEqual(a.balanceQueue, []string{"public-pending-balance"}) {
 				t.Fatal("read-only authenticated display changed payment/balance/account state")
+			}
+		})
+	}
+}
+
+func TestAddressCopyReportsSuccessOnlyAfterBackendAcknowledgment(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		t.Run(map[bool]string{false: "copied", true: "unavailable"}[fail], func(t *testing.T) {
+			a, ui, core := fixture(t)
+			account := ethAccount(t, a)
+			calls := 0
+			core.handler = func(_ uint64, method string, body, out any) error {
+				calls++
+				if method != "copyReceive" || viewText(body) != viewText(map[string]string{"accountId": account.ID}) {
+					t.Error("copy changed the exact account or requested unrelated work")
+					return errors.New("unexpected copy request")
+				}
+				if fail {
+					return errors.New("synthetic clipboard transport failure")
+				}
+				return answer(out, json.RawMessage(`null`))
+			}
+			a.walletEvent("copyReceive/" + account.ID)
+			ui.apply(t)
+			if calls != 1 || a.busy || strings.Contains(a.status, "synthetic") || (a.status == "Address copied.") == fail {
+				t.Fatal("clipboard failure or missing acknowledgment was reported as success")
 			}
 		})
 	}

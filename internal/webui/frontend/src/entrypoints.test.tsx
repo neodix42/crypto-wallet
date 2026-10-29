@@ -22,21 +22,14 @@ afterEach(async () => {
   await act(async () => { for (const root of roots.splice(0)) root.unmount(); });
   vi.restoreAllMocks(); delete window.go; delete window.runtime;
 });
-it('mounts the shipped public entry without any private bridge', async () => {
-  window.go = { webui: { PublicBridge: { Snapshot: async () => view(), Event: async () => true } } };
+it('mounts the wallet and its normal dialog through the single shipped entrypoint', async () => {
+  window.go = { webui: {
+    PublicBridge: { Snapshot: async () => view(), Event: async () => true },
+    DialogBridge: { Snapshot: async () => ({ id, kind: 'input', title: 'Unlock local wallet', labels: ['App password'] }), Reply: async () => true, Copy: async () => true, Activity: async () => true },
+  } };
   await act(async () => { await import('./main'); });
   expect(roots).toHaveLength(1);
   expect(document.querySelector('.wallet-shell')).not.toBeNull();
-  expect(document.querySelector('input[type="password"]')).toBeNull();
-});
-it('mounts the shipped private entry using only the private prompt bridge', async () => {
-  window.go = { webui: { PrivateBridge: {
-    Prompt: async () => ({ id, kind: 'input', title: 'Unlock local wallet', labels: ['App password'] }),
-    Reply: async () => true, Copy: async () => true, Activity: async () => true,
-  } } };
-  await act(async () => { await import('./private-main'); });
-  expect(roots).toHaveLength(1);
-  expect(document.querySelector('.private-shell')).not.toBeNull();
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.querySelector('input[type="password"]')).not.toBeNull();
-  expect(document.querySelector('.wallet-shell')).toBeNull();
 });

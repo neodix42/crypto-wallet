@@ -21,8 +21,8 @@ REQUIRED = (
     'internal/webui/window.go', 'internal/webui/prompt.go',
     'internal/webui/frontend/package.json', 'internal/webui/frontend/package-lock.json',
     'internal/webui/frontend/tsconfig.json', 'internal/webui/frontend/vite.config.ts',
-    'internal/webui/frontend/index.html', 'internal/webui/frontend/secret/index.html',
-    'internal/webui/frontend/src/main.tsx', 'internal/webui/frontend/src/private-main.tsx',
+    'internal/webui/frontend/index.html',
+    'internal/webui/frontend/src/main.tsx',
     'third_party/wails/go.mod', 'third_party/wails/WALLET-UPSTREAM.json',
     'third_party/wails/WALLET-PATCHES.json', '.github/provenance/package-lock.json',
 )

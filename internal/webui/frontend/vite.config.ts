@@ -5,9 +5,6 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
-    rollupOptions: {
-      input: { wallet: 'index.html', private: 'secret/index.html' },
-    },
   },
   test: {
     coverage: {
@@ -20,8 +17,7 @@ export default defineConfig({
         perFile: true,
         statements: 90,
         branches: 85,
-        'src/PrivateApp.tsx': { statements: 95, branches: 90 },
-        'src/private-main.tsx': { statements: 95, branches: 90 },
+        'src/Dialog.tsx': { statements: 95, branches: 90 },
         'src/protocol.ts': { statements: 95, branches: 90 },
       },
     },

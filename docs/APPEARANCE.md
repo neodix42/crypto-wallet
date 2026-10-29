@@ -1,5 +1,12 @@
 # Appearance and unlock behavior
 
+> Owner update (2026-10-29): the shipped Wails UI now uses one trusted main window with reusable in-page dialogs and ordinary Wails bindings. It no longer launches a private UI self-role, isolated prompt page or one-use UI pipe. Normal selection/copy/cut/paste are enabled. The main UI is trusted with entered/displayed secrets and approval intent. This supersedes the separate-renderer and noncopyable-secret requirements below, which describe earlier designs. Go signer/core isolation, cryptography, reauthentication and transaction validation remain. See [the current trust model](TRUSTED_UI.md).
+
+
+Public address icons copy immediately, and selected addresses support normal
+keyboard Copy. Sensitive views retain their separate restrictions. See
+[address copying and runtime checks](CLIPBOARD.md).
+
 Open **Settings → Appearance** to choose **Light** or **Dark**, and a global font
 size from 14 to 24 px in two-pixel steps. A fresh installation defaults to Light
 and 18 px. The selected Settings section has a different background/accent color.

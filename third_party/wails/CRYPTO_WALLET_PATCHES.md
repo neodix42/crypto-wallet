@@ -1,124 +1,21 @@
 # CryptoWallet's pinned Wails source
 
-This directory is Wails `github.com/wailsapp/wails/v2` **v2.17.0** with a small,
-explicit wallet policy. Upstream's complete 963-file source tree and original
-licenses are retained. This is development source, never an extra release asset
-or installed runtime directory. Go's root `replace` selects this local module.
+This is Wails `github.com/wailsapp/wails/v2` v2.17.0 with explicit Linux wallet changes. The complete 963-file upstream tree and licenses remain. `WALLET-UPSTREAM.json` records its hashes; `WALLET-PATCHES.json` records reviewed final changed/added files. `python3 scripts/verify-wails-fork.py` rejects unlisted edits, additions, removals and links. These files are development source, not release runtime helpers.
 
-`WALLET-UPSTREAM.json` records every original upstream file hash.
-`WALLET-PATCHES.json` enumerates every changed or added wallet file with its final
-hash. `python3 scripts/verify-wails-fork.py` checks the complete tree, refuses
-unlisted edits/additions/removals/symlinks, and never regenerates these manifests.
-A deliberate patch update must update the reviewed manifest in source control.
+## Single trusted application UI
 
-## Transport
+The owner's 2026-10-29 request removes separate private prompt processes, pages and one-use UI pipe channels. The main Wails application binds both page/controller and reusable dialog APIs. Normal Wails binding/runtime dispatch is available; the former wallet-specific method allowlist is removed. Runtime diagnostics remain silent, binding errors are redacted and arguments/results are not logged. The UI is trusted with prompted passwords, displayed recovery words and approval intent. Compromise of the UI is no longer isolated from another prompt renderer. Signer/core protocol and cryptographic checks are separate.
 
-The Linux browser-to-Go channel accepts only exact `wails://wails/` or
-`wails://wails/index.html` documents, the fixed `runtime:ready` initializer, and
-strictly validated, bounded Wails `C` call envelopes. Methods are:
+## Normal clipboard interaction
 
-- `PublicBridge.Snapshot()` and `PublicBridge.Event(one payload)`;
-- `PrivateBridge.Prompt()`, `PrivateBridge.Reply(one payload)`,
-  `PrivateBridge.Copy()` and value-free `PrivateBridge.Activity()`.
+Every view supports ordinary selection, Copy/Cut/Paste and context menus. Native Ctrl+C, Ctrl+Shift+C and Ctrl+Insert execute WebKit Copy. Cut and Paste use normal WebKit editing behavior. JavaScript clipboard access is enabled, and clipboard permission requests are allowed for the trusted embedded UI. There is no per-view public-copy option or default-deny secret-view keyboard handler. Native Go clipboard setters acknowledge the actual GTK write before reporting success. The helper writes CLIPBOARD and preserves PRIMARY; ordinary text selection can itself own PRIMARY as expected on Linux. Closing an in-page dialog does not destroy the app's clipboard owner. No clipboard-history erasure guarantee is made.
 
-The public and private facades are bound in **different Go application
-processes**, using private inherited pipes for the latter. The policy does not
-make a private method available to the public process: only the facade bound by
-the owning Go process can resolve. There is no generic runtime IPC, obfuscated
-method call, JavaScript log, clipboard API, browser opener, arbitrary event,
-notification, dialog, file, drag, inspector, resize, show/hide or quit authority.
-Native close-button messages arrive through the separate native channel.
-Go-to-JavaScript events and trusted Go runtime operations remain available.
-Bridge return values and argument errors are never written to Wails runtime logs.
-Wails' injected JavaScript event listeners are local registrations; they require
-no browser-to-Go event permission.
+## Local asset and engine policy
 
-Upstream's script message callback reports the current top-level document URI,
-rather than the sending JavaScript frame's URI. The wallet therefore denies
-frames in its response CSP, rejects popups and external navigation before load,
-and never loads imported/remote HTML. This top-level check must not be reused
-as authorization for applications that permit foreign frames.
+The application retains an ephemeral WebKit context, disabled browser storage/page cache/developer extras and local embedded assets. Its custom `wails://wails/` origin rejects malformed paths, foreign navigation and popups. No remote UI code, frames or form posts are loaded. A local-only CSP denies network/eval/worker/frame capabilities; Go services perform blockchain/exchange networking. Media, WebRTC, downloads and unrelated browser permissions remain disabled. These protections do not restrict normal clipboard behavior or create another UI process.
 
-## Clipboard commit capability
+The owner-requested renderer sandbox remains explicitly disabled before WebView creation. There is no Electron/Chromium, SUID helper, root setup, Bubblewrap setup, environment bypass or system-policy modification. System GTK3 and WebKitGTK 4.1 remain runtime dependencies. WebKit still uses its own engine subprocesses; those are not separate CryptoWallet prompt applications.
 
-`runtime.ClipboardSetTextAuthorized(ctx, text, authorize)` is a trusted **Go-only**
-capability. Linux schedules the operation on GTK, then calls the synchronous
-`authorize(commit)` callback. The owner must validate its current prompt/session
-and invoke `commit` under the same mutex used to revoke that state. Success is
-reported only after the actual native clipboard write. Context cancellation
-revokes queued work, waits out an already-running commit, and prevents a retained
-callback from writing after the operation returns. Callback failures expose only
-a fixed error. The browser facade allowlist does not expose this API.
+## Verification
 
-GTK writes **CLIPBOARD only**. PRIMARY selection ownership and its existing text
-are preserved; copying a recovery phrase does not silently export it into a
-second selection. Temporary C text allocations are zeroed before free as a best
-effort; immutable Go strings and the explicitly requested clipboard ownership
-have separate lifetimes. No automatic clipboard-history retention or erasure
-claim is made. The generic trusted-Go setter also waits for the native write,
-while wallet lifecycle-sensitive copies use the authorized capability.
-
-Focused race tests exercise queued acknowledgment, owner-lock serialization,
-stale/canceled callbacks, cancellation during a running commit, failed writes,
-retained callbacks and fixed panic handling. The independent native probe places
-public markers in CLIPBOARD and PRIMARY on its owned display, performs the exact
-C clipboard helper, then verifies only CLIPBOARD changed.
-
-## WebKitGTK policy
-
-Every WebView uses its own **ephemeral WebKitWebContext**. HTML local storage,
-HTML5 databases, page caching, developer extras, browser clipboard access,
-WebGL/audio/media/WebRTC, JavaScript-created windows, modal dialogs, file URL
-access and disabled web security are turned off. Permission requests, file
-choosers, authentication, downloads, printing, fullscreen and notifications are
-denied. Browser copy/cut shortcuts are intercepted; wallet copy buttons invoke
-explicit Go policy. Paste remains available.
-
-Only the `wails://wails` embedded custom scheme is registered. Its URI handler
-rejects userinfo, ports, queries, fragments, escapes, traversal and non-ASCII
-paths. Documents are limited to `/` and `/index.html`; static resources must use
-this same scheme and host. External HTTP/file/data document navigation and new
-windows are refused.
-
-Every asset response supplies `Cache-Control: no-store`, `Referrer-Policy:
-no-referrer`, `X-Content-Type-Options: nosniff`, a denied browser permissions
-policy, and this CSP:
-
-```
-default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; media-src 'none'; manifest-src 'none'
-```
-
-The interface has no remote JavaScript, inline JavaScript, eval, browser network
-API, worker, frame or form-post capability. Inline **styles** support React
-layout. Blockchain and exchange networking stays in the existing Go services.
-These are application-level browser restrictions, not a claim of kernel network
-isolation in the event of a native WebKit vulnerability.
-
-The owner explicitly requested **no operating-system sandbox**. The new context
-calls `webkit_web_context_set_sandbox_enabled(context, FALSE)` before creating a
-WebView or subprocess. No `chrome-sandbox`, SUID/root setup, Bubblewrap setup,
-system policy change or environment sandbox bypass is used. Memory protection,
-no-core-dump handling, process roles and wallet cryptography remain in Go.
-GTK3, WebKitGTK 4.1 and their shared-library dependencies are supplied by the OS.
-Linux is the only target verified by these additions.
-
-## Evidence
-
-Run the independent Go policy/logging tests and upstream asset tests:
-
-```
-go -C third_party/wails test -race -tags webkit2_41 ./internal/frontend/walletpolicy ./internal/frontend/walletclipboard ./internal/logger ./pkg/runtime ./pkg/assetserver ./internal/frontend/dispatcher
-```
-
-`python3 scripts/test-wails-security.py` builds the real C security callbacks,
-opens actual system WebKitGTK on an owned Xvfb display with a disposable HOME,
-checks ephemeral/no-sandbox state and settings, and exercises CSP eval/storage
-and network denial plus popup/external navigation. An owned loopback HTTP server
-must observe **zero** requests. The report binds the relevant source hashes.
-The test CSP must exactly match the production response header before it runs.
-No wallet process, user secrets, real profile, RPC or funds participate.
-
-These tests do not replace end-to-end wallet recovery/send tests, physical OS
-lifecycle tests, or independent review. Browser permission/file/download denial
-handlers are compiled and inspected; this probe does not claim to exercise every
-OS dialog or browser API path.
+`make test-wails-security` verifies the pinned fork, exercises Go dispatch/logging/clipboard tests, compiles real C callbacks and runs actual system WebKit on an owned X11 display with disposable HOME. Public fixtures verify all three copy aliases, native clipboard acknowledgment/PRIMARY preservation, ephemeral/no-sandbox settings, CSP eval/storage/network denial and blocked navigation/popups. The HTTP witness must observe zero requests. The actual wallet GUI campaign separately verifies same-window input/recovery/Receive/approval/clipboard behavior. Historical reports requiring isolated prompt processes or default-deny private copying certify only those historical artifacts. Physical desktop/Wayland/OS matrices, funded acceptance and independent review remain separately scoped.

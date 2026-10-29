@@ -68,7 +68,7 @@ func (u *testUI) Receive(_ string, s string, _ []byte) bool {
 	u.summaries = append(u.summaries, s)
 	return u.approve
 }
-func (u *testUI) CopyPublic(s string) { u.copied = s }
+func (u *testUI) CopyPublic(s string) error { u.copied = s; return nil }
 func input(s ...string) [][]byte {
 	out := make([][]byte, len(s))
 	for i := range s {

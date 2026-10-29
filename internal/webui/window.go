@@ -24,9 +24,9 @@ var bundle embed.FS
 
 var errDesktop = errors.New("wallet desktop unavailable")
 
-// A role sees only its own entry document. There is no HTTP listener, fallback
+// The single UI loads only embedded assets. There is no HTTP listener, fallback
 // file server, directory listing, user-supplied path or external asset handler.
-type roleAssets struct{ private bool }
+type roleAssets struct{}
 
 func (r roleAssets) Open(name string) (fs.File, error) {
 	if name != path.Clean(name) || strings.HasPrefix(name, "/") || strings.Contains(name, "\\") {
@@ -36,11 +36,7 @@ func (r roleAssets) Open(name string) (fs.File, error) {
 		return bundle.Open("frontend/dist")
 	}
 	if name == "index.html" {
-		if r.private {
-			name = "secret/index.html"
-		} else {
-			name = "index.html"
-		}
+		name = "index.html"
 	} else if !strings.HasPrefix(name, "assets/") || strings.Contains(name, "..") {
 		return nil, fs.ErrNotExist
 	}
@@ -59,22 +55,22 @@ func (silentLogger) Warning(string) {}
 func (silentLogger) Error(string)   {}
 func (silentLogger) Fatal(string)   {}
 
-func appOptions(private bool) *options.App {
+func appOptions() *options.App {
 	return &options.App{Title: "CryptoWallet", Width: 1440, Height: 1120, MinWidth: 1000, MinHeight: 640,
-		BackgroundColour: options.NewRGB(13, 18, 27), AssetServer: &assetserver.Options{Assets: roleAssets{private}},
+		BackgroundColour: options.NewRGB(13, 18, 27), AssetServer: &assetserver.Options{Assets: roleAssets{}},
 		// The initial GTK allocation may exceed a smaller monitor before
 		// startup fitting. Center only after its requested size is allocated.
 		OnDomReady: func(ctx context.Context) { wruntime.WindowCenter(ctx) },
 		Logger:     silentLogger{}, LogLevel: logger.ERROR, LogLevelProduction: logger.ERROR,
 		ErrorFormatter:           func(error) any { return "Wallet request unavailable." },
-		EnableDefaultContextMenu: false, EnableFraudulentWebsiteDetection: false,
+		EnableDefaultContextMenu: true, EnableFraudulentWebsiteDetection: false,
 		DragAndDrop: &options.DragAndDrop{DisableWebViewDrop: true},
 		Linux:       &linux.Options{ProgramName: "cryptowallet", Icon: branding.WindowIcon(), WebviewGpuPolicy: linux.WebviewGpuPolicyNever}}
 }
 
 // Window serializes controller transitions independently of WebKit's GTK
-// thread. While a private child is open only lifecycle controls may run.
-// Render/Snapshot/Event are strictly public; private material uses pipes only.
+// thread. A modal dialog keeps lifecycle controls responsive while its ordinary
+// Wails bridge receives the reply in the same application window.
 type Window struct {
 	mu              sync.Mutex
 	view            View
@@ -85,7 +81,7 @@ type Window struct {
 	onEvent         func(Event)
 	cancelEpoch     uint64
 	activeCancel    context.CancelFunc
-	activeDone      <-chan struct{}
+	dialog          *dialogState
 	lastActivity    time.Time
 }
 
@@ -155,15 +151,14 @@ func (w *Window) Close() {
 	}
 	w.closed = true
 	w.cancelEpoch++
-	cancel, finished := w.activeCancel, w.activeDone
+	cancel := w.activeCancel
+	w.clearDialogLocked()
+	w.notifyDialogLocked()
 	ctx := w.ctx
 	close(w.done)
 	w.mu.Unlock()
 	if cancel != nil {
 		cancel()
-	}
-	if finished != nil {
-		<-finished
 	}
 	if ctx != nil {
 		wruntime.Quit(ctx)
@@ -172,24 +167,38 @@ func (w *Window) Close() {
 func (w *Window) CancelPrompt() {
 	w.mu.Lock()
 	w.cancelEpoch++
-	cancel, finished := w.activeCancel, w.activeDone
+	cancel := w.activeCancel
+	w.clearDialogLocked()
+	w.notifyDialogLocked()
 	w.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
-	if finished != nil {
-		<-finished
-	}
 }
+
+func (w *Window) attachContext(ctx context.Context) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.ctx = ctx
+	// A dialog can arrive after the frontend's initial empty Snapshot but
+	// before startup finishes. Publish its current state as soon as Wails is
+	// attached, before geometry work can delay startup further.
+	w.notifyDialogLocked()
+	return w.closed
+}
+
 func (w *Window) Run() error {
 	prepareWebKitRuntime()
 	configureWebKitSignal()
-	a := appOptions(false)
-	a.Bind = []interface{}{&PublicBridge{window: w}}
+	a := appOptions()
+	a.Bind = []interface{}{&PublicBridge{window: w}, &DialogBridge{window: w}}
 	a.OnStartup = func(ctx context.Context) {
+		if w.attachContext(ctx) {
+			wruntime.Quit(ctx)
+			return
+		}
 		fitWindow(ctx, a.Width, a.Height, a.MinWidth, a.MinHeight)
 		w.mu.Lock()
-		w.ctx = ctx
 		closed := w.closed
 		title := w.view.Title
 		w.mu.Unlock()
@@ -252,9 +261,9 @@ func fitWindow(ctx context.Context, width, height, minWidth, minHeight int) {
 	wruntime.WindowSetSize(ctx, width, height)
 }
 
-// PublicBridge contains no secret/prompt method or generic backend transport.
-// Events must reference a live enabled widget. No arbitrary method, field name,
-// executable, address-to-clipboard or prompt ID can be supplied by a renderer.
+// PublicBridge presents wallet pages and ordinary controller events. Current
+// page validation prevents stale or disabled background actions while
+// DialogBridge manages modal input in the same trusted application UI.
 type PublicBridge struct{ window *Window }
 
 func (b *PublicBridge) Snapshot() View {

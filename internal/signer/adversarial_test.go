@@ -72,8 +72,11 @@ func TestTP033ReceiveQRFileAndCopyBoundaries(t *testing.T) {
 		t.Fatal("QR overwrite allowed")
 	}
 	u.approve = false
-	if e.CopyReceive(a.ID) == nil || e.SaveQR(a.ID) == nil {
+	if _, err := e.Receive(a.ID); err == nil || e.SaveQR(a.ID) == nil {
 		t.Fatal("cancelled verification accepted")
+	}
+	if err := e.CopyReceive(a.ID); err != nil || u.copied != a.Address {
+		t.Fatal("public copy unnecessarily required another dialog")
 	}
 	u.approve = true
 	e.UI = struct{ UI }{u}

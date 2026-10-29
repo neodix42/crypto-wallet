@@ -273,13 +273,11 @@ def portable_runtime_coverage(env):
         if not any(counters.glob("covmeta.*")):
             raise RuntimeError("Instrumented native runtime produced no Go coverage metadata")
         parents = report["nativeRuntime"].get("processIDs", [])
-        prompts = report["nativeRuntime"].get("privateProcessIDs", [])
         measured = {int(path.name.split(".")[2]) for path in counters.glob("covcounters.*")
                     if len(path.name.split(".")) == 4 and path.name.split(".")[2].isdigit()}
-        if (not parents or not prompts or set(prompts) & set(parents) or
-                not set(prompts) <= measured):
-            raise RuntimeError("Not every observed private prompt process produced distinct Go coverage counters")
-        report["nativeRuntime"]["privateCounterProcesses"] = sorted(prompts)
+        if not parents or not set(parents) <= measured:
+            raise RuntimeError("Not every observed main UI process produced Go coverage counters")
+        report["nativeRuntime"]["uiCounterProcesses"] = sorted(parents)
         subprocess.run(["go", "tool", "covdata", "textfmt", "-i=" + str(counters), "-o=" + str(profile)],
                        cwd=root, env=env, check=True, timeout=60)
         report["nativeRuntime"]["coverageStatus"] = "MEASURED"

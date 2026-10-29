@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wailsapp/wails/v2/internal/binding"
 	"github.com/wailsapp/wails/v2/internal/frontend"
-	"github.com/wailsapp/wails/v2/internal/frontend/walletpolicy"
 	"github.com/wailsapp/wails/v2/internal/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
 )
@@ -52,13 +51,30 @@ func (d *Dispatcher) ProcessMessage(message string, sender frontend.Frontend) (_
 	if message == "" {
 		return "", errors.New("No message to process")
 	}
-	// Native close-button messages use a separate, non-browser channel.
-	if message == "Q" {
-		sender.Quit()
+	switch message[0] {
+	case 'L':
+		// Never forward renderer logging: dialog arguments may contain secrets.
 		return "", nil
-	}
-	if _, ok := walletpolicy.BindingCall(message); !ok {
+	case 'E':
+		return d.processEventMessage(message, sender)
+	case 'C':
+		return d.processCallMessage(message, sender)
+	case 'c':
+		return d.processSecureCallMessage(message, sender)
+	case 'W':
+		return d.processWindowMessage(message, sender)
+	case 'B':
+		return d.processBrowserMessage(message, sender)
+	case 'D':
+		return d.processDragAndDropMessage(message)
+	case 'Q':
+		sender.Quit()
+	case 'S':
+		sender.Show()
+	case 'H':
+		sender.Hide()
+	default:
 		return "", errors.New("Desktop request unavailable")
 	}
-	return d.processCallMessage(message, sender)
+	return "", nil
 }

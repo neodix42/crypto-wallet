@@ -35,18 +35,19 @@ class SurfaceRouting(unittest.TestCase):
             self.assertTrue(call.kwargs['check'])
             self.assertEqual(call.kwargs['cwd'], surface.root)
 
-    def test_new_public_or_private_exported_authority_fails_before_any_runtime_command(self):
-        for typename in ('PublicBridge', 'PrivateBridge'):
-            with self.subTest(typename=typename), tempfile.TemporaryDirectory(prefix='surface-policy-') as temporary:
+    def test_retired_prompt_process_fails_before_any_runtime_command(self):
+        for mechanism in ('runPromptProcess', 'PrivateBridge', '--internal-prompt'):
+            with self.subTest(mechanism=mechanism), tempfile.TemporaryDirectory(prefix='surface-policy-') as temporary:
                 root = Path(temporary)
                 folder = root / 'internal/webui'
                 folder.mkdir(parents=True)
                 for path in (surface.root / 'internal/webui').glob('*.go'):
                     if not path.name.endswith('_test.go'):
                         shutil.copy2(path, folder / path.name)
-                (folder / 'unreviewed.go').write_text('package webui\nfunc (b *' + typename + ') ExportPrivateKey() {}\n')
+                path = folder / 'prompt.go'
+                path.write_text(path.read_text() + '\n// ' + mechanism + '\n')
                 with mock.patch.object(surface, 'root', root), mock.patch.object(surface.subprocess, 'run') as execute, \
-                        self.assertRaisesRegex(AssertionError, 'unreviewed exported bridge authority'):
+                        self.assertRaisesRegex(AssertionError, 'retired isolated UI mechanism'):
                     surface.check_current_ui()
                 execute.assert_not_called()
 

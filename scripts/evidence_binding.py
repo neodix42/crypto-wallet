@@ -30,9 +30,9 @@ WAILS_COVERAGE_INPUTS = ('scripts/wails-wallet-test.py', 'scripts/wails-inspecto
                          'scripts/verify-wails-fork.py',
                          'internal/webui/frontend/package.json', 'internal/webui/frontend/package-lock.json',
                          'internal/webui/frontend/tsconfig.json', 'internal/webui/frontend/vite.config.ts',
-                         'internal/webui/frontend/index.html', 'internal/webui/frontend/secret/index.html',
-                         'internal/webui/frontend/src/PublicApp.tsx', 'internal/webui/frontend/src/PrivateApp.tsx',
-                         'internal/webui/frontend/src/main.tsx', 'internal/webui/frontend/src/private-main.tsx',
+                         'internal/webui/frontend/index.html',
+                         'internal/webui/frontend/src/PublicApp.tsx', 'internal/webui/frontend/src/Dialog.tsx',
+                         'internal/webui/frontend/src/main.tsx',
                          'internal/webui/frontend/src/protocol.ts', 'internal/webui/frontend/src/types.ts',
                          'internal/webui/frontend/src/icons.tsx', 'internal/webui/frontend/src/styles.css',
                          'third_party/wails/go.mod', 'third_party/wails/go.sum',
@@ -146,7 +146,7 @@ def wails_frontend_sources(root):
 
 def wails_frontend_runtime(root):
     names = files_below(root, 'internal/webui/frontend/dist')
-    names.extend(('internal/webui/frontend/dist/index.html', 'internal/webui/frontend/dist/secret/index.html'))
+    names.append('internal/webui/frontend/dist/index.html')
     return hash_names(root, names)
 
 
@@ -165,7 +165,7 @@ def wails_frontend_rows(root, summary):
     rows = []
     for name in sorted(present | required):
         relative = name.removeprefix('internal/webui/frontend/')
-        critical = relative in ('src/PrivateApp.tsx', 'src/private-main.tsx', 'src/protocol.ts')
+        critical = relative in ('src/Dialog.tsx', 'src/protocol.ts')
         floors = {'statements': 95 if critical else 90, 'branches': 90 if critical else 85}
         record = summary.get(str(pathlib.Path(root) / name))
         metrics, passed = {}, name in present
@@ -365,11 +365,10 @@ def validate_go(root, report, floor_report):
         def process_ids(value):
             return (isinstance(value, list) and bool(value) and
                     all(type(pid) is int and pid > 1 for pid in value) and len(set(value)) == len(value))
-        parents, prompts, measured = (runtime.get(name) for name in ('processIDs', 'privateProcessIDs', 'privateCounterProcesses'))
-        if (not all(process_ids(value) for value in (parents, prompts, measured)) or
-                set(parents) & set(prompts) or set(prompts) != set(measured) or
-                runtime.get('coverageStatus') != 'MEASURED'):
-            raise EvidenceError('go-coverage-private-process-counters-incomplete')
+        parents, measured = (runtime.get(name) for name in ('processIDs', 'uiCounterProcesses'))
+        if (not all(process_ids(value) for value in (parents, measured)) or
+                set(parents) != set(measured) or runtime.get('coverageStatus') != 'MEASURED'):
+            raise EvidenceError('go-coverage-ui-process-counters-incomplete')
         diagnostic = report.get('diagnosticCoverage')
         if not isinstance(diagnostic, dict) or diagnostic.get('status') != 'PASS':
             raise EvidenceError('go-coverage-diagnostic-collector-incomplete')

@@ -125,7 +125,7 @@ class CoverageEvidence(unittest.TestCase):
         commands = []
         driver_options = []
         evidence = coverage.reports / 'wails-wallet-coverage.json'
-        evidence.write_text('{"status":"PASS","instrumented":true,"sourceStable":true,"processIDs":[123],"privateProcessIDs":[456]}')
+        evidence.write_text('{"status":"PASS","instrumented":true,"sourceStable":true,"processIDs":[123]}')
         def run(command, **kwargs):
             commands.append(command)
             if command[:2] == ['python3', 'scripts/wails-wallet-test.py']:
@@ -150,7 +150,7 @@ class CoverageEvidence(unittest.TestCase):
         self.assertEqual(len(driver), 7)
         self.assertEqual(driver_options[0]['timeout'], 2400)
         self.assertTrue(convert[-1].endswith('go-native-runtime.cover'))
-        self.assertEqual(coverage.report['nativeRuntime']['privateCounterProcesses'], [456])
+        self.assertEqual(coverage.report['nativeRuntime']['uiCounterProcesses'], [123])
 
     def test_failed_gui_prerequisite_preserves_driver_reason_without_claiming_measurement(self):
         evidence = coverage.reports / 'wails-wallet-coverage.json'
@@ -168,19 +168,19 @@ class CoverageEvidence(unittest.TestCase):
         self.assertEqual(coverage.report['nativeRuntime']['coverageStatus'], 'NOT_RUN')
         self.assertIn('namespace', coverage.report['nativeRuntime']['reason'])
 
-    def test_parent_only_runtime_counters_never_pass_private_prompt_gate(self):
+    def test_missing_main_ui_counter_never_passes_runtime_gate(self):
         evidence = coverage.reports / 'wails-wallet-coverage.json'
-        evidence.write_text('{"status":"PASS","instrumented":true,"processIDs":[123],"privateProcessIDs":[456]}')
+        evidence.write_text('{"status":"PASS","instrumented":true,"processIDs":[123]}')
         def run(command, **kwargs):
             if command[:2] == ['go', 'build']:
                 binary = pathlib.Path(command[command.index('-o') + 1])
                 binary.write_bytes(b'public executable fixture')
                 (binary.parent / 'counters' / 'covmeta.fixture').write_bytes(b'public fixture')
-                (binary.parent / 'counters' / 'covcounters.fixture.123.1').write_bytes(b'public fixture')
+                (binary.parent / 'counters' / 'covcounters.fixture.456.1').write_bytes(b'unrelated child fixture')
                 (binary.parent / 'counters' / 'covcounters.fixture.789.1').write_bytes(b'unrelated helper-process fixture')
             return mock.Mock(returncode=0)
         with mock.patch.object(coverage.subprocess, 'run', side_effect=run), mock.patch.object(coverage, 'selected_version', return_value='1.2.3'):
-            with self.assertRaisesRegex(RuntimeError, 'every observed private prompt process'):
+            with self.assertRaisesRegex(RuntimeError, 'every observed main UI process'):
                 coverage.portable_runtime_coverage({})
 
     def test_coverage_never_inherits_funded_public_staking_opt_in(self):

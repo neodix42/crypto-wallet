@@ -1,5 +1,4 @@
-// Package walletclipboard serializes a trusted clipboard commit with its owner
-// lifecycle. Browser IPC never exposes this API.
+// Package walletclipboard acknowledges a dispatched native clipboard write.
 package walletclipboard
 
 import (

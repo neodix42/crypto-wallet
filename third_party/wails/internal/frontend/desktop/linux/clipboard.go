@@ -41,13 +41,7 @@ func (f *Frontend) ClipboardGetText() (string, error) {
 }
 
 func (f *Frontend) ClipboardSetText(text string) error {
-	return f.ClipboardSetTextAuthorized(context.Background(), text, func(commit func()) bool { commit(); return true })
-}
-
-// ClipboardSetTextAuthorized is a trusted Go-only extension. It deliberately
-// does not widen the browser message allowlist or the generic frontend interface.
-func (f *Frontend) ClipboardSetTextAuthorized(ctx context.Context, text string, authorize func(func()) bool) error {
-	return walletclipboard.Execute(ctx, authorize, invokeOnMainThread, func() bool {
+	return walletclipboard.Execute(context.Background(), func(commit func()) bool { commit(); return true }, invokeOnMainThread, func() bool {
 		ctxt := (*C.gchar)(C.CString(text))
 		defer C.WalletClearClipboardText(ctxt, C.gsize(len(text)))
 		return C.WalletSetClipboardText(ctxt) != 0

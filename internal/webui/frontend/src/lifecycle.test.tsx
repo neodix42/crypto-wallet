@@ -5,9 +5,8 @@ import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Field, PublicApp, PublicContent, WalletShell } from './PublicApp';
-import { PrivateApp } from './PrivateApp';
-import { id, node, phrase, view } from './test-fixtures';
-import type { Prompt, Reply, View } from './types';
+import { node, view } from './test-fixtures';
+import type { View } from './types';
 
 let root: Root | undefined;
 let host: HTMLDivElement;
@@ -29,11 +28,6 @@ async function click(text: string) {
   await dispatch(button!, new MouseEvent('click', { bubbles: true }));
 }
 async function submit() { await dispatch(host.querySelector('form')!, new Event('submit', { bubbles: true, cancelable: true })); }
-function privateBridge(prompt: unknown, reply: (value: Reply) => Promise<boolean> = async () => true) {
-  const bridge = { Prompt: vi.fn(async () => prompt), Reply: vi.fn(reply), Copy: vi.fn(async () => true), Activity: vi.fn(async () => true) };
-  window.go = { webui: { PrivateBridge: bridge } };
-  return bridge;
-}
 function publicBridge(state: unknown = view()) {
   const bridge = { Snapshot: vi.fn(async () => state), Event: vi.fn(async () => true) };
   window.go = { webui: { PublicBridge: bridge } };
@@ -147,7 +141,7 @@ describe('public renderer interaction and asynchronous lifetime', () => {
     expect(bridge.Event).toHaveBeenCalledTimes(2);
     await act(async () => { root!.unmount(); }); root = undefined;
     await dispatch(window, new Event('pointerdown'));
-    expect(bridge.Event).toHaveBeenCalledTimes(2); expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(bridge.Event).toHaveBeenCalledTimes(2); expect(unsubscribe).toHaveBeenCalledTimes(2); // wallet:view and wallet:dialog
   });
   it('does not publish late snapshots, pushes or rejected actions after teardown', async () => {
     const snapshot = deferred<unknown>(), event = deferred<boolean>();
@@ -156,132 +150,11 @@ describe('public renderer interaction and asynchronous lifetime', () => {
     await mount(<PublicApp/>); await dispatch(window, new Event('keydown'));
     await act(async () => { root!.unmount(); }); root = undefined;
     await act(async () => { snapshot.resolve(view()); pushed(view()); event.reject(new Error('late-failure')); });
-    expect(host.textContent).toBe(''); expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(host.textContent).toBe(''); expect(unsubscribe).toHaveBeenCalledTimes(2); // wallet:view and wallet:dialog
   });
   it('handles a missing public bridge or event subscription without exposing internals', async () => {
     delete window.runtime; await mount(<PublicApp/>);
     await dispatch(window, new Event('keydown'));
     expect(host.textContent).toContain('connection is unavailable');
-  });
-});
-
-describe('private prompt transport and revocation', () => {
-  it.each(['missing', 'rejected', 'invalid'] as const)('closes unavailable %s prompt transport without exposing its error', async failure => {
-    if (failure !== 'missing') {
-      const bridge = privateBridge({ id, kind: 'input', title: 'Invalid', labels: [] });
-      if (failure === 'rejected') bridge.Prompt.mockRejectedValueOnce(new Error('private-failure-marker'));
-    }
-    await mount(<PrivateApp/>);
-    expect(host.textContent).toContain('no longer available');
-    expect(host.textContent).not.toContain('private-failure-marker');
-    expect(host.querySelector('input')).toBeNull();
-    expect((host.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
-  });
-  it.each(['false', 'throw', 'missing'] as const)('clears input and uses a fixed error for a %s reply', async failure => {
-    const bridge = privateBridge({ id, kind: 'input', title: 'Unlock', labels: ['Password'] });
-    if (failure === 'false') bridge.Reply.mockResolvedValue(false);
-    if (failure === 'throw') bridge.Reply.mockRejectedValue(new Error('private-reply-marker'));
-    await mount(<PrivateApp/>); host.querySelector('input')!.value = 'synthetic-disposable-input';
-    if (failure === 'missing') delete window.go;
-    await submit();
-    expect(host.querySelector('input')).toBeNull();
-    expect(host.textContent).toContain('no longer available');
-    expect(host.textContent).not.toContain('synthetic-disposable-input');
-    expect(host.textContent).not.toContain('private-reply-marker');
-  });
-  it.each(['Cancel', 'Escape', 'pagehide', 'beforeunload', 'hidden'] as const)('revokes through %s with a single value-free cancellation', async action => {
-    const bridge = privateBridge({ id, kind: 'input', title: 'Unlock', labels: ['Password'] });
-    await mount(<PrivateApp/>); host.querySelector('input')!.value = 'synthetic-cancelled-input';
-    if (action === 'Cancel') await click('Cancel');
-    else if (action === 'Escape') await dispatch(window, new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
-    else if (action === 'hidden') {
-      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
-      await dispatch(document, new Event('visibilitychange'));
-    } else await dispatch(window, new Event(action));
-    await submit();
-    expect(bridge.Reply.mock.calls).toEqual([[{ promptId: id, accepted: false }]]);
-    expect(host.querySelector('input')).toBeNull();
-  });
-  it('keeps visible prompts active and blocks duplicate submissions until the original reply settles', async () => {
-    const pending = deferred<boolean>();
-    const bridge = privateBridge({ id, kind: 'confirm', title: 'Exact transaction', summary: 'Public exact effects' }, () => pending.promise);
-    await mount(<PrivateApp/>);
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
-    await dispatch(document, new Event('visibilitychange'));
-    expect(host.textContent).toContain('Public exact effects');
-    await submit(); await submit();
-    await dispatch(window, new KeyboardEvent('keydown', { key: 'Escape' }));
-    expect(bridge.Reply).toHaveBeenCalledTimes(1);
-    await act(async () => { pending.resolve(true); });
-  });
-  it.each(['false', 'throw'] as const)('reports %s clipboard failure, permits retry and never sends phrase arguments', async failure => {
-    const bridge = privateBridge({ id, kind: 'recoveryBackup', title: 'Backup', phrase });
-    if (failure === 'false') bridge.Copy.mockResolvedValueOnce(false);
-    else bridge.Copy.mockRejectedValueOnce(new Error('private-copy-marker'));
-    await mount(<PrivateApp/>); await click('Copy phrase');
-    expect(host.textContent).toContain('Could not copy');
-    expect(host.textContent).not.toContain('private-copy-marker');
-    await click('Copy phrase');
-    expect(host.textContent).toContain('Recovery phrase copied');
-    expect(bridge.Copy.mock.calls).toEqual([[], []]);
-  });
-  it.each(['resolve', 'reject'] as const)('ignores a clipboard %s arriving after revocation and erases the QR', async outcome => {
-    const pending = deferred<boolean>();
-    const bridge = privateBridge({ id, kind: 'receive', title: 'Receive', summary: 'Ethereum', address: '0x123', png: 'iVBORw0KGgo=' });
-    bridge.Copy.mockImplementation(() => pending.promise);
-    await mount(<PrivateApp/>); const image = host.querySelector('img')!;
-    await click('Copy address');
-    expect((host.querySelector('.receive-address button') as HTMLButtonElement).disabled).toBe(true);
-    await act(async () => { pushed(); });
-    expect(image.getAttribute('src')).toBeNull();
-    await act(async () => { if (outcome === 'resolve') pending.resolve(true); else pending.reject(new Error('late-copy-error')); });
-    expect(host.textContent).not.toContain('copied'); expect(host.textContent).not.toContain('late-copy-error');
-    expect(bridge.Reply.mock.calls).toEqual([[{ promptId: id, accepted: false }]]);
-  });
-  it('acknowledges only the local address copy, without address parameters', async () => {
-    const bridge = privateBridge({ id, kind: 'receive', title: 'Receive', summary: '', address: '0x123', png: 'iVBORw0KGgo=' });
-    await mount(<PrivateApp/>); await click('Copy address');
-    expect(host.textContent).toContain('Address copied.'); expect(bridge.Copy.mock.calls).toEqual([[]]);
-  });
-  it('blocks browser phrase export, while ordinary input copy remains available', async () => {
-    privateBridge({ id, kind: 'recovery', title: 'Record', phrase }); await mount(<PrivateApp/>);
-    for (const name of ['copy', 'cut', 'contextmenu', 'dragstart']) {
-      const event = new Event(name, { bubbles: true, cancelable: true });
-      await dispatch(document, event); expect(event.defaultPrevented).toBe(true);
-    }
-    for (const key of ['c', 'X', 'p', 's']) {
-      const event = new KeyboardEvent('keydown', { key, metaKey: true, cancelable: true });
-      await dispatch(window, event); expect(event.defaultPrevented).toBe(true);
-    }
-    const ordinary = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
-    await dispatch(window, ordinary); expect(ordinary.defaultPrevented).toBe(false);
-    await act(async () => { root!.unmount(); }); root = undefined;
-    privateBridge({ id, kind: 'input', title: 'Import', labels: ['Phrase'] }); await mount(<PrivateApp/>);
-    const event = new Event('copy', { bubbles: true, cancelable: true });
-    await dispatch(document, event); expect(event.defaultPrevented).toBe(false);
-  });
-  it('throttles private activity without values and tolerates unavailable monitoring', async () => {
-    vi.useFakeTimers(); vi.setSystemTime(10000);
-    const bridge = privateBridge({ id, kind: 'notice', title: 'Notice', summary: 'Public notice' });
-    bridge.Activity.mockRejectedValue(new Error('private-activity-marker'));
-    await mount(<PrivateApp/>);
-    await dispatch(window, new Event('pointerdown')); await dispatch(window, new Event('keydown'));
-    expect(bridge.Activity.mock.calls).toEqual([[]]);
-    await act(async () => { vi.advanceTimersByTime(1000); }); await dispatch(window, new Event('keydown'));
-    expect(bridge.Activity).toHaveBeenCalledTimes(2);
-    expect(host.textContent).not.toContain('private-activity-marker');
-    expect([...host.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Close']);
-    await click('Close');
-    expect(bridge.Reply.mock.calls).toEqual([[{ promptId: id, accepted: true }]]);
-    await dispatch(window, new Event('pointerdown')); expect(bridge.Activity).toHaveBeenCalledTimes(2);
-  });
-  it.each(['resolve', 'reject'] as const)('does not revive a prompt whose delivery %s after teardown', async outcome => {
-    const pending = deferred<unknown>(), bridge = privateBridge(null);
-    bridge.Prompt.mockImplementation(() => pending.promise);
-    await mount(<PrivateApp/>);
-    await act(async () => { root!.unmount(); }); root = undefined;
-    await act(async () => { if (outcome === 'resolve') pending.resolve({ id, kind: 'recovery', title: 'Record', phrase }); else pending.reject(new Error('late-prompt')); });
-    expect(host.textContent).toBe(''); expect(bridge.Reply).not.toHaveBeenCalled();
-    expect(unsubscribe).toHaveBeenCalledOnce();
   });
 });

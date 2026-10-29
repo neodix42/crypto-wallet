@@ -56,7 +56,7 @@ class BuildInputs(unittest.TestCase):
     def test_complete_staged_checkout_passes_without_a_commit(self):
         report = inputs.verify(self.root)
         self.assertEqual(report['status'], 'PASS')
-        self.assertEqual(report['wails']['finalFiles'], 976)
+        self.assertEqual(report['wails']['finalFiles'], 975)
         self.assertGreater(report['trackedBuildInputs'], 1000)
 
     def test_missing_lockfile_fails(self):

@@ -140,3 +140,10 @@ func TestStorageStartupFailuresHaveSpecificPublicGuidanceWithoutPrivateDetails(t
 		}
 	}
 }
+
+func TestRemovedPromptRoleCannotStartAnotherUIProcess(t *testing.T) {
+	runtime, output, diagnostic := testRuntime(t)
+	if run([]string{"cryptowallet", "--internal-prompt"}, runtime) != 2 || output.Len() != 0 || !strings.Contains(diagnostic.String(), "Usage:") {
+		t.Fatal("removed prompt role was still accepted")
+	}
+}

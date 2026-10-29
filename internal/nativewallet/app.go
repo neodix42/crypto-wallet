@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"localwallet/internal/amount"
 	"localwallet/internal/buildinfo"
+	"localwallet/internal/chains/decred"
 	"localwallet/internal/chains/near"
 	"localwallet/internal/exchange/bybit"
 	"localwallet/internal/ipc"
@@ -17,6 +18,7 @@ import (
 	"localwallet/internal/model"
 	"localwallet/internal/profilepath"
 	"localwallet/internal/sessionwatch"
+	"localwallet/internal/strictjson"
 	"localwallet/internal/supervisor"
 	"localwallet/internal/uiprompt"
 	"localwallet/internal/webui"
@@ -517,12 +519,53 @@ func (a *App) mutation(method string, body any) {
 	if method == "unlock" {
 		title = "Unlocking wallet…"
 	}
-	a.work(title, func(g uint64) (func(), error) {
+	var feedback func(error)
+	var receiveBefore, receiveAfter *model.Account
+	var receiveSyncFailed bool
+	if method == "receive" || method == "saveQR" {
+		if request, ok := body.(map[string]string); ok {
+			if account, owned := a.account(request["accountId"]); owned && account.Family == "decred" {
+				receiveBefore = &account
+				feedback = func(error) {
+					if !receiveSyncFailed && receiveAfter != nil {
+						for index, current := range a.state.Accounts {
+							if sameDecredReceiveAccount(current, *receiveBefore) {
+								a.state.Accounts[index] = *receiveAfter
+								return
+							}
+						}
+					}
+					// Receive commits its Decred index before opening the dialog,
+					// including when the user subsequently cancels it. Never leave
+					// the old displayed address enabled after an uncertain refresh.
+					a.lock()
+					a.notice("The current receive address could not be refreshed. The wallet is locked; unlock it before copying or receiving.")
+				}
+			}
+		}
+	}
+	if method == "copyReceive" {
+		feedback = func(err error) {
+			if err == nil {
+				a.notice("Address copied.")
+			}
+		}
+	}
+	a.workWithFeedback(title, func(g uint64) (func(), error) {
 		var raw json.RawMessage
-		if err := a.callAt(g, method, body, &raw); err != nil {
+		err := a.callAt(g, method, body, &raw)
+		clear(raw)
+		if receiveBefore != nil {
+			updated, syncErr := refreshedDecredReceiveAccount(a.core, g, a.environment, *receiveBefore)
+			if syncErr != nil {
+				receiveSyncFailed = true
+				return nil, syncErr
+			}
+			receiveAfter = &updated
+		}
+		if err != nil {
 			return nil, err
 		}
-		clear(raw)
 		switch method {
 		case "receive", "copyReceive", "saveQR", "backupPhrase":
 			// These authenticated presentation actions leave wallet state intact.
@@ -538,7 +581,44 @@ func (a *App) mutation(method string, body any) {
 			err = a.callAt(g, "networks", struct{}{}, &networks)
 		}
 		return func() { a.applySnapshot(state, networks) }, err
-	})
+	}, feedback)
+}
+
+// Only the receive descriptor of the selected owned Decred account may change.
+// Advancing once and reading the unchanged descriptor are both valid: a dialog
+// may be cancelled before or after its durable receive-index update.
+func refreshedDecredReceiveAccount(core backend, generation uint64, environment string, before model.Account) (model.Account, error) {
+	state, err := readAccounts(core, generation)
+	if err != nil || state.Locked || !state.RecoveryConfirmed || state.Environment != environment {
+		return model.Account{}, errors.New("current receive address unavailable")
+	}
+	var parameters decred.Parameters
+	if strictjson.Decode(before.Parameters, &parameters) != nil {
+		return model.Account{}, errors.New("invalid receive descriptor")
+	}
+	if address, err := decred.AddressAt(before, 0, parameters.ReceiveIndex); err != nil || address != before.Address {
+		return model.Account{}, errors.New("invalid receive descriptor")
+	}
+	for _, account := range state.Accounts {
+		if account.ID == before.ID {
+			if sameDecredReceiveAccount(account, before) {
+				return account, nil
+			}
+			if next, err := decred.AdvanceReceive(before); err == nil && sameDecredReceiveAccount(account, next) {
+				return account, nil
+			}
+			break
+		}
+	}
+	return model.Account{}, errors.New("receive descriptor changed unexpectedly")
+}
+
+func sameDecredReceiveAccount(left, right model.Account) bool {
+	var leftParameters, rightParameters decred.Parameters
+	return left.Family == "decred" && right.Family == "decred" &&
+		left.ID == right.ID && left.Network == right.Network && left.Profile == right.Profile && left.Index == right.Index &&
+		left.Address == right.Address && left.PublicKey == right.PublicKey && left.Hidden == right.Hidden &&
+		strictjson.Decode(left.Parameters, &leftParameters) == nil && strictjson.Decode(right.Parameters, &rightParameters) == nil && leftParameters == rightParameters
 }
 func (a *App) pollStatus() {
 	a.background = true

@@ -3,15 +3,15 @@
   "files": {
     "CRYPTO_WALLET_PATCHES.md": {
       "upstreamSHA256": null,
-      "sha256": "bfcdbc2397c37f3c36273539c24b5f8c9b42404d3a3d7ee8cc3d9af4c1d2932b"
+      "sha256": "6329fbf8b1dd247031801357948bd87c2db41f9faae029087a255504c715035e"
     },
     "internal/frontend/desktop/linux/clipboard.go": {
       "upstreamSHA256": "4f2d8cc8492fa8636c40acfadacd59537ff5c320dd720d97a6c244bf8fc6ba50",
-      "sha256": "2ad1cea8bacd2fd7334a5ec744a92b581bf855a3e74f83445f5faf47dd017824"
+      "sha256": "4214813c624fd0ed77038293e3f043e00ed34fa345fd18593a566ae5ad0d8f92"
     },
     "internal/frontend/desktop/linux/frontend.go": {
       "upstreamSHA256": "2610e740979055e636a30d05670126aad3fa6b77071c3f9af20e2fb6c47c89f5",
-      "sha256": "0859a119d53da4f5c4e5fee3a26d67c30d8d0a47794f1da3f09b87f475f144e3"
+      "sha256": "143ced012616724afcf6837c2ec0cc09efc8c9105919442ff5d9716fc7d29d77"
     },
     "internal/frontend/desktop/linux/wallet_clipboard.h": {
       "upstreamSHA256": null,
@@ -19,7 +19,7 @@
     },
     "internal/frontend/desktop/linux/wallet_security.h": {
       "upstreamSHA256": null,
-      "sha256": "eab0b888f7e2879c5d47692a552340649b6a52eaf8f6b16347c6add47f1922d8"
+      "sha256": "2b38d35ba21ac1f2a7715e30572766888073d048de5afbf5455feb387390862f"
     },
     "internal/frontend/desktop/linux/window.c": {
       "upstreamSHA256": "76529ab2c6eb8a3b195823f934ca14adac937b300ad0420cd6e3e6e6630b5643",
@@ -29,29 +29,29 @@
       "upstreamSHA256": "5e3627aff3717f19750501a8ce83a67bca8181d5b3fc5c25bd0b49b27a00988f",
       "sha256": "ccd3c9a9bca52c478ac8407678b0afa5abfc9aa97d72eb0c788e969b24876aeb"
     },
+    "internal/frontend/desktop/linux/window.h": {
+      "upstreamSHA256": "682d833c0c7514cd86c9c8fea5526253d82e4fec51cd0c3c7a841003090b00f7",
+      "sha256": "682d833c0c7514cd86c9c8fea5526253d82e4fec51cd0c3c7a841003090b00f7"
+    },
     "internal/frontend/dispatcher/calls.go": {
       "upstreamSHA256": "cdc5752a8f78661f00dac1eb98798c7c4349121fa811e54cdfe526169ca05fd9",
       "sha256": "ba3e5d4edcdf1d412bc4c3198ff6d9a5e90dbbdb6db2f1638663dae640d61b95"
     },
     "internal/frontend/dispatcher/dispatcher.go": {
       "upstreamSHA256": "baa6bc120411c07323e66476bb14a9872088a970449a600a765890012beb3133",
-      "sha256": "6c3a4699f58aea2fb2ca69ca939124cd9157b29d5303626285c731390c869795"
+      "sha256": "048fc813a8a87bc5cac1f3e26b49fd4e72fed7dc1c43653b2da96841b53887de"
+    },
+    "internal/frontend/dispatcher/wallet_runtime_test.go": {
+      "upstreamSHA256": null,
+      "sha256": "ee8ddc39fcf90f697d1746c67479b90855f41dc0dd5b439c1b4684d0cf778368"
     },
     "internal/frontend/walletclipboard/clipboard.go": {
       "upstreamSHA256": null,
-      "sha256": "6fe0c7e10e1e45f7fc4a347cf89267791c64b07d9b92dc6af15fea3abc6d8553"
+      "sha256": "e5ca7e7d594f88dbefc30fd4d62fe468a7396e2d2c1b684be1579234b5710ec3"
     },
     "internal/frontend/walletclipboard/clipboard_test.go": {
       "upstreamSHA256": null,
       "sha256": "184b83072a09071f82f72da15cdc8ce000442c0e266f7e21b0ab10607cddd65f"
-    },
-    "internal/frontend/walletpolicy/policy.go": {
-      "upstreamSHA256": null,
-      "sha256": "0c553af95fc229a14a11be82dcf71e72ad9a8f2ec8733ab15ab2897fd3b2ad86"
-    },
-    "internal/frontend/walletpolicy/policy_test.go": {
-      "upstreamSHA256": null,
-      "sha256": "765f0a48d448637bce6e10b0e68bc2d78899780acc4089a833e8bc5ff9b14001"
     },
     "internal/logger/default_logger.go": {
       "upstreamSHA256": "b907f7b885600ea8b8463d3d29cf324c90d527fcf5b8018ea019e13b1abb778a",
@@ -63,23 +63,27 @@
     },
     "pkg/assetserver/assetserver.go": {
       "upstreamSHA256": "2a4b305da398a7b261649f436a59d35123b74c9e008f6722ed9ee694d88b57ae",
-      "sha256": "4615cf1bcdaaa23b8dbe1de8ac206a4efa38af232bc19d1bd19456f019a68310"
+      "sha256": "297abe7ba7401b87017497b82cbcaa8d193a24e608bfd7cf1248967baf2f136c"
+    },
+    "pkg/options/linux/linux.go": {
+      "upstreamSHA256": "c52cd9120b201702de8024027aed9fd69a1e3e99b1789688ebd224f6080bfa13",
+      "sha256": "c52cd9120b201702de8024027aed9fd69a1e3e99b1789688ebd224f6080bfa13"
     },
     "pkg/runtime/clipboard.go": {
       "upstreamSHA256": "5560e1ce1d09c9d46626ffa1471c68d3c8d344fd6b4c7ee2a1a64ef132810e8d",
-      "sha256": "b041624053aa9851921fbb5d0d2b7e81bbb6d44aea5c86d3148410785e4033a0"
-    },
-    "pkg/runtime/wallet_clipboard_test.go": {
-      "upstreamSHA256": null,
-      "sha256": "cf7dadb09fb71ed9b460c9be5e2d30107f76f71883e799cf2b7d26fc92488723"
+      "sha256": "7c479dcbffbae7df014fdd45671d4530a27d94bc3067f56c536aee5c47ce543d"
     },
     "wallet-tests/native-clipboard.c": {
       "upstreamSHA256": null,
       "sha256": "f1f4e9755a26085558bc2b71e045547bc3e366e326a47e4ae7784888dfe1be31"
     },
+    "wallet-tests/native-keyboard-copy.c": {
+      "upstreamSHA256": null,
+      "sha256": "00b704ed652f3c878c6e6f7ea271f02a06e6aa0e8c4061b0e02ff06c737c184c"
+    },
     "wallet-tests/native-policy.c": {
       "upstreamSHA256": null,
-      "sha256": "61ed45ef8c0465adf02c09862033c09436bb66c89e4447ec069cd67704f51999"
+      "sha256": "417eb80515b2f756551f8cda6fc24c6be505b3c051ff0c20078904b591dfdc98"
     }
   }
 }

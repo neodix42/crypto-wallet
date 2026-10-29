@@ -94,26 +94,19 @@ def check_legacy_desktop():
 
 
 def check_current_ui():
-    # A newly exported binding needs independent review; the public process
-    # must never gain a prompt/credential, generic method or clipboard payload.
-    sources = '\n'.join(path.read_text() for path in (root / 'internal/webui').glob('*.go')
-                        if not path.name.endswith('_test.go'))
-    for typename, expected in [('PublicBridge', {'Snapshot', 'Event'}),
-                               ('PrivateBridge', {'Prompt', 'Reply', 'Copy', 'Activity'})]:
-        actual = set(re.findall(r'^func \([^)]*\*?' + typename + r'\) ([A-Z][A-Za-z0-9_]*)\(', sources, re.M))
-        assert actual == expected, (typename, 'unreviewed exported bridge authority', actual)
+    # Dialogs share the ordinary application bindings and webview. This check
+    # prevents accidentally restoring the retired self-role/one-use pipe UI.
     window = (root / 'internal/webui/window.go').read_text()
     prompt = (root / 'internal/webui/prompt.go').read_text()
-    assert 'a.Bind = []interface{}{&PublicBridge{window: w}}' in window
-    assert 'a.Bind = []interface{}{b}' in prompt
-    assert 'b := &PrivateBridge{' in prompt
-    assert 'PublicBridge' not in prompt
-    assert 'PrivateBridge' not in window
+    assert '&PublicBridge{window: w}' in window
+    assert '&DialogBridge{window: w}' in window
+    for retired in ['runPromptProcess', 'RunPrivate', 'PrivateBridge', '--internal-prompt', 'os/exec']:
+        assert retired not in prompt, ('retired isolated UI mechanism', retired)
     # Execute the current role/lifecycle/DTO checks and compiled React protocol
     # validators. No Electron source, runtime or coverage command is touched.
     subprocess.run(['go', 'test', './internal/webui'], cwd=root, check=True)
     subprocess.run(['npm', '--prefix', 'internal/webui/frontend', 'test'], cwd=root, check=True)
-    print('PASS public API/DTO policy and isolated Wails/React prompt boundary regressions')
+    print('PASS signer API/DTO policy and single-window Wails/React dialog regressions')
 
 
 def main(argv=None):

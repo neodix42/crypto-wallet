@@ -10,7 +10,6 @@ import (
 	"localwallet/internal/strictjson"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -143,10 +142,4 @@ func SaveAppearance(a Appearance) error {
 		return errPreferences
 	}
 	return nil
-}
-
-func privateAppearance() Appearance {
-	a := Appearance{Theme: os.Getenv("LOCALWALLET_UI_THEME")}
-	a.FontSize, _ = strconv.Atoi(os.Getenv("LOCALWALLET_UI_FONT_SIZE"))
-	return a.Normalized()
 }

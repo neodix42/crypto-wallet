@@ -13,7 +13,6 @@ import (
 	"localwallet/internal/redistribution"
 	"localwallet/internal/walletcore"
 	"localwallet/internal/walletsigner"
-	"localwallet/internal/webui"
 	"os"
 )
 
@@ -28,13 +27,12 @@ type commandRuntime struct {
 	desktop        func(string) error
 	coordinator    func()
 	signer         func()
-	privateUI      func() error
 }
 
 func main() {
 	code := run(os.Args, commandRuntime{stdout: os.Stdout, stderr: os.Stderr,
 		uid: os.Getuid, protect: isolation.ProtectMemory, desktop: nativewallet.Run,
-		coordinator: walletcore.MainPortable, signer: walletsigner.MainPortable, privateUI: webui.RunPrivate})
+		coordinator: walletcore.MainPortable, signer: walletsigner.MainPortable})
 	if code != 0 {
 		os.Exit(code)
 	}
@@ -61,12 +59,6 @@ func run(args []string, runtime commandRuntime) int {
 	if runtime.protect() != nil {
 		fmt.Fprintln(runtime.stderr, "CryptoWallet cannot protect its process memory.")
 		return 3
-	}
-	if len(args) == 2 && args[1] == "--internal-prompt" {
-		if runtime.privateUI == nil || runtime.privateUI() != nil {
-			return 4
-		}
-		return 0
 	}
 	if len(args) > 1 {
 		role := args[1]

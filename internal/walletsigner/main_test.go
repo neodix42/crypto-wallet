@@ -86,7 +86,7 @@ func (u *dispatchUI) Recovery(_ string, phrase []byte) bool {
 	clear(entropy)
 	return u.approve && err == nil
 }
-func (u *dispatchUI) CopyPublic(s string) { u.copied = s }
+func (u *dispatchUI) CopyPublic(s string) error { u.copied = s; return nil }
 
 func dispatchEngine(t *testing.T, environment string, withVault bool) (*signer.Engine, *dispatchUI) {
 	t.Helper()

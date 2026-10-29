@@ -187,7 +187,9 @@ func TestUIRoutesOnlySignerOwnedInstructionsAndHandlesCancellation(t *testing.T)
 	if !u.ReceiveAddress("Receive", "Public summary", "0xPublic", []byte("png")) {
 		t.Fatal("receive lost")
 	}
-	u.CopyPublic("0xPublic")
+	if err := u.CopyPublic("0xPublic"); err != nil {
+		t.Fatal("copy lost", err)
+	}
 	if u.Receive("Receive", "Public summary", []byte("png")) {
 		t.Fatal("receive fallback accepted missing exact address")
 	}
@@ -199,6 +201,9 @@ func TestUIRoutesOnlySignerOwnedInstructionsAndHandlesCancellation(t *testing.T)
 		t.Fatal("cancel approved")
 	}
 	u.Exchange = func(Prompt) (Reply, error) { return Reply{}, ErrProtocol }
+	if err := u.CopyPublic("0xPublic"); !errors.Is(err, ErrProtocol) {
+		t.Fatal("copy transport failure was discarded")
+	}
 	if _, e := u.Input("Failed", "Password"); !errors.Is(e, ErrProtocol) {
 		t.Fatal("transport failure lost")
 	}

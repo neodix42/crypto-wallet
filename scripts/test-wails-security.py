@@ -28,7 +28,6 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCES = [ROOT / 'third_party/wails/wallet-tests/native-policy.c',
            ROOT / 'third_party/wails/internal/frontend/desktop/linux/wallet_security.h',
            ROOT / 'third_party/wails/pkg/assetserver/assetserver.go',
-           ROOT / 'third_party/wails/internal/frontend/walletpolicy/policy.go',
            ROOT / 'third_party/wails/internal/frontend/dispatcher/dispatcher.go',
            ROOT / 'third_party/wails/internal/frontend/desktop/linux/frontend.go',
            ROOT / 'third_party/wails/internal/frontend/desktop/linux/window.c',
@@ -37,7 +36,11 @@ SOURCES = [ROOT / 'third_party/wails/wallet-tests/native-policy.c',
            ROOT / 'third_party/wails/internal/frontend/desktop/linux/clipboard.go',
            ROOT / 'third_party/wails/internal/frontend/walletclipboard/clipboard.go',
            ROOT / 'third_party/wails/pkg/runtime/clipboard.go',
-           Path(__file__).resolve()]
+           Path(__file__).resolve(),
+           ROOT / 'third_party/wails/wallet-tests/native-keyboard-copy.c',
+           ROOT / 'third_party/wails/internal/frontend/desktop/linux/window.go',
+           ROOT / 'third_party/wails/internal/frontend/desktop/linux/window.h',
+           ROOT / 'third_party/wails/pkg/options/linux/linux.go']
 
 
 def hashes():
@@ -173,8 +176,9 @@ def check(report_path):
     before = hashes()
     report = {'status': 'FAIL', 'scope': 'Actual system WebKitGTK in isolated disposable X11 HOME; no wallet process or real secrets',
               'checks': [], 'sourceSHA256': before,
-              'runtimePolicy':'NOT_RUN','runtimeClipboard':'NOT_RUN',
-              'notRun': ['Full wallet workflows', 'Windows/macOS', 'Native OS lifecycle', 'Remote provider acceptance']}
+              'runtimePolicy':'NOT_RUN','runtimeClipboard':'NOT_RUN','runtimeNativeCopy':'NOT_RUN',
+              'notRun': ['Full wallet workflows', 'Physical keyboard routing', 'Wayland clipboard',
+                         'Windows/macOS', 'Native OS lifecycle', 'Remote provider acceptance']}
     hits = []
     production = re.search(r'rw\.Header\(\)\.Set\("Content-Security-Policy", "([^"]+)"\)', SOURCES[2].read_text())
     fixture = re.search(r'static const char \*policy="([^"]+)"', SOURCES[0].read_text())
@@ -209,6 +213,11 @@ def check(report_path):
                             str(ROOT / 'third_party/wails/wallet-tests/native-clipboard.c'),
                             '-o', str(clipboard_binary), *flags], check=True, capture_output=True, timeout=30)
             report['clipboardProducerSHA256'] = hashlib.sha256(clipboard_binary.read_bytes()).hexdigest()
+            keyboard_binary = directory / 'native-keyboard-copy'
+            subprocess.run(['gcc', '-Werror=implicit-function-declaration', '-Wno-deprecated-declarations',
+                            str(ROOT / 'third_party/wails/wallet-tests/native-keyboard-copy.c'),
+                            '-o', str(keyboard_binary), *flags], check=True, capture_output=True, timeout=30)
+            report['keyboardProducerSHA256'] = hashlib.sha256(keyboard_binary.read_bytes()).hexdigest()
             with http.server.ThreadingHTTPServer(('127.0.0.1', 0), Witness) as witness:
                 witness_thread = threading.Thread(target=witness.serve_forever, daemon=True)
                 witness_thread.start()
@@ -236,24 +245,32 @@ def check(report_path):
                         if copied.returncode or 'PASS native clipboard:' not in copied.stdout:
                             raise RuntimeError('Native clipboard changed the unrequested PRIMARY selection')
                         report['runtimeClipboard']='PASS'
+                        report['runtimeNativeCopy']='RUNNING'
+                        keyboard = subprocess.run([str(keyboard_binary)], env=environment, capture_output=True,
+                                                  text=True, timeout=20)
+                        if keyboard.returncode or 'PASS native keyboard copy:' not in keyboard.stdout:
+                            raise RuntimeError(f'Native keyboard policy exited {keyboard.returncode}: '
+                                               f'{(keyboard.stdout + keyboard.stderr)[-2000:]}')
+                        report['runtimeNativeCopy']='PASS'
                 finally:
                     witness.shutdown()
                     witness_thread.join(timeout=1)
             report['checks'].extend([
                 'Strict custom-scheme origin/path validation rejects file/data/http/foreign hosts/userinfo/ports/query/fragment/traversal',
                 'Actual context and WebView are ephemeral and report sandbox disabled without environment bypass',
-                'Storage, page cache, developer tools, WebRTC and browser clipboard access settings disabled',
+                'Storage, page cache, developer tools and WebRTC disabled; trusted UI clipboard access enabled',
                 'Production-style CSP blocks actual HTTP fetch and image requests; owned HTTP witness received zero requests',
                 'Production-style CSP blocks actual eval and localStorage access',
                 'Actual popup and external navigation denied while embedded origin remains unchanged',
-                'Actual native copy changes only CLIPBOARD and preserves the independent PRIMARY selection'])
+                'Actual native copy changes only CLIPBOARD and preserves the independent PRIMARY selection',
+                'Exact native key callback copies selected text for Ctrl+C/Ctrl+Shift+C/Ctrl+Insert without a per-view copy restriction'])
             report['httpRequestsObserved'] = len(hits)
             report['sourceStable'] = before == hashes()
             if not report['sourceStable']:
                 raise RuntimeError('Security policy source changed during test')
             report['status'] = 'PASS'
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-        for gate in ('runtimePolicy','runtimeClipboard'):
+        for gate in ('runtimePolicy','runtimeClipboard','runtimeNativeCopy'):
             if report[gate]=='RUNNING':report[gate]='FAIL'
         report['reason'] = str(error)
     report_path.parent.mkdir(parents=True, exist_ok=True)

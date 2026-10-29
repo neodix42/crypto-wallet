@@ -36,7 +36,8 @@ mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Et
 mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
-mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and verified receive/copy using a public disposable phrase; no wallet opening, RPC service or payment")
+mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and direct address copy using a public disposable phrase; no wallet opening, RPC service or payment")
+mode.add_argument("--clipboard-only", action="store_true", help="Actual row/wallet/Receive copy buttons and selected-address keyboard shortcuts on an owned X11 display using a disposable public fixture")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
     raise SystemExit("Report name must be a simple owned test name")
@@ -58,8 +59,11 @@ if args.appearance_only:
     report["scope"]="Targeted actual Light/18 px defaults, selected Settings tabs, Dark/24 px rendering and persistence after graceful restart, Enter-only unlock, and private two-field Bybit/footer layout. Disposable public fixture and API canaries only; custody confirmation is cancelled before encrypted credentials or any Bybit observation. No private pixels or values are retained."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (appearance-only mode)")
 if args.main_row_copy_only:
-    report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and real Go-authored receive approval using the public disposable abandon/about phrase. The icon must keep the account overview open and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
+    report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and direct Go-validated copy using the public disposable abandon/about phrase. The icon must keep the account overview open and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
+if args.clipboard_only:
+    report["scope"]="Actual uninstrumented X11 copy buttons and Ctrl+C/Ctrl+Shift+C/Ctrl+Insert for selected public addresses in the overview, wallet tab and verified Receive window. Every operation replaces a fresh public sentinel in an independent native clipboard client; no DOM/test bridge, private recovery words or transaction. Public disposable fixture only."
+    report["notRun"].append("Generated-root setup, backup and all-eight-wallet restore comparison (clipboard-only mode)")
 if args.recovery_layout_only:
     report["scope"]="Actual uninstrumented default 18px eight-wallet overview and authenticated 24-word backup on a disposable 1100px-high X11 display, including monitor clamping, initial Copy phrase visibility, wheel stability, static application icon and storage-location label. Public zero-entropy BIP39 fixture only; no RPC service or transaction."
     report["notRun"].append("Generated-root creation and independent fresh-copy restore (targeted 24-word layout mode)")
@@ -124,12 +128,93 @@ def palette():
 
 def masked_field_rectangles(picture, bounds, color):
     x,y,w,h=bounds
-    rows=[yy for yy in range(y,y+h-75) if all(picture.getpixel((xx,yy))==color for xx in (x+40,x+w//2,x+w-40))]
+    borders=(palette()["border"],palette()["primary"])
+    outlined=lambda xx,yy:any(max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),wanted))<=3 for wanted in borders)
+    # Dialog and input backgrounds can both be white. Require the full-width
+    # entry's actual two borders; labels, blank gaps and footer surfaces cannot
+    # masquerade as additional password inputs.
+    rows=[yy for yy in range(y+10,y+h-75)
+          if all(picture.getpixel((xx,yy))==color for xx in (x+60,x+w//2,x+w-60))
+          and any(outlined(xx,yy) for xx in range(x+26,x+29))
+          and any(outlined(xx,yy) for xx in range(x+w-29,x+w-26))]
     groups=[]
     for yy in rows:
         if not groups or yy!=groups[-1][-1]+1:groups.append([])
         groups[-1].append(yy)
-    return [(group[0],group[-1]) for group in groups if 20<=len(group)<=80]
+    rectangles=[]
+    for group in groups:
+        if not 20<=len(group)<=80:continue
+        center=(group[0]+group[-1])//2
+        tops=[yy for yy in range(max(y,center-50),center-10) if outlined(x+w//2,yy)]
+        bottoms=[yy for yy in range(center+10,min(y+h-75,center+51)) if outlined(x+w//2,yy)]
+        if tops and bottoms and 20<=min(bottoms)-max(tops)+1<=80:
+            rectangles.append((max(tops),min(bottoms)))
+    return rectangles
+
+def dialog_panel_bounds(picture,bounds):
+    # Inspect only the owned application's pixels. The centered DOM dialog has
+    # an opaque surface, a complete border and a dimmed backdrop. No pixels,
+    # text or field values leave memory, including on an ambiguous layout.
+    x,y,w,h=bounds
+    if picture.mode!="RGB" or min(w,h)<150 or x<0 or y<0 or x+w>picture.width or y+h>picture.height:
+        raise RuntimeError("Dialog capture exceeds the owned application bounds")
+    colors=palette();center=x+w//2
+    def near(xx,yy,color,tolerance=3):
+        return max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),color))<=tolerance
+    dim=lambda color:tuple(round((a+b)/2) for a,b in zip(color,(8,16,24)))
+    if not all(near(xx,y+8,dim(colors["chrome"])) for xx in (x+8,x+w-8)) or not near(x+8,y+h-8,dim(colors["surface"])):
+        return None
+    tops=[];bottoms=[]
+    for yy in range(y+16,y+h-16):
+        if not near(center,yy,colors["border"]):continue
+        if near(center,yy+2,colors["surface"]) and not near(center,yy-2,colors["surface"]):tops.append(yy)
+        if near(center,yy-2,colors["surface"]) and not near(center,yy+2,colors["surface"]):bottoms.append(yy)
+    candidates=set()
+    for top in tops:
+        scan=top+16
+        lefts=[xx for xx in range(x+16,center-150) if near(xx,scan,colors["border"]) and near(xx+2,scan,colors["surface"]) and not near(xx-2,scan,colors["surface"])]
+        rights=[xx for xx in range(center+150,x+w-16) if near(xx,scan,colors["border"]) and near(xx-2,scan,colors["surface"]) and not near(xx+2,scan,colors["surface"])]
+        for bottom in bottoms:
+            if not 120<=bottom-top<h-32:continue
+            for left in lefts:
+                for right in rights:
+                    if not 320<=right-left<min(w-32,1042) or abs(left+right-2*center)>2:continue
+                    if all(near(xx,yy,colors["border"]) for xx in (left+16,center,right-16) for yy in (top,bottom)) and all(near(xx,yy,colors["border"]) for xx in (left,right) for yy in (top+16,(top+bottom)//2,bottom-16)):
+                        candidates.add((left,top,right-left+1,bottom-top+1))
+    if len(candidates)>1:raise RuntimeError("Application dialog frame was ambiguous")
+    if not candidates:raise RuntimeError("Application dialog backdrop is visible without a complete frame")
+    return next(iter(candidates))
+
+def dialog_heading_matches(picture,bounds,prefix):
+    # Heading OCR is exclusively in RAM. Match the requested complete title;
+    # a different dialog cannot satisfy an action merely by sharing a word.
+    x,y,w,h=bounds
+    crop=picture.crop((x+18,y+10,x+w-18,y+min(185,h-50))).convert("L")
+    if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
+    data=io.BytesIO();crop.resize((crop.width*2,crop.height*2),Image.Resampling.LANCZOS).save(data,format="PNG")
+    raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","6"],input=data.getvalue(),stderr=subprocess.DEVNULL).decode("utf-8")
+    normalize=lambda value:re.sub(r"[^a-z0-9]+"," ",value.lower()).strip()
+    actual,wanted=normalize(raw),normalize(prefix)
+    return actual==wanted or actual.startswith(wanted+" ")
+
+def owned_application_processes():
+    if app is None or app.poll() is not None:raise RuntimeError("Owned application exited while its dialog was active")
+    pending=[app.pid];seen=set()
+    while pending:
+        pid=pending.pop()
+        if pid in seen:continue
+        seen.add(pid)
+        root=pathlib.Path('/proc')/str(pid)
+        try:
+            arguments=(root/'cmdline').read_bytes().split(b'\0')
+            if any(value.startswith(b'--internal-prompt') for value in arguments):
+                raise RuntimeError("Application created a removed separate prompt process")
+            for thread in (root/'task').iterdir():
+                try:pending.extend(int(value) for value in (thread/'children').read_text().split())
+                except (FileNotFoundError,ProcessLookupError):pass
+        except (FileNotFoundError,ProcessLookupError):
+            if pid==app.pid:raise RuntimeError("Owned application disappeared during dialog ownership check")
+    return sorted(seen)
 
 class Desktop(mod.Desktop):
     def grab_server(self):
@@ -213,24 +298,58 @@ class Desktop(mod.Desktop):
         finally:
             self.ungrab_server()
     def wait(self, prefix, seconds=10):
-        window, title = super().wait(prefix, seconds)
-        if args.instrumented and title != "CryptoWallet" and not title.startswith("CryptoWallet · "):
-            actual, format, count, remaining, data = C.c_ulong(), C.c_int(), C.c_ulong(), C.c_ulong(), C.c_void_p()
-            atom = mod.X.XInternAtom(self.d, b"_NET_WM_PID", 0)
-            status = mod.X.XGetWindowProperty(self.d, window, atom, 0, 1, 0, 6, C.byref(actual), C.byref(format), C.byref(count), C.byref(remaining), C.byref(data))
-            try:
-                if status != 0 or actual.value != 6 or format.value != 32 or count.value != 1 or not data.value:
-                    raise RuntimeError("Owned private window did not expose its process identity")
-                pid = C.cast(data, C.POINTER(C.c_ulong))[0]
-                if pid <= 1 or pid in report.get("processIDs", []):
-                    raise RuntimeError("Private window did not belong to a distinct prompt process")
-                processes = report.setdefault("privateProcessIDs", [])
-                if pid not in processes:
-                    processes.append(pid)
-            finally:
-                if data.value:
-                    mod.X.XFree(data)
-        return window, title
+        if prefix=="CryptoWallet" or prefix.startswith("CryptoWallet · "):
+            found=super().wait(prefix,seconds)
+            if not hasattr(self,"_application_window"):
+                rows=self.window_metadata()
+                row=next((row for row in rows if row['window']==found[0]),None)
+                if row is None or not isinstance(row['pid'],int):raise RuntimeError("Application window lacks its numeric process identity")
+                self._application_window,self._application_pid=found[0],row['pid']
+            return found
+        deadline=time.monotonic()+seconds
+        while time.monotonic()<deadline:
+            observed=self.dialog_capture()
+            if observed:
+                window,picture,bounds=observed
+                if dialog_heading_matches(picture,bounds,prefix):
+                    verify=getattr(self,"assert_dialog_owner",None)
+                    identity=verify(window) if verify else {}
+                    report.setdefault("inWindowDialogs",{})[prefix]={"window":int(window),"bounds":list(bounds),"sameApplicationWindow":True,**identity}
+                    return window,prefix
+            time.sleep(.1)
+        raise RuntimeError("Expected in-window dialog heading did not appear: "+prefix)
+
+    def assert_dialog_owner(self,window):
+        rows=self.window_metadata()
+        if len(rows)!=1 or rows[0]['window']!=window or window!=self._application_window or rows[0]['pid']!=self._application_pid:
+            raise RuntimeError("Dialog did not remain inside the same application window and process")
+        processes=owned_application_processes()
+        if self._application_pid not in processes:raise RuntimeError("Dialog window is outside its owned application process tree")
+        return {"pid":self._application_pid,"sameApplicationProcess":True,"topLevelWindows":1,"removedPromptProcessAbsent":True}
+
+    def dialog_capture(self):
+        self.grab_server()
+        try:
+            windows=self.windows()
+            if len(windows)!=1 or not (windows[0][1]=="CryptoWallet" or windows[0][1].startswith("CryptoWallet · ")):
+                return None
+            window=windows[0][0]
+            picture=self.image().convert("RGB")
+            bounds=dialog_panel_bounds(picture,self.geometry(window))
+            return (window,picture,bounds) if bounds else None
+        finally:
+            self.ungrab_server()
+
+    def prompt_geometry(self,prefix):
+        self.wait(prefix,30)
+        observed=self.dialog_capture()
+        if not observed or not dialog_heading_matches(observed[1],observed[2],prefix):
+            raise RuntimeError("Application dialog changed before its bounded capture")
+        return observed[2]
+
+    def dialog_title(self,expected):
+        observed=self.dialog_capture()
+        return bool(observed and dialog_heading_matches(observed[1],observed[2],expected))
     def image(self):
         # Private image remains in memory, including during disposable phrase OCR.
         p = mod.X.XGetImage(self.d, self.root, 0, 0, 1600, 1100, 0xffffffff, 2)
@@ -240,25 +359,36 @@ class Desktop(mod.Desktop):
         finally:
             mod.X.XDestroyImage(p)
     def secret_window(self):
-        # Deny every unexpected mapped window, including newly added private
-        # prompt titles. Public OCR is allowed only for the ordinary portfolio.
-        return any(title != "CryptoWallet" and not title.startswith("CryptoWallet · ") for _, title in self.windows())
+        # This is a test artifact guard, not an application restriction: never
+        # retain ordinary screenshots while an in-window dialog may hold words.
+        if any(title != "CryptoWallet" and not title.startswith("CryptoWallet · ") for _, title in self.windows()):return True
+        return self.dialog_capture() is not None
     def accept(self, prefix):
         window,_=self.wait(prefix,30)
         self.focus(window)
         x,y=private_primary(prefix)
-        report.setdefault("privateActionGeometry",[]).append({"title":prefix,"window":self.geometry(window),"point":[x,y]})
+        report.setdefault("privateActionGeometry",[]).append({"title":prefix,"window":self.prompt_geometry(prefix),"point":[x,y]})
         self.click(x,y)
     def inputs(self, prefix, values):
         window,_=self.wait(prefix,30)
         self.focus(window)
         primary=private_primary(prefix)
         time.sleep(.2)
-        x,y,w,h=self.geometry(window)
+        x,y,w,h=self.prompt_geometry(prefix)
         picture=self.image().convert("RGB")
         rectangles=masked_field_rectangles(picture,(x,y,w,h),palette()["input"])
         centers=[(top+bottom)//2 for top,bottom in rectangles]
-        if len(centers)!=len(values):raise RuntimeError("Private masked input rectangles did not match expected field count: "+str(len(centers)))
+        if len(centers)!=len(values):
+            colors=palette();probes=[]
+            for offset in (26,27,28,w-29,w-28,w-27,w//2):
+                matches=[yy-y for yy in range(y+10,y+h-75) if any(max(abs(a-b) for a,b in zip(picture.getpixel((x+offset,yy)),wanted))<=3 for wanted in (colors["border"],colors["primary"]))]
+                groups=[]
+                for yy in matches:
+                    if not groups or yy!=groups[-1][-1]+1:groups.append([])
+                    groups[-1].append(yy)
+                probes.append({"offset":offset,"borderRuns":[[group[0],group[-1]] for group in groups]})
+            report.setdefault("maskedInputFailure",[]).append({"title":prefix,"bounds":[x,y,w,h],"expected":len(values),"observed":len(centers),"borderProbes":probes})
+            raise RuntimeError("Private masked input rectangles did not match expected field count: "+str(len(centers)))
         geometry={"title":prefix,"fieldCount":len(values),"window":[w,h],"centers":[yy-y for yy in centers],"heights":[bottom-top+1 for top,bottom in rectangles],"primary":[primary[0]-x,primary[1]-y],"typedBytes":[len(value.encode()) for value in values]}
         report.setdefault("privateInputGeometry",[]).append(geometry)
         # Click actual empty input rectangles, then type with XTest. Neither
@@ -302,7 +432,7 @@ def private_primary(prefix):
     # prompt. Wait for the enabled, filled footer action before typing or
     # accepting, rather than racing a blank/disabled loading view.
     for _ in range(120):
-        window,_=desktop.wait(prefix,30);x,y,w,h=desktop.geometry(window)
+        window,_=desktop.wait(prefix,30);x,y,w,h=desktop.prompt_geometry(prefix)
         picture=desktop.image().crop((x,y+h-70,x+w,y+h)).convert("RGB")
         pixels=[]
         for yy in range(70):
@@ -358,7 +488,7 @@ def public_rows(contrast=False, with_picture=False, with_geometry=False, ocr_sca
 def private_rows(prefix):
     window,_=desktop.wait(prefix,30)
     desktop.focus(window)
-    x,y,w,h=desktop.geometry(window)
+    x,y,w,h=desktop.prompt_geometry(prefix)
     from PIL import ImageOps
     picture=desktop.image().crop((x,y,x+w,y+h)).convert("L")
     if appearance["theme"]=="dark":picture=ImageOps.invert(picture)
@@ -374,7 +504,7 @@ def private_rows(prefix):
     return rows
 
 def private_click(prefix, words):
-    if (prefix,words)!=("Back up recovery phrase","Copy phrase"):
+    if (prefix,words) not in (("Back up recovery phrase","Copy phrase"),("Record recovery phrase","Copy phrase")):
         raise RuntimeError("Unexpected private control request")
     wanted=words.lower().split()
     for _ in range(8):
@@ -382,13 +512,13 @@ def private_click(prefix, words):
         for i,row in enumerate(rows):
             segment=rows[i:i+len(wanted)]
             if [r[11].lower().strip("·.,:") for r in segment]==wanted and all(r[1:5]==row[1:5] for r in segment):
-                window,_=desktop.wait(prefix,30);x,y,_,_=desktop.geometry(window)
+                window,_=desktop.wait(prefix,30);x,y,_,_=desktop.prompt_geometry(prefix)
                 desktop.click(x+int(row[6])+int(row[8])//2,y+int(row[7])+int(row[9])//2)
                 return
         # At larger fonts the authenticated backup's explanatory text and
         # explicit Copy button extend below its numbered words. Scroll only
         # this known private body's owned window; its footer stays pinned.
-        window,_=desktop.wait(prefix,30);x,y,w,h=desktop.geometry(window)
+        window,_=desktop.wait(prefix,30);x,y,w,h=desktop.prompt_geometry(prefix)
         mod.T.XTestFakeMotionEvent(desktop.d,-1,x+w-18,y+h//2,0)
         for _ in range(3):
             mod.T.XTestFakeButtonEvent(desktop.d,5,1,0)
@@ -405,12 +535,12 @@ def private_phrase_grid(picture,count):
     w,h=picture.size
     if picture.mode!="RGB" or w<560 or h<250:return []
     columns=4 if w>=760 else 3
-    cell=(w-58-(columns-1)*8)/columns
-    predicted=[(int(29+i*(cell+8)+.5),int(29+(i+1)*cell+i*8+.5)-1) for i in range(columns)]
+    cell=(w-52-(columns-1)*8)/columns
+    predicted=[(int(26+i*(cell+8)+.5),int(26+(i+1)*cell+i*8+.5)-1) for i in range(columns)]
     colors=palette()
     def near(x,y,color):return max(abs(a-b) for a,b in zip(picture.getpixel((x,y)),color))<8
     scans=[]
-    for yy in range(145,h-75):
+    for yy in range(90,h-75):
         boxes=[]
         for left,right in predicted:
             ls=[xx for xx in range(left-1,left+2) if near(xx,yy,colors["border"]) and near(xx+2,yy,colors["button"])]
@@ -444,7 +574,7 @@ def numbered_phrase(prefix="Record recovery phrase", count=12):
             if valid_mnemonic(phrase):return phrase
         time.sleep(.2)
     window,_=desktop.wait(prefix,30)
-    x,y,w,h=desktop.geometry(window)
+    x,y,w,h=desktop.prompt_geometry(prefix)
     picture=desktop.image().crop((x,y,x+w,y+h)).convert("RGB")
     from PIL import ImageOps
     cells=private_phrase_grid(picture,count)
@@ -463,7 +593,7 @@ def numbered_phrase(prefix="Record recovery phrase", count=12):
 def record_phrase():
     deadline=time.monotonic()+30
     while time.monotonic()<deadline:
-        if any(title.startswith("Record recovery phrase") for _,title in desktop.windows()):break
+        if desktop.dialog_title("Record recovery phrase"):break
         if not desktop.secret_window():
             visible=text()
             for marker in ("Use an app password","The passwords did not match","Request cancelled","Request failed or is unavailable"):
@@ -472,12 +602,32 @@ def record_phrase():
                     raise RuntimeError("Creation did not reach generated phrase; fixed public error category recorded")
         time.sleep(.1)
     phrase=numbered_phrase()
+    private_click("Record recovery phrase","Copy phrase")
+    wait(lambda:clipboard().encode()==phrase)
     desktop.accept("Record recovery phrase")
     desktop.wait("Confirm recovery phrase",30)
     words=phrase.split()
     desktop.inputs("Confirm recovery phrase",[words[i].decode("ascii") for i in (1,5,11)])
     desktop.accept("Confirm recovery phrase")
     return phrase
+
+def selected_phrase_word_copy(expected,prefix="Back up recovery phrase"):
+    # Exercise ordinary text selection on the disposable generated/public
+    # fixture without retaining its text, image or clipboard contents.
+    window,_=desktop.wait(prefix,30)
+    x,y,w,h=desktop.prompt_geometry(prefix)
+    picture=desktop.image().crop((x,y,x+w,y+h)).convert("RGB")
+    cells=private_phrase_grid(picture,len(expected.split()))
+    if len(cells)!=len(expected.split()):raise RuntimeError("Numbered phrase selection lacks its complete observed grid")
+    left,top,_,bottom=cells[0]
+    desktop.focus(window)
+    desktop.click(x+left+45,y+(top+bottom)//2);desktop.click(x+left+45,y+(top+bottom)//2)
+    del picture,cells
+    for shortcut in ("Ctrl+C","Ctrl+Shift+C","Ctrl+Insert"):
+        reset_public_clipboard()
+        native_copy_shortcut(shortcut)
+        wait(lambda:clipboard().encode()==expected.split()[0],10)
+    report.setdefault("phraseSelection",[]).append({"dialog":prefix,"wordIndex":1,"shortcuts":3,"matchesDisplayedWord":True,"privatePixelsRetained":False})
 
 def text():
     return " ".join(r[11] for r in public_rows())
@@ -523,8 +673,8 @@ def click(words, top=False, last=False, button=1):
             if actual != wanted or not all(r[1:5] == row[1:5] for r in segment):
                 continue
             if wanted==["receive"]:
-                before=rows[i-1][11].lower() if i and rows[i-1][1:5]==row[1:5] else ""
-                after=rows[i+1][11].lower() if i+1<len(rows) and rows[i+1][1:5]==row[1:5] else ""
+                before=rows[i-1][11].lower().strip("·.,:") if i and rows[i-1][1:5]==row[1:5] else ""
+                after=rows[i+1][11].lower().strip("·.,:") if i+1<len(rows) and rows[i+1][1:5]==row[1:5] else ""
                 # Select the Receive button, excluding its address label and
                 # the distinct Save receive QR button on the same public row.
                 if before=="save" or after=="address":continue
@@ -548,7 +698,7 @@ def click(words, top=False, last=False, button=1):
         time.sleep(.15)
     raise RuntimeError("Public native control not found: " + words)
 
-def clipboard():
+def clipboard(public_sentinel=None,selection_name="CLIPBOARD"):
     # Independent OS selection client on this owned display, not an app API.
     gtk = C.CDLL("libgtk-3.so.0")
     gdk = C.CDLL("libgdk-3.so.0")
@@ -564,12 +714,32 @@ def clipboard():
     glib.g_free.argtypes = [C.c_void_p]
     if not gtk.gtk_init_check(None, None):
         raise RuntimeError("Private test clipboard client unavailable")
-    p = gtk.gtk_clipboard_wait_for_text(gtk.gtk_clipboard_get(gdk.gdk_atom_intern_static_string(b"CLIPBOARD")))
+    if selection_name not in ("CLIPBOARD","PRIMARY"):
+        raise RuntimeError("Unexpected owned test selection request")
+    selection = gtk.gtk_clipboard_get(gdk.gdk_atom_intern_static_string(selection_name.encode("ascii")))
+    if public_sentinel is not None:
+        if not re.fullmatch(r"cryptowallet-public-test-sentinel-[0-9]+", public_sentinel) and public_sentinel not in (password,different_password):
+            raise RuntimeError("Only a public sentinel or fixed disposable password fixture may enter the owned clipboard")
+        gtk.gtk_clipboard_set_text.argtypes = [C.c_void_p, C.c_char_p, C.c_int]
+        gtk.gtk_clipboard_set_text(selection, public_sentinel.encode("ascii"), -1)
+    p = gtk.gtk_clipboard_wait_for_text(selection)
     if not p:
         return ""
     result = C.string_at(p).decode()
     glib.g_free(p)
     return result
+
+def serve_owned_clipboard(seconds=1):
+    # gtk_clipboard_set_text makes this independent test process the owner.
+    # Serve its native selection requests while WebKit completes a real paste;
+    # immediately pressing Enter would otherwise submit before data arrives.
+    glib=C.CDLL("libglib-2.0.so.0")
+    glib.g_main_context_iteration.argtypes=[C.c_void_p,C.c_int]
+    glib.g_main_context_iteration.restype=C.c_int
+    deadline=time.monotonic()+seconds
+    while time.monotonic()<deadline:
+        glib.g_main_context_iteration(None,0)
+        time.sleep(.01)
 
 def stop():
     global app
@@ -608,6 +778,8 @@ def close_gracefully():
 
 def launch(installation, home):
     global app
+    for name in ("_application_window","_application_pid"):
+        if hasattr(desktop,name):delattr(desktop,name)
     env = dict(base_environment, HOME=str(home), XDG_CONFIG_HOME=str(home / "config"))
     home.mkdir(mode=0o700, exist_ok=True)
     log = tempfile.TemporaryFile()
@@ -617,7 +789,15 @@ def launch(installation, home):
     if args.instrumented:
         report.setdefault("processIDs", []).append(app.pid)
     report["currentStep"]="Wait for initial Wails public window"
-    desktop.wait("CryptoWallet", 30)
+    window,_=desktop.wait("CryptoWallet", 30)
+    # GTK maps before its final monitor-fit allocation/centering callback.
+    # Wait for contained numeric bounds before any public or dialog pixels.
+    deadline=time.monotonic()+30
+    while time.monotonic()<deadline:
+        x,y,w,h=desktop.geometry(window)
+        if x>=0 and y>=0 and x+w<=1600 and y+h<=1100:break
+        time.sleep(.1)
+    else:raise RuntimeError("Initial application geometry never fit the owned display")
     report["currentStep"]="Wait for initial Wails public wallet state"
     wait(lambda: "Create your app password" in text() or "Your encrypted wallet is on this device" in text())
     verify_window_icon()
@@ -628,6 +808,10 @@ def receive_dialog_state(windows):
     # classifier never permits public OCR or acceptance of that loading view.
     private = [title for _, title in windows if title != "CryptoWallet" and not title.startswith("CryptoWallet · ")]
     if not private:
+        capture=getattr(desktop,"dialog_capture",None)
+        observed=capture() if capture else None
+        if observed:
+            return "ready" if dialog_heading_matches(observed[1],observed[2],"Verify receive address") else "starting"
         return "absent"
     if len(private) != 1:
         raise RuntimeError("Unexpected native dialog during public address copy")
@@ -637,36 +821,40 @@ def receive_dialog_state(windows):
         return "starting"
     raise RuntimeError("Unexpected native dialog during public address copy")
 
+def reset_public_clipboard():
+    sentinel="cryptowallet-public-test-sentinel-"+str(time.monotonic_ns())
+    if clipboard(sentinel)!=sentinel:
+        raise RuntimeError("Owned test clipboard did not acknowledge its fresh public sentinel")
+    return sentinel
+
+def public_copy_feedback(sentinel):
+    if desktop.secret_window():
+        raise PrivateWindowVisible("Unexpected private window during direct address copy")
+    value=clipboard()
+    if not value or value==sentinel:return None
+    if "Address copied." not in text():return None
+    return value
+
 def request_receive_copy(seconds=30):
-    deadline = time.monotonic() + seconds
-    requested = starting = False
-    next_click = 0
-    while time.monotonic() < deadline:
-        state = receive_dialog_state(desktop.windows())
-        if state == "ready":
-            if not requested:
-                raise RuntimeError("Unexpected receive dialog before public address request")
-            return
-        if state == "starting":
-            if not requested:
-                raise RuntimeError("Unexpected native dialog before public address request")
-            starting = True
-        elif starting:
-            raise RuntimeError("Receive dialog closed before showing its verified address title")
-        elif time.monotonic() >= next_click:
-            try:
-                click("Copy address")
-            except PrivateWindowVisible:
-                if not requested:
-                    raise
-            else:
-                requested = True
-                desktop.park_pointer()
-                next_click = time.monotonic() + .75
-        # Once a private loading window is visible, inspect only window titles
-        # until its exact verified title appears. Never click or OCR it.
+    # Direct Go validation/copy has no Receive approval. A new nonaddress
+    # sentinel prevents a stale address or status from satisfying this check.
+    sentinel=reset_public_clipboard()
+    deadline=time.monotonic()+seconds
+    requested=False
+    next_click=0
+    while time.monotonic()<deadline:
+        if receive_dialog_state(desktop.windows())!="absent":
+            raise RuntimeError("Unexpected native dialog during direct address copy")
+        if requested:
+            value=public_copy_feedback(sentinel)
+            if value:return value
+        if time.monotonic()>=next_click:
+            click("Copy address")
+            requested=True
+            desktop.park_pointer()
+            next_click=time.monotonic()+.75
         time.sleep(.05)
-    raise RuntimeError("Verified receive dialog did not appear within its bounded deadline")
+    raise RuntimeError("Direct address copy did not acknowledge a fresh clipboard write within its bounded deadline")
 
 def main_row_copy_target(rows,picture,geometry):
     # Bind the point to the actual Ethereum row and complete rendered button,
@@ -754,68 +942,228 @@ def reveal_main_row_copy(geometry):
     desktop.park_pointer()
 
 def request_main_row_copy(seconds=30):
+    sentinel=reset_public_clipboard()
     deadline=time.monotonic()+seconds
-    requested=starting=False
+    requested=False
     next_click=0
     desktop.park_pointer()
     while time.monotonic()<deadline:
-        state=receive_dialog_state(desktop.windows())
-        if state=="ready":
-            if not requested:raise RuntimeError("Unexpected receive dialog before main-row address request")
-            return
-        if state=="starting":
-            if not requested:raise RuntimeError("Unexpected native dialog before main-row address request")
-            starting=True
-        elif starting:
-            raise RuntimeError("Main-row receive dialog closed before showing its verified title")
-        elif time.monotonic()>=next_click:
-            try:
-                rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
-                point=main_row_copy_target(rows,picture,geometry)
-            except PrivateWindowVisible:
-                if not requested:raise
+        if receive_dialog_state(desktop.windows())!="absent":
+            raise RuntimeError("Unexpected native dialog during direct main-row address copy")
+        if requested:
+            value=public_copy_feedback(sentinel)
+            if value:return value
+        if time.monotonic()>=next_click:
+            rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
+            point=main_row_copy_target(rows,picture,geometry)
+            if point is None:
+                if report["mainRowCopy"]["controlState"]=="clipped":
+                    reveals=report["mainRowCopy"].get("horizontalReveals",0)
+                    if reveals>=3:raise RuntimeError("Ethereum copy icon remained clipped after bounded horizontal reveal")
+                    reveal_main_row_copy(geometry)
+                    report["mainRowCopy"]["horizontalReveals"]=reveals+1
+            elif desktop.secret_window():
+                raise PrivateWindowVisible("Private prompt appeared before main-row address input")
             else:
-                if point is None:
-                    if report["mainRowCopy"]["controlState"]=="clipped":
-                        reveals=report["mainRowCopy"].get("horizontalReveals",0)
-                        if reveals>=3:raise RuntimeError("Ethereum copy icon remained clipped after bounded horizontal reveal")
-                        reveal_main_row_copy(geometry)
-                        report["mainRowCopy"]["horizontalReveals"]=reveals+1
-                    # The actual row can be disabled while Go starts its
-                    # verified prompt. Wait; never replace a pending click.
-                elif desktop.secret_window():
-                    if not requested:raise PrivateWindowVisible("Private prompt appeared before main-row address input")
-                else:
-                    if desktop.geometry(desktop.wait("CryptoWallet")[0])!=geometry:
-                        raise RuntimeError("Main-row wallet geometry changed before address input")
-                    desktop.focus(desktop.wait("CryptoWallet")[0])
-                    desktop.click(*point)
-                    requested=True
-                    report.setdefault("mainRowCopy",{}).setdefault("attempts",0)
-                    report["mainRowCopy"]["attempts"]+=1
-                    desktop.park_pointer()
-                    next_click=time.monotonic()+.75
-        # A mapped private loading/ready window is inspected only by title.
-        # No public pixel capture or replacement click is allowed while open.
+                if desktop.geometry(desktop.wait("CryptoWallet")[0])!=geometry:
+                    raise RuntimeError("Main-row wallet geometry changed before address input")
+                desktop.focus(desktop.wait("CryptoWallet")[0])
+                desktop.click(*point)
+                requested=True
+                report.setdefault("mainRowCopy",{}).setdefault("attempts",0)
+                report["mainRowCopy"]["attempts"]+=1
+                desktop.park_pointer()
+                next_click=time.monotonic()+.75
         time.sleep(.05)
-    raise RuntimeError("Main-row verified receive dialog did not appear within its bounded deadline")
+    raise RuntimeError("Main-row address copy did not acknowledge a fresh clipboard write within its bounded deadline")
 
 def main_row_copy(expected_address=None):
-    stage("Main-account Ethereum row icon and verified receive request")
-    request_main_row_copy()
-    stage("Main row verified receive dialog")
-    desktop.wait("Verify receive address",30)
-    desktop.accept("Verify receive address")
-    stage("Main row copy returns to main account")
-    wait(lambda:not desktop.secret_window())
+    stage("Main-account Ethereum row icon and direct validated address copy")
+    copied=request_main_row_copy()
+    stage("Main row copy preserves the main account")
     wait(lambda:"Account group" in text())
     if "Copy address" in text():raise RuntimeError("Main-row copy opened a wallet page")
-    copied=wait(lambda:value if re.fullmatch(r"0x[0-9a-fA-F]{40}",value:=clipboard()) else None)
+    if not re.fullmatch(r"0x[0-9a-fA-F]{40}",copied):
+        raise RuntimeError("Main-row copy did not return a complete Ethereum address")
     if expected_address is not None and copied!=expected_address:
         raise RuntimeError("Main-row copy differed from the independently derived Ethereum fixture address")
     report["mainRowCopy"]["clipboardSHA256"]=hashlib.sha256(copied.encode()).hexdigest()
-    passed("Main-account row copy icon opens verified receive details without opening that wallet tab")
+    passed("Main-account row copy icon directly copies its validated address without opening a wallet tab or private dialog")
     return copied
+
+def address_selection_target(context,rows,geometry):
+    # OCR locates a visible public code token; only an independent exact OS
+    # clipboard comparison determines whether the selected address is right.
+    # No glyph is rewritten to the expected address and no DOM is inspected.
+    if context not in ("overview","wallet","receive"):
+        raise RuntimeError("Unknown public address-selection context")
+    x,y,w,h=geometry
+    if x<0 or y<0 or x+w>1600 or y+h>1100:
+        raise RuntimeError("Public address-selection bounds exceed the owned display")
+    visible=" ".join(row[11] for row in rows)
+    if context=="overview":
+        if "Account group" not in visible or public_words_position("Copy address",rows):
+            raise RuntimeError("Address selection left the account overview")
+        labels=[row for row in rows if row[11]=="Ethereum" and y+145<int(row[7])<y+h-55]
+        if len(labels)!=1:raise RuntimeError("Ethereum selection row was not uniquely visible")
+        center_y=int(labels[0][7])+int(labels[0][9])//2
+    else:
+        if context=="wallet" and not public_words_position("Copy address",rows):
+            raise RuntimeError("Address selection left the wallet page")
+        label=public_words_position("Receive address" if context=="wallet" else "Copy address",rows)
+        if not label:raise RuntimeError("Public address label was not visible")
+        center_y=label[1]
+    candidates=[]
+    for row in rows:
+        left,top,width,height=(int(row[index]) for index in (6,7,8,9))
+        # PSM 6 can split a long rendered address into adjacent OCR tokens.
+        # A unique visible prefix locates the native double-click only; the
+        # fresh OS clipboard must still equal the complete independent address.
+        if not re.fullmatch(r"[0Oo][xX][0-9A-Za-z]{4,64}",row[11]):continue
+        if not (x<left and left+width<x+w and y<top and top+height<y+h):continue
+        if width<40 or not 8<=height<=36 or abs(top+height//2-center_y)>20:continue
+        candidates.append((left+width//2,top+height//2))
+    if len(candidates)!=1:raise RuntimeError("Public address selection token was not uniquely visible")
+    return candidates[0]
+
+def native_copy_shortcut(shortcut):
+    keys={"Ctrl+C":("Control_L","c"),"Ctrl+Shift+C":("Control_L","Shift_L","c"),"Ctrl+Insert":("Control_L","Insert")}
+    if shortcut not in keys:raise RuntimeError("Unsupported public copy shortcut")
+    codes=[mod.X.XKeysymToKeycode(desktop.d,mod.X.XStringToKeysym(name.encode("ascii"))) for name in keys[shortcut]]
+    if not all(codes):raise RuntimeError("Owned X11 keyboard map lacks a required copy key")
+    pressed=[]
+    try:
+        for code in codes:
+            mod.T.XTestFakeKeyEvent(desktop.d,code,1,0)
+            pressed.append(code)
+    finally:
+        for code in reversed(pressed):mod.T.XTestFakeKeyEvent(desktop.d,code,0,0)
+        mod.X.XFlush(desktop.d)
+    time.sleep(.15)
+
+def x11_selection_state():
+    # Only fixed numeric metadata from this owned X11 server. No text,
+    # process argument, environment or private screen is retained here.
+    mod.X.XGetInputFocus.argtypes=[C.c_void_p,C.POINTER(C.c_ulong),C.POINTER(C.c_int)]
+    mod.X.XGetSelectionOwner.argtypes=[C.c_void_p,C.c_ulong]
+    mod.X.XGetSelectionOwner.restype=C.c_ulong
+    focus,revert=C.c_ulong(),C.c_int()
+    mod.X.XGetInputFocus(desktop.d,C.byref(focus),C.byref(revert))
+    owners={name:int(mod.X.XGetSelectionOwner(desktop.d,mod.X.XInternAtom(desktop.d,name.encode("ascii"),0)))
+            for name in ("CLIPBOARD","PRIMARY")}
+    return {"focusWindow":focus.value,"selectionOwners":owners}
+
+def selected_address_copy(context,expected_address):
+    stage("Locate actual "+context+" public address before selecting it")
+    sentinel=reset_public_clipboard()
+    if clipboard(sentinel,selection_name="PRIMARY")!=sentinel:
+        raise RuntimeError("Owned PRIMARY selection did not acknowledge its fresh public sentinel")
+    if context=="receive":
+        if receive_dialog_state(desktop.windows())!="ready":
+            raise RuntimeError("Public receive selection lost its exact verified window")
+        window,_=desktop.wait("Verify receive address",30)
+        private_primary("Verify receive address")
+        geometry=desktop.prompt_geometry("Verify receive address")
+        x,y,_,_=geometry
+        rows=private_rows("Verify receive address")
+        rows=[list(row) for row in rows]
+        for row in rows:
+            row[6]=str(int(row[6])+x);row[7]=str(int(row[7])+y)
+    else:
+        rows,_,geometry=public_rows(with_picture=True,with_geometry=True)
+        window,_=desktop.wait("CryptoWallet")
+    point=address_selection_target(context,rows,geometry)
+    report.setdefault("addressSelectionGeometry",[]).append({"view":context,"window":list(geometry),"point":list(point),
+        "publicCodeBoxes":[[int(row[index]) for index in (6,7,8,9)] for row in rows if re.match(r"[0Oo][xX]",row[11])]})
+    desktop.focus(window)
+    current_geometry=lambda:desktop.prompt_geometry("Verify receive address") if context=="receive" else desktop.geometry(window)
+    if current_geometry()!=geometry:raise RuntimeError("Address-selection window moved before input")
+    box=(point[0]-160,point[1]-18,point[0]+160,point[1]+18)
+    before=desktop.image().crop(box)
+    desktop.click(*point);desktop.click(*point)
+    after=desktop.image().crop(box)
+    primary=clipboard(selection_name="PRIMARY")
+    selection_color=(65,102,87) if appearance["theme"]=="dark" else (204,227,215)
+    report.setdefault("addressSelectionGeometry",[])[-1].update(primaryLength=len(primary),primaryMatchesExpected=primary==expected_address,
+        changedPixels=sum(a!=b for a,b in zip(before.getdata(),after.getdata())),
+        selectionColorPixels=sum(pixel==selection_color for pixel in after.getdata()),nativeState=x11_selection_state())
+    del before,after,primary
+    # Native copying does not navigate or change this public view. Measure
+    # before selecting once, then exercise the same real selection with all
+    # three shortcuts. Highlighted text need not remain readable to OCR.
+    for index,shortcut in enumerate(("Ctrl+C","Ctrl+Shift+C","Ctrl+Insert")):
+        stage("Actual "+context+" selected-address "+shortcut)
+        if index:sentinel=reset_public_clipboard()
+        if current_geometry()!=geometry:raise RuntimeError("Address-selection window moved between shortcuts")
+        if context=="receive":
+            if receive_dialog_state(desktop.windows())!="ready":
+                raise RuntimeError("Selected receive address lost its exact verified window")
+        elif desktop.secret_window():
+            raise PrivateWindowVisible("Private prompt appeared during public address selection")
+        if context=="overview":
+            visible=text()
+            if "Account group" not in visible or "Copy address" in visible:
+                raise RuntimeError("Selecting an overview address navigated to a wallet")
+        if clipboard()!=sentinel:
+            raise RuntimeError("Selecting an address changed CLIPBOARD without a copy shortcut")
+        native_copy_shortcut(shortcut)
+        observed={"value":sentinel}
+        def exact_clipboard():
+            observed["value"]=clipboard()
+            return observed["value"]==expected_address
+        try:wait(exact_clipboard,10)
+        except RuntimeError:
+            value=observed["value"]
+            report.setdefault("keyboardCopyFailure",[]).append({"view":context,"shortcut":shortcut,
+                "sentinelUnchanged":value==sentinel,"observedLength":len(value),"observedSHA256":hashlib.sha256(value.encode()).hexdigest(),
+                "nativeState":x11_selection_state(),"primaryMatchesExpected":clipboard(selection_name="PRIMARY")==expected_address})
+            raise RuntimeError("Selected public address did not reach the independent OS clipboard: "+context+" "+shortcut)
+        report.setdefault("keyboardCopies",[]).append({"view":context,"shortcut":shortcut,"matchesIndependentAddress":True,"freshSentinelReplaced":True})
+    passed("Actual "+context+" selected public address copies exactly with Ctrl+C, Ctrl+Shift+C and Ctrl+Insert")
+
+def clipboard_campaign(expected_address,secret):
+    selected_address_copy("overview",expected_address)
+    click("Ethereum")
+    wait(lambda:"Copy address" in text())
+    if request_receive_copy()!=expected_address:
+        raise RuntimeError("Wallet copy button changed its independently known address")
+    selected_address_copy("wallet",expected_address)
+    click("Receive")
+    desktop.wait("Verify receive address",30)
+    private_primary("Verify receive address")
+    sentinel=reset_public_clipboard()
+    if receive_dialog_state(desktop.windows())!="ready":
+        raise RuntimeError("Receive copy lost its exact verified public window")
+    window,_=desktop.wait("Verify receive address",30)
+    x,y,_,_=desktop.prompt_geometry("Verify receive address")
+    point=public_words_position("Copy address",private_rows("Verify receive address"))
+    if not point:raise RuntimeError("Receive copy button label was not visible")
+    desktop.click(x+point[0],y+point[1])
+    wait(lambda:clipboard()==expected_address,10)
+    if clipboard()==sentinel:raise RuntimeError("Receive copy did not replace its fresh clipboard sentinel")
+    selected_address_copy("receive",expected_address)
+    desktop.accept("Verify receive address")
+    wait(lambda:not desktop.secret_window())
+    passed("Receive copy button and native address selection use the exact verified public address")
+    # Standard clipboard paste works in the same main-window password dialog.
+    # This is the fixed public disposable fixture, never a user credential.
+    click("Settings",top=True);click("Wallet")
+    click("Back up recovery phrase")
+    desktop.wait("Back up recovery phrase",30)
+    desktop.accept("Back up recovery phrase")
+    desktop.wait("Confirm app password",30)
+    desktop.inputs("Confirm app password",[""])
+    if clipboard(secret)!=secret:raise RuntimeError("Disposable clipboard password fixture was not acknowledged")
+    desktop.key("v",ctrl=True)
+    serve_owned_clipboard()
+    desktop.key("Return")
+    desktop.wait("Back up recovery phrase",30)
+    if recorded is None or numbered_phrase("Back up recovery phrase",len(recorded.split()))!=recorded:
+        raise RuntimeError("Password paste failed to authenticate the unchanged recovery phrase")
+    desktop.accept("Back up recovery phrase")
+    wait(lambda:not desktop.secret_window())
+    click("Main account",top=True)
+    passed("Ordinary Ctrl+V password entry authenticates the exact recovery phrase in a dialog inside the main application window")
 
 def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON")):
     result = {}
@@ -833,20 +1181,10 @@ def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Ap
         report["currentStep"] = "Wait for " + network + " wallet page"
         wait(lambda: "Copy address" in text())
         report["currentStep"] = "Request " + network + " address copy"
-        # Balance redraws can race a test pointer click. Retry only this
-        # read-only address request, and require its real native confirmation;
-        # this helper is never used for signing, trading or withdrawing.
-        request_receive_copy()
-        # The signer independently displays its verified receive details before
-        # fulfilling a public copy request; acknowledge that actual native view.
-        report["currentStep"] = "Wait for " + network + " verified receive dialog"
-        desktop.wait("Verify receive address",30)
-        desktop.accept("Verify receive address")
-        report["currentStep"] = "Wait for " + network + " public portfolio after receive dialog"
-        wait(lambda:not desktop.secret_window())
+        value=request_receive_copy()
         pattern = {"NEAR":r"[0-9a-f]{64}","Aptos":r"0x[0-9a-fA-F]{64}","Decred":r"Ds[1-9A-HJ-NP-Za-km-z]{32,34}","TON":r"[UE]Q[A-Za-z0-9_-]{46}"}.get(network,r"0x[0-9a-fA-F]{40}")
-        report["currentStep"] = "Read " + network + " public clipboard address"
-        value = wait(lambda: (observed if re.fullmatch(pattern, observed:=clipboard()) else None))
+        if not re.fullmatch(pattern,value):
+            raise RuntimeError("Fresh copied address did not match the selected network: "+network)
         result[network] = value
         report.setdefault("walletsObserved",[]).append(network)
         save()
@@ -943,7 +1281,7 @@ def backup_phrase(expected,secret):
     if numbered_phrase("Back up recovery phrase",words)!=expected:raise RuntimeError("Authenticated backup changed the recovery phrase")
     rows=private_rows("Back up recovery phrase")
     if not any([r[11].lower() for r in rows[i:i+2]]==["copy","phrase"] and rows[i][1:5]==rows[i+1][1:5] for i in range(len(rows)-1)):raise RuntimeError("Initial backup view does not show Copy phrase without scrolling")
-    window,_=desktop.wait("Back up recovery phrase");x,y,w,h=desktop.geometry(window)
+    window,_=desktop.wait("Back up recovery phrase");x,y,w,h=desktop.prompt_geometry("Back up recovery phrase")
     if x<0 or y<0 or x+w>1600 or y+h>1100:raise RuntimeError("Fitted recovery backup extends outside the owned logical monitor")
     desktop.park_pointer()
     before=desktop.image().crop((x,y+175,x+w,y+h-80)).tobytes()
@@ -955,6 +1293,7 @@ def backup_phrase(expected,secret):
     del before,rows
     if not stable:raise RuntimeError("Default backup body scrolled instead of fitting its complete phrase and Copy control")
     report["backupLayout"]={"wordCount":words,"window":[w,h],"origin":[x,y],"withinOwnedDisplay":True,"copyInitiallyVisible":True,"wheelStable":True,"privatePixelsRetained":False}
+    selected_phrase_word_copy(expected)
     private_click("Back up recovery phrase","Copy phrase")
     wait(lambda:clipboard().encode()==expected)
     desktop.accept("Back up recovery phrase")
@@ -1324,9 +1663,9 @@ def observe_appearance(name, private_prefix=None):
     if private_prefix:
         window,_=desktop.wait(private_prefix,30)
         private_primary(private_prefix)
-        x,y,w,h=desktop.geometry(window)
+        x,y,w,h=desktop.prompt_geometry(private_prefix)
         picture=desktop.image().convert("RGB")
-        observed={"page":picture.getpixel((x+4,y+4))}
+        observed={"surface":picture.getpixel((x+w//2,y+8))}
     else:
         window,_=desktop.wait("CryptoWallet",30)
         x,y,w,h=desktop.geometry(window)
@@ -1380,8 +1719,10 @@ def unlock_with_enter(secret):
     if "Unlock local wallet" not in visible or "Retry storage check" in visible:
         raise RuntimeError("Locked wallet did not show the simplified Unlock page")
     desktop.focus(desktop.wait("CryptoWallet")[0])
+    started=time.monotonic()
     desktop.key("Return")
     desktop.wait("Unlock local wallet",30)
+    report.setdefault("unlockDialogTiming",[]).append({"visibleSeconds":round(time.monotonic()-started,3),"sameApplicationWindow":True,"sameApplicationProcess":True})
     observe_appearance("Private unlock uses persisted theme", "Unlock local wallet")
     geometry=desktop.inputs("Unlock local wallet",[secret])
     if geometry["fieldCount"]!=1 or geometry["centers"][0]+geometry["heights"][0]//2>=geometry["primary"][1]-20:
@@ -1444,7 +1785,7 @@ def appearance_campaign(installation, home, secret):
     restarted=observe_appearance("Restarted unlocked public Dark/24")
     if abs(restarted["brandGlyphHeight"]-changed["brandGlyphHeight"])>1 or json.loads(preferences.read_text())!=appearance:
         raise RuntimeError("Actual restart lost the selected theme or font size")
-    passed("Settings Appearance has a distinct selected subtab; Light/18 defaults change to Dark/24 in public/private windows, survive graceful restart, and Unlock submits with Enter without Retry storage check")
+    passed("Settings Appearance has a distinct selected subtab; Light/18 defaults change to Dark/24 in the page and in-window dialogs, survive graceful restart, and Unlock submits with Enter without Retry storage check")
     # Restore the default through the same real controls so the remainder of
     # the all-network/recovery campaign uses the candidate's initial layout.
     stage("Restore Light/18 through actual Appearance settings")
@@ -1468,11 +1809,9 @@ def ethereum_tokens(expected_address=None):
         scroll_public(4,35)
         click("Ethereum")
         wait(lambda:"Copy address" in text())
-        request_receive_copy()
-        desktop.wait("Verify receive address",30)
-        desktop.accept("Verify receive address")
-        wait(lambda:not desktop.secret_window())
-        expected_address=wait(lambda:(value if re.fullmatch(r"0x[0-9a-fA-F]{40}",value:=clipboard()) else None))
+        expected_address=request_receive_copy()
+        if not re.fullmatch(r"0x[0-9a-fA-F]{40}",expected_address):
+            raise RuntimeError("Fresh Ethereum copy did not return a complete address")
     scroll_public(4,35)
     wait(lambda:"Assets on Ethereum" in text())
     rows=public_rows(contrast=True)
@@ -1528,11 +1867,7 @@ def ethereum_tokens(expected_address=None):
     wait(lambda:bool(re.search(r"Amount.*1 means 1 USDT",text())))
     if desktop.secret_window() or "Prepared payment" in text():
         raise RuntimeError("Token selection or opening Send requested authority or prepared a payment")
-    request_receive_copy()
-    desktop.wait("Verify receive address",30)
-    desktop.accept("Verify receive address")
-    wait(lambda:not desktop.secret_window())
-    if clipboard()!=expected_address:
+    if request_receive_copy()!=expected_address:
         raise RuntimeError("USDT selection replaced the owned Ethereum receive address")
     click("Send")
     wait(lambda:"Recipient address" not in text())
@@ -1778,7 +2113,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -1803,13 +2138,16 @@ try:
             if args.decred_copy_only:
                 for _ in range(3):
                     addresses(("Decred",))
-                passed("Three repeated actual Decred receive/copy prompts completed without ambiguous mapped windows")
+                passed("Three repeated actual Decred direct copies completed with fresh native clipboard acknowledgments")
             if args.appearance_only:
                 appearance_campaign(installations[0],home,different_password)
             if args.main_row_copy_only:
                 observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
                 report["mainRowCopy"]["matchesIndependentFixture"]=True
                 passed("Actual main-row icon copies the exact independently derived public-fixture Ethereum address")
+            if args.clipboard_only:
+                observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
+                clipboard_campaign(observed,different_password)
             close_gracefully()
             passed("Targeted public-fixture import reaches all-wallet overview and closes successfully")
             if args.tokens_only:
@@ -1847,10 +2185,11 @@ try:
             recorded = record_phrase()
             wait(lambda: not desktop.secret_window(), 30)
             wait(lambda: "Main account" in text(), 30)
-            passed("Single Go executable generates a random phrase after masked app-password entry and verifies recorded words in separate private WebKitGTK windows")
+            passed("Single Go executable generates a random phrase after masked app-password entry and verifies recorded words in dialogs inside the same main application window")
             overview_layout()
             staking_page()
             main_row_address=main_row_copy()
+            clipboard_campaign(main_row_address,password)
             expected = addresses()
             if main_row_address!=expected.get("Ethereum"):
                 raise RuntimeError("Main-row copy differed from the independently opened Ethereum wallet")

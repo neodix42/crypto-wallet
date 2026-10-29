@@ -254,8 +254,9 @@ func (u *UI) ReceiveAddress(title, summary, address string, png []byte) bool {
 	_, err := u.ask(Prompt{Kind: "receive", Title: title, Summary: summary, Address: address, PNG: png})
 	return err == nil
 }
-func (u *UI) CopyPublic(address string) {
-	_, _ = u.ask(Prompt{Kind: "copy", Title: "Copy wallet address", Address: address})
+func (u *UI) CopyPublic(address string) error {
+	_, err := u.ask(Prompt{Kind: "copy", Title: "Copy wallet address", Address: address})
+	return err
 }
 
 func validPhrase(phrase []byte) bool {

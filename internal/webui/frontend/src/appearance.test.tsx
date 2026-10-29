@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyAppearance, validAppearance, validPrompt, validView } from './protocol';
 import { PublicApp, PublicNode, WalletShell } from './PublicApp';
-import { PrivateApp } from './PrivateApp';
+import { DialogHost } from './Dialog';
 import { id, node, view } from './test-fixtures';
 import type { Prompt, Reply } from './types';
 
@@ -79,8 +79,8 @@ describe('Enter unlock without expanding secret authority', () => {
       expect(reply).toEqual({ promptId: id, accepted: true, values: ['SYNTHETIC-PASSWORD'] });
       return true;
     });
-    window.go = { webui: { PrivateBridge: { Prompt: async () => prompt, Reply, Copy: vi.fn(async () => false), Activity: vi.fn(async () => true) } } };
-    await mount(<PrivateApp/>);
+    window.go = { webui: { DialogBridge: { Snapshot: async () => prompt, Reply, Copy: vi.fn(async () => false), Activity: vi.fn(async () => true) } } };
+    await mount(<DialogHost/>);
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.dataset.fontSize).toBe('24');
     const input = host.querySelector('input')!; expect(input.type).toBe('password'); input.value = 'SYNTHETIC-PASSWORD';

@@ -235,26 +235,125 @@ class WailsDisplayStartup(unittest.TestCase):
             with self.assertRaises(OSError):os.fstat(descriptor)
 
 
+class WailsInWindowDialogs(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('palette','dialog_panel_bounds','dialog_heading_matches')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        desktop=next(node for node in tree.body if isinstance(node,ast.ClassDef) and node.name=='Desktop')
+        methods=[node for node in desktop.body if isinstance(node,ast.FunctionDef) and node.name in ('wait','secret_window','assert_dialog_owner')]
+        self.clock=SimpleNamespace(now=0)
+        self.clock.monotonic=lambda:self.clock.now
+        self.clock.sleep=lambda value:setattr(self.clock,'now',self.clock.now+value)
+        self.decoder=mock.Mock(return_value=b'Unlock local wallet\nEnter the requested information to continue.')
+        self.report={}
+        self.scope={'appearance':{'theme':'light','fontSize':18},'Image':Image,'ImageOps':ImageOps,'io':io,'re':re,
+                    'subprocess':SimpleNamespace(check_output=self.decoder,DEVNULL=subprocess.DEVNULL),
+                    'time':self.clock,'report':self.report,'owned_application_processes':mock.Mock(return_value=[42,43])}
+        exec(compile(ast.Module(body=functions+methods,type_ignores=[]),'in-window-dialogs','exec'),self.scope)
+        self.bounds=(80,32,1440,1036)
+
+    def fixture(self,width=680,height=400,dim=True):
+        colors=self.scope['palette']()
+        blend=lambda color:tuple(round((a+b)/2) for a,b in zip(color,(8,16,24))) if dim else color
+        picture=Image.new('RGB',(1600,1100),'black')
+        x,y,w,h=self.bounds
+        picture.paste(blend(colors['page']),(x,y,x+w,y+h))
+        picture.paste(blend(colors['chrome']),(x,y,x+w,y+77))
+        picture.paste(blend(colors['surface']),(x,y+h-31,x+w,y+h))
+        left=x+(w-width)//2;top=y+(h-height)//2
+        ImageDraw.Draw(picture).rounded_rectangle((left,top,left+width-1,top+height-1),radius=10,
+                                                  fill=colors['surface'],outline=colors['border'])
+        return picture,(left,top,width,height)
+
+    def test_modal_frames_are_measured_inside_the_same_owned_main_window_in_both_themes(self):
+        for theme in ('light','dark'):
+            self.scope['appearance']['theme']=theme
+            for width,height in ((680,320),(760,460),(980,800),(1040,900)):
+                with self.subTest(theme=theme,width=width):
+                    picture,expected=self.fixture(width,height)
+                    self.assertEqual(self.scope['dialog_panel_bounds'](picture,self.bounds),expected)
+
+    def test_public_cards_missing_borders_or_unowned_pixels_never_become_dialogs(self):
+        picture,_=self.fixture(dim=False)
+        self.assertIsNone(self.scope['dialog_panel_bounds'](picture,self.bounds))
+        picture,box=self.fixture()
+        left,top,width,height=box
+        ImageDraw.Draw(picture).line((left,top+12,left,top+height-12),fill=self.scope['palette']()['surface'])
+        with self.assertRaisesRegex(RuntimeError,'without a complete frame'):
+            self.scope['dialog_panel_bounds'](picture,self.bounds)
+        with self.assertRaisesRegex(RuntimeError,'owned application bounds'):
+            self.scope['dialog_panel_bounds'](picture,(80,32,1600,1100))
+
+    def test_wait_resolves_the_actual_dialog_heading_to_its_unchanged_main_window_id(self):
+        picture,box=self.fixture()
+        desktop=SimpleNamespace(dialog_capture=mock.Mock(return_value=(17,picture,box)))
+        self.assertEqual(self.scope['wait'](desktop,'Unlock local wallet',seconds=1),(17,'Unlock local wallet'))
+        self.assertEqual(self.report['inWindowDialogs']['Unlock local wallet'],
+                         {'window':17,'bounds':list(box),'sameApplicationWindow':True})
+        self.decoder.return_value=b'Confirm app password\nEnter the requested information to continue.'
+        with self.assertRaisesRegex(RuntimeError,'Expected in-window dialog heading'):
+            self.scope['wait'](desktop,'Unlock local wallet',seconds=.2)
+        self.assertLess(self.clock.now,.4)
+
+    def test_modal_presence_blocks_artifact_capture_even_without_a_separate_native_window(self):
+        desktop=SimpleNamespace(windows=lambda:[(17,'CryptoWallet')],dialog_capture=mock.Mock(return_value=(17,object(),(460,220,680,400))))
+        self.assertTrue(self.scope['secret_window'](desktop))
+        desktop.dialog_capture.return_value=None
+        self.assertFalse(self.scope['secret_window'](desktop))
+        desktop.windows=lambda:[(17,'CryptoWallet'),(18,'Unexpected native window')]
+        self.assertTrue(self.scope['secret_window'](desktop))
+
+    def test_dialog_owner_requires_one_unchanged_window_pid_and_no_removed_prompt_process(self):
+        desktop=SimpleNamespace(_application_window=17,_application_pid=42,
+                                window_metadata=mock.Mock(return_value=[{'window':17,'pid':42}]))
+        identity=self.scope['assert_dialog_owner'](desktop,17)
+        self.assertTrue(identity['sameApplicationProcess'])
+        self.assertTrue(identity['removedPromptProcessAbsent'])
+        for rows in ([{'window':17,'pid':55}],[{'window':18,'pid':42}],
+                     [{'window':17,'pid':42},{'window':18,'pid':42}]):
+            desktop.window_metadata.return_value=rows
+            with self.subTest(rows=rows),self.assertRaisesRegex(RuntimeError,'same application window and process'):
+                self.scope['assert_dialog_owner'](desktop,17)
+        desktop.window_metadata.return_value=[{'window':17,'pid':42}]
+        self.scope['owned_application_processes'].side_effect=RuntimeError('Application created a removed separate prompt process')
+        with self.assertRaisesRegex(RuntimeError,'removed separate prompt process'):
+            self.scope['assert_dialog_owner'](desktop,17)
+
+
 class WailsPrivateStartup(unittest.TestCase):
     def setUp(self):
         tree = ast.parse((ROOT / 'scripts/wails-wallet-test.py').read_text())
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
-                     and node.name in ('receive_dialog_state', 'request_receive_copy', 'public_rows')]
+                     and node.name in ('receive_dialog_state', 'reset_public_clipboard', 'public_copy_feedback', 'request_receive_copy', 'public_rows')]
         desktop = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'Desktop')
         functions.append(next(node for node in desktop.body if isinstance(node, ast.FunctionDef) and node.name == 'secret_window'))
         functions.append(next(node for node in desktop.body if isinstance(node, ast.FunctionDef) and node.name == 'park_pointer'))
         self.clock = SimpleNamespace(now=0)
         self.clock.monotonic = lambda: self.clock.now
         self.clock.sleep = lambda seconds: setattr(self.clock, 'now', self.clock.now + seconds)
-        self.desktop = SimpleNamespace(windows=mock.Mock(), image=mock.Mock(), park_pointer=mock.Mock(), d=object())
+        ticks = iter(range(1, 10000))
+        self.clock.monotonic_ns = lambda: next(ticks)
+        self.desktop = SimpleNamespace(windows=mock.Mock(), image=mock.Mock(), park_pointer=mock.Mock(), dialog_capture=mock.Mock(return_value=None), d=object())
         self.click = mock.Mock()
+        self.address = '0x1111111111111111111111111111111111111111'
+        self.clipboard_value = self.address
+        def clipboard(value=None):
+            if value is not None:
+                self.clipboard_value = value
+            return self.clipboard_value
+        self.clipboard = mock.Mock(side_effect=clipboard)
+        self.status = mock.Mock(return_value='Copy address')
         self.scope = {'time': self.clock, 'desktop': self.desktop, 'click': self.click,
+                      'clipboard': self.clipboard, 'text': self.status,
                       'PrivateWindowVisible': type('PrivateWindowVisible', (RuntimeError,), {})}
+        self.desktop.secret_window = lambda: self.scope['secret_window'](self.desktop)
         self.desktop.grab_server = lambda: self.scope['mod'].X.XGrabServer(self.desktop.d)
         self.desktop.ungrab_server = lambda: (self.scope['mod'].X.XUngrabServer(self.desktop.d),
                                                self.scope['mod'].X.XFlush(self.desktop.d))
         exec(compile(ast.Module(body=functions, type_ignores=[]), 'wails-startup-test-helper', 'exec'), self.scope)
         self.main = [(1, 'CryptoWallet · 0.1.1 · mainnet')]
+        self.desktop.windows.return_value = self.main
 
     def sequence(self, *states):
         pending = iter(states)
@@ -265,22 +364,64 @@ class WailsPrivateStartup(unittest.TestCase):
             return last
         self.desktop.windows.side_effect = windows
 
-    def test_delayed_executable_title_waits_without_another_click_or_any_pixels(self):
-        self.sequence(self.main, self.main + [(2, 'cryptowallet')],
-                      self.main + [(2, 'cryptowallet')], self.main + [(2, 'Verify receive address')])
-        self.scope['request_receive_copy'](seconds=1)
+    def complete_copy(self, *_):
+        self.clipboard_value = self.address
+        self.status.return_value = 'Address copied.'
+
+    def test_direct_copy_returns_a_fresh_write_and_status_without_a_private_prompt(self):
+        self.click.side_effect = self.complete_copy
+        self.assertEqual(self.scope['request_receive_copy'](seconds=1), self.address)
         self.click.assert_called_once_with('Copy address')
         self.desktop.park_pointer.assert_called_once_with()
         self.desktop.image.assert_not_called()
-        self.assertGreaterEqual(self.clock.now, .15)
+        self.assertTrue(self.clipboard.call_args_list[0].args[0].startswith('cryptowallet-public-test-sentinel-'))
+        self.assertEqual(self.desktop.windows.return_value, self.main)
 
-    def test_loading_window_never_becomes_a_verified_receive_without_its_exact_title(self):
-        self.sequence(self.main, self.main + [(2, 'cryptowallet')])
+    def test_old_address_and_success_status_cannot_replace_a_fresh_clipboard_write(self):
+        self.status.return_value = 'Address copied.'
         with self.assertRaisesRegex(RuntimeError, 'bounded deadline'):
             self.scope['request_receive_copy'](seconds=1)
         self.assertLess(self.clock.now, 1.1)
-        self.click.assert_called_once_with('Copy address')
+        self.assertEqual(self.click.call_args_list, [mock.call('Copy address')] * 2)
+        self.assertNotEqual(self.clipboard_value, self.address)
         self.desktop.image.assert_not_called()
+
+    def test_clipboard_write_without_success_status_does_not_claim_copy_success(self):
+        self.click.side_effect = lambda *_: setattr(self, 'clipboard_value', self.address)
+        with self.assertRaisesRegex(RuntimeError, 'bounded deadline'):
+            self.scope['request_receive_copy'](seconds=.2)
+        self.assertEqual(self.clipboard_value, self.address)
+        self.click.assert_called_once_with('Copy address')
+
+    def test_each_request_uses_a_distinct_public_sentinel_and_requires_its_write_ack(self):
+        first = self.scope['reset_public_clipboard']()
+        second = self.scope['reset_public_clipboard']()
+        self.assertNotEqual(first, second)
+        self.assertEqual(self.clipboard_value, second)
+        self.clipboard.side_effect = None
+        self.clipboard.return_value = self.address
+        with self.assertRaisesRegex(RuntimeError, 'fresh public sentinel'):
+            self.scope['request_receive_copy'](seconds=.2)
+        self.click.assert_not_called()
+
+    def test_feedback_needs_a_nonempty_new_value_and_status_and_checks_private_state_first(self):
+        sentinel = self.scope['reset_public_clipboard']()
+        self.status.return_value = 'Address copied.'
+        for value in ('', sentinel):
+            self.clipboard_value = value
+            self.assertIsNone(self.scope['public_copy_feedback'](sentinel))
+        self.clipboard_value = self.address
+        self.status.return_value = 'Could not copy address.'
+        self.assertIsNone(self.scope['public_copy_feedback'](sentinel))
+        self.status.return_value = 'Address copied.'
+        self.assertEqual(self.scope['public_copy_feedback'](sentinel), self.address)
+        self.desktop.windows.return_value = self.main + [(2, 'Back up recovery phrase')]
+        self.clipboard.reset_mock()
+        self.status.reset_mock()
+        with self.assertRaises(self.scope['PrivateWindowVisible']):
+            self.scope['public_copy_feedback'](sentinel)
+        self.clipboard.assert_not_called()
+        self.status.assert_not_called()
 
     def test_unknown_multiple_or_unrequested_private_windows_fail_closed(self):
         for windows in (self.main + [(2, 'cryptowallet')], self.main + [(2, 'Verify receive address')],
@@ -295,12 +436,12 @@ class WailsPrivateStartup(unittest.TestCase):
         self.click.assert_not_called()
         self.desktop.image.assert_not_called()
 
-    def test_loading_window_that_closes_or_changes_to_another_prompt_is_not_retried(self):
-        for final in (self.main, self.main + [(2, 'Confirm app password')]):
-            with self.subTest(titles=[title for _, title in final]):
+    def test_any_private_window_after_the_click_aborts_without_replacement_click_or_pixels(self):
+        for title in ('cryptowallet', 'Verify receive address', 'Confirm app password'):
+            with self.subTest(title=title):
                 self.click.reset_mock()
-                self.sequence(self.main, self.main + [(2, 'cryptowallet')], final)
-                with self.assertRaisesRegex(RuntimeError, 'closed before|Unexpected'):
+                self.sequence(self.main, self.main + [(2, title)])
+                with self.assertRaisesRegex(RuntimeError, 'Unexpected'):
                     self.scope['request_receive_copy'](seconds=1)
                 self.click.assert_called_once_with('Copy address')
         self.desktop.image.assert_not_called()
@@ -344,7 +485,7 @@ class WailsPrivateStartup(unittest.TestCase):
 class WailsMainRowCopy(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('main_row_copy_target','request_main_row_copy','main_row_copy','reveal_main_row_copy','receive_dialog_state','public_words_position','palette')
+        names=('main_row_copy_target','request_main_row_copy','main_row_copy','reveal_main_row_copy','receive_dialog_state','reset_public_clipboard','public_copy_feedback','public_words_position','palette')
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
         self.folder=tempfile.TemporaryDirectory(prefix='wallet-main-row-')
         self.addCleanup(self.folder.cleanup)
@@ -352,6 +493,8 @@ class WailsMainRowCopy(unittest.TestCase):
         self.clock=SimpleNamespace(now=0)
         self.clock.monotonic=lambda:self.clock.now
         self.clock.sleep=lambda seconds:setattr(self.clock,'now',self.clock.now+seconds)
+        ticks=iter(range(1,10000))
+        self.clock.monotonic_ns=lambda:next(ticks)
         self.main=[(1,'CryptoWallet · 0.1.1 · mainnet')]
         self.desktop=SimpleNamespace(windows=mock.Mock(return_value=self.main),
                                      wait=mock.Mock(return_value=self.main[0]),
@@ -360,7 +503,15 @@ class WailsMainRowCopy(unittest.TestCase):
                                      secret_window=mock.Mock(return_value=False),d=object())
         self.report={}
         self.rows=mock.Mock()
+        self.address='0x1111111111111111111111111111111111111111'
+        self.clipboard_value=self.address
+        def clipboard(value=None):
+            if value is not None:self.clipboard_value=value
+            return self.clipboard_value
+        self.clipboard=mock.Mock(side_effect=clipboard)
+        self.status=mock.Mock(return_value='Account group')
         self.scope={'time':self.clock,'re':re,'desktop':self.desktop,'report':self.report,
+                    'clipboard':self.clipboard,'text':self.status,
                     'public_rows':self.rows,'appearance':{'theme':'light'},
                     'REPORTS':pathlib.Path(self.folder.name),'args':SimpleNamespace(report_name='owned-row'),
                     'hashlib':hashlib,'stage':mock.Mock(),
@@ -441,19 +592,26 @@ class WailsMainRowCopy(unittest.TestCase):
         self.scope['main_row_copy_target']=mock.Mock(side_effect=target)
         self.rows.return_value=(self.overview(),object(),self.geometry)
 
-    def test_slow_prompt_start_waits_through_disabled_state_without_replacement_click(self):
-        self.targets('enabled','disabled')
-        self.desktop.windows.side_effect=lambda:self.main if self.clock.now<.8 else self.main+[(2,'cryptowallet' if self.clock.now<1 else 'Verify receive address')]
-        self.scope['request_main_row_copy'](seconds=2)
+    def complete_copy(self,*_):
+        self.clipboard_value=self.address
+        self.status.return_value='Account group Address copied.'
+
+    def test_disabled_control_waits_then_direct_copy_requires_no_private_prompt(self):
+        self.targets('disabled','enabled')
+        self.desktop.click.side_effect=self.complete_copy
+        self.assertEqual(self.scope['request_main_row_copy'](seconds=2),self.address)
         self.desktop.click.assert_called_once_with(1416,558)
         self.assertEqual(self.rows.call_count,2)
         self.assertEqual(self.report['mainRowCopy']['attempts'],1)
+        self.desktop.accept.assert_not_called()
 
-    def test_disabled_control_cannot_become_success_without_its_verified_prompt(self):
+    def test_disabled_control_cannot_copy_or_claim_success_from_old_clipboard_and_status(self):
         self.targets('disabled')
+        self.status.return_value='Account group Address copied.'
         with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
             self.scope['request_main_row_copy'](seconds=.2)
         self.desktop.click.assert_not_called()
+        self.assertNotEqual(self.clipboard_value,self.address)
 
     def test_only_readonly_icon_can_be_retried_before_any_private_window(self):
         self.targets('enabled')
@@ -471,12 +629,36 @@ class WailsMainRowCopy(unittest.TestCase):
         self.desktop.click.assert_not_called()
         self.assertEqual(list(pathlib.Path(self.folder.name).iterdir()),[])
 
+    def test_private_window_appearing_after_target_measurement_prevents_input(self):
+        self.targets('enabled')
+        self.desktop.secret_window.return_value=True
+        with self.assertRaises(self.scope['PrivateWindowVisible']):
+            self.scope['request_main_row_copy'](seconds=.2)
+        self.rows.assert_called_once_with(with_picture=True,with_geometry=True)
+        self.desktop.click.assert_not_called()
+        self.desktop.accept.assert_not_called()
+
+    def test_copy_feedback_without_both_fresh_write_and_success_status_stays_pending(self):
+        for write,status in ((False,True),(True,False)):
+            with self.subTest(write=write,status=status):
+                self.clock.now=0
+                self.desktop.click.reset_mock()
+                self.targets('enabled')
+                self.status.return_value='Account group Address copied.' if status else 'Account group'
+                if write:
+                    self.desktop.click.side_effect=lambda *_:setattr(self,'clipboard_value',self.address)
+                else:
+                    self.desktop.click.side_effect=None
+                with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+                    self.scope['request_main_row_copy'](seconds=.2)
+                self.desktop.click.assert_called_once_with(1416,558)
+
     def test_reveal_is_horizontal_only_and_next_capture_rechecks_full_target(self):
         self.targets('clipped','enabled')
         reveal=mock.Mock()
         self.scope['reveal_main_row_copy']=reveal
-        self.desktop.windows.side_effect=lambda:self.main if self.clock.now<.1 else self.main+[(2,'Verify receive address')]
-        self.scope['request_main_row_copy'](seconds=1)
+        self.desktop.click.side_effect=self.complete_copy
+        self.assertEqual(self.scope['request_main_row_copy'](seconds=1),self.address)
         reveal.assert_called_once_with(self.geometry)
         self.desktop.click.assert_called_once_with(1416,558)
         self.assertEqual(self.rows.call_count,2)
@@ -492,9 +674,9 @@ class WailsMainRowCopy(unittest.TestCase):
         with self.assertRaises(self.scope['PrivateWindowVisible']):self.scope['reveal_main_row_copy'](self.geometry)
         self.assertEqual(button.call_count,2)
 
-    def test_exact_fixture_address_is_required_after_real_dialog_acknowledgment(self):
-        self.scope.update(request_main_row_copy=mock.Mock(),text=lambda:'Account group',
-                          wait=lambda predicate:predicate(),clipboard=lambda:'0x1111111111111111111111111111111111111111')
+    def test_exact_fixture_address_is_required_from_the_direct_ack_without_clipboard_reread(self):
+        self.scope.update(request_main_row_copy=mock.Mock(return_value=self.address),text=lambda:'Account group',
+                          wait=lambda predicate:predicate())
         self.report['mainRowCopy']={}
         for expected,succeeds in [('0x1111111111111111111111111111111111111111',True),('0x2222222222222222222222222222222222222222',False)]:
             with self.subTest(expected=expected):
@@ -504,7 +686,129 @@ class WailsMainRowCopy(unittest.TestCase):
                 else:
                     with self.assertRaisesRegex(RuntimeError,'independently derived'):
                         self.scope['main_row_copy'](expected)
-        self.assertEqual(self.desktop.accept.call_count,2)
+        self.desktop.accept.assert_not_called()
+        self.clipboard.assert_not_called()
+
+    def test_malformed_direct_ack_or_wallet_navigation_cannot_pass_the_main_row_check(self):
+        self.scope.update(request_main_row_copy=mock.Mock(),wait=lambda predicate:predicate(),passed=mock.Mock())
+        self.report['mainRowCopy']={}
+        for value in ('','0x1111','not-an-address','0x'+'1'*41):
+            with self.subTest(value=value):
+                self.scope['request_main_row_copy'].return_value=value
+                with self.assertRaisesRegex(RuntimeError,'complete Ethereum address'):
+                    self.scope['main_row_copy']()
+        self.scope['request_main_row_copy'].return_value=self.address
+        self.status.return_value='Account group Copy address'
+        with self.assertRaisesRegex(RuntimeError,'opened a wallet page'):
+            self.scope['main_row_copy']()
+        self.scope['passed'].assert_not_called()
+        self.desktop.accept.assert_not_called()
+
+
+class WailsPublicKeyboardCopy(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('address_selection_target','native_copy_shortcut','public_words_position')
+        functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.desktop=SimpleNamespace(d=object())
+        self.clock=SimpleNamespace(sleep=mock.Mock())
+        self.events=mock.Mock()
+        codes={b'Control_L':37,b'Shift_L':50,b'c':54,b'Insert':118}
+        self.keyboard=SimpleNamespace(XStringToKeysym=mock.Mock(side_effect=lambda name:name),
+                                      XKeysymToKeycode=mock.Mock(side_effect=lambda _,name:codes.get(name,0)),
+                                      XFlush=mock.Mock())
+        self.scope={'re':re,'desktop':self.desktop,'time':self.clock,
+                    'mod':SimpleNamespace(X=self.keyboard,T=SimpleNamespace(XTestFakeKeyEvent=self.events))}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'wails-public-keyboard-copy','exec'),self.scope)
+        self.geometry=(80,100,1440,900)
+        self.address='0x1111111111111111111111111111111111111111'
+
+    def word(self,text,x,y,width=90,line=1):
+        return ['5','1',str(line),'1','1','1',str(x),str(y),str(width),'18','99',text]
+
+    def fixture(self,context):
+        if context=='overview':
+            labels=[self.word('Account',180,300,line=1),self.word('group',270,300,line=1),self.word('Ethereum',178,552,line=2)]
+            top=552
+        elif context=='wallet':
+            labels=[self.word('Copy',1100,400,line=1),self.word('address',1195,400,line=1),
+                    self.word('Receive',180,490,line=2),self.word('address',275,490,line=2)]
+            top=490
+        else:
+            labels=[self.word('Copy',1100,520,line=1),self.word('address',1195,520,line=1)]
+            top=520
+        return labels+[self.word(self.address,500,top,700,line=3)],(850,top+9)
+
+    def test_selection_targets_the_visible_public_address_in_each_actual_context(self):
+        for context in ('overview','wallet','receive'):
+            with self.subTest(context=context):
+                rows,point=self.fixture(context)
+                self.assertEqual(self.scope['address_selection_target'](context,rows,self.geometry),point)
+                self.assertEqual(rows[-1][11],self.address)
+
+    def test_wrong_context_or_an_address_from_another_row_cannot_supply_a_target(self):
+        rows,_=self.fixture('overview')
+        with self.assertRaisesRegex(RuntimeError,'Unknown public'):
+            self.scope['address_selection_target']('password',rows,self.geometry)
+        with self.assertRaisesRegex(RuntimeError,'left the wallet'):
+            self.scope['address_selection_target']('wallet',rows,self.geometry)
+        rows[-1][7]='650'
+        with self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+            self.scope['address_selection_target']('overview',rows,self.geometry)
+        self.events.assert_not_called()
+
+    def test_split_ocr_prefix_only_locates_selection_and_excludes_the_lower_summary(self):
+        rows,point=self.fixture('receive')
+        rows[-1][11]=self.address[:8];rows[-1][8]='82'
+        rows.append(self.word(self.address,500,650,700,line=4))
+        self.assertEqual(self.scope['address_selection_target']('receive',rows,self.geometry),(541,point[1]))
+        rows[-2][11]='0x12';rows[-2][8]='35'
+        with self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+            self.scope['address_selection_target']('receive',rows,self.geometry)
+
+    def test_ambiguous_address_tokens_clipped_tokens_and_unowned_bounds_are_rejected(self):
+        rows,_=self.fixture('overview')
+        for extra in (self.word('Ethereum',178,552,line=4),self.word(self.address,510,552,700,line=4)):
+            with self.subTest(extra=extra[11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+                self.scope['address_selection_target']('overview',rows+[extra],self.geometry)
+        for left in ('70','1000'):
+            clipped=[list(row) for row in rows];clipped[-1][6]=left
+            with self.subTest(left=left),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+                self.scope['address_selection_target']('overview',clipped,self.geometry)
+        with self.assertRaisesRegex(RuntimeError,'owned display'):
+            self.scope['address_selection_target']('overview',rows,(80,100,1600,1100))
+        self.events.assert_not_called()
+
+    def test_supported_native_shortcuts_release_all_keys_in_reverse_order(self):
+        for shortcut,codes in (('Ctrl+C',(37,54)),('Ctrl+Shift+C',(37,50,54)),('Ctrl+Insert',(37,118))):
+            with self.subTest(shortcut=shortcut):
+                self.events.reset_mock();self.keyboard.XFlush.reset_mock()
+                self.scope['native_copy_shortcut'](shortcut)
+                self.assertEqual(self.events.call_args_list,
+                                 [mock.call(self.desktop.d,code,1,0) for code in codes]+
+                                 [mock.call(self.desktop.d,code,0,0) for code in reversed(codes)])
+                self.keyboard.XFlush.assert_called_once_with(self.desktop.d)
+
+    def test_unsupported_or_unmapped_shortcuts_never_send_partial_key_input(self):
+        with self.assertRaisesRegex(RuntimeError,'Unsupported public'):
+            self.scope['native_copy_shortcut']('Ctrl+V')
+        self.keyboard.XStringToKeysym.assert_not_called()
+        self.keyboard.XKeysymToKeycode.side_effect=lambda _,name:0 if name==b'Insert' else 37
+        with self.assertRaisesRegex(RuntimeError,'lacks a required copy key'):
+            self.scope['native_copy_shortcut']('Ctrl+Insert')
+        self.events.assert_not_called()
+        self.keyboard.XFlush.assert_not_called()
+
+    def test_failed_key_press_still_releases_already_pressed_modifiers(self):
+        def inject(_,code,pressed,__):
+            if code==50 and pressed:raise RuntimeError('owned test key injection failed')
+        self.events.side_effect=inject
+        with self.assertRaisesRegex(RuntimeError,'owned test key injection failed'):
+            self.scope['native_copy_shortcut']('Ctrl+Shift+C')
+        self.assertEqual(self.events.call_args_list,[mock.call(self.desktop.d,37,1,0),
+                                                    mock.call(self.desktop.d,50,1,0),
+                                                    mock.call(self.desktop.d,37,0,0)])
+        self.keyboard.XFlush.assert_called_once_with(self.desktop.d)
 
 
 class WailsNearNavigation(unittest.TestCase):
@@ -764,7 +1068,7 @@ class WailsAppearanceCapture(unittest.TestCase):
                 picture = Image.new('RGB', (800, 700), colors['page'])
                 bounds = (50, 30, 680, 528)
                 for top in (250, 360):
-                    picture.paste(colors['input'], (76, top, 704, top + 54))
+                    ImageDraw.Draw(picture).rounded_rectangle((76,top,703,top+53),radius=6,fill=colors['input'],outline=colors['border'])
                 # A footer with the same surface color must not be mistaken
                 # for a third password field, even in the light theme.
                 picture.paste(colors['input'], (50, 484, 730, 558))
@@ -781,6 +1085,20 @@ class WailsAppearanceCapture(unittest.TestCase):
         self.desktop.image.assert_not_called()
         self.x.XGrabServer.assert_called_once_with(self.desktop.d)
         self.x.XUngrabServer.assert_called_once_with(self.desktop.d)
+
+    def test_focused_empty_input_caret_cannot_split_a_real_entry_into_missing_fields(self):
+        for theme in ('light','dark'):
+            with self.subTest(theme=theme):
+                self.scope['appearance']['theme']=theme
+                colors=self.scope['palette']()
+                picture=Image.new('RGB',(800,700),colors['surface'])
+                for top in (250,360):
+                    ImageDraw.Draw(picture).rounded_rectangle((76,top,703,top+53),radius=6,fill=colors['input'],outline=colors['border'])
+                # The old x+40 probe falls exactly on the ordinary empty
+                # input caret (26px body inset + border +12px text padding).
+                ImageDraw.Draw(picture).line((90,265,90,289),fill='white' if theme=='dark' else 'black')
+                self.assertEqual(self.scope['masked_field_rectangles'](picture,(50,30,680,528),colors['input']),
+                                 [(250,303),(360,413)])
 
     def test_capture_and_conversion_exception_always_release_owned_server(self):
         self.desktop.image.side_effect = RuntimeError('synthetic capture failure')
@@ -925,7 +1243,7 @@ class WailsPrivateCopyNavigation(unittest.TestCase):
         tree = ast.parse((ROOT / 'scripts/wails-wallet-test.py').read_text())
         function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'private_click')
         self.desktop = SimpleNamespace(d=object(), wait=mock.Mock(return_value=(7, 'Back up recovery phrase')),
-                                       geometry=mock.Mock(return_value=(460, 220, 680, 660)), click=mock.Mock())
+                                       prompt_geometry=mock.Mock(return_value=(460, 220, 680, 660)), click=mock.Mock())
         self.rows = mock.Mock()
         self.motion, self.button, self.flush = mock.Mock(), mock.Mock(), mock.Mock()
         self.scope = {'desktop': self.desktop, 'private_rows': self.rows,
@@ -934,7 +1252,7 @@ class WailsPrivateCopyNavigation(unittest.TestCase):
                       'time': SimpleNamespace(sleep=mock.Mock())}
         exec(compile(ast.Module(body=[function], type_ignores=[]), 'wails-private-copy-test-helper', 'exec'), self.scope)
 
-    def test_only_authenticated_backup_copy_can_scroll_and_click_its_actual_label(self):
+    def test_recovery_copy_scrolls_and_clicks_its_actual_label_in_the_main_window(self):
         copy = ['5', '1', '1', '1', '1', '1', '100', '200', '40', '20', '99', 'Copy']
         phrase = copy[:]
         phrase[11] = 'phrase'
@@ -946,7 +1264,7 @@ class WailsPrivateCopyNavigation(unittest.TestCase):
         self.desktop.click.assert_called_once_with(580, 430)
 
     def test_unknown_private_prompt_or_action_is_rejected_before_pixels_or_input(self):
-        for prefix, words in (('Record recovery phrase', 'Copy phrase'),
+        for prefix, words in (('Verify receive address', 'Copy phrase'),
                               ('Back up recovery phrase', 'Done'),
                               ('Unlock local wallet', 'Continue')):
             with self.subTest(prefix=prefix, words=words):
@@ -955,6 +1273,15 @@ class WailsPrivateCopyNavigation(unittest.TestCase):
         self.rows.assert_not_called()
         self.desktop.wait.assert_not_called()
         self.desktop.click.assert_not_called()
+        self.motion.assert_not_called()
+
+    def test_initial_setup_copy_is_an_ordinary_explicit_dialog_action_too(self):
+        copy=['5','1','1','1','1','1','100','200','40','20','99','Copy']
+        phrase=copy[:];phrase[11]='phrase'
+        self.rows.return_value=[copy,phrase]
+        self.scope['private_click']('Record recovery phrase','Copy phrase')
+        self.rows.assert_called_once_with('Record recovery phrase')
+        self.desktop.click.assert_called_once_with(580,430)
         self.motion.assert_not_called()
 
     def test_missing_control_has_a_finite_body_scroll_bound_and_never_clicks(self):
@@ -1474,12 +1801,12 @@ class WailsPrivatePhraseGrid(unittest.TestCase):
     def fixture(self,width=920,count=12,height=42):
         picture=Image.new('RGB',(width,980),self.colors['page'])
         columns=4 if width>=760 else 3
-        cell=(width-58-(columns-1)*8)/columns
+        cell=(width-52-(columns-1)*8)/columns
         boxes=[]
         for row in range((count+columns-1)//columns):
             for column in range(columns):
-                left=int(29+column*(cell+8)+.5)
-                right=int(29+(column+1)*cell+column*8+.5)-1
+                left=int(26+column*(cell+8)+.5)
+                right=int(26+(column+1)*cell+column*8+.5)-1
                 top=200+row*(height+8)
                 box=(left,top,right,top+height-1);boxes.append(box)
                 ImageDraw.Draw(picture).rounded_rectangle(box,radius=6,fill=self.colors['button'],outline=self.colors['border'])
@@ -1494,7 +1821,7 @@ class WailsPrivatePhraseGrid(unittest.TestCase):
                     self.assertEqual(len(cells),count)
                     self.assertEqual([(c[0],c[2]-1) for c in cells],[(b[0],b[2]) for b in boxes])
         picture,_=self.fixture()
-        self.assertEqual([c[0] for c in self.measure(picture,12)[:4]],[29,247,464,682])
+        self.assertEqual([c[0] for c in self.measure(picture,12)[:4]],[26,245,464,683])
 
     def test_supported_font_card_heights_and_dark_palette_keep_complete_rows(self):
         for height in (34,42,50):
@@ -1629,7 +1956,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsPrivateStartup, WailsMainRowCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

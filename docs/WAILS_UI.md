@@ -1,5 +1,8 @@
 # Wails / React UI migration
 
+> Owner update (2026-10-29): the shipped Wails UI now uses one trusted main window with reusable in-page dialogs and ordinary Wails bindings. It no longer launches a private UI self-role, isolated prompt page or one-use UI pipe. Normal selection/copy/cut/paste are enabled. The main UI is trusted with entered/displayed secrets and approval intent. This supersedes the separate-renderer and noncopyable-secret requirements below, which describe earlier designs. Go signer/core isolation, cryptography, reauthentication and transaction validation remain. See [the current trust model](TRUSTED_UI.md).
+
+
 The 2026-10-28 owner request selects the same main UI architecture as `/home/neodix/gitProjects/charting`: pinned Wails v2.17.0 and React/TypeScript, rendered by system WebKitGTK 4.1 on Linux. Charting's optional Screener includes separate Chromium automation; that feature is not copied into this wallet. CryptoWallet's default UI does not load Electron or Chromium.
 
 ## Build environment
@@ -16,15 +19,13 @@ When global development headers are unavailable, `scripts/native-env.sh` can use
 
 The local Wails fork is narrowly pinned in go.mod to v2.17.0 under `third_party/wails`. Its scoped hardening and upstream provenance are recorded with that source. Redistribution metadata records hashes of the actual fork source files. Other local Go dependency replacements remain rejected by the portable notice collector. React/ReactDOM and their production dependency notices are collected from installed npm identities matching the locked integrity/version records; Go and frontend notices are embedded before compilation.
 
-## Trust boundary
+## Current trusted UI
 
-The frontend is packaged local code. Portfolio state and ordinary actions must remain separate from private prompt data. Exact prompt request IDs, current lifecycle state and Go-authored details authorize each private reply; arbitrary public callbacks cannot supply approval text or retrieve phrases. The trusted webview/prompt implementation necessarily sees entered credentials and displayed phrase words. No browser storage, disk cache, downloaded executable code, remote fonts or remote UI assets are required. Go seed/private-key ownership, encryption, password reauthentication and original transaction journal rules are unchanged.
+The main Wails window now handles every application dialog through its ordinary bindings. See [TRUSTED_UI.md](TRUSTED_UI.md) for the complete architecture, allowed clipboard operations and remaining Go signer checks. There is no separate prompt executable/page, inherited UI pipe or per-view copy restriction. The entire packaged UI is trusted with prompted secrets and approval intent. Normal keyboard/context-menu copy/cut/paste are enabled; completed dialogs clear their DOM as a best effort.
 
-Authenticated phrase copying is an argument-free private control request bound to the exact prompt ID, session and monotonically increasing sequence. No words travel in that control message. The parent Go UI authorizes the actual GTK clipboard commit under its lifecycle epoch guard and owns CLIPBOARD afterward, so an authorized copy survives closing its temporary private view. PRIMARY is untouched. Cancellation/lock/close revoke pending controls and synchronously reap the private process before returning; an ambiguous acknowledgment cannot trigger replacement automatically. This does not guarantee OS-wide clipboard erasure: other applications and clipboard history can retain copied words.
+The Go coordinator/signer and system WebKit engine still use their own implementation processes. Their owner-requested lack of syscall/renderer sandbox remains unchanged. No Chrome/SUID/root configuration is involved. Local assets, no persistent browser secrets and silent secret-bearing framework logs remain.
 
-The Go coordinator/signer apply no syscall sandbox, as requested. No Chrome SUID helper or root configuration is involved. WebKitGTK is a system browser engine. This pinned Wails fork explicitly disables its renderer sandbox before creating the WebView, as requested, and verifies that state without an environment bypass. Renderer processes still exist; the application is not a static Go drawing library. Application-level CSP/bridge restrictions remain mandatory. Do not add `--no-sandbox` to an old Electron binary.
-
-## Current evidence
+## Historical migration evidence
 
 The recorded installed candidate is version 0.1.1, SHA256 `b82b8c06efd7f7ed849e9467f0a0aabd328f08f0e92f81e4a740ce47eaabb260`. Reports retain exact identities; later rebuilds require affected checks again. Wails results must be bound to the newly compiled executable or unchanged source. The superseded handwritten GTK GUI/coverage campaigns and historical Electron acceptance do not pass these new interface gates.
 

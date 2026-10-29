@@ -4,9 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Field, PublicApp, PublicContent, PublicNode, WalletShell } from './PublicApp';
-import { PrivateApp, PromptContents } from './PrivateApp';
-import { id, node, phrase, view } from './test-fixtures';
-import type { Prompt, Reply, View, WalletEvent } from './types';
+import { node, view } from './test-fixtures';
+import type { View, WalletEvent } from './types';
 
 let root: Root | undefined;
 let host: HTMLDivElement;
@@ -46,6 +45,43 @@ describe('public React renderer', () => {
     expect(emit.mock.calls).toEqual([['copyReceive/a']]);
     await click(host.querySelector('td:nth-child(2)'));
     expect(emit.mock.calls[1]).toEqual(['open/a']);
+  });
+  it('preserves public address selection and native copy shortcuts without opening the wallet row', async () => {
+    const address = '0x' + '2'.repeat(40), row = node('row', 'open/public');
+    row.Children = [node('button', 'open/public', 'Ethereum'), node('label', '', 'Unknown ETH'), node('address', '', '', address), node('button', 'copyReceive/public', '⧉')];
+    const emit = vi.fn(); await mount(<PublicContent page={{ ID: 'group/0', Title: 'Main account', Nodes: [row] }} emit={emit}/>);
+    const tr = host.querySelector('tbody tr')!, code = tr.querySelector('code')!, balance = tr.querySelector('td:nth-child(2)')!;
+    await click(code);
+    await click(code.parentElement);
+    expect(emit).not.toHaveBeenCalled();
+    const selection = window.getSelection()!, range = document.createRange();
+    range.selectNodeContents(code); selection.removeAllRanges(); selection.addRange(range);
+    try {
+      expect(selection.toString()).toBe(address);
+      // A drag can finish over a neighboring cell. Its click must also keep
+      // the selected text/page intact until the user's copy key is handled.
+      await click(balance);
+      for (const shiftKey of [false, true]) {
+        const key = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, shiftKey, bubbles: true, cancelable: true });
+        await act(async () => { code.dispatchEvent(key); });
+        expect(key.defaultPrevented).toBe(false);
+      }
+      const copy = new Event('copy', { bubbles: true, cancelable: true });
+      await act(async () => { code.dispatchEvent(copy); });
+      expect(copy.defaultPrevented).toBe(false);
+      expect(selection.toString()).toBe(address);
+      expect(emit).not.toHaveBeenCalled();
+      await click(tr.querySelector('[data-action="copyReceive/public"]'));
+      expect(emit.mock.calls).toEqual([['copyReceive/public']]);
+      selection.removeAllRanges();
+      await click(balance);
+      for (const key of ['Enter', ' ']) {
+        const activation = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        await act(async () => { tr.dispatchEvent(activation); });
+        expect(activation.defaultPrevented).toBe(true);
+      }
+      expect(emit.mock.calls).toEqual([['copyReceive/public'], ['open/public'], ['open/public'], ['open/public']]);
+    } finally { selection.removeAllRanges(); }
   });
   it('renders token balances in three columns and exposes exact contract identity only on hover or focus', async () => {
     const table = node('column', 'walletAssets/ethereum:0', 'Wallet assets');
@@ -281,67 +317,5 @@ describe('public React renderer', () => {
     await act(async () => { vi.advanceTimersByTime(1000); });
     expect(host.querySelector('.status-bar')!.textContent).toBe('');
     expect(host.textContent).not.toContain('Dismiss');
-  });
-});
-
-function bridge(prompt: Prompt, reply: (reply: Reply) => Promise<boolean> = async () => true) {
-  const copy = vi.fn(async () => true), activity = vi.fn(async () => true);
-  window.go = { webui: { PrivateBridge: { Prompt: vi.fn(async () => prompt), Reply: vi.fn(reply), Copy: copy, Activity: activity } } };
-  return { copy, activity };
-}
-
-describe('separate private React prompt', () => {
-  it('masks every input and clears DOM before the private reply crosses its bridge', async () => {
-    let received: Reply | undefined;
-    bridge({ id, kind: 'input', title: 'Unlock local wallet', labels: ['App password'] }, async value => {
-      expect(host.querySelector('input')?.value || '').toBe(''); received = structuredClone(value); return true;
-    });
-    await mount(<PrivateApp/>);
-    const input = host.querySelector('input')!; expect(input.type).toBe('password'); expect(input.autocomplete).toBe('off');
-    input.value = 'disposable-test-password'; await submit();
-    expect(received).toEqual({ promptId: id, accepted: true, values: ['disposable-test-password'] });
-    expect(host.querySelector('input')).toBeNull();
-  });
-  it('rejects inputs exceeding the byte limit without passing them to Go', async () => {
-    bridge({ id, kind: 'input', title: 'Import', labels: ['Recovery phrase'] });
-    await mount(<PrivateApp/>); host.querySelector('input')!.value = 'é'.repeat(2049); await submit();
-    expect(window.go!.webui!.PrivateBridge!.Reply).not.toHaveBeenCalled(); expect(host.textContent).toContain('4096 bytes');
-  });
-  it('shows numbered initial words without any clipboard operation', async () => {
-    const { copy } = bridge({ id, kind: 'recovery', title: 'Record recovery phrase', phrase });
-    await mount(<PrivateApp/>);
-    expect(host.querySelectorAll('[data-recovery-word]')).toHaveLength(12);
-    expect(host.textContent).toContain('12about'); expect(host.textContent).not.toContain('Copy phrase');
-    const event = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
-    await act(async () => { window.dispatchEvent(event); }); expect(event.defaultPrevented).toBe(true); expect(copy).not.toHaveBeenCalled();
-  });
-  it('copies only an explicit authenticated backup and sends no phrase argument', async () => {
-    const { copy } = bridge({ id, kind: 'recoveryBackup', title: 'Back up recovery phrase', phrase });
-    await mount(<PrivateApp/>);
-    await click([...host.querySelectorAll('button')].find(button => button.textContent === 'Copy phrase')!);
-    expect(copy.mock.calls).toEqual([[]]); expect(host.textContent).toContain('clipboard history');
-    expect(host.querySelectorAll('[data-recovery-word]')).toHaveLength(12);
-    await submit(); expect(host.textContent).not.toContain('abandon');
-  });
-  it('uses the Go-provided local QR and argument-free public address copy', async () => {
-    const { copy } = bridge({ id, kind: 'receive', title: 'Receive ETH', address: '0x123', png: 'iVBORw0KGgo=', summary: 'Ethereum mainnet' });
-    await mount(<PrivateApp/>);
-    expect(host.querySelector('img')!.src).toBe('data:image/png;base64,iVBORw0KGgo=');
-    await click([...host.querySelectorAll('button')].find(button => button.textContent === 'Copy address')!);
-    expect(copy.mock.calls).toEqual([[]]);
-  });
-  it('revokes and clears a live phrase, rejects late delivery and never renders summary HTML', async () => {
-    bridge({ id, kind: 'recoveryBackup', title: 'Backup', phrase }); await mount(<PrivateApp/>);
-    await act(async () => { push(); });
-    expect(host.textContent).not.toContain('abandon'); expect(window.go!.webui!.PrivateBridge!.Reply).toHaveBeenCalledWith({ promptId: id, accepted: false });
-    const markup = renderToStaticMarkup(<PromptContents prompt={{ id, kind: 'confirm', title: 'Review', summary: '<iframe src="https://bad.invalid">' }} error="" copyStatus="" copying={false} copy={() => {}}/>);
-    expect(markup).toContain('&lt;iframe'); expect(markup).not.toContain('<iframe');
-  });
-  it('does not display a prompt that arrives after its private frame is revoked', async () => {
-    let resolve!: (value: Prompt) => void;
-    window.go = { webui: { PrivateBridge: { Prompt: () => new Promise(done => { resolve = done; }), Reply: vi.fn(async () => true), Copy: vi.fn(async () => true), Activity: vi.fn(async () => true) } } };
-    await mount(<PrivateApp/>);
-    await act(async () => { push(); resolve({ id, kind: 'recovery', title: 'Record', phrase }); });
-    expect(host.textContent).not.toContain('abandon');
   });
 });

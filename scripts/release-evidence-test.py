@@ -181,7 +181,7 @@ class ReleaseEvidence(unittest.TestCase):
         report['sourceSHA256'] = binding.go_sources(self.root)
         report['profiles'] = [{'file': 'reports/' + name, 'sha256': binding.sha256(self.root / 'reports' / name)} for name in inputs]
         report['nativeRuntime'] = {'status': 'PASS', 'sourceStable': True, 'instrumented': True,
-            'processIDs': [123, 124], 'privateProcessIDs': [456, 457], 'privateCounterProcesses': [456, 457], 'coverageStatus': 'MEASURED',
+            'processIDs': [123, 124], 'uiCounterProcesses': [123, 124], 'coverageStatus': 'MEASURED',
             'producerSHA256': binding.sha256(self.root / 'scripts/wails-wallet-test.py'),
             'instrumentedBinarySHA256': 'a' * 64,
             'artifact': {'runtime': 'wails-webkitgtk4.1; portable-go; sandbox=none', 'sha256': 'a' * 64}}
@@ -196,7 +196,6 @@ class ReleaseEvidence(unittest.TestCase):
         # These public counter/bundle fixtures exercise rejection semantics.
         # They are never executed or presented as a React coverage measurement.
         self.write('internal/webui/frontend/dist/index.html', '<main>Public fixture</main>')
-        self.write('internal/webui/frontend/dist/secret/index.html', '<main>Private-role fixture</main>')
         self.write('internal/webui/frontend/dist/assets/fixture.js', '// Public compiled source fixture')
         summary = {}
         for name in binding.wails_frontend_files(self.root):
@@ -219,16 +218,16 @@ class ReleaseEvidence(unittest.TestCase):
         self.write_json('reports/frontend-coverage.json', report)
         self.assert_blocked('wails-frontend-coverage-missing-or-unstable')
 
-    def test_current_wails_requires_every_observed_private_role_counter(self):
+    def test_current_wails_requires_every_observed_ui_process_counter(self):
         self.current_wails_fixture()
         original = self.report('go-coverage')
         mutations = [
-            {'privateCounterProcesses': [456]},
-            {'privateCounterProcesses': [456, 789]},
-            {'privateCounterProcesses': []},
-            {'privateProcessIDs': [123, 457]},
-            {'privateProcessIDs': [456, 456]},
-            {'privateProcessIDs': [True, 457]},
+            {'uiCounterProcesses': [456]},
+            {'uiCounterProcesses': [456, 789]},
+            {'uiCounterProcesses': []},
+            {'processIDs': [123, 457]},
+            {'processIDs': [456, 456]},
+            {'processIDs': [True, 457]},
             {'processIDs': []},
             {'processIDs': [1]},
             {'coverageStatus': 'NOT_RUN'},
@@ -238,7 +237,7 @@ class ReleaseEvidence(unittest.TestCase):
                 report = json.loads(json.dumps(original))
                 report['nativeRuntime'].update(changed)
                 self.write_json('reports/go-coverage.json', report)
-                self.assert_blocked('go-coverage-private-process-counters-incomplete')
+                self.assert_blocked('go-coverage-ui-process-counters-incomplete')
         self.write_json('reports/go-coverage.json', original)
         self.assertEqual(self.failures(), [])
 
@@ -269,7 +268,7 @@ class ReleaseEvidence(unittest.TestCase):
 
     def test_current_wails_frontend_source_and_compiled_assets_are_bound(self):
         self.current_wails_fixture()
-        for name in ('internal/webui/frontend/src/PrivateApp.tsx',
+        for name in ('internal/webui/frontend/src/Dialog.tsx',
                      'internal/webui/frontend/src/added.test.tsx',
                      'internal/webui/frontend/package-lock.json'):
             with self.subTest(name=name):
@@ -289,7 +288,7 @@ class ReleaseEvidence(unittest.TestCase):
         self.current_wails_fixture()
         raw = 'reports/wails-frontend/coverage-summary.json'
         summary = binding.read_json(self.root, raw)
-        summary[str(self.root / 'internal/webui/frontend/src/PrivateApp.tsx')] = {
+        summary[str(self.root / 'internal/webui/frontend/src/Dialog.tsx')] = {
             'statements': {'total': 100, 'covered': 94, 'pct': 94},
             'branches': {'total': 100, 'covered': 89, 'pct': 89}}
         self.write_json(raw, summary)
@@ -302,9 +301,9 @@ class ReleaseEvidence(unittest.TestCase):
         self.write_json('reports/frontend-coverage.json', report)
         self.assert_blocked('wails-frontend-coverage-floors-or-measurement-mismatch')
         for metric in ('statements', 'branches'):
-            summary[str(self.root / 'internal/webui/frontend/src/PrivateApp.tsx')][metric]['pct'] = 100
+            summary[str(self.root / 'internal/webui/frontend/src/Dialog.tsx')][metric]['pct'] = 100
         rows = binding.wails_frontend_rows(self.root, summary)
-        self.assertEqual(next(row for row in rows if row['file'] == 'src/PrivateApp.tsx')['status'], 'FAIL')
+        self.assertEqual(next(row for row in rows if row['file'] == 'src/Dialog.tsx')['status'], 'FAIL')
 
     def test_current_wails_frontend_requires_all_production_modules_and_counts(self):
         self.current_wails_fixture()
@@ -313,7 +312,7 @@ class ReleaseEvidence(unittest.TestCase):
         self.assertEqual(types['status'], 'NOT_APPLICABLE')
         self.assertEqual(types['statements']['total'], 0)
         summary = binding.read_json(self.root, 'reports/wails-frontend/coverage-summary.json')
-        for name in ('main.tsx', 'private-main.tsx', 'protocol.ts', 'icons.tsx'):
+        for name in ('main.tsx', 'Dialog.tsx', 'protocol.ts', 'icons.tsx'):
             with self.subTest(name=name):
                 altered = dict(summary)
                 del altered[str(self.root / 'internal/webui/frontend/src' / name)]
@@ -351,7 +350,7 @@ class ReleaseEvidence(unittest.TestCase):
         self.current_wails_fixture()
         def run(command, **kwargs):
             if command[-1] == 'coverage':
-                self.write('internal/webui/frontend/src/PrivateApp.tsx', '// Public concurrently changed fixture')
+                self.write('internal/webui/frontend/src/Dialog.tsx', '// Public concurrently changed fixture')
             return subprocess.CompletedProcess(command, 0)
         with mock.patch.object(frontend.subprocess, 'run', side_effect=run):
             report = frontend.measure_wails(self.root)
@@ -391,7 +390,7 @@ class ReleaseEvidence(unittest.TestCase):
 
     def test_current_wails_cannot_drop_required_frontend_or_fork_pin(self):
         self.current_wails_fixture()
-        for name in ('internal/webui/frontend/src/PrivateApp.tsx',
+        for name in ('internal/webui/frontend/src/Dialog.tsx',
                      'internal/webui/frontend/package-lock.json', 'third_party/wails/WALLET-PATCHES.json'):
             with self.subTest(missing=name):
                 path = self.root / name

@@ -18,7 +18,7 @@ declare global {
   interface Window {
     go?: { webui?: {
       PublicBridge?: { Snapshot(): Promise<unknown>; Event(event: WalletEvent): Promise<boolean> };
-      PrivateBridge?: { Prompt(): Promise<unknown>; Reply(reply: Reply): Promise<boolean>; Copy(): Promise<boolean>; Activity(): Promise<boolean> };
+      DialogBridge?: { Snapshot(): Promise<unknown>; Reply(reply: Reply): Promise<boolean>; Copy(promptId: string): Promise<boolean>; Activity(promptId: string): Promise<boolean> };
     } };
     runtime?: { EventsOn(name: string, callback: (...args: unknown[]) => void): () => void };
   }

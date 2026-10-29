@@ -48,15 +48,19 @@ func TestVerifiedReceiveCopyBindsEachNetworkAddressAndQR(t *testing.T) {
 			t.Fatal("opening or completing receive automatically copied an address")
 		}
 	}
-	// The older explicit copy endpoint still requires an accepted native view.
+	// Receive remains an explicit verified view. The public Copy icon instead
+	// copies the displayed account address directly, without another dialog.
 	a := findAccount(t, e, "ethereum-sepolia")
 	ui.approve = false
-	if e.CopyReceive(a.ID) == nil || ui.copied != unchanged {
-		t.Fatal("cancelled native view permitted endpoint clipboard copy")
+	if _, err := e.Receive(a.ID); err == nil || ui.copied != unchanged {
+		t.Fatal("cancelled receive view copied an address")
 	}
-	ui.approve = true
+	views := len(ui.addresses)
 	if err := e.CopyReceive(a.ID); err != nil || ui.copied != a.Address {
-		t.Fatal("explicit verified copy endpoint changed address", err)
+		t.Fatal("explicit public copy endpoint changed address", err)
+	}
+	if len(ui.addresses) != views {
+		t.Fatal("public copy opened a second receive window")
 	}
 }
 

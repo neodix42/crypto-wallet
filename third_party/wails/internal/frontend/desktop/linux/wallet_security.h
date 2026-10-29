@@ -1,5 +1,5 @@
-/* CryptoWallet additions to pinned Wails v2.17.0. See WALLET-HARDENING.md.
- * A private, ephemeral WebKit context with a default-deny browser surface.
+/* CryptoWallet additions to pinned Wails v2.17.0. See CRYPTO_WALLET_PATCHES.md.
+ * An ephemeral local WebKit context with normal user clipboard interaction.
  * This is application policy, not an operating-system sandbox. */
 #ifndef CRYPTOWALLET_WEBKIT_SECURITY_H
 #define CRYPTOWALLET_WEBKIT_SECURITY_H
@@ -40,7 +40,11 @@ static gboolean wallet_decide_policy(WebKitWebView *view, WebKitPolicyDecision *
 }
 static GtkWidget *wallet_create(WebKitWebView *view, WebKitNavigationAction *action, gpointer data) { return NULL; }
 static gboolean wallet_permission(WebKitWebView *view, WebKitPermissionRequest *request, gpointer data)
-{ webkit_permission_request_deny(request); return TRUE; }
+{
+    if (WEBKIT_IS_CLIPBOARD_PERMISSION_REQUEST(request)) webkit_permission_request_allow(request);
+    else webkit_permission_request_deny(request);
+    return TRUE;
+}
 static gboolean wallet_file_chooser(WebKitWebView *view, WebKitFileChooserRequest *request, gpointer data)
 { webkit_file_chooser_request_cancel(request); return TRUE; }
 static gboolean wallet_authenticate(WebKitWebView *view, WebKitAuthenticationRequest *request, gpointer data)
@@ -53,11 +57,13 @@ static gboolean wallet_notification(WebKitWebView *view, WebKitNotification *not
 static void wallet_download(WebKitWebContext *context, WebKitDownload *download, gpointer data) { webkit_download_cancel(download); }
 static gboolean wallet_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-    /* Clipboard writes are explicit, validated Go actions; native browser
-       shortcuts cannot copy a secret around that authorization. Paste works. */
+    /* Ctrl+Shift+C is a supported copy alias. Ordinary Copy/Cut/Paste keep
+       WebKit's native editing behavior in this single trusted UI. */
     guint key = gdk_keyval_to_lower(event->keyval);
-    if ((event->state & GDK_CONTROL_MASK) && (key == GDK_KEY_c || key == GDK_KEY_x || key == GDK_KEY_Insert)) return TRUE;
-    if ((event->state & GDK_SHIFT_MASK) && key == GDK_KEY_Delete) return TRUE;
+    if ((event->state & GDK_CONTROL_MASK) && (key == GDK_KEY_c || key == GDK_KEY_Insert)) {
+        webkit_web_view_execute_editing_command(WEBKIT_WEB_VIEW(widget), WEBKIT_EDITING_COMMAND_COPY);
+        return TRUE;
+    }
     return FALSE;
 }
 static void wallet_scheme_request(WebKitURISchemeRequest *request, gpointer data)
@@ -79,7 +85,7 @@ static void wallet_configure_webview(GtkWidget *widget, WebKitWebContext *contex
     webkit_settings_set_enable_html5_database(settings, FALSE);
     webkit_settings_set_enable_page_cache(settings, FALSE);
     webkit_settings_set_javascript_can_open_windows_automatically(settings, FALSE);
-    webkit_settings_set_javascript_can_access_clipboard(settings, FALSE);
+    webkit_settings_set_javascript_can_access_clipboard(settings, TRUE);
     webkit_settings_set_allow_file_access_from_file_urls(settings, FALSE);
     webkit_settings_set_allow_universal_access_from_file_urls(settings, FALSE);
     webkit_settings_set_allow_top_navigation_to_data_urls(settings, FALSE);

@@ -1,5 +1,8 @@
 # Delivery milestones and release evidence
 
+> Owner update (2026-10-29): the shipped Wails UI now uses one trusted main window with reusable in-page dialogs and ordinary Wails bindings. It no longer launches a private UI self-role, isolated prompt page or one-use UI pipe. Normal selection/copy/cut/paste are enabled. The main UI is trusted with entered/displayed secrets and approval intent. This supersedes the separate-renderer and noncopyable-secret requirements below, which describe earlier designs. Go signer/core isolation, cryptography, reauthentication and transaction validation remain. See [the current trust model](docs/TRUSTED_UI.md).
+
+
 > Current owner update (2026-10-28): [START_HERE.txt](START_HERE.txt) supersedes earlier Horizen-network coverage and Connect-only password requirements. Active coverage is eight mainnet networks/ten pinned assets; standard Ethereum/Base ERC-20 tracking and bounded read-only Base discovery are supported. Light/18px defaults and Settings Appearance apply to public/private Wails views. All unrelated secret-handling, approval, recovery and test gates remain mandatory.
 
 ## Working rules

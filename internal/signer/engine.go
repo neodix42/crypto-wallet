@@ -857,19 +857,22 @@ func (e *Engine) Pending() []journal.Operation {
 func DecodeBody(b []byte, out any) error { return strictjson.Decode(b, out) }
 
 func (e *Engine) CopyReceive(id string) error {
-	if _, err := e.Receive(id); err != nil {
-		return err
-	}
 	a, err := e.account(id)
-	if err != nil {
-		return err
+	if err != nil || !e.canAuthorize() {
+		return ErrDenied
 	}
-	u, ok := e.UI.(interface{ CopyPublic(string) })
+	adapter, err := e.adapter(a.Network)
+	if err != nil || adapter.ValidateAddress(a.Network, a.Address) != nil {
+		return ErrDenied
+	}
+	// Copy the exact address already shown for this owned account. Opening a
+	// temporary Receive window first would move focus away from the clipboard
+	// owner, and would advance Decred's address rather than copy the shown one.
+	u, ok := e.UI.(interface{ CopyPublic(string) error })
 	if !ok {
 		return ErrDenied
 	}
-	u.CopyPublic(a.Address)
-	return nil
+	return u.CopyPublic(a.Address)
 }
 func (e *Engine) SaveQR(id string) error {
 	png, err := e.Receive(id)

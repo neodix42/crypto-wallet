@@ -375,8 +375,9 @@ func File(title string, save bool) (string, error) {
 	return path, nil
 }
 
-func (Native) CopyPublic(address string) {
+func (Native) CopyPublic(address string) error {
 	s := cstr(address)
 	defer C.free(unsafe.Pointer(s))
 	C.public_copy(s)
+	return nil
 }

@@ -112,7 +112,7 @@ func (d *AssetServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Cache-Control", "no-store")
 	rw.Header().Set("Referrer-Policy", "no-referrer")
 	rw.Header().Set("X-Content-Type-Options", "nosniff")
-	rw.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), clipboard-read=(), clipboard-write=()")
+	rw.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), clipboard-read=(self), clipboard-write=(self)")
 	if req.Method != http.MethodGet || req.URL.RawQuery != "" {
 		rw.WriteHeader(http.StatusForbidden)
 		return
