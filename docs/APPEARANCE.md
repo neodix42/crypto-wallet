@@ -40,6 +40,36 @@ The locked page has no **Retry storage check** link. Press **Enter** to activate
 Unlock, then Enter in the masked storage-password field to submit. Repeated or
 IME-composition Enter events cannot submit duplicate private replies.
 
+Unlock has two separate costs. Opening its password form starts a fresh private
+Go/WebKit process and renders its embedded interface; it does not derive the
+password key or query blockchains. The main window immediately reports
+**Unlocking wallet…** while the request is pending. The temporary process remains
+isolated from the ordinary portfolio and is retired after its one-use reply.
+
+After password entry, the signer authenticates the encrypted vault with its
+stored Argon2id parameters and verifies every account descriptor. An unchanged
+vault is read without rewriting either encrypted generation. Interrupted payment
+states, unsigned exchange cancellations and a retired backup flag still require
+an authenticated atomic commit before unlocking succeeds. Those recovery cases
+retain the additional encryption/verification work; a failed commit locks the
+wallet. The default 256 MiB / three-pass / four-lane KDF, authentication and
+per-operation password requirements are unchanged. No derived-key cache is added.
+
+Controlled local measurements distinguish those phases: the original password
+form was ready in about 0.85 seconds; an unchanged unlock unnecessarily performed
+three KDFs. Removing its no-op write reduced a backend sample from 690 ms to
+241 ms and the actual password-to-overview paint sample from 1,206 ms to 692 ms.
+The private-window startup remains about 0.85 seconds. These are disposable-profile
+samples on this machine, not a hardware-independent latency guarantee. See
+[the evidence checklist](STATUS.md) for exact artifacts, scope and remaining gates.
+
+To measure backend unlock locally with the production KDF and all active network
+descriptors, use disposable fixtures through this opt-in benchmark:
+
+```sh
+./scripts/with-go.sh go test ./internal/signer -run '^$' -bench '^BenchmarkUnlockUnchangedVault$' -benchtime=3x -count=1
+```
+
 **Connect Bybit** uses the current unlocked, recovery-confirmed wallet session.
 Enter the API key and matching HMAC secret in its separate masked fields, then
 confirm the exact service and custody terms. Connecting repeats no app-password

@@ -16,6 +16,7 @@ mutants=[
  ('locked-signing','internal/signer/engine.go','func (e *Engine) Sign(id string) (model.Signed, error) {\n\tif !e.canAuthorize() {','func (e *Engine) Sign(id string) (model.Signed, error) {\n\tif false {','./internal/signer'),
  ('recovery-authorization','internal/signer/engine.go','return e.data != nil && !e.persistFailed && e.data.RecoveryConfirmed','return e.data != nil && !e.persistFailed','./internal/signer'),
  ('recorded-phrase-confirmation','internal/signer/engine.go','if !ui.Recovery("Record recovery phrase — Go signer", phrase) {','if false && !ui.Recovery("Record recovery phrase — Go signer", phrase) {','./internal/signer'),
+ ('unlock-recovery-durability','internal/signer/engine.go','if changed {\n\t\t// Recovery transitions must be durable','if false && changed {\n\t\t// Recovery transitions must be durable','./internal/signer'),
  ('nonce-reservation','internal/journal/journal.go','o.Plan.Account.ID == p.Account.ID && !Terminal(o.State)','o.Plan.Account.ID == p.Account.ID && false','./internal/journal ./internal/signer'),
  ('ambiguous-resign','internal/journal/journal.go','s == "CANCELLED" || s == "FAILED"','s == "UNKNOWN" || s == "CANCELLED" || s == "FAILED"','./internal/journal ./internal/signer'),
  ('password-reauthentication','internal/signer/engine.go','!hmac.Equal(in[0], e.password) || p.Expires','false || p.Expires','./internal/signer'),
@@ -54,6 +55,10 @@ backup_checks={
 # must be killed both by the journal rule and by real signing, encrypted journal
 # persistence, restart and rejection of a distinct replacement transaction.
 runtime_checks={
+ 'unlock-recovery-durability':[
+  ('./internal/signer', '^TestUnlockRecoveryTransitionsRemainDurable$/^SUBMITTING$', 'TestUnlockRecoveryTransitionsRemainDurable/SUBMITTING', 'recovery transitions were not committed as one new encrypted generation'),
+  ('./internal/signer', '^TestUnlockRecoveryWriteFailureStillLocksAndPreservesCiphertext$', 'TestUnlockRecoveryWriteFailureStillLocksAndPreservesCiphertext', 'failed recovery write released an unlocked session'),
+ ],
  'recovery-authorization':[
   ('./internal/signer', '^TestPreparedMainnetTransferRequiresRecordedPhraseAtEveryAuthorizationBoundary$', 'TestPreparedMainnetTransferRequiresRecordedPhraseAtEveryAuthorizationBoundary/before-sign', 'mainnet signature escaped after verified backup was revoked'),
  ],

@@ -413,7 +413,7 @@ func (e *Engine) recordRecovery() error {
 	return e.persist()
 }
 func (e *Engine) Unlock() error {
-	if e.data != nil {
+	if e.data != nil || e.persistFailed {
 		return ErrDenied
 	}
 	b, err := e.Files.Read("vault.lwv")
@@ -447,6 +447,7 @@ func (e *Engine) Unlock() error {
 	}
 	// Old portable-file verification never substitutes for acknowledging the
 	// recovery words. Clear the retired flag without changing the root or paths.
+	changed := d.DeprecatedBackupVerified
 	d.DeprecatedBackupVerified = false
 	e.data = d
 	adapters, err := adaptersWithTokens(e.Adapters, d.ERC20Tokens)
@@ -456,15 +457,23 @@ func (e *Engine) Unlock() error {
 	}
 	e.Adapters = adapters
 	e.password = append([]byte(nil), in[0]...)
-	journal.Recover(d.Operations)
+	changed = journal.Recover(d.Operations) || changed
 	if d.Exchange != nil {
 		for i := range d.Exchange.Operations {
 			if d.Exchange.Operations[i].State == "PREPARED" || d.Exchange.Operations[i].State == "AUTHORIZED" {
 				d.Exchange.Operations[i].State = "CANCELLED"
+				changed = true
 			}
 		}
 	}
-	return e.persist()
+	if changed {
+		// Recovery transitions must be durable before releasing this unlocked
+		// session. An unchanged read needs only the authenticated Open above;
+		// rewriting it would add two more production KDFs and replace the prior
+		// recovery generation without changing wallet state.
+		return e.persist()
+	}
+	return nil
 }
 func (e *Engine) AddAccount(index uint32) error {
 	return e.addAccounts(index, index)

@@ -1,5 +1,27 @@
 # Implementation and release evidence
 
+## Unlock latency and unchanged-vault reads — 2026-10-29
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, diagnosis | The original actual executable takes about 332 ms to map its fresh private WebKit window and 853 ms to show its enabled password form. No KDF or RPC precedes input; the ciphertext read takes about 0.1 ms. After input, an unconditional `persist()` needlessly seals, verifies and writes an unchanged vault after authenticated Open. That means three production Argon2id calls. Account validation takes about 3 ms. Numeric disposable-profile probes: `reports/unlock-engine-baseline.log`, `reports/unlock-paint-baseline.json`. |
+| PASS, measured optimization | Read-only unlock authenticates once and preserves both encrypted generations. Initial production-KDF backend samples improve from 690 ms to 241 ms; the actual password-to-overview paint sample improves from 1,206 ms to 692 ms. A separate three-iteration production-KDF benchmark with all active mainnet descriptors improves from 604 ms/op to 203 ms/op. These local samples are not hardware-independent guarantees. The private form still takes about 0.85 seconds; its separate process is retained. `reports/unlock-engine-after.log`, `reports/unlock-paint-after.json`, `reports/unlock-benchmark-{baseline,after}.log`. |
+| PASS, regression controls | Applying the former engine through a Go overlay fails the encrypted-generation preservation assertion. Review additionally identifies the optimization's same-session retry after a failed ordinary write; the pre-guard candidate fails the exact `read-only unlock revived a failed-persistence session` assertion. The explicit early `persistFailed` guard corrects it. Neither expected negative-control failure is counted as acceptance. `reports/unlock-persistence-baseline-regression.log`, `reports/unlock-failed-session-before-guard.log`. |
+| PASS, focused final security | Real failed-write tests require locked/nil secret state and unchanged ciphertext; fresh signer reopening succeeds. Payment cancellation, `SUBMITTING` → `UNKNOWN`, retired flag cleanup and unsigned exchange cancellation commit a new authenticated generation before success. Independently decrypted disk state, original signed identity/bytes, unresolved reservations, wrong-password rejection and repeated read-only reopen are checked. All final `TestUnlock*` cases pass normally and under the race detector. `reports/unlock-guard-final-focused.log`, `reports/unlock-guard-race.log`. |
+| PASS, final crash recovery | Freshly rebuilt current components pass all seven actual core/signer crash, cancellation, reauthentication and secret-canary checks over 13 processes, 13 persisted files and 20 public frames. `reports/unlock-guard-crash.log`, `reports/crash-security.json`. |
+| PASS, initial actual recovery/payment | Before the additional early failed-session guard, all 24 canonical actual desktop steps pass with stable sources. Independent portable copies restore all 24 descriptors over eight networks and three indices using the same and different passwords. Eight actual private-geth payment/restart/receipt checks pass with stable sources. `reports/wails-unlock-optimized.json`, `reports/portable-phrase-recovery.json`, `reports/portable-send.json`. These bind the earlier optimized executable, SHA256 `5103bddd4f12649621d246fad8b5462c078094320e6d2dca7e834b38e9de6a3b`. |
+| PASS, final aggregate and security | Current `make test-ci` passes Go/stress suites, all 66 React tests, 106 GUI-helper regressions and eight process/crash helper checks. `make test-security-ci` passes all 25 general mutants with stable sources, both five-mutant exchange campaigns and actual public/private DTO boundary checks. The new durability mutant is killed by two exact runtime assertions after passing unmodified controls; build failures, panics and timeouts do not count. `reports/unlock-guard-test-ci.log`, `reports/unlock-guard-security-ci.log`, `reports/mutation.json`. |
+| PASS, final actual application | All 24 canonical uninstrumented desktop steps pass again after the failed-session guard with stable sources. Generated-root setup, all eight wallets, token/contact actions, private backup, Appearance, fresh-profile restore with a different password, exact eight-address comparison, restart and Enter unlock remain required. The exact executable SHA256 is `98b2a1d6ce9c7f3fd5ca4196a3853834f44dab090a045c0e27d971cb4d70c430`; the same executable is installed as root `./cryptowallet`. `reports/wails-unlock-final.json`, `reports/unlock-guard-full-gui.log`. |
+| NOT_RUN at local commit checkpoint | New hosted CI/publication, separate physical-machine/clean OS/Wayland workflows, funded public-chain/Bybit acceptance and independent security review. A superseded local security campaign was stopped when review changed its inputs; it is not counted as passing. |
+
+No real profile or user secret is opened. All measurements use disposable roots
+or public fixtures and no mainnet payment is sent. The production 256 MiB,
+three-pass, four-lane Argon2id default, authenticated descriptor checks, isolated
+one-use password process and confirmation requirements remain. No key cache or
+weaker KDF is introduced. Recovery-changing unlocks retain their authenticated
+atomic commit and independent decrypt-and-compare verification. See
+[unlock behavior](APPEARANCE.md) and [vault persistence](VAULT_FORMAT.md).
+
 ## Hosted tooltip and crash-harness follow-up — 2026-10-29
 
 | State | Evidence and limits |

@@ -33,11 +33,16 @@ func TestTP060StateAndReservation(t *testing.T) {
 		t.Fatal("nonce binding")
 	}
 	ops := []Operation{{State: "PREPARED"}, {State: "AWAITING_CONFIRMATION"}, {State: "SUBMITTING"}, {State: "SIGNED_NOT_SUBMITTED"}}
-	Recover(ops)
+	if !Recover(ops) {
+		t.Fatal("changed recovery state was not marked for durable persistence")
+	}
 	for i, s := range []string{"CANCELLED", "CANCELLED", "UNKNOWN", "SIGNED_NOT_SUBMITTED"} {
 		if ops[i].State != s {
 			t.Fatal("crash reconciliation")
 		}
+	}
+	if Recover(ops) || Recover(nil) {
+		t.Fatal("already recovered or empty journal requested another generation")
 	}
 	if Conflicts([]Operation{{State: "UNKNOWN", Plan: model.Plan{Account: model.Account{ID: "other"}}}}, p) {
 		t.Fatal("account identity")

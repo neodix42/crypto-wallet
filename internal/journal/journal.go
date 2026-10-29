@@ -56,13 +56,20 @@ func Conflicts(ops []Operation, p model.Plan) bool {
 	}
 	return false
 }
-func Recover(ops []Operation) {
+
+// Recover reports whether restart recovery changed durable payment state.
+// Unchanged journals require no new encrypted generation merely to read them.
+func Recover(ops []Operation) bool {
+	changed := false
 	for i := range ops {
 		switch ops[i].State {
 		case "PREPARED", "AWAITING_CONFIRMATION":
 			ops[i].State = "CANCELLED"
+			changed = true
 		case "SUBMITTING":
 			ops[i].State = "UNKNOWN"
+			changed = true
 		}
 	}
+	return changed
 }

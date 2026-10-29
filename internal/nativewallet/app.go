@@ -513,7 +513,11 @@ func (a *App) refresh() {
 	})
 }
 func (a *App) mutation(method string, body any) {
-	a.work("Waiting for wallet confirmation…", func(g uint64) (func(), error) {
+	title := "Waiting for wallet confirmation…"
+	if method == "unlock" {
+		title = "Unlocking wallet…"
+	}
+	a.work(title, func(g uint64) (func(), error) {
 		var raw json.RawMessage
 		if err := a.callAt(g, method, body, &raw); err != nil {
 			return nil, err
