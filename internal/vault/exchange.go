@@ -6,19 +6,26 @@ import (
 	"encoding/json"
 	"strings"
 	"unicode/utf8"
+
+	"localwallet/internal/exchange"
 )
 
 // ExchangeData is authenticated by the same encrypted envelope as the wallet
 // root. API credentials and remote-operation history are not derived from the
 // recovery phrase and are never included in public wallet snapshots.
 type ExchangeData struct {
-	Credentials *ExchangeCredentials `json:"credentials,omitempty"`
-	Operations  []ExchangeOperation  `json:"operations"`
+	Credentials         *ExchangeCredentials   `json:"credentials,omitempty"`
+	SelectedProvider    string                 `json:"selectedProvider,omitempty"`
+	ProviderCredentials []*ExchangeCredentials `json:"providerCredentials,omitempty"`
+	Operations          []ExchangeOperation    `json:"operations"`
 }
 type ExchangeCredentials struct {
-	Endpoint string `json:"endpoint"`
-	APIKey   []byte `json:"apiKey"`
-	Secret   []byte `json:"secret"`
+	Provider   string `json:"provider,omitempty"`
+	Endpoint   string `json:"endpoint"`
+	APIKey     []byte `json:"apiKey"`
+	Secret     []byte `json:"secret"`
+	Passphrase []byte `json:"passphrase,omitempty"`
+	KeyVersion int    `json:"keyVersion,omitempty"`
 }
 type ExchangeOperation struct {
 	ID              string `json:"id"`
@@ -41,12 +48,65 @@ type ExchangeOperation struct {
 	ContractAddress string `json:"contractAddress,omitempty"`
 }
 
+func (d *ExchangeData) Selected() string {
+	if d == nil || d.SelectedProvider == "" {
+		return "bybit"
+	}
+	return d.SelectedProvider
+}
+
+func (d *ExchangeData) Credential(provider string) *ExchangeCredentials {
+	if d == nil {
+		return nil
+	}
+	if provider == "" || provider == "bybit" {
+		return d.Credentials
+	}
+	for _, credential := range d.ProviderCredentials {
+		if credential != nil && credential.Provider == provider {
+			return credential
+		}
+	}
+	return nil
+}
+
+// SetCredential updates one explicitly selected service. It does not remove
+// another service's encrypted credential or any operation history.
+func (d *ExchangeData) SetCredential(provider string, credential *ExchangeCredentials) {
+	if provider == "" || provider == "bybit" {
+		d.Credentials = credential
+		return
+	}
+	for i, old := range d.ProviderCredentials {
+		if old != nil && old.Provider == provider {
+			if credential == nil {
+				d.ProviderCredentials = append(d.ProviderCredentials[:i], d.ProviderCredentials[i+1:]...)
+			} else {
+				d.ProviderCredentials[i] = credential
+			}
+			return
+		}
+	}
+	if credential != nil {
+		d.ProviderCredentials = append(d.ProviderCredentials, credential)
+	}
+}
+
 func (d *ExchangeData) Destroy() {
 	if d.Credentials != nil {
 		clear(d.Credentials.APIKey)
 		clear(d.Credentials.Secret)
+		clear(d.Credentials.Passphrase)
 		d.Credentials = nil
 	}
+	for _, credential := range d.ProviderCredentials {
+		if credential != nil {
+			clear(credential.APIKey)
+			clear(credential.Secret)
+			clear(credential.Passphrase)
+		}
+	}
+	d.ProviderCredentials = nil
 	d.Operations = nil
 }
 
@@ -86,18 +146,42 @@ func validateExchange(d *ExchangeData, accounts map[string]bool) error {
 	if len(d.Operations) > 1000 {
 		return ErrFormat
 	}
-	if c := d.Credentials; c != nil {
-		if !exchangeText(c.Endpoint, 128, false) || len(c.APIKey) < 8 || len(c.APIKey) > 128 || len(c.Secret) < 16 || len(c.Secret) > 512 {
+	if _, ok := exchange.ProviderByID(d.SelectedProvider); !ok || len(d.ProviderCredentials) > 2 {
+		return ErrFormat
+	}
+	credentials := append([]*ExchangeCredentials{}, d.ProviderCredentials...)
+	if d.Credentials != nil {
+		credentials = append(credentials, d.Credentials)
+	}
+	seenProviders := map[string]bool{}
+	for _, c := range credentials {
+		if c == nil {
 			return ErrFormat
 		}
+		provider, ok := exchange.ProviderForEndpoint(c.Endpoint)
+		if !ok || c.Provider != "" && c.Provider != provider.ID || c == d.Credentials && provider.ID != "bybit" || c != d.Credentials && (provider.ID == "bybit" || c.Provider == "") || seenProviders[provider.ID] || len(c.APIKey) < 8 || len(c.APIKey) > 128 || len(c.Secret) < 16 || len(c.Secret) > 512 {
+			return ErrFormat
+		}
+		if provider.RequiresPassphrase {
+			if len(c.Passphrase) < 1 || len(c.Passphrase) > 256 || c.KeyVersion != 2 && c.KeyVersion != 3 {
+				return ErrFormat
+			}
+		} else if len(c.Passphrase) != 0 || c.KeyVersion != 0 {
+			return ErrFormat
+		}
+		seenProviders[provider.ID] = true
 	}
 	seen := map[string]bool{}
 	for _, o := range d.Operations {
+		provider, known := exchange.ProviderForEndpoint(o.Endpoint)
+		if !known {
+			return ErrFormat
+		}
 		if !exchangeHex(o.ID, 32) || seen[o.ID] || !accounts[o.AccountID] || !exchangeText(o.AssetID, 256, false) || !exchangeText(o.Endpoint, 128, false) || !exchangeHex(o.CredentialID, 64) || len(o.Payload) == 0 || len(o.Payload) > 8192 || !utf8.ValidString(o.Payload) || o.CreatedAt <= 0 || o.ExpiresAt <= o.CreatedAt || o.ExpiresAt-o.CreatedAt > 600 || !exchangeText(o.ExternalID, 128, true) || !exchangeText(o.LastPrice, 80, true) || !exchangeText(o.Fee, 80, true) || !exchangeText(o.FeeCoin, 24, true) || !exchangeText(o.ChainType, 80, true) || !exchangeText(o.ContractAddress, 256, true) || o.Digest != ExchangeDigest(o) {
 			return ErrFormat
 		}
 		seen[o.ID] = true
-		if o.RejectionCode != 0 && (o.State != "FAILED" || o.ExternalID != "" || !ExchangeRejectionAllowed(o.RejectionCode)) {
+		if o.RejectionCode != 0 && (provider.ID != "bybit" || o.State != "FAILED" || o.ExternalID != "" || !ExchangeRejectionAllowed(o.RejectionCode)) {
 			return ErrFormat
 		}
 		switch o.Kind {

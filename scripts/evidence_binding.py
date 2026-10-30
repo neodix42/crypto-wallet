@@ -33,6 +33,7 @@ WAILS_COVERAGE_INPUTS = ('scripts/wails-wallet-test.py', 'scripts/wails-inspecto
                          'internal/webui/frontend/index.html',
                          'internal/webui/frontend/src/PublicApp.tsx', 'internal/webui/frontend/src/Dialog.tsx',
                          'internal/webui/frontend/src/main.tsx',
+                         'internal/webui/frontend/src/TransactionTable.tsx', 'internal/webui/frontend/src/explorer.ts',
                          'internal/webui/frontend/src/protocol.ts', 'internal/webui/frontend/src/types.ts',
                          'internal/webui/frontend/src/icons.tsx', 'internal/webui/frontend/src/styles.css',
                          'third_party/wails/go.mod', 'third_party/wails/go.sum',

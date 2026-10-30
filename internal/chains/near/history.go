@@ -3,7 +3,10 @@ package near
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/decred/base58"
 	"localwallet/internal/chains/chainutil"
@@ -13,14 +16,28 @@ import (
 const historyBlocks = 12
 
 func (*Adapter) HistoryScope() string {
-	return "Last 12 final blocks on the selected chain; direct transactions containing exactly one native NEAR Transfer action only. Contract-mediated receipts, multi-action transfers and older blocks remain unresolved; an empty result never proves no funds."
+	return "Last 12 final blocks on the selected chain; direct transactions containing exactly one native NEAR Transfer action only. Tracked NEP-141 v1 transfer/mint/burn events are additionally read from recent direct token calls and the latest 25 NearBlocks-indexed account FT event candidates, then checked against final RPC receipt graphs and approved token identities. Powered by Nearblocks.io APIs. Other contract-mediated native receipts, multi-action native transfers, untracked tokens and older records remain unresolved; this bounded scope is incomplete, and an empty result never proves no funds."
+}
+
+func (a *Adapter) HistoryPage(ctx context.Context, account model.Account, cursor string) (model.HistoryPage, error) {
+	if cursor != "" {
+		return model.HistoryPage{}, errors.New("NEAR bounded snapshot has no adapter continuation")
+	}
+	rows, err := a.History(ctx, account)
+	scope := a.HistoryScope()
+	if errors.Is(err, errIndexedHistoryUnavailable) {
+		scope += " Indexed token history is unavailable/incomplete; only checked native and direct token-call rows are supplied. Missing indexed records remain unknown."
+		return model.HistoryPage{Entries: rows, Scope: scope, Complete: false}, nil
+	}
+	return model.HistoryPage{Entries: rows, Scope: scope, Complete: false}, err
 }
 
 type historyBlock struct {
 	Header struct {
-		Hash     string      `json:"hash"`
-		Previous string      `json:"prev_hash"`
-		Height   json.Number `json:"height"`
+		Hash      string      `json:"hash"`
+		Previous  string      `json:"prev_hash"`
+		Height    json.Number `json:"height"`
+		Timestamp json.Number `json:"timestamp_nanosec"`
 	} `json:"header"`
 	Chunks []struct {
 		Hash   string      `json:"chunk_hash"`
@@ -56,6 +73,13 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 		return nil, e
 	}
 	out := []model.Receipt{}
+	tokenSeen := map[string]bool{}
+	policies := a.networkTokens(ac.Network)
+	for _, policy := range policies {
+		if err := a.verifyTokenAt(ctx, policy, tokenBlock{Hash: state.Hash, Height: state.Height.String()}); err != nil {
+			return nil, err
+		}
+	}
 	seen := map[string]bool{}
 	for i := 0; i < historyBlocks; i++ {
 		var b historyBlock
@@ -65,6 +89,14 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 		height, e := chainutil.Uint(b.Header.Height.String(), 64)
 		if e != nil || (i == 0 && height != lastHeight) || height > lastHeight || (i > 0 && height == lastHeight) || b.Header.Hash != next || !blockHash(b.Header.Hash) || len(b.Chunks) > 32 {
 			return nil, errInvalid
+		}
+		var stamp int64
+		if b.Header.Timestamp != "" {
+			nanos, err := chainutil.Uint(b.Header.Timestamp.String(), 64)
+			if err != nil || nanos/1_000_000_000 > uint64(time.Now().Unix()+300) {
+				return nil, errInvalid
+			}
+			stamp = int64(nanos / 1_000_000_000)
 		}
 		for _, c := range b.Chunks {
 			included, e := chainutil.Uint(c.Height.String(), 64)
@@ -82,6 +114,22 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 				return nil, errInvalid
 			}
 			for _, tx := range chunk.Transactions {
+				if len(policies) > 0 {
+					for _, policy := range policies {
+						if tx.Receiver == policy.Asset.Contract && !tokenSeen[tx.Hash] {
+							tokenSeen[tx.Hash] = true
+							rows, err := a.tokenHistoryTransaction(ctx, ac, tx.Hash, tx.Signer, "", "")
+							if err != nil {
+								return nil, err
+							}
+							if len(rows) > 4096-len(out) {
+								return nil, fmt.Errorf("NEAR history payment count exceeds bound; narrower scan required")
+							}
+							out = append(out, rows...)
+							break
+						}
+					}
+				}
 				if tx.Signer != ac.Address && tx.Receiver != ac.Address {
 					continue
 				}
@@ -124,7 +172,13 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 				if e != nil {
 					return nil, e
 				}
+				r.Timestamp = stamp
+				r.Explorer = chainutil.TransactionExplorer(ac.Network, tx.Hash)
+				r.Transfers = []model.HistoryTransfer{{ID: "native", Source: tx.Signer, Destination: tx.Receiver, Asset: model.Asset{ID: asset(ac.Network), Symbol: "NEAR", Decimals: 24}, Atomic: action.Transfer.Deposit}}
 				r.Detail = fmt.Sprintf("Native NEAR direct transfer: %s -> %s; %s yoctoNEAR; %s", tx.Signer, tx.Receiver, action.Transfer.Deposit, r.State)
+				if len(out) >= 4096 {
+					return nil, fmt.Errorf("NEAR history payment count exceeds bound; narrower scan required")
+				}
 				out = append(out, r)
 			}
 		}
@@ -137,5 +191,19 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 		next = b.Header.Previous
 		lastHeight = height
 	}
-	return out, nil
+	var indexedErr error
+	if len(policies) > 0 && a.historyEndpoints[ac.Network] != "" {
+		rows, err := a.indexedTokenHistory(ctx, ac, tokenSeen)
+		if err != nil && !errors.Is(err, errIndexedHistoryUnavailable) {
+			return nil, err
+		}
+		indexedErr = err
+		out = append(out, rows...)
+	}
+	merged, err := chainutil.MergeHistory(out)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(merged, func(i, j int) bool { return merged[i].Timestamp > merged[j].Timestamp })
+	return merged, indexedErr
 }

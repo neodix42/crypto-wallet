@@ -1,10 +1,12 @@
 # Settings and Exchange interface — 2026-10-25
 
+Current provider selection and separately encrypted Bybit, Binance and KuCoin credentials are documented in [Exchange providers](EXCHANGE_PROVIDERS.md). KuCoin additionally requests its API passphrase and key version (2 or 3). KuCoin spot and automatic internal transfers have explicit capability gates; connecting does not bypass them. The measured evidence below is historical and does not verify the new services. Current masked dialogs use the same trusted Wails main window without another connect-only app-password prompt.
+
 The later [wallet/status interface update](WALLET_STATUS.md) moves the floating notices described by this candidate into the reserved bottom status bar and clarifies local approvals. This document's measured counts and artifact bindings remain historical.
 
 Current Settings uses the Wails/React main window and contains **Wallet**, **Exchange**, **Journal** and **Appearance** tabs, with a distinct selected-tab color. Appearance defaults to Light/18px and applies to private dialogs as well. Region/Connect/change-key/Disconnect live in Settings → Exchange; Deposit/Swap/Withdraw remain in the main Exchange page without a redundant Settings shortcut. Information/error feedback uses the compact bottom status bar and expires after seven seconds.
 
-The current unlocked, recovery-confirmed session opens the separate masked Bybit API-key/HMAC-secret prompt, then exact service/custody consent, without another storage-password prompt. Disconnect and every funds-moving operation retain their required authorizations. The ordinary Settings view receives no credentials or secret payload. No connection action transfers funds. See [the current Exchange guide](EXCHANGE.md) and [Appearance](APPEARANCE.md).
+The current unlocked, recovery-confirmed session opens a masked credential dialog in the same main window, then exact provider service/custody consent, without another storage-password prompt. Disconnect and every funds-moving operation retain their required authorizations. The ordinary Settings view receives no credentials or secret payload. No connection action transfers funds. See [the current Exchange guide](EXCHANGE.md) and [Appearance](APPEARANCE.md).
 
 The asset contract/token identifier is distinct from the owned wallet receive address. Ethereum USDT's `0xdAC17F958D2ee523a2206206994597C13D831ec7` identifies the Tether contract; ETH/USDT use the same owned Ethereum address. Full network and contract identity, native gas and custody rules remain mandatory.
 

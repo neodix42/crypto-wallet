@@ -12,11 +12,12 @@ import (
 var ErrState = errors.New("invalid or conflicting payment state")
 
 type Operation struct {
-	Plan    model.Plan     `json:"plan"`
-	Digest  string         `json:"digest"`
-	State   string         `json:"state"`
-	Signed  *model.Signed  `json:"signed,omitempty"`
-	Receipt *model.Receipt `json:"receipt,omitempty"`
+	Plan      model.Plan     `json:"plan"`
+	Digest    string         `json:"digest"`
+	State     string         `json:"state"`
+	Signed    *model.Signed  `json:"signed,omitempty"`
+	Receipt   *model.Receipt `json:"receipt,omitempty"`
+	CreatedAt int64          `json:"createdAt,omitempty"`
 }
 
 func Digest(p model.Plan) string {

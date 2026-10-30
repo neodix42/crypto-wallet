@@ -154,7 +154,7 @@ func TestUSDCWrongFeeCurrencyAndAmbiguousRestartRemainUnresolved(t *testing.T) {
 func TestUSDCReceivedTaxAccounting(t *testing.T) {
 	api := newFixtureExchangeAPI()
 	configureUSDCFixture(api)
-	api.order = bybit.SpotOrder{Symbol: "ETHUSDC", Side: "Sell", Qty: "0.1", OrderLinkID: "usdc-original"}
+	api.order = bybit.SpotOrder{Symbol: "ETHUSDC", Side: "Sell", OrderType: "Market", Qty: "0.1", OrderLinkID: "usdc-original"}
 	valid := api.executions
 	api.executions = func(symbol, link, cursor string) (bybit.ExecutionPage, error) {
 		page, err := valid(symbol, link, cursor)

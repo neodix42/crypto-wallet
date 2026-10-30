@@ -388,7 +388,7 @@ func TestSettingsExchangeAndJournalNavigationRouteCurrentSelection(t *testing.T)
 	for _, row := range []struct {
 		event, method    string
 		expected, result any
-	}{{"settingsExchange", "exchangeStatus", struct{}{}, json.RawMessage(`{"connected":false}`)}, {"settingsJournal", "history", map[string]string{"cursor": ""}, journalPage{Operations: []journal.Operation{}, Complete: true}}, {"exchangeConnect", "exchangeConnect", map[string]string{"endpoint": "https://api.bybit.com"}, json.RawMessage(`{"connected":true}`)}, {"exchangeDisconnect", "exchangeDisconnect", struct{}{}, json.RawMessage(`{"connected":false}`)}} {
+	}{{"settingsExchange", "exchangeStatus", struct{}{}, json.RawMessage(`{"connected":false}`)}, {"settingsJournal", "history", map[string]string{"cursor": ""}, journalPage{Operations: []journal.Operation{}, Complete: true}}, {"exchangeConnect", "exchangeConnect", map[string]string{"provider": "bybit", "endpoint": "https://api.bybit.com"}, json.RawMessage(`{"connected":true}`)}, {"exchangeDisconnect", "exchangeDisconnect", struct{}{}, json.RawMessage(`{"connected":false}`)}} {
 		a, ui, core := fixture(t)
 		a.fields["region"] = "https://api.bybit.com"
 		routeFixture(t, a, core, row.method, row.expected, row.result)
@@ -421,16 +421,16 @@ func TestExchangeRequestContractsAndResponsesRemainSeparateFromWalletResults(t *
 		a.fields["exchangeAmount"] = "1.25"
 		account := a.fields["exchangeAccount"]
 		asset := a.fields["exchangeAsset"]
-		var expected any = map[string]string{"accountId": account, "assetId": asset}
+		var expected any = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset}
 		switch method {
 		case "exchangeStatus":
 			expected = struct{}{}
 		case "exchangeQuote":
-			expected = map[string]string{"accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT"}
+			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT"}
 		case "exchangeSwap":
-			expected = map[string]string{"accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT", "amount": "1.25", "slippage": "0.5"}
+			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT", "amount": "1.25", "slippage": "0.5"}
 		default:
-			expected = map[string]string{"accountId": account, "assetId": asset, "amount": "1.25"}
+			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "amount": "1.25"}
 		}
 		routeFixture(t, a, core, method, expected, json.RawMessage(`{"publicResult":"route-fixture"}`))
 		a.event(webui.Event{ID: method})
@@ -449,7 +449,7 @@ func TestExchangeRequestContractsAndResponsesRemainSeparateFromWalletResults(t *
 		}
 	}
 	a, ui, core := fixture(t)
-	routeFixture(t, a, core, "exchangeReconcile", map[string]string{"id": "original-exchange-id"}, json.RawMessage(`{"state":"UNKNOWN"}`))
+	routeFixture(t, a, core, "exchangeReconcile", map[string]string{"provider": "bybit", "id": "original-exchange-id"}, json.RawMessage(`{"state":"UNKNOWN"}`))
 	a.walletEvent("exchangeReconcile/original-exchange-id")
 	ui.apply(t)
 	if a.resultOwner != "exchange" || !strings.Contains(a.result, "UNKNOWN") {
@@ -475,6 +475,8 @@ func TestChainHistoryPagingBindsWalletAndRetainsBoundedReceipts(t *testing.T) {
 	if len(a.chain.Entries) != 2 {
 		t.Fatal("history continuation lost earlier receipts")
 	}
+	a.active = "wallet/" + id
+	a.walletHistory = map[string]walletHistoryState{id: {Loaded: true, Chain: a.chain}}
 	if !strings.Contains(viewText(a.walletPage(a.state.Accounts[0])), "public-receipt-two") {
 		t.Fatal("selected wallet receipt hidden")
 	}
@@ -564,7 +566,7 @@ func TestPublicErrorCodesAreFixedAndBusyClosedViewsDoNotAuthorizeWork(t *testing
 		a.state.VaultState = state
 		a.active = "settings"
 		v := a.view()
-		if v.Active != "settings" || len(v.Pages) != 3 || v.Pages[2].ID != "addressbook" {
+		if v.Active != "settings" || len(v.Pages) != 3 || v.Pages[2].ID != "settings" || v.Pages[1].ID != "addressbook" {
 			t.Fatal("locked UI navigation changed")
 		}
 	}

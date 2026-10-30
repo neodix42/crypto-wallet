@@ -76,10 +76,13 @@ type Balance struct {
 	At     string `json:"at"`
 }
 type Receipt struct {
-	Identity string `json:"identity"`
-	State    string `json:"state"`
-	Detail   string `json:"detail"`
-	Block    string `json:"block"`
+	Identity  string            `json:"identity"`
+	State     string            `json:"state"`
+	Detail    string            `json:"detail"`
+	Block     string            `json:"block"`
+	Timestamp int64             `json:"timestamp,omitempty"`
+	Explorer  string            `json:"explorer,omitempty"`
+	Transfers []HistoryTransfer `json:"transfers,omitempty"`
 }
 
 // HistoryPage is a bounded observation, not a proof of balance or finality.

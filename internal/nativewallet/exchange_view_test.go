@@ -23,7 +23,7 @@ func TestSpotDirectionsSendExactUSDTOrUSDCAndInvalidateChangedQuotes(t *testing.
 					t.Fatal("changing quote currency retained stale market")
 				}
 				a.fields["exchangeAmount"] = "1.25"
-				body := map[string]string{"accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"], "side": side, "quoteCoin": quote}
+				body := map[string]string{"provider": "bybit", "accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"], "side": side, "quoteCoin": quote}
 				if method == "exchangeSwap" {
 					body["amount"], body["slippage"] = "1.25", "0.5"
 				}

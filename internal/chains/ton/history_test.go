@@ -89,6 +89,9 @@ func TestTONHistoryUsesActualEmulatorObservations(t *testing.T) {
 			if !strings.Contains(out[0].Detail, "not recipient-payment confirmation") {
 				t.Fatal("history claimed payment confirmation")
 			}
+			if out[0].Timestamp != int64(tc.tx.Now) || out[0].Explorer == "" || len(out[0].Transfers) != 1 || out[0].Transfers[0].Source == "" || out[0].Transfers[0].Destination == "" || out[0].Transfers[0].Atomic != "123456789" || out[0].Transfers[0].Asset.Decimals != 9 || out[0].Transfers[0].Comment != p.Memo {
+				t.Fatal("TON structured history changed", out[0])
+			}
 		})
 	}
 	if !strings.Contains(a.HistoryScope(), "100") || !strings.Contains(a.HistoryScope(), "jettons") {

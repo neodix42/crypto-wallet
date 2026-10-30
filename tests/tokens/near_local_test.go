@@ -383,6 +383,34 @@ func TestLocalNEP141TokenCycle(t *testing.T) {
 	if e = engine.Update(p.ID, confirmed.State, &confirmed); e != nil {
 		t.Fatal("persist reconciled receipt", e)
 	}
+	// Read the already mined final token call through the production bounded
+	// history adapter. This creates no transaction and does not use an indexer.
+	history, e := adapter.HistoryPage(ctx, accounts[0], "")
+	if e != nil || history.Complete || history.NextCursor != "" {
+		t.Fatal("actual RPC token history unavailable or overstated", history, e)
+	}
+	observedHistory := []model.Receipt{}
+	for _, entry := range history.Entries {
+		if entry.Identity != signed.Identity {
+			continue
+		}
+		if entry.State != "OBSERVED" || entry.Timestamp <= 0 || entry.Timestamp > time.Now().Unix()+300 || entry.Explorer != "" {
+			t.Fatal("actual local token history identity/time/scope changed", entry)
+		}
+		found := false
+		for _, effect := range entry.Transfers {
+			if effect.Asset == policy.Asset && effect.Source == p.Account.Address && effect.Destination == p.Recipient && effect.Atomic == p.Amount {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("actual RPC history omitted exact last token movement", entry)
+		}
+		observedHistory = append(observedHistory, entry)
+	}
+	if len(observedHistory) != 1 {
+		t.Fatal("last confirmed real token transaction missing/duplicated in bounded history", signed.Identity, history)
+	}
 	if e = engine.Prepare(conflict); e != nil {
 		t.Fatal("confirmed original failed to release reservation", e)
 	}
@@ -431,7 +459,8 @@ func TestLocalNEP141TokenCycle(t *testing.T) {
 		PasswordApprovedCalls int                 `json:"passwordApprovedCalls"`
 		DurableConfirmed      int                 `json:"durableConfirmed"`
 		RestartedUnknown      bool                `json:"restartedUnknown"`
-	}{"PASS", accounts, policies, records, expected, true, len(records), confirmedCount, foundOriginal}
+		ObservedHistory       []model.Receipt     `json:"observedHistory"`
+	}{"PASS", accounts, policies, records, expected, true, len(records), confirmedCount, foundOriginal, observedHistory}
 	raw, e := json.MarshalIndent(report, "", "  ")
 	if e != nil {
 		t.Fatal(e)
@@ -446,5 +475,5 @@ func TestLocalNEP141TokenCycle(t *testing.T) {
 	if len(records) != 7 {
 		t.Fatal(errors.New("required real registrations/transfers were not all executed"))
 	}
-	t.Log("PASS: two official NEP-141 contracts (6/18 decimals), two self registrations, four out/back transfers and one accepted/lost-ack original reconciliation; all seven calls password-approved and encrypted-journaled by real signer, fresh-signer UNKNOWN/reservation/recovery and exact receipt/balance checks verified")
+	t.Log("PASS: two official NEP-141 contracts (6/18 decimals), two self registrations, four out/back transfers and one accepted/lost-ack original reconciliation; all seven calls password-approved and encrypted-journaled by real signer, fresh-signer UNKNOWN/reservation/recovery, exact receipt/balance checks and read-only history of the final token movement verified")
 }

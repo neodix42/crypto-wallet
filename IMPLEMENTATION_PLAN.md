@@ -142,3 +142,8 @@ Use explicit statuses: **PASS**, **FAIL**, **BLOCKED**, **NOT_RUN**, or **NOT_AP
 ## Owner extension — NEAR fungible tokens, 2026-10-30
 
 Extend the native adapter with exact NEP-141/148 token policies, bounded final-block observations and separate NEP-145 receiving registration. Reuse signer-authored approval/current password, encrypted watch policies, nonce reservations, signed-byte persistence and original receipt reconciliation. Native NEAR/staking and Base ERC-20 transfers remain mandatory. `make test-near-tokens` runs focused security/race/mutation controls, `make test-near-tokens-local` executes the real pinned FT WASM on the private sandbox, and `make test-near-tokens-gui` checks actual offline presentation. The ordinary integration/fuzz campaigns also include this extension. Public/funded graphical acceptance and independent review remain separately recorded gates. See TP-106–107 and [NEAR_TOKENS.md](docs/NEAR_TOKENS.md).
+
+
+## Wallet history and multiple exchanges — 2026-10-30
+
+Extend the typed readonly history contract and account-wide journal pagination, preserving unknown outcomes and exact token identities. Render bounded seven-column tables in every wallet, with known explorer routes and fullwidth main pages/Settings last. Add provider-isolated credentials, selection, native API authentication and exact spot/funding/withdrawal policies for Binance/KuCoin while retaining Bybit and local wallet signing. Run current unit/race/security, independent fixture/local-chain and graphical checks and retain precise external gates. `make test-wallet-history`, `make test-wallet-history-gui` and `make test-exchange` expose focused checks. See TP-108–109 and docs/STATUS.md.

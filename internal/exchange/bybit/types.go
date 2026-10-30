@@ -18,8 +18,10 @@ type AuthRequest struct {
 	ReceiveWindowMS int64  `json:"receiveWindowMs"`
 }
 type Auth struct {
-	APIKey    string `json:"apiKey"`
-	Signature string `json:"signature"`
+	APIKey     string `json:"apiKey"`
+	Signature  string `json:"signature"`
+	Passphrase string `json:"passphrase,omitempty"`
+	KeyVersion int    `json:"keyVersion,omitempty"`
 }
 type Authorizer func(context.Context, AuthRequest) (Auth, error)
 
@@ -112,6 +114,9 @@ type SpotOrder struct {
 	SlippageToleranceType string `json:"slippageToleranceType"`
 	SlippageTolerance     string `json:"slippageTolerance"`
 	OrderLinkID           string `json:"orderLinkId"`
+	// Native-only bounded IOC policy for Binance/KuCoin. Empty for Bybit.
+	LimitPrice string `json:"limitPrice,omitempty"`
+	BaseQty    string `json:"baseQty,omitempty"`
 }
 type OrderAcknowledgement struct {
 	OrderID     string `json:"orderId"`
@@ -134,6 +139,9 @@ type Order struct {
 	RejectReason string `json:"rejectReason"`
 	CreatedTime  string `json:"createdTime"`
 	UpdatedTime  string `json:"updatedTime"`
+	BaseQty      string `json:"baseQty,omitempty"`
+	LimitPrice   string `json:"limitPrice,omitempty"`
+	TimeInForce  string `json:"timeInForce,omitempty"`
 }
 type Execution struct {
 	Symbol      string          `json:"symbol"`
@@ -188,11 +196,14 @@ type WithdrawalRequest struct {
 	FeeType     int             `json:"feeType"`
 	RequestID   string          `json:"requestId"`
 	Beneficiary *UAEBeneficiary `json:"beneficiary,omitempty"`
+	// Native provider fee contract; never accepted by the Bybit validator.
+	FeeMode string `json:"feeMode,omitempty"`
 }
 type WithdrawalAcknowledgement struct {
 	ID string `json:"id"`
 }
 type WithdrawalRecord struct {
+	RequestID    string `json:"requestId,omitempty"`
 	TxID         string `json:"txID"`
 	Coin         string `json:"coin"`
 	Chain        string `json:"chain"`

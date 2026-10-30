@@ -1,6 +1,6 @@
 export interface Option { ID: string; Text: string }
 export interface Node {
-  Kind: 'label' | 'heading' | 'separator' | 'row' | 'column' | 'button' | 'entry' | 'combo' | 'check' | 'address';
+  Kind: 'label' | 'heading' | 'separator' | 'row' | 'column' | 'button' | 'entry' | 'combo' | 'check' | 'address' | 'transactionTable' | 'explorer';
   ID: string; Text: string; Value: string; Tooltip: string; Disabled: boolean;
   Options: Option[] | null; Children: Node[] | null;
 }
@@ -20,6 +20,6 @@ declare global {
       PublicBridge?: { Snapshot(): Promise<unknown>; Event(event: WalletEvent): Promise<boolean> };
       DialogBridge?: { Snapshot(): Promise<unknown>; Reply(reply: Reply): Promise<boolean>; Copy(promptId: string): Promise<boolean>; Activity(promptId: string): Promise<boolean> };
     } };
-    runtime?: { EventsOn(name: string, callback: (...args: unknown[]) => void): () => void; ClipboardSetText?(text: string): Promise<boolean> };
+    runtime?: { EventsOn(name: string, callback: (...args: unknown[]) => void): () => void; ClipboardSetText?(text: string): Promise<boolean>; BrowserOpenURL?(url: string): void };
   }
 }

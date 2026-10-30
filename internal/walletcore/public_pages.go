@@ -102,8 +102,8 @@ func (c *core) publicAccountsAt(epoch uint64, session, cursor string) (snapshot,
 	return s, err
 }
 func (c *core) publicJournalAt(epoch uint64, session, accountID, asset, cursor string) (journalPage, error) {
-	if (accountID == "") != (asset == "") {
-		return journalPage{}, errors.New("journal account and asset must be selected together")
+	if accountID == "" && asset != "" {
+		return journalPage{}, errors.New("journal asset requires an account")
 	}
 	if accountID != "" {
 		if _, err := c.account(accountID); err != nil {
@@ -136,7 +136,7 @@ func (c *core) publicJournalAt(epoch uint64, session, accountID, asset, cursor s
 	}
 	seen := map[string]bool{}
 	for _, operation := range page.Operations {
-		if operation.Signed != nil || operation.Plan.ID == "" || seen[operation.Plan.ID] || accountID != "" && (operation.Plan.Account.ID != accountID || operation.Plan.Asset != asset) {
+		if operation.Signed != nil || operation.Plan.ID == "" || seen[operation.Plan.ID] || operation.CreatedAt < 0 || operation.CreatedAt > time.Now().Unix()+300 || accountID != "" && operation.Plan.Account.ID != accountID || asset != "" && operation.Plan.Asset != asset {
 			return journalPage{}, errors.New("journal page contains forbidden or mismatched payment data")
 		}
 		seen[operation.Plan.ID] = true

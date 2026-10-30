@@ -82,7 +82,7 @@ func TestTP050BoundedNEARNativeHistory(t *testing.T) {
 							chunks = append(chunks, chunks[0])
 						}
 					}
-					return map[string]any{"header": map[string]any{"hash": hash, "prev_hash": previous, "height": blockHeight}, "chunks": chunks}, nil
+					return map[string]any{"header": map[string]any{"hash": hash, "prev_hash": previous, "height": blockHeight, "timestamp_nanosec": "1700000000000000000"}, "chunks": chunks}, nil
 				case "chunk":
 					if mode == "chunk-rpc" {
 						return failure()
@@ -178,6 +178,9 @@ func TestTP050BoundedNEARNativeHistory(t *testing.T) {
 			if mode == "valid" {
 				if len(out) != 2 || out[0].State != "CONFIRMED" || out[1].State != "FAILED" || !strings.Contains(out[0].Detail, "12345 yoctoNEAR") {
 					t.Fatalf("native history %+v", out)
+				}
+				if out[0].Timestamp != 1700000000 || out[0].Explorer == "" || len(out[0].Transfers) != 1 || out[0].Transfers[0].Source != "sender.testnet" || out[0].Transfers[0].Destination != ac.Address || out[0].Transfers[0].Atomic != "12345" || out[0].Transfers[0].Asset.Decimals != 24 {
+					t.Fatal("native structured history changed", out[0])
 				}
 			} else if mode == "reused-chunk" {
 				if len(out) != 1 {

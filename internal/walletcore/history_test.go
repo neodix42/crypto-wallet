@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -101,7 +102,7 @@ func TestHistoryPagesPreserveExactRowsAndBoundEveryIPCFrame(t *testing.T) {
 		t.Fatal("pagination lost or duplicated rows", pages, len(a.calls), len(collected))
 	}
 	for i := range rows {
-		if rows[i] != collected[i] {
+		if !reflect.DeepEqual(rows[i], collected[i]) {
 			t.Fatal("changed/out-of-order snapshot", i)
 		}
 	}

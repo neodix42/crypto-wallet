@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"localwallet/internal/chains/chainutil"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -50,6 +52,8 @@ func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]m
 			return nil, errors.New("TON history message range exceeds bound; explicit archival extension required")
 		}
 		effects += int(tx.OutMsgCount)
+		transfers := []model.HistoryTransfer{}
+		native := model.Asset{ID: ac.Network + ":TON", Symbol: "TON", Decimals: 9}
 		var detail strings.Builder
 		fmt.Fprintf(&detail, "%s; transaction LT%d; recorded native fees %s nanos; ", a.HistoryScope(), tx.LT, tx.TotalFees.Coins.Nano())
 		if tx.IO.In != nil && tx.IO.In.MsgType == tlb.MsgTypeInternal {
@@ -57,6 +61,11 @@ func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]m
 			if im.DstAddr == nil || !im.DstAddr.Equals(own) || !historyPeer(im.SrcAddr) {
 				return nil, errors.New("TON history inbound native message account/source mismatch")
 			}
+			comment, e := historyComment(im)
+			if e != nil {
+				return nil, e
+			}
+			transfers = append(transfers, model.HistoryTransfer{ID: "in", Source: im.SrcAddr.StringRaw(), Destination: im.DstAddr.StringRaw(), Asset: native, Atomic: im.Amount.Nano().String(), Comment: comment})
 			fmt.Fprintf(&detail, "native inbound message %s nanos from %s (bounced=%t); ", im.Amount.Nano(), im.SrcAddr.StringRaw(), im.Bounced)
 		}
 		if tx.IO.Out == nil || tx.IO.Out.List == nil {
@@ -68,7 +77,7 @@ func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]m
 			if e != nil || len(rows) != int(tx.OutMsgCount) {
 				return nil, errors.New("TON history outgoing-message count mismatch")
 			}
-			for _, row := range rows {
+			for index, row := range rows {
 				ref, e := row.Value.LoadRef()
 				if e != nil || row.Value.BitsLeft() != 0 || row.Value.RefsNum() != 0 {
 					return nil, errors.New("TON history outgoing-message reference invalid")
@@ -92,6 +101,11 @@ func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]m
 				if im.SrcAddr == nil || !im.SrcAddr.Equals(own) || !historyPeer(im.DstAddr) {
 					return nil, errors.New("TON history outgoing native message account/destination mismatch")
 				}
+				comment, e := historyComment(im)
+				if e != nil {
+					return nil, e
+				}
+				transfers = append(transfers, model.HistoryTransfer{ID: fmt.Sprintf("out:%d", index), Source: im.SrcAddr.StringRaw(), Destination: im.DstAddr.StringRaw(), Asset: native, Atomic: im.Amount.Nano().String(), Comment: comment})
 				fmt.Fprintf(&detail, "native outbound message %s nanos to %s (bounce=%t,bounced=%t); recipient credit not queried; ", im.Amount.Nano(), im.DstAddr.StringRaw(), im.Bounce, im.Bounced)
 			}
 		}
@@ -108,8 +122,18 @@ func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]m
 		} else {
 			detail.WriteString("transaction description not interpreted for execution/credit; ")
 		}
-		out = append(out, model.Receipt{Identity: identity, State: "OBSERVED", Detail: detail.String()})
+		out = append(out, model.Receipt{Identity: identity, State: "OBSERVED", Detail: detail.String(), Timestamp: int64(tx.Now), Explorer: chainutil.TransactionExplorer(ac.Network, identity), Transfers: transfers})
 	}
 	return out, nil
 }
 func historyPeer(a *address.Address) bool { return a != nil && a.Type() == address.StdAddress }
+
+// Only standard plaintext message comments are interpreted; arbitrary/encrypted
+// payloads remain absent. Retain the shared bounded, inert-text contract.
+func historyComment(message *tlb.InternalMessage) (string, error) {
+	text := message.Comment()
+	if len(text) > 4096 || !utf8.ValidString(text) || strings.ContainsRune(text, 0) {
+		return "", errors.New("TON history plaintext comment is invalid or exceeds bound")
+	}
+	return text, nil
+}

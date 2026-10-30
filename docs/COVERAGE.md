@@ -1,5 +1,36 @@
 # Go coverage and remaining-path review
 
+## Exchange-provider change — 2026-10-30
+
+The new client packages initially measured 90.51% (Binance) and 93.00%
+(KuCoin), below the existing 95% critical-package floor. That first check is
+retained as `reports/wallet-history-client-floors.log` and
+`reports/exchange-clients-final.cover`; it is not a coverage pass.
+
+Additional protocol controls exercise exact server-ID transfer pages, missing,
+duplicate and truncated records, each documented funding status, malformed
+acknowledgements without retries, withdrawal dates, bounded deposit
+continuations, separate Funding/Spot balances and read failures after a successful
+account-mode check. The final race measurements are **97.31% Binance** and
+**96.00% KuCoin**. Their combined atomic profile
+`reports/wallet-history-clients-reviewed.cover` passes the unchanged enforcer;
+`reports/wallet-history-client-floors-final.log` records both results. No
+production path, package or threshold was excluded or relaxed.
+
+Remaining client blocks include additional invalid-query/authentication and
+observation rejection paths and unused legacy normalization helpers. They remain
+in the denominator. These local tests use explicit protocol peers and owned TLS
+servers; they do not certify real service account eligibility, fees or funded
+acceptance. KuCoin's unobservable additional KCS fee behavior remains a blocked
+capability rather than a coverage exclusion.
+
+The complete combined Go/native coverage workflow has **NOT_RUN for this
+candidate**. The scoped actual history/layout GUI pass is uninstrumented and does
+not replace the full generated-root coverage workflow. Earlier historical GUI
+coverage failures and their exact limits remain in [STATUS.md](STATUS.md).
+Frontend coverage passes separately with its unchanged floors. The older
+campaigns below apply only to their recorded source and runtime identities.
+
 ## Current Wails coverage campaign — 2026-10-28
 
 The 2026-10-28 Wails/WebKit replacement changes the shipped UI and invalidates

@@ -686,7 +686,7 @@ func (e *Engine) Prepare(p model.Plan) error {
 			return ErrDenied
 		}
 	}
-	e.data.Operations = append(e.data.Operations, journal.Operation{Plan: p, Digest: journal.Digest(p), State: "PREPARED"})
+	e.data.Operations = append(e.data.Operations, journal.Operation{Plan: p, Digest: journal.Digest(p), State: "PREPARED", CreatedAt: time.Now().Unix()})
 	return e.persist()
 }
 

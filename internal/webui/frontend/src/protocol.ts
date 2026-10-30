@@ -1,6 +1,7 @@
 import type { Appearance, Node, Prompt, View } from './types';
 
-const kinds = new Set(['label', 'heading', 'separator', 'row', 'column', 'button', 'entry', 'combo', 'check', 'address']);
+const kinds = new Set(['label', 'heading', 'separator', 'row', 'column', 'button', 'entry', 'combo', 'check', 'address', 'transactionTable', 'explorer']);
+const transactionCells = ['label', 'address', 'address', 'label', 'explorer', 'label', 'label'];
 const encoder = new TextEncoder();
 export function boundedText(value: unknown, max: number, empty = true): value is string {
   return typeof value === 'string' && (empty || value.length > 0) && !value.includes('\0') && encoder.encode(value).length <= max;
@@ -24,6 +25,7 @@ export function validView(value: unknown): value is View {
     return (values || []).every(n => {
       if (--remaining < 0 || !object(n) || !kinds.has(String(n.Kind)) || !boundedText(n.ID, 256) || !boundedText(n.Text, 65536) || !boundedText(n.Tooltip, 65536) || !boundedText(n.Value, 4096) || typeof n.Disabled !== 'boolean' || !list(n.Options, 10000) || !list(n.Children, 20000)) return false;
       if (n.Kind === 'entry' && /password|phrase|mnemonic|secret|apikey|api_key|credential|passphrase/i.test(n.ID)) return false;
+      if (n.Kind === 'transactionTable' && !validTransactionRows(n.Children as Node[] | null)) return false;
       return (n.Options || []).every(option => object(option) && boundedText(option.ID, 4096) && boundedText(option.Text, 4096)) && nodes(n.Children, depth + 1);
     });
   }
@@ -32,6 +34,9 @@ export function validView(value: unknown): value is View {
     if (!object(page) || !boundedText(page.ID, 256, false) || seen.has(page.ID) || !boundedText(page.Title, 256) || !list(page.Nodes, 20000) || !nodes(page.Nodes, 0)) return false;
     seen.add(page.ID); return true;
   });
+}
+function validTransactionRows(rows: Node[] | null): boolean {
+  return (rows || []).every(row => object(row) && row.Kind === 'row' && Array.isArray(row.Children) && row.Children.length === transactionCells.length && row.Children.every((cell, index) => object(cell) && cell.Kind === transactionCells[index] && (cell.Children === null || Array.isArray(cell.Children) && cell.Children.length === 0)));
 }
 export function isWalletRow(node: Node): boolean {
   return node.Kind === 'row' && node.ID.startsWith('open/') && (node.Children || []).length === 4 && node.Children?.[2]?.Kind === 'address';

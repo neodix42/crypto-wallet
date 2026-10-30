@@ -50,22 +50,23 @@ type snapshot struct {
 	Revision          string              `json:"revision"`
 }
 type core struct {
-	child          *supervisor.Child
-	adapters       []model.Adapter
-	mu             sync.Mutex
-	last           time.Time
-	epoch          uint64
-	active         bool
-	promptPending  bool
-	requestID      string
-	requestSession string
-	requestEpoch   uint64
-	publicChannel  *ipc.Channel
-	sessionCtx     context.Context
-	sessionCancel  context.CancelFunc
-	historyScans   map[string]*historyScan
-	publicScans    map[string]publicContinuation
-	newExchange    exchangeFactory
+	child           *supervisor.Child
+	adapters        []model.Adapter
+	mu              sync.Mutex
+	last            time.Time
+	epoch           uint64
+	active          bool
+	promptPending   bool
+	requestID       string
+	requestSession  string
+	requestEpoch    uint64
+	publicChannel   *ipc.Channel
+	sessionCtx      context.Context
+	sessionCancel   context.CancelFunc
+	historyScans    map[string]*historyScan
+	historyControls map[string]*historyControl
+	publicScans     map[string]publicContinuation
+	newExchange     exchangeFactory
 }
 
 func (c *core) lock() {
@@ -88,6 +89,7 @@ func (c *core) endSession() {
 	c.sessionCancel = nil
 	c.adapters = chains.All()
 	c.historyScans = nil
+	c.historyControls = nil
 	c.publicScans = nil
 	c.child.Kill()
 }
@@ -355,6 +357,13 @@ func run(portable bool) {
 			clear(m.Body)
 			continue
 		}
+		if m.Method == "cancelHistory" {
+			if c.cancelHistory(m) != nil {
+				return
+			}
+			clear(m.Body)
+			continue
+		}
 		if ch.Accept(m) != nil {
 			return
 		}
@@ -373,9 +382,18 @@ func run(portable bool) {
 			c.mu.Lock()
 			epoch := c.epoch
 			c.mu.Unlock()
+			if m.Method == "chainHistory" {
+				if c.registerHistoryControl(m, epoch) != nil {
+					_ = ch.Write(ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: []byte(`null`), Error: "BUSY"})
+					continue
+				}
+			}
 			select {
 			case work <- queuedRequest{m, epoch}:
 			default:
+				if m.Method == "chainHistory" {
+					c.finishHistoryControl(m, epoch)
+				}
 				_ = ch.Write(ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: []byte(`null`), Error: "BUSY"})
 			}
 		}
@@ -431,6 +449,16 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			out, err = nil, errors.New("wallet session changed")
 		}
 	}()
+	if m.Method == "chainHistory" {
+		if err := c.registerHistoryControl(m, epoch); err != nil {
+			return nil, err
+		}
+		defer func() {
+			if c.finishHistoryControl(m, epoch) {
+				out, err = nil, ipc.NewRequestError("REQUEST_CANCELLED")
+			}
+		}()
+	}
 	switch m.Method {
 	case "networks", "status", "confirmRecovery", "backupPhrase":
 		if strictjson.Decode(m.Body, &struct{}{}) != nil {
@@ -448,7 +476,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		return c.nearStakingAt(m, epoch)
 	case "nearTokenStorage", "prepareNearTokenRegistration":
 		return c.nearTokenStorageAt(m, epoch)
-	case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
+	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
 		return c.exchangeAt(m, epoch)
 	case "networks":
 		var networks []model.Network

@@ -52,7 +52,7 @@ func newHistory(t *testing.T, net string) *historyFixture {
 				}
 				var tag string
 				_ = json.Unmarshal(args[0], &tag)
-				b := historyBlock{Number: tag, Hash: h.hash, Transactions: []historyTx{}}
+				b := historyBlock{Number: tag, Hash: h.hash, Timestamp: "0x6553f100", Transactions: []historyTx{}}
 				if tag == "0x1" {
 					b.Transactions = h.txs
 				}
@@ -79,12 +79,18 @@ func TestTP050BoundedEVMHistory(t *testing.T) {
 		if net == "base-sepolia" {
 			expected = 2
 		}
-		if e != nil || len(rows) != expected {
+		if e != nil || len(rows) != 1 || len(rows[0].Transfers) != expected {
 			t.Fatal(rows, e)
 		}
 		for _, r := range rows {
 			if r.State != "CONFIRMED" || !strings.Contains(r.Detail, "blocks 0..16") {
 				t.Fatal("history scope/finality", r)
+			}
+			if r.Timestamp != 1700000000 || r.Explorer == "" || r.Transfers[0].Source != h.ac.Address || r.Transfers[0].Destination != *h.txs[0].To || r.Transfers[0].Atomic != "1" || r.Transfers[0].Asset.ID != net+":native" {
+				t.Fatal("native history fields changed", r)
+			}
+			if expected == 2 && (r.Transfers[1].Atomic != "2" || r.Transfers[1].Asset.Contract == "" || r.Transfers[1].ID == r.Transfers[0].ID) {
+				t.Fatal("token history fields collapsed", r)
 			}
 		}
 		if net == "base-sepolia" && h.logCalls != 2 {
@@ -238,5 +244,101 @@ func TestTP052HistoryRejectsHostileTokenEvents(t *testing.T) {
 	}
 	if _, e = h.run(); e == nil {
 		t.Fatal("contradictory duplicate token event")
+	}
+}
+
+func TestHistoryPreservesMultipleImportedTokensAndSameTransactionEffects(t *testing.T) {
+	h := newHistory(t, "ethereum-sepolia")
+	first := importedTokenFixture()
+	second := first
+	second.Asset.Contract = common.HexToAddress("0x2234567890123456789012345678901234567890").Hex()
+	second.Asset.ID = second.Network + ":erc20:" + second.Asset.Contract
+	second.Asset.Symbol, second.Asset.Decimals = "SECOND", 18
+	tracked, err := h.f.a.WithTokens([]model.ERC20Token{first, second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.f.a = tracked
+	original := h.f.intercept
+	h.f.intercept = func(method string, args []json.RawMessage) (any, bool) {
+		switch method {
+		case "eth_getCode":
+			return "0x6001", true
+		case "eth_call":
+			var call map[string]string
+			_ = json.Unmarshal(args[0], &call)
+			if call["data"] == callData("decimals()") {
+				decimals := int64(first.Asset.Decimals)
+				if call["to"] == second.Asset.Contract {
+					decimals = int64(second.Asset.Decimals)
+				}
+				return "0x" + hex.EncodeToString(word(big.NewInt(decimals))), true
+			}
+		case "eth_getLogs":
+			var filter map[string]json.RawMessage
+			_ = json.Unmarshal(args[0], &filter)
+			var contract string
+			_ = json.Unmarshal(filter["address"], &contract)
+			owner := common.BytesToHash(common.HexToAddress(h.ac.Address).Bytes()).Hex()
+			indices := []int64{0, 1}
+			if contract == second.Asset.Contract {
+				indices = []int64{2}
+			}
+			logs := []any{}
+			for _, index := range indices {
+				logs = append(logs, map[string]any{"address": contract, "topics": []string{crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)")).Hex(), owner, common.BytesToHash(common.HexToAddress(*h.txs[0].To).Bytes()).Hex()}, "data": "0x" + hex.EncodeToString(word(big.NewInt(index+2))), "transactionHash": h.txs[0].Hash, "blockHash": h.hash, "blockNumber": "0x1", "logIndex": quantity(big.NewInt(index))})
+			}
+			return logs, true
+		}
+		return original(method, args)
+	}
+	rows, err := h.run()
+	if err != nil || len(rows) != 1 || len(rows[0].Transfers) != 4 {
+		t.Fatal("multi-token history lost effects", rows, err)
+	}
+	counts := map[string]int{}
+	for _, effect := range rows[0].Transfers {
+		counts[effect.Asset.ID]++
+		if effect.Source != h.ac.Address || effect.Destination != *h.txs[0].To {
+			t.Fatal("wrong token peer", effect)
+		}
+		if effect.Asset.ID == first.Asset.ID && effect.Asset != first.Asset || effect.Asset.ID == second.Asset.ID && effect.Asset != second.Asset {
+			t.Fatal("imported precision/identity changed", effect)
+		}
+	}
+	if counts[first.Asset.ID] != 2 || counts[second.Asset.ID] != 1 || counts[h.ac.Network+":native"] != 1 {
+		t.Fatal("token contracts collapsed", counts)
+	}
+	available := h.f.intercept
+	h.f.intercept = func(method string, args []json.RawMessage) (any, bool) {
+		if method == "eth_getCode" {
+			var address string
+			_ = json.Unmarshal(args[0], &address)
+			if address == first.Asset.Contract {
+				return "0x", true
+			}
+		}
+		return available(method, args)
+	}
+	page, err := h.f.a.HistoryPage(context.Background(), h.ac, "")
+	if err != nil || page.Complete || len(page.Entries) != 1 || len(page.Entries[0].Transfers) != 2 || !strings.Contains(page.Scope, first.Asset.ID) {
+		t.Fatal("one unavailable token hid healthy assets", page, err)
+	}
+	if page.Entries[0].Transfers[1].Asset != second.Asset {
+		t.Fatal("healthy imported token lost its identity", page.Entries[0])
+	}
+}
+
+func TestHistoryPageKeepsCheckedNativeRowsWhenOneTokenPolicyIsUnavailable(t *testing.T) {
+	h := newHistory(t, "base-sepolia")
+	h.f.rpcError = "eth_getCode"
+	page, err := h.f.a.HistoryPage(context.Background(), h.ac, "")
+	if err != nil || page.Complete || len(page.Entries) != 1 || len(page.Entries[0].Transfers) != 1 || page.Entries[0].Transfers[0].Asset.ID != h.ac.Network+":native" || !strings.Contains(page.Scope, "unavailable/incomplete") {
+		t.Fatal("unavailable token hid checked native history", page, err)
+	}
+	h = newHistory(t, "base-sepolia")
+	h.logs.([]any)[0].(map[string]any)["data"] = "malformed"
+	if _, err := h.f.a.HistoryPage(context.Background(), h.ac, ""); err == nil {
+		t.Fatal("forged token event silently became partial history")
 	}
 }

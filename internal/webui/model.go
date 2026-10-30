@@ -71,7 +71,11 @@ func validateView(v View) bool {
 				return false
 			}
 			switch n.Kind {
-			case "label", "heading", "separator", "address", "button", "combo", "check", "row", "column":
+			case "label", "heading", "separator", "address", "button", "combo", "check", "row", "column", "explorer":
+			case "transactionTable":
+				if !validTransactionRows(n.Children) {
+					return false
+				}
 			case "entry":
 				id := strings.ToLower(n.ID)
 				for _, secret := range []string{"password", "phrase", "mnemonic", "secret", "apikey", "api_key", "credential", "passphrase"} {
@@ -99,6 +103,21 @@ func validateView(v View) bool {
 			return false
 		}
 		ids[page.ID] = true
+	}
+	return true
+}
+
+func validTransactionRows(rows []Node) bool {
+	kinds := [...]string{"label", "address", "address", "label", "explorer", "label", "label"}
+	for _, row := range rows {
+		if row.Kind != "row" || len(row.Children) != len(kinds) {
+			return false
+		}
+		for i, cell := range row.Children {
+			if cell.Kind != kinds[i] || len(cell.Children) != 0 {
+				return false
+			}
+		}
 	}
 	return true
 }

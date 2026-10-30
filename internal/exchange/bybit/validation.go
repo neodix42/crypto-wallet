@@ -154,7 +154,7 @@ func ValidateSpotOrder(o SpotOrder) error {
 	} else if o.Side != "Sell" {
 		return ErrInvalidRequest
 	}
-	if o.Category != "spot" || !symbolName(o.Symbol) || o.OrderType != "Market" || !decimal(o.Qty, true) || o.MarketUnit != unit || o.IsLeverage != 0 || o.SlippageToleranceType != "Percent" || !decimalRange(o.SlippageTolerance, 1, 1000, 2) || !identifier(o.OrderLinkID, 36) {
+	if o.LimitPrice != "" || o.BaseQty != "" || o.Category != "spot" || !symbolName(o.Symbol) || o.OrderType != "Market" || !decimal(o.Qty, true) || o.MarketUnit != unit || o.IsLeverage != 0 || o.SlippageToleranceType != "Percent" || !decimalRange(o.SlippageTolerance, 1, 1000, 2) || !identifier(o.OrderLinkID, 36) {
 		return ErrInvalidRequest
 	}
 	return nil
@@ -166,7 +166,7 @@ func ValidateTransfer(t TransferRequest) error {
 	return nil
 }
 func ValidateWithdrawal(w WithdrawalRequest) error {
-	if !coinName(w.Coin) || !identifier(w.Chain, 40) || !boundedText(w.Address, 256, false) || !boundedText(w.Tag, 120, true) || !decimal(w.Amount, true) || w.Timestamp <= 0 || w.ForceChain != 1 || w.AccountType != "FUND" || w.FeeType != 1 || !withdrawalID(w.RequestID) || w.Beneficiary != nil && ValidateUAEBeneficiary(*w.Beneficiary) != nil {
+	if w.FeeMode != "" || !coinName(w.Coin) || !identifier(w.Chain, 40) || !boundedText(w.Address, 256, false) || !boundedText(w.Tag, 120, true) || !decimal(w.Amount, true) || w.Timestamp <= 0 || w.ForceChain != 1 || w.AccountType != "FUND" || w.FeeType != 1 || !withdrawalID(w.RequestID) || w.Beneficiary != nil && ValidateUAEBeneficiary(*w.Beneficiary) != nil {
 		return ErrInvalidRequest
 	}
 	return nil

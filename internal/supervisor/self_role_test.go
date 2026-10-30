@@ -1,6 +1,7 @@
 package supervisor
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -30,10 +31,49 @@ func TestMain(m *testing.M) {
 		}
 		channel := ipc.Channel{R: os.Stdin, W: os.Stdout}
 		promptCounter := 0
+		historyRequests := map[string]bool{}
 		for {
 			message, err := channel.Read()
-			if err != nil || channel.Accept(message) != nil {
+			if err != nil {
 				return
+			}
+			if message.Method == "cancelHistory" {
+				key := message.Session + "\x00" + message.ID
+				if !historyRequests[key] || message.Error != "" || !bytes.Equal(message.Body, []byte(`{}`)) {
+					return
+				}
+				delete(historyRequests, key)
+				continue
+			}
+			if channel.Accept(message) != nil {
+				return
+			}
+			if message.Method == "chainHistory" {
+				historyRequests[message.Session+"\x00"+message.ID] = true
+				var request struct {
+					Block bool
+					Ready string
+				}
+				if json.Unmarshal(message.Body, &request) != nil {
+					return
+				}
+				if request.Ready != "" {
+					if os.WriteFile(request.Ready, []byte("public history fixture"), 0600) != nil {
+						return
+					}
+				}
+				if request.Block {
+					cancel, err := channel.Read()
+					if err != nil || cancel.Method != "cancelHistory" || cancel.ID != message.ID || cancel.Session != message.Session || cancel.Error != "" || !bytes.Equal(cancel.Body, []byte(`{}`)) {
+						return
+					}
+					delete(historyRequests, message.Session+"\x00"+message.ID)
+					message.Body, message.Error = []byte(`null`), "REQUEST_CANCELLED"
+					if channel.Write(message) != nil {
+						return
+					}
+					continue
+				}
 			}
 			if message.Method == "activity" {
 				message.Body = []byte("null")

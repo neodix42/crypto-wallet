@@ -969,16 +969,18 @@ func TestExchangePublicRowsNeverExposeCredentialsApprovalPayloadOrPrivateMetadat
 	for i := range rows {
 		rows[i].CredentialID = "SECRET_CANARY_CREDENTIAL"
 		rows[i].Digest = "PRIVATE_CANARY_DIGEST"
-		rows[i].Endpoint = "PRIVATE_CANARY_ENDPOINT"
 		rows[i].Fee = "PRIVATE_CANARY_FEE"
 	}
+	unknownEndpoint := fixtureRemoteOperation("swap", order)
+	unknownEndpoint.Endpoint = "PRIVATE_CANARY_ENDPOINT"
+	rows = append(rows, unknownEndpoint)
 	for _, kind := range []string{"swap", "transfer", "withdraw", "unknown"} {
 		bad := fixtureRemoteOperation(kind, nil)
 		bad.Payload = "malformed"
 		rows = append(rows, bad)
 	}
 	out := exchangePublicOperations(rows)
-	if len(out) != 3 || out[0].Coin != "ETH" || out[0].Symbol != "ETHUSDT" || out[1].Coin != "USDT" || out[2].State != "EXCHANGE_COMPLETED" || out[0].CreatedAt != "1700000000" {
+	if len(out) != 3 || out[0].Provider != "bybit" || out[0].Coin != "ETH" || out[0].Symbol != "ETHUSDT" || out[1].Coin != "USDT" || out[2].State != "EXCHANGE_COMPLETED" || out[0].CreatedAt != "1700000000" {
 		t.Fatal(out)
 	}
 	b, _ := json.Marshal(out)

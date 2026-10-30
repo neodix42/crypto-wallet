@@ -290,6 +290,7 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 			amounts := [2][2]string{{"123456789", "40000001"}, {"1234567890123456789", "345678901234567890"}}
 			identities := []string{}
 			reconciled := []model.Receipt{}
+			expectedHistory := map[string]model.HistoryTransfer{}
 			for tokenIndex, token := range tokens {
 				for direction := 0; direction < 2; direction++ {
 					from, to := accounts[direction], accounts[1-direction]
@@ -349,9 +350,51 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 					}
 					identities = append(identities, signed.Identity)
 					reconciled = append(reconciled, receipt)
+					expectedHistory[signed.Identity] = model.HistoryTransfer{Source: from.Address, Destination: to.Address, Asset: token.Asset, Atomic: plan.Amount}
 				}
 			}
 			assertBalances(observe())
+			observedHistory := []model.Receipt{}
+			for accountIndex, account := range accounts {
+				page, err := adapter.HistoryPage(ctx, account, "")
+				wantEntries := 4
+				if accountIndex == 0 {
+					wantEntries += 2
+				} // Two constructor mint Transfer events.
+				if err != nil || page.Complete || page.NextCursor != "" || len(page.Entries) != wantEntries {
+					t.Fatal("actual imported-token history unavailable or overstated", page, err)
+				}
+				if len(pinnedUnavailable) > 0 && !strings.Contains(page.Scope, "unavailable/incomplete") {
+					t.Fatal("unavailable pinned token history lost its explicit unknown scope")
+				}
+				seenHistory := map[string]bool{}
+				minted := map[string]bool{}
+				for _, entry := range page.Entries {
+					want, exists := expectedHistory[entry.Identity]
+					if seenHistory[entry.Identity] || entry.State != "CONFIRMED" || entry.Timestamp <= 0 || entry.Timestamp > time.Now().Unix()+300 || len(entry.Transfers) != 1 {
+						t.Fatal("actual history identity/time/effect count changed", entry)
+					}
+					effect := entry.Transfers[0]
+					if !exists {
+						matchedMint := false
+						for tokenIndex, token := range tokens {
+							if accountIndex == 0 && !minted[token.Asset.ID] && effect.Asset == token.Asset && effect.Source == "0x"+strings.Repeat("0", 40) && effect.Destination == account.Address && effect.Atomic == ready.Tokens[tokenIndex].InitialAtomic {
+								matchedMint, minted[token.Asset.ID] = true, true
+							}
+						}
+						if !matchedMint {
+							t.Fatal("actual history contains an unexpected transfer", entry)
+						}
+						seenHistory[entry.Identity] = true
+						continue
+					}
+					if effect.Source != want.Source || effect.Destination != want.Destination || effect.Asset != want.Asset || effect.Atomic != want.Atomic {
+						t.Fatal("actual history differs from independently checked signed transfer", effect, want)
+					}
+					seenHistory[entry.Identity] = true
+				}
+				observedHistory = append(observedHistory, page.Entries...)
+			}
 			var final map[string]any
 			request(map[string]string{"op": "finish"}, &final)
 			if final["status"] != "PASS" || final["producerSHA256"] != beforeSources[fixture] || final["chainId"] != profile.chainID || final["network"] != profile.network {
@@ -383,7 +426,7 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 			networkScope := "Complete two-token out/back Go-signed execution on owned loopback " + profile.network + " (chain " + profile.chainID + "); synthetic public keys/funds only; any Base fee oracle quotes are deterministic fixtures, not charged rollup fees; no public-network, GUI, independent-consensus or real-finality claim"
 			results[profile.network] = map[string]any{"status": "PASS", "sourceStable": true, "scope": networkScope, "network": profile.network, "producerSHA256": beforeSources[fixture],
 				"sourceSHA256": beforeSources, "negativeCases": negativeCases, "tokenPolicies": tokens,
-				"goReconciledReceipts": reconciled, "independentExecution": final, "pinnedUnavailableTokens": pinnedUnavailable}
+				"goReconciledReceipts": reconciled, "observedHistory": observedHistory, "independentExecution": final, "pinnedUnavailableTokens": pinnedUnavailable}
 		})
 	}
 	if t.Failed() || len(results) != 2 {

@@ -101,6 +101,17 @@ MUTANTS = [
         "failedTest": "TestStakingRequiresCompleteSuccessfulDownstreamReceipts/deposit_and_stake/downstream-failure",
         "assertion": "wantUNKNOWN",
     },
+    {
+        "id": "staking-acyclic-receipt-dependencies",
+        "policy": "A receipt dependency cycle cannot establish successful staking or token execution.",
+        "path": NEAR,
+        "changes": [('if visiting[current] {\n\t\t\treturn false',
+                     'if visiting[current] {\n\t\t\treturn true')],
+        "package": "./internal/chains/near",
+        "selector": "^TestStakingRequiresCompleteSuccessfulDownstreamReceipts$/^deposit_and_stake$/^self-cycle$",
+        "failedTest": "TestStakingRequiresCompleteSuccessfulDownstreamReceipts/deposit_and_stake/self-cycle",
+        "assertion": "wantUNKNOWN",
+    },
 ]
 
 
@@ -184,7 +195,7 @@ def run(snapshot: pathlib.Path, package: str, selector: str, env: dict[str, str]
 def main() -> int:
     os.umask(0o077)
     started = time.monotonic()
-    report = {"status": "RUNNING", "scope": "Seven NEAR staking semantic security policy mutants; public fixture tests only",
+    report = {"status": "RUNNING", "scope": f"{len(MUTANTS)} NEAR staking semantic security policy mutants; public fixture tests only",
               "execution": "Isolated temporary source snapshot plus private Go overlays; live files never modified", "mutants": []}
     env = os.environ.copy()
     for key in list(env):

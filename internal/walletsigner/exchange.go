@@ -23,10 +23,21 @@ func handleExchange(e *signer.Engine, method string, raw json.RawMessage) (json.
 		}
 	case "exchangeConnect":
 		var in struct {
+			Provider strictjson.Text `json:"provider,omitempty"`
 			Endpoint strictjson.Text `json:"endpoint"`
 		}
 		if err = signer.DecodeBody(raw, &in); err == nil {
-			err = e.ConnectExchange(string(in.Endpoint))
+			err = e.ConnectExchangeProvider(string(in.Provider), string(in.Endpoint))
+		}
+		if err == nil {
+			out, err = e.ExchangeStatus()
+		}
+	case "exchangeSelect":
+		var in struct {
+			Provider strictjson.Text `json:"provider"`
+		}
+		if err = signer.DecodeBody(raw, &in); err == nil {
+			err = e.SelectExchange(string(in.Provider))
 		}
 		if err == nil {
 			out, err = e.ExchangeStatus()

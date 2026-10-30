@@ -32,13 +32,14 @@ var errInvalid = errors.New("invalid NEAR transfer")
 var accountPattern = regexp.MustCompile(`^[a-z0-9]+([._-][a-z0-9]+)*$`)
 
 type Adapter struct {
-	endpoints map[string]string
-	client    *chainutil.Client
-	tokens    []model.NEP141Token
+	endpoints        map[string]string
+	historyEndpoints map[string]string
+	client           *chainutil.Client
+	tokens           []model.NEP141Token
 }
 
 func New() *Adapter {
-	return &Adapter{endpoints: map[string]string{"near-mainnet": "https://rpc.mainnet.near.org", "near-testnet": "https://rpc.testnet.near.org", "near-localnet": "http://127.0.0.1:3030"}, client: chainutil.NewClient()}
+	return &Adapter{historyEndpoints: map[string]string{"near-mainnet": "https://api.nearblocks.io", "near-testnet": "https://api-testnet.nearblocks.io"}, endpoints: map[string]string{"near-mainnet": "https://rpc.mainnet.near.org", "near-testnet": "https://rpc.testnet.near.org", "near-localnet": "http://127.0.0.1:3030"}, client: chainutil.NewClient()}
 }
 func (a *Adapter) SetEndpoint(network, endpoint string) error {
 	if !known(network) {

@@ -13,7 +13,9 @@ import (
 	"localwallet/internal/amount"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/exchange"
+	"localwallet/internal/exchange/binance"
 	"localwallet/internal/exchange/bybit"
+	"localwallet/internal/exchange/kucoin"
 	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
@@ -21,7 +23,7 @@ import (
 )
 
 // This interface permits deterministic hostile-provider tests. Production has
-// no endpoint/transport override: only the fixed Bybit client is constructed.
+// no endpoint/transport override: only fixed reviewed service clients are constructed.
 type exchangeAPI interface {
 	Close()
 	Endpoint() string
@@ -43,6 +45,8 @@ type exchangeAPI interface {
 }
 type exchangeFactory func(string, bybit.Authorizer) (exchangeAPI, error)
 type exchangePrivateStatus struct {
+	Provider       string                    `json:"provider"`
+	Providers      []exchangeConnection      `json:"providers"`
 	Connected      bool                      `json:"connected"`
 	Endpoint       string                    `json:"endpoint"`
 	CredentialID   string                    `json:"credentialId"`
@@ -50,7 +54,14 @@ type exchangePrivateStatus struct {
 	Operations     []vault.ExchangeOperation `json:"operations"`
 	OperationCount int                       `json:"operationCount"`
 }
+type exchangeConnection struct {
+	Provider  string `json:"provider"`
+	Connected bool   `json:"connected"`
+	Endpoint  string `json:"endpoint,omitempty"`
+	KeySuffix string `json:"keySuffix,omitempty"`
+}
 type exchangePublicOperation struct {
+	Provider  string `json:"provider"`
 	ID        string `json:"id"`
 	Kind      string `json:"kind"`
 	State     string `json:"state"`
@@ -63,6 +74,8 @@ type exchangePublicOperation struct {
 	CreatedAt string `json:"createdAt"`
 }
 type exchangePublicStatus struct {
+	Provider    string                    `json:"provider"`
+	Providers   []exchangeConnection      `json:"providers"`
 	Connected   bool                      `json:"connected"`
 	Configured  bool                      `json:"configured"`
 	Endpoint    string                    `json:"endpoint"`
@@ -91,23 +104,26 @@ type exchangeBalance struct {
 	WalletBalance string `json:"walletBalance"`
 }
 type exchangeQuote struct {
-	AccountID      string            `json:"accountId"`
-	AssetID        string            `json:"assetId"`
-	Coin           string            `json:"coin"`
-	QuoteCoin      string            `json:"quoteCoin"`
-	Symbol         string            `json:"symbol"`
-	Side           string            `json:"side"`
-	LastPrice      string            `json:"lastPrice"`
-	BidPrice       string            `json:"bidPrice"`
-	AskPrice       string            `json:"askPrice"`
-	BasePrecision  string            `json:"basePrecision"`
-	QuotePrecision string            `json:"quotePrecision"`
-	MinOrderAmount string            `json:"minOrderAmount"`
-	MaxOrderQty    string            `json:"maxOrderQty"`
-	FeeRate        string            `json:"feeRate"`
-	Route          exchangeRoute     `json:"route"`
-	Balances       []exchangeBalance `json:"balances"`
-	ObservedAt     string            `json:"observedAt"`
+	Provider           string            `json:"provider"`
+	AccountID          string            `json:"accountId"`
+	AssetID            string            `json:"assetId"`
+	Coin               string            `json:"coin"`
+	QuoteCoin          string            `json:"quoteCoin"`
+	Symbol             string            `json:"symbol"`
+	Side               string            `json:"side"`
+	LastPrice          string            `json:"lastPrice"`
+	BidPrice           string            `json:"bidPrice"`
+	AskPrice           string            `json:"askPrice"`
+	BasePrecision      string            `json:"basePrecision"`
+	QuotePrecision     string            `json:"quotePrecision"`
+	PricePrecision     string            `json:"pricePrecision,omitempty"`
+	TradingUnavailable string            `json:"tradingUnavailable,omitempty"`
+	MinOrderAmount     string            `json:"minOrderAmount"`
+	MaxOrderQty        string            `json:"maxOrderQty"`
+	FeeRate            string            `json:"feeRate"`
+	Route              exchangeRoute     `json:"route"`
+	Balances           []exchangeBalance `json:"balances"`
+	ObservedAt         string            `json:"observedAt"`
 }
 type exchangeResult struct {
 	ID             string            `json:"id"`
@@ -136,7 +152,7 @@ type exchangeIntent struct {
 	ContractAddress string                   `json:"contractAddress,omitempty"`
 }
 
-var errExchange = errors.New("Bybit request unavailable or invalid; inspect original operation before retrying")
+var errExchange = errors.New("exchange request unavailable or invalid; inspect original operation before retrying")
 
 func (c *core) exchangeClientAt(epoch uint64) (exchangeAPI, exchangePrivateStatus, error) {
 	var status exchangePrivateStatus
@@ -147,7 +163,7 @@ func (c *core) exchangeClientAt(epoch uint64) (exchangeAPI, exchangePrivateStatu
 	if err != nil || s.Locked || !s.RecoveryConfirmed {
 		return nil, status, errExchange
 	}
-	if err = c.childCallAt(epoch, "exchangeStatus", struct{}{}, &status); err != nil || !status.Connected || bybit.ValidateEndpoint(status.Endpoint) != nil {
+	if err = c.childCallAt(epoch, "exchangeStatus", struct{}{}, &status); err != nil || !status.Connected || !exchange.ValidateProviderEndpoint(status.Provider, status.Endpoint) {
 		return nil, status, errExchange
 	}
 	authorize := func(ctx context.Context, request bybit.AuthRequest) (bybit.Auth, error) {
@@ -176,8 +192,17 @@ func (c *core) exchangeClientAt(epoch uint64) (exchangeAPI, exchangePrivateStatu
 		client, err := c.newExchange(status.Endpoint, authorize)
 		return client, status, err
 	}
-	client, err := bybit.New(status.Endpoint, authorize)
-	return client, status, err
+	switch status.Provider {
+	case "binance":
+		client, err := binance.New(status.Endpoint, authorize)
+		return client, status, err
+	case "kucoin":
+		client, err := kucoin.New(status.Endpoint, authorize)
+		return client, status, err
+	default:
+		client, err := bybit.New(status.Endpoint, authorize)
+		return client, status, err
+	}
 }
 func (c *core) exchangeAsset(id, assetID string) (model.Account, model.Asset, model.Adapter, error) {
 	account, err := c.account(id)
@@ -229,10 +254,21 @@ func exchangeWithdrawalRegionSupported(endpoint string) bool {
 	}
 	return true
 }
+
+func exchangeWithdrawalAuthority(provider string, info bybit.APIKeyInformation) bool {
+	// Binance's API restrictions expose actual withdrawal permission rather
+	// than Bybit's master-UID flag. Do not fabricate that flag in observations.
+	return provider == "binance" || info.IsMaster
+}
 func exchangePublicOperations(operations []vault.ExchangeOperation) []exchangePublicOperation {
 	out := make([]exchangePublicOperation, 0, len(operations))
 	for _, op := range operations {
 		row := exchangePublicOperation{ID: op.ID, Kind: op.Kind, State: op.State, AccountID: op.AccountID, AssetID: op.AssetID, RemoteID: op.ExternalID, CreatedAt: strconv.FormatInt(op.CreatedAt, 10)}
+		if provider, ok := exchange.ProviderForEndpoint(op.Endpoint); ok {
+			row.Provider = provider.ID
+		} else {
+			continue
+		}
 		switch op.Kind {
 		case "swap":
 			var request bybit.SpotOrder
@@ -265,13 +301,24 @@ func exchangePublicOperations(operations []vault.ExchangeOperation) []exchangePu
 }
 func (c *core) exchangeStatusAt(epoch uint64) (exchangePublicStatus, error) {
 	result := exchangePublicStatus{Environment: c.child.Environment, Operations: []exchangePublicOperation{}, Message: "Bybit is disconnected. Credentials are entered only in the dedicated wallet dialog."}
+	result.Provider = "bybit"
 	if c.child.Environment != "mainnet" {
-		result.Message = "Exchange uses a mainnet wallet profile and production Bybit account. This testnet profile cannot move exchange funds."
+		result.Message = "Exchange uses a mainnet wallet profile and production exchange account. This testnet profile cannot move exchange funds."
 		return result, nil
 	}
 	client, status, err := c.exchangeClientAt(epoch)
+	result.Provider, result.Providers = status.Provider, status.Providers
+	if result.Provider == "" {
+		result.Provider = "bybit"
+	}
 	result.Configured, result.Endpoint, result.KeySuffix = status.Connected, status.Endpoint, status.KeySuffix
 	result.Operations = exchangePublicOperations(status.Operations)
+	if result.Provider != "bybit" {
+		if client != nil {
+			client.Close()
+		}
+		return c.exchangeProviderStatusAt(epoch, status, result)
+	}
 	if err != nil {
 		if status.Connected {
 			return result, errExchange
@@ -296,6 +343,57 @@ func (c *core) exchangeStatusAt(epoch uint64) (exchangePublicStatus, error) {
 	}
 	return result, nil
 }
+
+func (c *core) exchangeProviderStatusAt(epoch uint64, status exchangePrivateStatus, result exchangePublicStatus) (exchangePublicStatus, error) {
+	provider, known := exchange.ProviderByID(result.Provider)
+	if !known {
+		return result, errExchange
+	}
+	result.Message = provider.Name + " is disconnected. Credentials are entered only in the wallet dialog."
+	if !status.Connected {
+		return result, nil
+	}
+	if !exchange.ValidateProviderEndpoint(provider.ID, status.Endpoint) {
+		return result, errExchange
+	}
+	authorize := func(ctx context.Context, request bybit.AuthRequest) (bybit.Auth, error) {
+		if ctx.Err() != nil || request.Endpoint != status.Endpoint {
+			return bybit.Auth{}, errExchange
+		}
+		c.mu.Lock()
+		valid := c.active && c.epoch == epoch
+		c.mu.Unlock()
+		if !valid {
+			return bybit.Auth{}, errExchange
+		}
+		var auth bybit.Auth
+		if err := c.childCallAt(epoch, "exchangeAuth", request, &auth); err != nil {
+			return bybit.Auth{}, errExchange
+		}
+		c.mu.Lock()
+		valid = c.active && c.epoch == epoch
+		c.mu.Unlock()
+		if !valid || ctx.Err() != nil {
+			return bybit.Auth{}, errExchange
+		}
+		return auth, nil
+	}
+	client, err := exchange.NewAccess(status.Endpoint, authorize)
+	if err != nil {
+		return result, errExchange
+	}
+	defer client.Close()
+	ctx, cancel := c.networkContextAt(30*time.Second, epoch)
+	defer cancel()
+	_, err = client.APIKeyInfo(ctx)
+	if err != nil {
+		result.Message = provider.Name + " could not verify the configured API credentials. Check the key, secret, permissions, IP restrictions and service availability."
+		return result, nil
+	}
+	result.Connected = true
+	result.Message = provider.Name + " connection verified."
+	return result, nil
+}
 func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 	switch message.Method {
 	case "exchangeStatus", "exchangeDisconnect":
@@ -310,18 +408,34 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		return c.exchangeStatusAt(epoch)
 	case "exchangeConnect":
 		var in struct {
+			Provider strictjson.Text `json:"provider,omitempty"`
 			Endpoint strictjson.Text `json:"endpoint"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil || bybit.ValidateEndpoint(string(in.Endpoint)) != nil || c.child.Environment != "mainnet" {
+		if strictjson.Decode(message.Body, &in) != nil || !exchange.ValidateProviderEndpoint(string(in.Provider), string(in.Endpoint)) || c.child.Environment != "mainnet" {
 			return nil, errExchange
 		}
 		if err := c.childCallAt(epoch, "exchangeConnect", in, nil); err != nil {
 			return nil, err
 		}
 		return c.exchangeStatusAt(epoch)
+	case "exchangeSelect":
+		var in struct {
+			Provider strictjson.Text `json:"provider"`
+		}
+		if strictjson.Decode(message.Body, &in) != nil || in.Provider == "" || c.child.Environment != "mainnet" {
+			return nil, errExchange
+		}
+		if _, ok := exchange.ProviderByID(string(in.Provider)); !ok {
+			return nil, errExchange
+		}
+		if err := c.childCallAt(epoch, "exchangeSelect", in, nil); err != nil {
+			return nil, err
+		}
+		return c.exchangeStatusAt(epoch)
 	case "exchangeReconcile":
 		var in struct {
-			ID strictjson.Text `json:"id"`
+			ID       strictjson.Text `json:"id"`
+			Provider strictjson.Text `json:"provider,omitempty"`
 		}
 		if strictjson.Decode(message.Body, &in) != nil || in.ID == "" {
 			return nil, errExchange
@@ -334,8 +448,13 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, err
 		}
 		defer client.Close()
+		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
+			return nil, errExchange
+		}
 		var operation vault.ExchangeOperation
-		if err = c.childCallAt(epoch, "exchangeOperation", in, &operation); err != nil {
+		if err = c.childCallAt(epoch, "exchangeOperation", struct {
+			ID string `json:"id"`
+		}{string(in.ID)}, &operation); err != nil {
 			return nil, err
 		}
 		if operation.CredentialID != status.CredentialID || operation.Endpoint != status.Endpoint {
@@ -344,6 +463,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		return c.reconcileExchangeAt(epoch, client, operation)
 	case "exchangeQuote":
 		var in struct {
+			Provider  strictjson.Text `json:"provider,omitempty"`
 			AccountID strictjson.Text `json:"accountId"`
 			AssetID   strictjson.Text `json:"assetId"`
 			Side      strictjson.Text `json:"side"`
@@ -352,15 +472,19 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
 		}
-		client, _, err := c.exchangeClientAt(epoch)
+		client, status, err := c.exchangeClientAt(epoch)
 		if err != nil {
 			return nil, err
 		}
 		defer client.Close()
+		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
+			return nil, errExchange
+		}
 		quote, _, _, err := c.exchangeQuoteAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.QuoteCoin))
 		return quote, err
 	case "exchangeDeposit", "exchangeWithdraw":
 		var in struct {
+			Provider  strictjson.Text `json:"provider,omitempty"`
 			AccountID strictjson.Text `json:"accountId"`
 			AssetID   strictjson.Text `json:"assetId"`
 			Amount    strictjson.Text `json:"amount"`
@@ -368,17 +492,21 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
 		}
-		client, _, err := c.exchangeClientAt(epoch)
+		client, status, err := c.exchangeClientAt(epoch)
 		if err != nil {
 			return nil, err
 		}
 		defer client.Close()
+		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
+			return nil, errExchange
+		}
 		if message.Method == "exchangeDeposit" {
 			return c.exchangeDepositAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
 		}
 		return c.exchangeWithdrawAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
 	case "exchangeSwap":
 		var in struct {
+			Provider  strictjson.Text `json:"provider,omitempty"`
 			AccountID strictjson.Text `json:"accountId"`
 			AssetID   strictjson.Text `json:"assetId"`
 			Side      strictjson.Text `json:"side"`
@@ -389,14 +517,24 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
 		}
-		client, _, err := c.exchangeClientAt(epoch)
+		client, status, err := c.exchangeClientAt(epoch)
 		if err != nil {
 			return nil, err
 		}
 		defer client.Close()
+		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
+			return nil, errExchange
+		}
 		return c.exchangeSwapAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage), string(in.QuoteCoin))
 	}
 	return nil, errExchange
+}
+
+func exchangeProviderMatches(requested, selected string) bool {
+	if selected == "" {
+		selected = "bybit"
+	}
+	return requested == selected || requested == "" && selected == "bybit"
 }
 
 // All exchange arithmetic uses a common bounded integer scale; no float or
@@ -469,6 +607,11 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 		quoteCoin = selectedQuote[0]
 	}
 	quote := exchangeQuote{AccountID: accountID, AssetID: assetID, Side: side, QuoteCoin: quoteCoin, Balances: []exchangeBalance{}, ObservedAt: strconv.FormatInt(time.Now().UnixMilli(), 10)}
+	service, ok := exchange.ProviderForEndpoint(client.Endpoint())
+	if !ok {
+		return quote, bybit.Chain{}, bybit.APIKeyInformation{}, errExchange
+	}
+	quote.Provider = service.ID
 	if len(selectedQuote) > 1 || !bybit.SpotQuote(quoteCoin) || side != "Buy" && side != "Sell" {
 		return quote, bybit.Chain{}, bybit.APIKeyInformation{}, errExchange
 	}
@@ -487,21 +630,28 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	if err != nil {
 		return quote, bybit.Chain{}, info, err
 	}
-	chain, routeErr := exchange.MatchRoute(account, asset, coin)
+	chain, routeErr := exchange.MatchProviderRoute(service.ID, account, asset, coin)
 	if routeErr == nil {
-		quote.Route = exchangeRoute{Supported: true, Chain: chain.Chain, ChainType: chain.ChainType, DepositEnabled: chain.ChainDeposit == "1", WithdrawEnabled: chain.ChainWithdraw == "1" && info.IsMaster && exchangePermission(info, "Withdraw"), MinDeposit: chain.DepositMin, MinWithdraw: chain.WithdrawMin, WithdrawFee: chain.WithdrawFee, WithdrawPercentageFee: chain.WithdrawPercentageFee, ContractAddress: chain.ContractAddress}
+		quote.Route = exchangeRoute{Supported: true, Chain: chain.Chain, ChainType: chain.ChainType, DepositEnabled: chain.ChainDeposit == "1", WithdrawEnabled: chain.ChainWithdraw == "1" && exchangeWithdrawalAuthority(service.ID, info) && exchangePermission(info, "Withdraw"), MinDeposit: chain.DepositMin, MinWithdraw: chain.WithdrawMin, WithdrawFee: chain.WithdrawFee, WithdrawPercentageFee: chain.WithdrawPercentageFee, ContractAddress: chain.ContractAddress}
 		if !exchangeWithdrawalRegionSupported(client.Endpoint()) {
 			quote.Route.WithdrawEnabled = false
 			quote.Route.Reason = "This Bybit region requires an additional withdrawal questionnaire which is not implemented. Deposit and spot trading remain separate; withdraw through Bybit after completing its required information."
 		}
 	} else {
-		quote.Route.Reason = "No unambiguous Bybit deposit/withdrawal route matches this exact wallet network and token contract."
+		quote.Route.Reason = "No unambiguous selected-exchange deposit/withdrawal route matches this exact wallet network and token contract."
 	}
 	quote.Balances, err = exchangeBalances(ctx, client, asset.Symbol, quoteCoin)
 	if err != nil {
 		return quote, chain, info, err
 	}
 	if asset.Symbol == quoteCoin {
+		return quote, chain, info, nil
+	}
+	if service.ID == "kucoin" {
+		// Classic fills can report a quote-currency fee while KCS is debited
+		// later from another account. No reviewed read-only Classic endpoint
+		// proves that setting is disabled, so do not authorize a spot debit.
+		quote.TradingUnavailable = "KuCoin spot trading is unavailable because the Classic API cannot verify whether additional KCS fee debits are disabled. Deposit and owned-wallet withdrawal remain separate."
 		return quote, chain, info, nil
 	}
 	symbol := asset.Symbol + quoteCoin
@@ -522,6 +672,10 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	}
 	fee, err := client.SpotFeeRate(ctx, symbol)
 	if err != nil {
+		if errors.Is(err, binance.ErrFeeCurrency) {
+			quote.TradingUnavailable = "Binance BNB fee payment is enabled for this pair. Change that fee setting at Binance before trading; this wallet does not authorize spending BNB. Deposit and withdrawal remain separate."
+			return quote, chain, info, nil
+		}
 		return quote, chain, info, err
 	}
 	if ticker.Symbol != symbol || fee.Symbol != symbol {
@@ -529,6 +683,7 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	}
 	quote.Symbol, quote.LastPrice, quote.BidPrice, quote.AskPrice, quote.FeeRate = symbol, ticker.LastPrice, ticker.Bid1Price, ticker.Ask1Price, fee.TakerFeeRate
 	quote.BasePrecision, quote.QuotePrecision, quote.MinOrderAmount, quote.MaxOrderQty = instrument.LotSizeFilter.BasePrecision, instrument.LotSizeFilter.QuotePrecision, instrument.LotSizeFilter.MinOrderAmt, instrument.LotSizeFilter.MaxMarketOrderQty
+	quote.PricePrecision = instrument.PriceFilter.TickSize
 	return quote, chain, info, nil
 }
 func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
@@ -557,9 +712,9 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 	// the full contract. CoinInfo supplies the full already-verified identity.
 	contractMatches := deposit.ContractAddress == "" && asset.Contract == ""
 	if asset.Contract != "" {
-		contractMatches = strings.EqualFold(deposit.ContractAddress, asset.Contract) || len(deposit.ContractAddress) == 6 && strings.EqualFold(deposit.ContractAddress, asset.Contract[len(asset.Contract)-6:])
+		contractMatches = strings.EqualFold(deposit.ContractAddress, asset.Contract) || quote.Provider == "bybit" && len(deposit.ContractAddress) == 6 && strings.EqualFold(deposit.ContractAddress, asset.Contract[len(asset.Contract)-6:])
 	}
-	if !contractMatches || exchange.ValidateRoute(account, asset, deposit.Chain, deposit.ChainType, chain.ContractAddress) != nil || deposit.ChainType != chain.ChainType || adapter.ValidateAddress(account.Network, deposit.Address) != nil || deposit.Tag != "" && account.Family != "ton" || account.Family == "ton" && deposit.Tag == "" {
+	if !contractMatches || exchange.ValidateProviderRoute(quote.Provider, account, asset, deposit.Chain, deposit.ChainType, chain.ContractAddress) != nil || deposit.ChainType != chain.ChainType || adapter.ValidateAddress(account.Network, deposit.Address) != nil || deposit.Tag != "" && account.Family != "ton" || account.Family == "ton" && deposit.Tag == "" {
 		return exchangeResult{}, errExchange
 	}
 	transfer := model.Transfer{AccountID: account.ID, Asset: asset.ID, Recipient: deposit.Address, Amount: atomic, Memo: deposit.Tag}
@@ -590,7 +745,7 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 	if !ok {
 		return exchangeResult{}, errExchange
 	}
-	return exchangeResult{ID: plan.ID, Kind: "deposit", State: receipt.State, TransactionID: receipt.Identity, Message: "This is the original on-chain wallet payment, retained in the Local payment journal in Settings. Chain submission does not establish Bybit deposit credit; wait for exchange credit before swapping. TON includes the required deposit memo."}, nil
+	return exchangeResult{ID: plan.ID, Kind: "deposit", State: receipt.State, TransactionID: receipt.Identity, Message: "This is the original on-chain wallet payment, retained in the Local payment journal in Settings. Chain submission does not establish exchange deposit credit; wait for exchange credit before swapping. TON includes the required deposit memo."}, nil
 }
 func exchangeAvailable(balances []exchangeBalance, kind, coin string) string {
 	for _, b := range balances {
@@ -691,6 +846,13 @@ func (c *core) ensureExchangeFunds(epoch uint64, client exchangeAPI, info bybit.
 	if exchangeAtLeast(available, value) {
 		return nil, nil
 	}
+	if provider, known := exchange.ProviderForEndpoint(client.Endpoint()); known && provider.ID == "kucoin" {
+		accountName := "Funding"
+		if target == "UNIFIED" {
+			accountName = "Spot"
+		}
+		return &exchangeResult{Kind: "transfer", State: "FUNDING_REQUIRED", Message: "Move the required " + value + " " + coin + " to your KuCoin " + accountName + " account first. Automatic internal transfer is unavailable because the Classic API has no verified exact status lookup. Refresh the balance before authorizing this operation."}, nil
+	}
 	if !exchangePermission(info, "AccountTransfer") {
 		return nil, errExchange
 	}
@@ -734,36 +896,134 @@ func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, asset
 	if err != nil {
 		return exchangeResult{}, err
 	}
-	if quote.Symbol == "" || !exchangePermission(info, "SpotTrade") || validateExchangeOrder(quote, value, slippage) != nil {
+	if quote.Symbol == "" || quote.TradingUnavailable != "" || !exchangePermission(info, "SpotTrade") || validateExchangeOrder(quote, value, slippage) != nil {
 		return exchangeResult{}, errExchange
 	}
 	coin, unit := quote.Coin, "baseCoin"
 	if side == "Buy" {
 		coin, unit = quote.QuoteCoin, "quoteCoin"
 	}
-	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, coin, value, "UNIFIED"); err != nil {
-		return exchangeResult{}, err
-	} else if transfer != nil {
-		return *transfer, nil
-	}
 	fee, feeCoin, err := exchangeFeeEstimate(quote, value, side)
 	if err != nil {
 		return exchangeResult{}, err
 	}
 	order := bybit.SpotOrder{Category: "spot", Symbol: quote.Symbol, Side: side, OrderType: "Market", Qty: value, MarketUnit: unit, IsLeverage: 0, SlippageToleranceType: "Percent", SlippageTolerance: slippage}
+	if quote.Provider != "" && quote.Provider != "bybit" {
+		order, fee, feeCoin, err = exchangeIOCOrder(quote, order)
+		if err != nil {
+			return exchangeResult{}, err
+		}
+	}
+	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, coin, value, "UNIFIED"); err != nil {
+		return exchangeResult{}, err
+	} else if transfer != nil {
+		return *transfer, nil
+	}
 	return c.executeExchangeAt(epoch, client, exchangeIntent{Kind: "swap", AccountID: accountID, AssetID: assetID, Order: &order, LastPrice: quote.LastPrice, Fee: fee, FeeCoin: feeCoin})
+}
+
+func exchangeIOCOrder(quote exchangeQuote, order bybit.SpotOrder) (bybit.SpotOrder, string, string, error) {
+	qty, e := exchangeAtomic(order.Qty)
+	step, f := exchangeAtomic(quote.BasePrecision)
+	tick, g := exchangeAtomic(quote.PricePrecision)
+	slip, h := amount.Parse(order.SlippageTolerance, 2)
+	bps, _ := new(big.Int).SetString(slip, 10)
+	if e != nil || f != nil || g != nil || h != nil || bps == nil || bps.Sign() <= 0 || bps.Cmp(big.NewInt(100)) > 0 || qty.Sign() <= 0 || step.Sign() <= 0 || tick.Sign() <= 0 {
+		return order, "", "", errExchange
+	}
+	priceText := quote.BidPrice
+	if order.Side == "Buy" {
+		priceText = quote.AskPrice
+	}
+	price, err := exchangeAtomic(priceText)
+	if err != nil || price.Sign() <= 0 {
+		return order, "", "", errExchange
+	}
+	factor := new(big.Int).Sub(big.NewInt(10000), bps)
+	if order.Side == "Buy" {
+		factor.Add(big.NewInt(10000), bps)
+	}
+	numerator := new(big.Int).Mul(price, factor)
+	denominator := new(big.Int).Mul(big.NewInt(10000), tick)
+	if order.Side == "Sell" {
+		numerator.Add(numerator, new(big.Int).Sub(denominator, big.NewInt(1)))
+	}
+	price.Div(numerator, denominator)
+	price.Mul(price, tick)
+	if price.Sign() <= 0 {
+		return order, "", "", errExchange
+	}
+	base := new(big.Int).Set(qty)
+	rate, err := exchangeAtomic(quote.FeeRate)
+	if err != nil || rate.Cmp(exchangeScale()) >= 0 {
+		return order, "", "", errExchange
+	}
+	if order.Side == "Buy" {
+		divisor := new(big.Int).Mul(price, step)
+		budget := new(big.Int).Mul(qty, exchangeScale())
+		if quote.Provider == "kucoin" {
+			// KuCoin standard spot fees may use quote currency on a buy. Keep
+			// the fee inside the original quote spending ceiling.
+			budget.Mul(budget, exchangeScale())
+			divisor.Mul(divisor, new(big.Int).Add(exchangeScale(), rate))
+		}
+		base.Div(budget, divisor)
+		base.Mul(base, step)
+	}
+	if base.Sign() <= 0 || new(big.Int).Mod(base, step).Sign() != 0 {
+		return order, "", "", errExchange
+	}
+	minimum, minErr := exchangeAtomic(quote.MinOrderAmount)
+	maximum, maxErr := exchangeAtomic(quote.MaxOrderQty)
+	if minErr != nil || maxErr != nil || maximum.Sign() <= 0 || base.Cmp(maximum) > 0 || new(big.Int).Mul(base, price).Cmp(new(big.Int).Mul(minimum, exchangeScale())) < 0 {
+		return order, "", "", errExchange
+	}
+	baseText, err := exchangeDecimal(base)
+	if err != nil {
+		return order, "", "", err
+	}
+	limitText, err := exchangeDecimal(price)
+	if err != nil {
+		return order, "", "", err
+	}
+	order.OrderType, order.BaseQty, order.LimitPrice = "Limit", baseText, limitText
+	// The signer assigns the durable ID after validating this exact policy.
+	validation := order
+	validation.OrderLinkID = "pending-exact-id"
+	if exchange.ValidateIOCOrder(validation) != nil {
+		return order, "", "", errExchange
+	}
+	feeCoin := quote.QuoteCoin
+	fee := new(big.Int).Mul(base, price)
+	fee.Mul(fee, rate)
+	fee.Div(fee, new(big.Int).Mul(exchangeScale(), exchangeScale()))
+	if order.Side == "Buy" && quote.Provider != "kucoin" {
+		feeCoin = quote.Coin
+		fee.Mul(base, rate)
+		fee.Div(fee, exchangeScale())
+	}
+	feeText, err := exchangeDecimal(fee)
+	return order, feeText, feeCoin, err
 }
 func (c *core) exchangeWithdrawAt(epoch uint64, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
 	quote, chain, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, "Sell")
 	if err != nil {
 		return exchangeResult{}, err
 	}
-	if !quote.Route.Supported || !quote.Route.WithdrawEnabled || !info.IsMaster || !exchangePermission(info, "Withdraw") || chain.WithdrawFee == "" || !exchangeAtLeast(value, chain.WithdrawMin) {
+	if !quote.Route.Supported || !quote.Route.WithdrawEnabled || !exchangeWithdrawalAuthority(quote.Provider, info) || !exchangePermission(info, "Withdraw") || chain.WithdrawFee == "" || !exchangeAtLeast(value, chain.WithdrawMin) {
 		return exchangeResult{}, errExchange
 	}
 	account, asset, _, err := c.exchangeAsset(accountID, assetID)
 	if err != nil {
 		return exchangeResult{}, err
+	}
+	if policy, ok := client.(interface{ WithdrawalAllowed(context.Context) error }); ok {
+		ctx, cancel := c.networkContextAt(30*time.Second, epoch)
+		err = policy.WithdrawalAllowed(ctx)
+		cancel()
+		if err != nil {
+			return exchangeResult{}, err
+		}
 	}
 	precision, err := strconv.ParseUint(chain.MinAccuracy, 10, 8)
 	if err != nil || precision > 36 {
@@ -777,16 +1037,50 @@ func (c *core) exchangeWithdrawAt(epoch uint64, client exchangeAPI, accountID, a
 		return exchangeResult{}, errExchange
 	}
 	fee, e := exchangeWithdrawalFee(value, chain.WithdrawFee, chain.WithdrawPercentageFee, uint8(precision))
+	fundsValue, target := value, "FUND"
+	if quote.Provider != "" && quote.Provider != "bybit" {
+		fee, e = exchangeNativeWithdrawalFee(value, chain.WithdrawFee, chain.WithdrawPercentageFee, uint8(precision))
+		if e == nil {
+			gross, _ := exchangeAtomic(value)
+			cost, _ := exchangeAtomic(fee)
+			fundsValue, e = exchangeDecimal(new(big.Int).Add(gross, cost))
+		}
+	}
 	if e != nil || chain.WithdrawMax != "-1" && !exchangeAtLeast(chain.WithdrawMax, value) {
 		return exchangeResult{}, errExchange
 	}
-	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, asset.Symbol, value, "FUND"); err != nil {
+	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, asset.Symbol, fundsValue, target); err != nil {
 		return exchangeResult{}, err
 	} else if transfer != nil {
 		return *transfer, nil
 	}
 	w := bybit.WithdrawalRequest{Coin: asset.Symbol, Chain: chain.Chain, Address: account.Address, Amount: value, ForceChain: 1, AccountType: "FUND", FeeType: 1}
+	if quote.Provider == "binance" {
+		w.FeeType = 0
+		w.FeeMode = "binance-native"
+	} else if quote.Provider == "kucoin" {
+		w.FeeType = 0
+		w.FeeMode = "kucoin-external"
+	}
 	return c.executeExchangeAt(epoch, client, exchangeIntent{Kind: "withdraw", AccountID: accountID, AssetID: assetID, Withdrawal: &w, Fee: fee, FeeCoin: asset.Symbol, ChainType: chain.ChainType, ContractAddress: chain.ContractAddress})
+}
+
+func exchangeNativeWithdrawalFee(value, fixed, percentage string, precision uint8) (string, error) {
+	qty, e := exchangeAtomic(value)
+	flat, f := exchangeAtomic(fixed)
+	rate, g := exchangeAtomic(percentage)
+	if e != nil || f != nil || g != nil || precision > 36 || qty.Sign() <= 0 || rate.Cmp(exchangeScale()) >= 0 {
+		return "", errExchange
+	}
+	fee := new(big.Int).Mul(qty, rate)
+	fee.Add(fee, new(big.Int).Sub(exchangeScale(), big.NewInt(1)))
+	fee.Div(fee, exchangeScale())
+	fee.Add(fee, flat)
+	step := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(36-precision)), nil)
+	fee.Add(fee, new(big.Int).Sub(step, big.NewInt(1)))
+	fee.Div(fee, step)
+	fee.Mul(fee, step)
+	return exchangeDecimal(fee)
 }
 
 // Bybit's documented feeType=1 formula is fixed+(input-fixed)*rate.
@@ -867,7 +1161,7 @@ func (c *core) executeExchangeAt(epoch uint64, client exchangeAPI, intent exchan
 	state := "PENDING"
 	if err != nil {
 		var apiError *bybit.APIError
-		if errors.As(err, &apiError) && apiError.HTTPStatus == 0 {
+		if service, ok := exchange.ProviderForEndpoint(client.Endpoint()); ok && service.ID == "bybit" && errors.As(err, &apiError) && apiError.HTTPStatus == 0 {
 			if message := exchangeRejectionMessage(apiError.Code); message != "" {
 				var rejected vault.ExchangeOperation
 				failure := c.childCallAt(epoch, "exchangeReject", struct {
@@ -888,7 +1182,7 @@ func (c *core) executeExchangeAt(epoch uint64, client exchangeAPI, intent exchan
 		return exchangeResult{}, persistErr
 	}
 	if state == "UNKNOWN" {
-		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The request result is unknown. Its original operation is retained and new exchange writes are blocked. Reconcile it; never create a replacement after a timeout. A lost withdrawal acknowledgement cannot be located safely by requestId in Bybit's records API."}, nil
+		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The request result is unknown. Its original operation is retained and new exchange writes are blocked. Reconcile it; never create a replacement after a timeout. A missing acknowledgement can only be recovered when the selected service exposes the exact original request identity."}, nil
 	}
 	return c.reconcileExchangeAt(epoch, client, updated)
 }
@@ -932,7 +1226,11 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		if err != nil || order == nil {
 			break
 		}
-		if order.OrderLinkID != request.OrderLinkID || order.Symbol != request.Symbol || order.Side != request.Side || !sameExchangeAmount(order.Qty, request.Qty) || order.MarketUnit != request.MarketUnit || order.OrderType != "Market" || order.IsLeverage != "0" || externalID != "" && order.OrderID != externalID {
+		quantity, unit := request.Qty, request.MarketUnit
+		if request.LimitPrice != "" {
+			quantity, unit = request.BaseQty, "baseCoin"
+		}
+		if order.OrderLinkID != request.OrderLinkID || order.Symbol != request.Symbol || order.Side != request.Side || !sameExchangeAmount(order.Qty, quantity) || order.MarketUnit != unit || order.OrderType != request.OrderType || order.IsLeverage != "0" || externalID != "" && order.OrderID != externalID || request.LimitPrice != "" && (!sameExchangeAmount(order.BaseQty, request.BaseQty) || !sameExchangeAmount(order.LimitPrice, request.LimitPrice) || order.TimeInForce != "IOC") {
 			return result, errExchange
 		}
 		externalID = order.OrderID
@@ -966,18 +1264,28 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		if strictjson.Decode([]byte(operation.Payload), &request) != nil {
 			return result, errExchange
 		}
-		record, err := client.TransferStatus(ctx, request.TransferID)
+		var record *bybit.TransferRecord
+		var err error
+		if native, ok := client.(interface {
+			TransferStatusFor(context.Context, bybit.TransferRequest, string) (*bybit.TransferRecord, error)
+		}); ok {
+			record, err = native.TransferStatusFor(ctx, request, externalID)
+		} else {
+			record, err = client.TransferStatus(ctx, request.TransferID)
+		}
 		if err != nil || record == nil {
 			break
 		}
 		if record.TransferID != request.TransferID || record.Coin != request.Coin || !sameExchangeAmount(record.Amount, request.Amount) || record.FromAccountType != request.FromAccountType || record.ToAccountType != request.ToAccountType {
 			return result, errExchange
 		}
-		externalID = record.TransferID
+		if externalID == "" {
+			externalID = record.TransferID
+		}
 		switch record.Status {
 		case "SUCCESS":
 			state = "CONFIRMED"
-			result.Message = "The exact internal Funding/Unified transfer is confirmed."
+			result.Message = "The exact internal Funding/spot transfer is confirmed."
 		case "FAILED":
 			state = "FAILED"
 		case "PENDING":
@@ -988,11 +1296,21 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		if strictjson.Decode([]byte(operation.Payload), &request) != nil {
 			return result, errExchange
 		}
-		if externalID == "" {
-			result.Message = "Withdrawal acknowledgement was lost. Bybit's records do not expose requestId; do not retry or infer a match from amount/address. Verify the original request independently with Bybit."
-			break
+		var page bybit.WithdrawalPage
+		var err error
+		if native, ok := client.(interface {
+			WithdrawalRecordsFor(context.Context, bybit.WithdrawalRequest, string, string) (bybit.WithdrawalPage, error)
+		}); ok {
+			// Some services expose the original client request ID. Their adapter
+			// must query that exact identity, never amount/address/time heuristics.
+			page, err = native.WithdrawalRecordsFor(ctx, request, externalID, "")
+		} else {
+			if externalID == "" {
+				result.Message = "Withdrawal acknowledgement was lost. This service does not expose a safe original-request lookup here; do not retry or infer a match from amount/address. Verify the original request independently with the exchange."
+				break
+			}
+			page, err = client.WithdrawalRecords(ctx, request.Coin, externalID, "")
 		}
-		page, err := client.WithdrawalRecords(ctx, request.Coin, externalID, "")
 		if err != nil {
 			break
 		}
@@ -1000,9 +1318,13 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 			break
 		}
 		record := page.Rows[0]
-		if record.WithdrawID != externalID || record.Coin != request.Coin || record.Chain != request.Chain || record.ToAddress != request.Address || record.Tag != request.Tag {
+		if record.WithdrawID == "" || externalID != "" && record.WithdrawID != externalID || record.Coin != request.Coin || record.Chain != request.Chain || record.ToAddress != request.Address || record.Tag != request.Tag {
 			return result, errExchange
 		}
+		if request.FeeMode == "binance-native" && record.RequestID != request.RequestID || externalID == "" && record.RequestID != request.RequestID {
+			return result, errExchange
+		}
+		externalID = record.WithdrawID
 		// The record API does not define whether `amount` is gross or net for
 		// feeType=1. Never invent that relation or infer an on-chain credit.
 		if _, e := exchangeAtomic(record.Amount); e != nil {
@@ -1016,7 +1338,7 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		switch record.Status {
 		case "success", "successConfirmed":
 			state = "CONFIRMED"
-			result.Message = "Bybit reports this exact withdrawal completed. This does not independently establish on-chain credit/finality; refresh the destination wallet balance."
+			result.Message = "The exchange reports this exact withdrawal completed. This does not independently establish on-chain credit/finality; refresh the destination wallet balance."
 		case "SecurityCheck", "Pending", "BlockchainConfirmed", "MoreInformationRequired", "Unknown":
 			state = "PENDING"
 		case "CancelByUser", "Reject", "Fail":
@@ -1053,7 +1375,8 @@ func verifiedExchangeExecutions(ctx context.Context, client exchangeAPI, request
 	if !validPair {
 		return "", "", nil, errExchange
 	}
-	if request.Side == "Buy" {
+	provider, _ := exchange.ProviderForEndpoint(client.Endpoint())
+	if request.Side == "Buy" && provider.ID != "kucoin" {
 		feeCoin = baseCoin
 	}
 	for pageIndex := 0; pageIndex < 32; pageIndex++ {
@@ -1065,7 +1388,7 @@ func verifiedExchangeExecutions(ctx context.Context, client exchangeAPI, request
 			return "", "", nil, errExchange
 		}
 		for _, fill := range page.List {
-			if fill.OrderID != order.OrderID || fill.OrderLinkID != request.OrderLinkID || fill.Symbol != request.Symbol || fill.Side != request.Side || fill.OrderType != "Market" || seen[fill.ExecID] || fill.ExecID == "" {
+			if fill.OrderID != order.OrderID || fill.OrderLinkID != request.OrderLinkID || fill.Symbol != request.Symbol || fill.Side != request.Side || fill.OrderType != request.OrderType || seen[fill.ExecID] || fill.ExecID == "" {
 				return "", "", nil, errExchange
 			}
 			seen[fill.ExecID] = true
@@ -1075,6 +1398,12 @@ func verifiedExchangeExecutions(ctx context.Context, client exchangeAPI, request
 			price, h := exchangeAtomic(fill.ExecPrice)
 			if e != nil || f != nil || g != nil || h != nil || qty.Sign() <= 0 || value.Sign() <= 0 || price.Sign() <= 0 || fill.FeeCurrency != feeCoin {
 				return "", "", nil, errExchange
+			}
+			if request.LimitPrice != "" {
+				limit, err := exchangeAtomic(request.LimitPrice)
+				if err != nil || request.Side == "Buy" && price.Cmp(limit) > 0 || request.Side == "Sell" && price.Cmp(limit) < 0 || fill.OrderQty != "" && !sameExchangeAmount(fill.OrderQty, request.BaseQty) {
+					return "", "", nil, errExchange
+				}
 			}
 			base.Add(base, qty)
 			quote.Add(quote, value)
@@ -1118,8 +1447,14 @@ func verifiedExchangeExecutions(ctx context.Context, client exchangeAPI, request
 				out[coin] = formatted
 			}
 			spend, _ := exchangeAtomic(request.Qty)
+			if request.LimitPrice != "" {
+				maximum, err := exchangeAtomic(request.BaseQty)
+				if err != nil || base.Cmp(maximum) > 0 || order.OrderStatus == "Filled" && base.Cmp(maximum) != 0 {
+					return "", "", nil, errExchange
+				}
+			}
 			received := quote
-			if request.Side == "Buy" {
+			if request.Side == "Buy" && feeCoin == baseCoin {
 				received = base
 			}
 			if charged := fees[feeCoin]; charged != nil && charged.Cmp(received) > 0 {
@@ -1129,8 +1464,14 @@ func verifiedExchangeExecutions(ctx context.Context, client exchangeAPI, request
 				if base.Cmp(spend) > 0 || order.OrderStatus == "Filled" && base.Cmp(spend) != 0 {
 					return "", "", nil, errExchange
 				}
-			} else if quote.Cmp(spend) > 0 {
-				return "", "", nil, errExchange
+			} else {
+				charged := new(big.Int).Set(quote)
+				if provider.ID == "kucoin" && fees[feeCoin] != nil {
+					charged.Add(charged, fees[feeCoin])
+				}
+				if charged.Cmp(spend) > 0 {
+					return "", "", nil, errExchange
+				}
 			}
 			return baseText, quoteText, out, nil
 		}

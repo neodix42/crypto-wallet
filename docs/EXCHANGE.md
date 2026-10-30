@@ -1,4 +1,6 @@
-# Exchange with Bybit
+# Exchange
+
+The current provider selector supports **Bybit, Binance and KuCoin** with separately encrypted credentials. Read [Exchange providers](EXCHANGE_PROVIDERS.md) for their distinct endpoints, Binance LIMIT IOC trading, fee policies and original-operation recovery. KuCoin supports Classic account observations, deposit and owned-wallet withdrawal; new KuCoin trades are blocked because additional KCS fee debits cannot be verified safely, and internal funding must be moved through KuCoin itself. The sections below document retained Bybit-specific behavior; its Market order and inclusive-withdrawal rules do not apply to the other services.
 
 This integration requires a **Bybit Unified Trading Account**, using Funding and Unified balances. A Classic-only account can authenticate its key but cannot complete this balance/transfer flow; authentication alone does not establish trading eligibility.
 
@@ -25,13 +27,13 @@ Ethereum USDT uses contract `0xdAC17F958D2ee523a2206206994597C13D831ec7`, six de
 
 The asset selector displays the asset name. **Token contract** is separate metadata identifying an EVM token's issuing contract, not an owned wallet address. HyperCore spot assets use **Token identifier** rather than an ERC-20 contract label. For example, an Ethereum receive address such as `0x73410EA1FcbE1b8bCA883762dC56beF46403A469` identifies a wallet account, while USDT's `0xdAC17F958D2ee523a2206206994597C13D831ec7` identifies the shared Tether contract. ETH and supported Ethereum USDT for the same account use the same owned receive address. The app labels the selected wallet address separately; choose Ethereum at the sender and never send to the token contract as a deposit destination. This example does not verify ownership of the example address.
 
-A supported local wallet asset does not guarantee a Bybit deposit/withdrawal network or active USDT/USDC spot pair. The backend queries the selected service, matches full native/token/network identity and rejects ambiguous or suspended routes. A shared EVM address or ticker does not identify a network. HyperCore is never inferred from HyperEVM; unsupported routes and deferred Decred exchange work stay unavailable while the original wallets remain present. No implicit bridge is created.
+A supported local wallet asset does not guarantee a Bybit deposit/withdrawal network or active USDT/USDC spot pair. The backend queries the selected service, matches full native/token/network identity and rejects ambiguous or suspended routes. A shared EVM address or ticker does not identify a network. HyperCore is never inferred from HyperEVM; unsupported routes and unmatched Decred exchange routes stay unavailable while the original wallets remain present. No implicit bridge is created.
 
 ## Connect a Bybit account
 
-1. Complete wallet recovery-word confirmation and unlock the wallet. Select **Settings**, immediately to the right of **Exchange** in the main tab bar, then select its **Exchange** tab.
+1. Complete wallet recovery-word confirmation and unlock the wallet. Select **Settings** at the right edge of the main tab bar, then select its **Exchange** tab and **Bybit** provider.
 2. Choose the API region matching your Bybit account. The list is explicit; the app does not infer a region from your IP or machine timezone.
-3. Select **Connect Bybit**. In the current unlocked, recovery-confirmed session, enter the **API key** and matching **API secret** from a system-generated key created in Bybit, using the separate masked wallet dialogs. Review the exact service/custody confirmation. Connect alone no longer repeats the storage-password prompt; disconnect and every funds-moving operation retain their own authorizations.
+3. Select **Connect Bybit**. In the current unlocked, recovery-confirmed session, enter the **API key** and matching **API secret** from a system-generated key created in Bybit, using the masked dialog in the same wallet window. Review the exact service/custody confirmation. Connect alone no longer repeats the storage-password prompt; disconnect and every funds-moving operation retain their own authorizations.
 4. Configure only the Bybit permissions needed for your intended actions: spot trading, internal account transfers and withdrawal. Withdrawals require a master-account key. Use an appropriate API IP restriction and add each exact owned destination address to Bybit's withdrawal whitelist. Read-only or insufficient permissions remain visible and cannot authorize writes.
 
 Connection, region, key changes and Disconnect live in **Settings → Exchange**. Settings is a page in the main window, with **Wallet**, **Exchange**, **Journal** and **Appearance** tabs; it is not a popup. Select the main **Exchange** tab for Deposit, Swap and Withdraw, or select an account/wallet tab to return to it. You can configure the connection directly from Settings without opening the trading page.
@@ -40,7 +42,7 @@ The API key identifies the account connection; the API secret signs authenticate
 
 Information and error messages appear in the compact fixed bottom status bar and clear after seven seconds without changing page layout. They do not authorize a retry. If a message reports an unknown balance or uncertain request, refresh or reconcile the original operation before considering another write.
 
-The ordinary portfolio receives status and a key suffix. It cannot read the key, secret or beneficiary fields or submit a generic signed API payload. Credentials stay in the authenticated encrypted local vault. Go core performs HTTPS requests. The default product now uses Wails/React and system WebKitGTK, with Go roles and its renderer unconfined under the explicit owner instruction; no OS-enforced signer remote-IP denial is claimed. The isolated prompt and transient Go transport are trusted with entered credentials, just as they are with entered wallet passwords. Their compromise can capture those inputs; masked fields and backend generation do not remove that trust.
+The ordinary portfolio receives status and a key suffix. It cannot read the key, secret or beneficiary fields or submit a generic signed API payload. Credentials stay in the authenticated encrypted local vault. Go core performs HTTPS requests. The default product now uses Wails/React and system WebKitGTK, with Go roles and its renderer unconfined under the explicit owner instruction; no OS-enforced signer remote-IP denial is claimed. The trusted in-process Wails dialog and transient Go transport handle entered credentials, just as they handle entered wallet passwords. Their compromise can capture those inputs; masked fields and backend generation do not remove that trust.
 
 ## Deposit
 

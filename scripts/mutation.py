@@ -28,7 +28,7 @@ mutants=[
  ('erc20-import-password','internal/signer/tokens.go','!hmac.Equal(in[0], e.password)','(false && !hmac.Equal(in[0], e.password))','./internal/signer'),
  ('erc20-runtime-pinning','internal/chains/evm/adapter.go','if crypto.Keccak256Hash(codeBytes).Hex() != expected {','if false && crypto.Keccak256Hash(codeBytes).Hex() != expected {','./internal/chains/evm'),
  ('erc20-false-transfer-result','internal/chains/evm/adapter.go','if s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {','if false && s.Contract != "" && !(s.ID == USDTAsset && simulated == "0x") {','./internal/chains/evm'),
- ('exchange-connect-custody-confirmation','internal/signer/exchange.go','if !e.UI.Confirm("Approve Bybit custody and API access",','if false && !e.UI.Confirm("Approve Bybit custody and API access",','./internal/signer'),
+ ('exchange-connect-custody-confirmation','internal/signer/exchange.go','if !e.UI.Confirm("Approve "+service.Name+" custody and API access",','if false && !e.UI.Confirm("Approve "+service.Name+" custody and API access",','./internal/signer'),
  ('exchange-connect-current-generation','internal/signer/exchange.go','data.Generation == generation && data.Exchange == x','(data.Generation == generation || true) && data.Exchange == x','./internal/signer'),
 ]
 # Approval and secret-display guards require an unmodified passing control and their

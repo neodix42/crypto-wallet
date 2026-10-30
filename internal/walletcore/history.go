@@ -52,30 +52,7 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 	if err != nil {
 		return nil, err
 	}
-	if d, ok := adapter.(*decred.Adapter); ok {
-		// Preserve the existing report contract; Decred synchronization changes
-		// are explicitly outside this work. Bound its actual IPC response.
-		if cursor != "" {
-			return nil, errors.New("Decred history continuation unavailable")
-		}
-		ctx, cancel := c.networkContextAt(2*time.Minute, epoch)
-		defer cancel()
-		report, err := d.SyncWithProgress(ctx, ac, nil)
-		if err != nil {
-			return nil, err
-		}
-		result := struct {
-			Report     decred.SyncReport `json:"report"`
-			Scope      string            `json:"scope"`
-			Complete   bool              `json:"complete"`
-			NextCursor string            `json:"nextCursor"`
-		}{Report: report, Scope: "Authenticated dcrd bounded scan; see scanned range/address limit. Older blocks and addresses beyond configured limits remain unresolved."}
-		raw, err := json.Marshal(result)
-		if err != nil || len(raw) > historyPageBytes {
-			return nil, errors.New("Decred report exceeds bounded history response; narrow discovery settings")
-		}
-		return result, nil
-	}
+	var dcrReport *decred.SyncReport
 	key := accountHistoryKey(ac)
 	c.mu.Lock()
 	if c.epoch != epoch {
@@ -105,10 +82,23 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 		scan = &historyScan{epoch: epoch, session: session, account: key, seen: map[string]bool{}}
 	}
 	c.mu.Unlock()
-	ctx, cancel := c.networkContextAt(2*time.Minute, epoch)
+	ctx, cancel := c.historyContextAt(2*time.Minute, epoch, session)
 	defer cancel()
 	if cursor == "" || len(scan.pending) == 0 && scan.next != "" {
-		page, err := historyAdapterPage(ctx, adapter, ac, scan.next)
+		var page model.HistoryPage
+		var err error
+		if d, ok := adapter.(*decred.Adapter); ok {
+			// A single authenticated scan supplies the same bounded transaction
+			// pages as other families. Raw creation proofs never enter cursors.
+			report, syncErr := d.SyncWithProgress(ctx, ac, nil)
+			err = syncErr
+			if err == nil {
+				dcrReport = &report
+				page = model.HistoryPage{Entries: decred.HistoryReceipts(ac.Network, report), Scope: d.HistoryScope()}
+			}
+		} else {
+			page, err = historyAdapterPage(ctx, adapter, ac, scan.next)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -124,6 +114,9 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 		}
 		scan.bytes = len(raw)
 		for _, row := range page.Entries {
+			if err := validateHistoryReceipt(adapter, ac, row); err != nil {
+				return nil, err
+			}
 			if row.Identity == "" || len(row.Identity) > 512 || !utf8.ValidString(row.Identity) || scan.seen[row.Identity] {
 				return nil, errors.New("history provider returned a duplicate or invalid transaction identity")
 			}
@@ -182,6 +175,19 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 	raw, err := json.Marshal(page)
 	if err != nil || len(raw) > historyPageBytes {
 		return nil, errors.New("history page exceeds IPC bound")
+	}
+	if dcrReport != nil {
+		// Preserve the legacy detailed report on an initial page when it fits;
+		// larger scans retain usable transaction pagination rather than failing
+		// merely because the additional report duplicates every history row.
+		result := struct {
+			model.HistoryPage
+			Report *decred.SyncReport `json:"report"`
+		}{page, dcrReport}
+		if envelope, encodeErr := json.Marshal(result); encodeErr == nil && len(envelope) <= historyPageBytes {
+			return result, nil
+		}
+		page.Scope += " Detailed synchronization report omitted from this page to retain the response-size bound."
 	}
 	return page, nil
 }

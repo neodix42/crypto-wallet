@@ -71,7 +71,7 @@ while True:
  elif method=='operation':output=next((op for op in state.get('ops',[]) if op['plan']['id']==body['id']),None)
  elif method=='account':output=next((ac for ac in state.get('accounts',[]) if ac['id']==body['accountId']),None)
  elif method=='journalPage':
-  ops=[dict(op) for op in reversed(state.get('ops',[])) if not body['accountId'] or op['plan']['account']['id']==body['accountId'] and op['plan']['asset']==body['asset']]
+  ops=[dict(op) for op in reversed(state.get('ops',[])) if (not body['accountId'] or op['plan']['account']['id']==body['accountId']) and (not body['asset'] or op['plan']['asset']==body['asset'])]
   for op in ops:op.pop('signed',None)
   offset=int(body['cursor'] or '0');page=ops[offset:offset+128]
   output={'operations':page,'nextCursor':str(offset+len(page)) if offset+len(page)<len(ops) else '', 'complete':offset+len(page)==len(ops),'revision':str(state.get('revision',1)),'total':len(ops)}

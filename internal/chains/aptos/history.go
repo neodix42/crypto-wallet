@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"localwallet/internal/chains/chainutil"
 	"localwallet/internal/model"
@@ -20,7 +21,8 @@ func (*Adapter) HistoryScope() string {
 
 type historyTransaction struct {
 	execution
-	Payload struct {
+	Timestamp string `json:"timestamp"`
+	Payload   struct {
 		Type     string            `json:"type"`
 		Function string            `json:"function"`
 		Types    []string          `json:"type_arguments"`
@@ -143,7 +145,15 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 			if *tx.Success {
 				state = "CONFIRMED"
 			}
-			out = append(out, model.Receipt{Identity: tx.Hash, State: state, Block: tx.Version, Detail: fmt.Sprintf("Native APT direct transfer: %s -> %s; %s octas; %s", from.StringLong(), to.StringLong(), amount, state)})
+			var stamp int64
+			if tx.Timestamp != "" {
+				micros, err := chainutil.Uint(tx.Timestamp, 64)
+				if err != nil || micros/1_000_000 > uint64(time.Now().Unix()+300) {
+					return nil, errInvalid
+				}
+				stamp = int64(micros / 1_000_000)
+			}
+			out = append(out, model.Receipt{Timestamp: stamp, Explorer: chainutil.TransactionExplorer(ac.Network, tx.Hash), Transfers: []model.HistoryTransfer{{ID: "native", Source: from.StringLong(), Destination: to.StringLong(), Asset: model.Asset{ID: asset(ac.Network), Symbol: "APT", Decimals: 8}, Atomic: amount}}, Identity: tx.Hash, State: state, Block: tx.Version, Detail: fmt.Sprintf("Native APT direct transfer: %s -> %s; %s octas; %s", from.StringLong(), to.StringLong(), amount, state)})
 		}
 		if start > ^uint64(0)-count {
 			break

@@ -169,7 +169,7 @@ func TestPublicPagingRejectsStaleCrossKindFilterTamperAndOversizeRecords(t *test
 	if _, err = e.JournalPage("", "", journalFirst.NextCursor); err == nil {
 		t.Fatal("stale journal generation accepted")
 	}
-	for _, query := range [][2]string{{"missing", "asset"}, {e.data.Accounts[0].ID, "unsupported-asset"}, {e.data.Accounts[0].ID, ""}, {"", "asset"}} {
+	for _, query := range [][2]string{{"missing", "asset"}, {e.data.Accounts[0].ID, "unsupported-asset"}, {"", "asset"}} {
 		if _, err = e.JournalPage(query[0], query[1], ""); err == nil {
 			t.Fatal("invalid journal scope accepted")
 		}

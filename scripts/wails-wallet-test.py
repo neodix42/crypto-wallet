@@ -34,6 +34,7 @@ mode.add_argument("--quick-import", action="store_true", help="Targeted public f
 mode.add_argument("--staking-only", action="store_true", help="Targeted actual NEAR Staking page check after disposable public-fixture import; no RPC server or transaction approval")
 mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
 mode.add_argument("--near-tokens-only", action="store_true", help="Actual offline NEAR native-asset table and token-contract import guards on a disposable public-fixture profile; no invented token balance or transaction")
+mode.add_argument("--history-layout-only", action="store_true", help="Actual offline transaction-table headers, rightmost Settings and acknowledged Bybit/Binance/KuCoin selection on a disposable public profile; no credentials or funds")
 mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
@@ -56,6 +57,9 @@ if args.tokens_only:
 if args.near_tokens_only:
     report["scope"]="Actual uninstrumented offline X11 NEAR wallet on a fresh public abandon/about fixture: native NEAR/24-decimal asset table, exact owned address/copy, NEP-141 contract input, URL rejection without approval, real offline metadata-query failure without installing a token, whole-NEAR Send units and unchanged native staking. No RPC response, token balance, import success, registration or transaction is fabricated."
     report["notRun"].extend(["Generated-root setup, backup and all-eight-wallet restore comparison (near-tokens-only mode)", "Actual custom NEP-141 token import, observed token balance, registration and token-send GUI workflows (offline graphical mode)"])
+if args.history_layout_only:
+    report["scope"]="Actual uninstrumented offline X11 history/layout/provider selection after importing the public abandon/about fixture: rightmost Settings, expanded content, all seven transaction-table headers with honest failed-provider scope, Settings Wallet/Appearance/Exchange navigation, actual acknowledged Bybit/Binance/KuCoin selection on both pages and disabled disconnected funding actions. No fabricated transaction, successful RPC response, API credential or exchange order."
+    report["notRun"].extend(["Successful graphical transaction rows and external explorer opening", "Live Binance/KuCoin credentials, deposits, trades and withdrawals", "Full generated-root recovery campaign (targeted mode)"])
 if args.decred_copy_only:
     report["scope"]="Targeted repeated actual Decred verified receive/copy on an isolated display after importing a public disposable BIP39 fixture; private windows remain excluded from public pixels and failure diagnostics contain only X11 window metadata. No payment, public RPC or complete wallet acceptance claim."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (Decred copy diagnostic mode)")
@@ -1633,6 +1637,81 @@ def scroll_to_public_words(words, contrast=False):
         scroll_public(5,3)
     raise RuntimeError("Expected staking control or disclosure missing: "+words)
 
+def history_layout_campaign():
+    stage("Check rightmost top-level Settings tab")
+    window,_=desktop.wait("CryptoWallet");x,y,w,h=desktop.geometry(window)
+    top=[row for row in public_rows() if y+77<int(row[7])<y+145]
+    settings=public_words_position("Settings",top)
+    book=public_words_position("Address book",top)
+    exchange=public_words_position("Exchange",top)
+    if not settings or not book or not exchange or not exchange[0]<book[0]<settings[0]:
+        raise RuntimeError("Settings was not the rightmost utility tab")
+    report["historyLayoutTabs"]={"exchangeX":exchange[0],"addressBookX":book[0],"settingsX":settings[0],"windowWidth":w}
+    passed("Actual Settings tab is rightmost, following Exchange and Address book")
+    def expanded_content(page):
+        picture=public_picture()
+        point=(x+w-50,y+195)
+        if picture.getpixel(point)!=palette()["surface"]:
+            raise RuntimeError("Content panel did not extend across the available window: "+page)
+        report.setdefault("expandedContent",[]).append({"page":page,"point":list(point),"pixel":list(picture.getpixel(point)),"windowWidth":w})
+    stage("Read actual Ethereum history table on offline profile")
+    click("Ethereum");wait(lambda:"Copy address" in text())
+    expanded_content("Wallet")
+    scroll_to_public_words("Transaction history")
+    # Finding the section heading at the viewport's bottom does not yet make
+    # its following error disclosure or table visible. Scroll the actual page
+    # until both are independently readable in the same public capture.
+    for _ in range(12):
+        rows=public_rows();visible=" ".join(row[11] for row in rows)
+        if "Chain history is unavailable" in visible and all(public_words_position(title,rows) for title in ("Date and time","Source","Destination","Amount","Explorer","Comment","Status")):break
+        scroll_public(5,2)
+    else:raise RuntimeError("Complete seven-column transaction header and offline scope were not visible")
+    report["historyLayoutColumns"]={"count":7,"windowWidth":w,"nativeAndTrackedScope":True}
+    passed("Actual wallet bottom shows all seven history columns without inventing an offline transfer")
+    scroll_public(4,50)
+    click("Exchange",top=True)
+    wait(lambda:"Bybit Exchange" in text())
+    expanded_content("Exchange")
+    def select_provider(index,title,settings=False):
+        rows=public_rows()
+        minimum=y+(240 if settings else 145)
+        candidates=[row for row in rows if row[11]=="Exchange" and minimum<int(row[7])<y+h-31]
+        if not candidates:raise RuntimeError("Exchange selector label missing")
+        label=min(candidates,key=lambda row:int(row[7]))
+        desktop.click(int(label[6])+35,int(label[7])+int(label[9])//2+40)
+        desktop.key("Home")
+        for _ in range(index):desktop.key("Down")
+        desktop.key("Return");desktop.park_pointer()
+        wait(lambda:title in text())
+        if desktop.secret_window():raise RuntimeError("Read-only provider selection asked for credentials or spending approval")
+    for index,name in ((1,"Binance"),(2,"KuCoin"),(0,"Bybit")):
+        stage("Select actual "+name+" Exchange")
+        select_provider(index,name+" Exchange")
+        wait(lambda:"Connect your "+name+" account in Settings" in text())
+        passed("Actual "+name+" selection is acknowledged and remains disconnected without credentials or payments")
+    click("Settings",top=True)
+    scroll_public(4,50)
+    click("Exchange",last=True)
+    wait(lambda:"Bybit connection" in text())
+    select_provider(2,"KuCoin connection",settings=True)
+    if "KuCoin also requires" not in text():raise RuntimeError("KuCoin API-passphrase requirement missing")
+    passed("Settings Exchange independently selects KuCoin and explains its separate API passphrase")
+    stage("Open Settings Wallet subtab")
+    # The subtab precedes the explanatory prose's ordinary word "wallet".
+    click("Wallet")
+    wait(lambda:"Wallet settings" in text())
+    expanded_content("Settings")
+    stage("Open Settings Appearance subtab")
+    click("Appearance")
+    wait(lambda:"Font size" in text())
+    assert_selected_subtab("Appearance","Wallet")
+    passed("Settings Wallet and Appearance remain accessible with an explicit selected tab")
+    stage("Open expanded Address book page")
+    click("Address book",top=True)
+    wait(lambda:"Save address" in text() and public_words_position("Name"))
+    expanded_content("Address book")
+    passed("Actual wallet, Exchange, Settings and Address book content reaches the available window width")
+
 def near_navigation_state(rows):
     # Inspect only fixed public markers, never retain the OCR payload. A Copy
     # address button on another wallet is insufficient: require NEAR's own
@@ -2237,7 +2316,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.history_layout_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -2261,6 +2340,8 @@ try:
                 ethereum_tokens()
             if args.near_tokens_only:
                 near_tokens()
+            if args.history_layout_only:
+                history_layout_campaign()
             if args.decred_copy_only:
                 for _ in range(3):
                     addresses(("Decred",))

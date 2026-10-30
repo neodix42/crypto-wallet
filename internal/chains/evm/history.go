@@ -7,13 +7,31 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"localwallet/internal/chains/chainutil"
 	"localwallet/internal/model"
 	"math/big"
+	"sort"
 	"strings"
+	"time"
 )
 
 func (*Adapter) HistoryScope() string {
-	return "Bounded RPC scan of the latest 128 blocks and registered ZEN Transfer events. Earlier, internal contract, and bridge history requires an independent archival explorer or wider explicit rescan; an empty scan is not proof of no historical funds."
+	return "Bounded RPC scan of the latest 128 blocks, native transfers and every pinned/explicitly tracked ERC-20 Transfer event. Earlier, internal contract, and bridge history requires an archival explorer or wider explicit rescan; an empty scan is not proof of no historical funds."
+}
+
+var errTokenHistoryUnavailable = errors.New("EVM token history is unavailable/incomplete")
+
+func (a *Adapter) HistoryPage(ctx context.Context, account model.Account, cursor string) (model.HistoryPage, error) {
+	if cursor != "" {
+		return model.HistoryPage{}, errors.New("EVM bounded snapshot has no adapter continuation")
+	}
+	rows, err := a.History(ctx, account)
+	scope := a.HistoryScope()
+	if errors.Is(err, errTokenHistoryUnavailable) {
+		scope += " " + err.Error() + ". Checked native and other tracked-token rows are retained; missing token records remain unknown."
+		return model.HistoryPage{Entries: rows, Scope: scope, Complete: false}, nil
+	}
+	return model.HistoryPage{Entries: rows, Scope: scope, Complete: false}, err
 }
 
 type historyTx struct {
@@ -26,6 +44,7 @@ type historyTx struct {
 type historyBlock struct {
 	Number       string      `json:"number"`
 	Hash         string      `json:"hash"`
+	Timestamp    string      `json:"timestamp"`
 	Transactions []historyTx `json:"transactions"`
 }
 
@@ -68,8 +87,10 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 	seen := map[string]bool{}
 	observedEvents := map[string]string{}
 	hashes := map[string]string{}
+	times := map[string]int64{}
+	unavailable := []string{}
 	confirm := func(id, blockHash, number, detail string, mustSucceed bool) (model.Receipt, error) {
-		r := model.Receipt{Identity: id, Block: blockHash, State: "SUBMITTED", Detail: scope + "; " + detail}
+		r := model.Receipt{Identity: id, Block: blockHash, State: "SUBMITTED", Detail: scope + "; " + detail, Timestamp: times[number], Explorer: chainutil.TransactionExplorer(ac.Network, id)}
 		if !hashValid(id) || !hashValid(blockHash) {
 			return r, errors.New("invalid history identity")
 		}
@@ -124,6 +145,13 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 			return nil, errors.New("incomplete history block scan")
 		}
 		hashes[tag] = b.Hash
+		if b.Timestamp != "" {
+			stamp, err := hexInteger(b.Timestamp)
+			if err != nil || !stamp.IsInt64() || stamp.Sign() < 0 || stamp.Int64() > time.Now().Unix()+300 {
+				return nil, errors.New("invalid history timestamp")
+			}
+			times[tag] = stamp.Int64()
+		}
 		for _, tx := range b.Transactions {
 			if tx.To == nil {
 				continue
@@ -163,6 +191,7 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 				return nil, errors.New("history payment count limit; narrower explicit scan required")
 			}
 			out = append(out, r)
+			out[len(out)-1].Transfers = []model.HistoryTransfer{{ID: "native", Source: common.HexToAddress(tx.From).Hex(), Destination: common.HexToAddress(*tx.To).Hex(), Asset: n.Assets[0], Atomic: value.String()}}
 			seen[tx.Hash+":native"] = true
 		}
 		if number == end {
@@ -174,7 +203,8 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 			continue
 		}
 		if e = a.tokenIdentity(ctx, n, token, head.Number); e != nil {
-			return nil, e
+			unavailable = append(unavailable, token.ID)
+			continue
 		}
 		event := crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)")).Hex()
 		owner := common.BytesToHash(common.HexToAddress(ac.Address).Bytes()).Hex()
@@ -243,12 +273,21 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 					return nil, errors.New("history payment count limit; narrower explicit scan required")
 				}
 				out = append(out, r)
+				out[len(out)-1].Transfers = []model.HistoryTransfer{{ID: "erc20:" + token.Contract + ":" + log.LogIndex, Source: from, Destination: to, Asset: token, Atomic: value.String()}}
 				seen[id] = true
 				observedEvents[id] = fingerprint
 			}
 		}
 	}
-	return out, nil
+	merged, err := chainutil.MergeHistory(out)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(merged, func(i, j int) bool { return merged[i].Timestamp > merged[j].Timestamp })
+	if len(unavailable) > 0 {
+		return merged, fmt.Errorf("%w for %s", errTokenHistoryUnavailable, strings.Join(unavailable, ", "))
+	}
+	return merged, nil
 }
 func historyAddress(topic string) (string, error) {
 	if !hashValid(topic) || topic[2:26] != strings.Repeat("0", 24) {

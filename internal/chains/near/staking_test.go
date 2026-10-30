@@ -567,7 +567,7 @@ func FuzzStakingCallPolicy(f *testing.F) {
 
 func TestStakingRequiresCompleteSuccessfulDownstreamReceipts(t *testing.T) {
 	for _, method := range []string{"deposit_and_stake", "unstake", "unstake_all", "withdraw_all"} {
-		for _, mode := range []string{"success", "failure", "pending", "absent", "downstream-failure", "unknown-status", "duplicate-receipt", "missing-child", "missing-root-reference", "missing-root-block", "missing-child-metadata", "bad-receipt-id", "bad-receipt-block", "bad-executor", "no-pool-executor", "null-status", "ambiguous-status", "null-success-value", "invalid-base64", "large-value", "null-next-id", "bad-next-id", "missing-next-id", "valid-next-id", "unlinked-receipt", "non-string-root-success"} {
+		for _, mode := range []string{"success", "failure", "pending", "absent", "downstream-failure", "unknown-status", "duplicate-receipt", "missing-child", "missing-root-reference", "missing-root-block", "missing-child-metadata", "bad-receipt-id", "bad-receipt-block", "bad-executor", "no-pool-executor", "null-status", "ambiguous-status", "null-success-value", "invalid-base64", "large-value", "null-next-id", "bad-next-id", "missing-next-id", "valid-next-id", "unlinked-receipt", "non-string-root-success", "self-cycle", "two-receipt-cycle", "status-self-cycle"} {
 			t.Run(method+"/"+mode, func(t *testing.T) {
 				p := stakingFixture(t, method)
 				block := base58.Encode(make([]byte, 32))
@@ -640,6 +640,12 @@ func TestStakingRequiresCompleteSuccessfulDownstreamReceipts(t *testing.T) {
 					want = "CONFIRMED"
 				case "unlinked-receipt":
 					r.Receipts[0].Outcome.ReceiptIDs = []string{}
+				case "self-cycle":
+					r.Receipts[1].Outcome.ReceiptIDs = []string{ids[1]}
+				case "two-receipt-cycle":
+					r.Receipts[1].Outcome.ReceiptIDs = []string{ids[0]}
+				case "status-self-cycle":
+					r.Receipts[1].Outcome.Status = json.RawMessage(`{"SuccessReceiptId":"` + ids[1] + `"}`)
 				case "non-string-root-success":
 					r.Status = json.RawMessage(`{"SuccessValue":123}`)
 				}

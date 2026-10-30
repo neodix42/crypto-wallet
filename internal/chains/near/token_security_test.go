@@ -156,7 +156,7 @@ func TestNEP141SignerRefusesEveryUnapprovedMethodOrSignedField(t *testing.T) {
 func TestNEP141ReceiptsNeedExactEventAndCompleteSuccessfulChildren(t *testing.T) {
 	a, p := tokenPlan(t, false)
 	signed, _ := a.Sign(seed(), p)
-	for _, mode := range []string{"valid", "missing", "wrong-sender", "wrong-recipient", "wrong-amount", "wrong-contract", "duplicate", "unknown-field", "false-result", "failed-child", "missing-child"} {
+	for _, mode := range []string{"valid", "missing", "wrong-sender", "wrong-recipient", "wrong-amount", "wrong-contract", "duplicate", "unknown-field", "false-result", "failed-child", "missing-child", "self-cycle", "status-self-cycle"} {
 		t.Run(mode, func(t *testing.T) {
 			object := tokenRPCExecution(p, signed.Identity)
 			raw, _ := json.Marshal(object)
@@ -183,6 +183,10 @@ func TestNEP141ReceiptsNeedExactEventAndCompleteSuccessfulChildren(t *testing.T)
 				r.Receipts[0].Outcome.Status = []byte(`{"Failure":{"error":"synthetic"}}`)
 			case "missing-child":
 				r.Receipts = nil
+			case "self-cycle":
+				r.Receipts[0].Outcome.ReceiptIDs = []string{r.Receipts[0].ID}
+			case "status-self-cycle":
+				r.Receipts[0].Outcome.Status = json.RawMessage(`{"SuccessReceiptId":"` + r.Receipts[0].ID + `"}`)
 			}
 			receipt, err := tokenReceipt(p, signed.Identity, r)
 			if mode == "valid" {

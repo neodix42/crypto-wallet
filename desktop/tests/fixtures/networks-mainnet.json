@@ -8,7 +8,7 @@
     "internal/chains/evm/adapter.go": "58994c508abd354ffd3031adcb84008460197d61b826d5929dfc6388faee6ef2",
     "internal/chains/evm/tokens.go": "1090f5de4e35df9a4ac8d6e859189e3f4711c084d6bc292480a40e8feb2b1d55",
     "internal/chains/hypercore/adapter.go": "07953904ef1e6854afb304acb0e8a589fab8053c36475fc637878ee5a7b7eeaf",
-    "internal/chains/near/near.go": "a41d0fc27202dcf98affd2b8e5cfc3e9f45bdfc622ede1b752f3777ab54f5ea2",
+    "internal/chains/near/near.go": "da91fc54e1fe297c488b44e6b9a9c27a81b4cfa662131f1b64638240d8628672",
     "internal/chains/aptos/aptos.go": "165972f13f4a45ae75ac6872b5024129e7ea532eef0ac7937da35b7218ddc989",
     "internal/chains/decred/decred.go": "da7ca49a095ad6fe251b11a3915001f1a9ff34b62b0af5951d608f7015db267c",
     "internal/chains/ton/ton.go": "54c5145412210adc2a00fb809265009be27a23f06a0c303f2f7ad2144f66c1ed"

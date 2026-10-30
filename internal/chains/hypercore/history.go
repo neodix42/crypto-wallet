@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"localwallet/internal/chains/chainutil"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/model"
 	"strings"
@@ -166,7 +167,7 @@ func historyReceipt(n model.Network, ac model.Account, u ledger, start, end uint
 		direction, peer = "sent", d.Destination
 	}
 	detail := fmt.Sprintf("provider-observed %s %s atomic %s; peer %s; provider fee %s (fee asset not established), native HYPE fee %s atomic; bounded times %d..%d", direction, value.String(), n.Assets[0].ID, peer, formatUnits(fee), nativeFee, start, end)
-	return model.Receipt{Identity: u.Hash, State: "OBSERVED", Detail: detail}, true, nil
+	return model.Receipt{Identity: u.Hash, State: "OBSERVED", Detail: detail, Timestamp: int64(u.Time / 1000), Explorer: chainutil.TransactionExplorer(ac.Network, u.Hash), Transfers: []model.HistoryTransfer{{ID: "spotTransfer", Source: d.User, Destination: d.Destination, Asset: n.Assets[0], Atomic: value.String()}}}, true, nil
 }
 
 // History preserves the legacy bounded snapshot API for nonpaged callers. The

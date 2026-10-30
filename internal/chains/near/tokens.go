@@ -48,7 +48,10 @@ func (a *Adapter) WithTokens(tokens []model.NEP141Token) (*Adapter, error) {
 	if len(tokens) > MaxImportedTokens {
 		return nil, errors.New("too many imported NEP-141 tokens")
 	}
-	out := &Adapter{endpoints: make(map[string]string, len(a.endpoints)), client: a.client}
+	out := &Adapter{endpoints: make(map[string]string, len(a.endpoints)), historyEndpoints: make(map[string]string, len(a.historyEndpoints)), client: a.client}
+	for k, v := range a.historyEndpoints {
+		out.historyEndpoints[k] = v
+	}
 	seen := map[string]bool{}
 	for k, v := range a.endpoints {
 		out.endpoints[k] = v

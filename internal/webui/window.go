@@ -292,7 +292,7 @@ func validEvent(v View, e Event, modal bool) bool {
 	var match func([]Node) bool
 	match = func(nodes []Node) bool {
 		for _, n := range nodes {
-			if n.Disabled {
+			if n.Disabled || n.Kind == "transactionTable" || n.Kind == "explorer" {
 				continue
 			}
 			if n.ID == e.ID {

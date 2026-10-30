@@ -51,7 +51,7 @@ func TestTP050BoundedNativeHistory(t *testing.T) {
 								args[0] = ac.Address
 							}
 							payload := map[string]any{"type": "entry_function_payload", "function": "0x1::aptos_account::transfer", "type_arguments": []string{}, "arguments": args}
-							tx = map[string]any{"type": "user_transaction", "version": fmt.Sprint(version), "sender": sender, "sequence_number": "42", "success": success, "hash": "0x" + fmt.Sprintf("%064x", version), "payload": payload}
+							tx = map[string]any{"type": "user_transaction", "version": fmt.Sprint(version), "sender": sender, "sequence_number": "42", "success": success, "hash": "0x" + fmt.Sprintf("%064x", version), "payload": payload, "timestamp": "1700000000000000"}
 							switch mode {
 							case "wrong-version":
 								tx["version"] = "9999"
@@ -116,6 +116,9 @@ func TestTP050BoundedNativeHistory(t *testing.T) {
 			if mode == "valid" || mode == "window" || mode == "max-ledger" {
 				if len(out) != 2 || out[0].State != "FAILED" || out[1].State != "CONFIRMED" || !strings.Contains(out[0].Detail, "12345 octas") {
 					t.Fatalf("native history %+v", out)
+				}
+				if out[0].Timestamp != 1700000000 || out[0].Explorer == "" || len(out[0].Transfers) != 1 || out[0].Transfers[0].Source != "0x"+strings.Repeat("0", 63)+"1" || out[0].Transfers[0].Destination != ac.Address || out[0].Transfers[0].Atomic != "12345" || out[0].Transfers[0].Asset.Decimals != 8 {
+					t.Fatal("APT structured history changed", out[0])
 				}
 			} else if len(out) != 0 {
 				t.Fatal("unrecognized transfer credited")

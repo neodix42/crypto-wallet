@@ -17,6 +17,9 @@ func TestTP050BoundedCoreHistory(t *testing.T) {
 	if e != nil || len(rows) != 1 || rows[0].State != "OBSERVED" || !strings.Contains(rows[0].Detail, "sent 12345678") {
 		t.Fatal(rows, e)
 	}
+	if rows[0].Timestamp != int64(f.action.Time/1000) || rows[0].Explorer == "" || len(rows[0].Transfers) != 1 || rows[0].Transfers[0].Source != ac.Address || rows[0].Transfers[0].Destination != f.action.Destination || rows[0].Transfers[0].Atomic != "12345678" || rows[0].Transfers[0].Asset.Decimals != 8 {
+		t.Fatal("Core structured history changed", rows[0])
+	}
 	if !strings.Contains(f.a.HistoryScope(), "30 days") {
 		t.Fatal("window hidden")
 	}

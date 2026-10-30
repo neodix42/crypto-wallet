@@ -416,6 +416,7 @@ func stakingReceipt(p model.Plan, id string, result execution) (model.Receipt, e
 				return z, nil
 			}
 			references = append(references, *next)
+			children[receipt.ID] = append(children[receipt.ID], *next)
 		} else {
 			return z, nil
 		}
@@ -431,16 +432,31 @@ func stakingReceipt(p model.Plan, id string, result execution) (model.Receipt, e
 			return z, nil
 		}
 	}
-	reachable := map[string]bool{}
-	queue := append([]string(nil), result.Outcome.Outcome.ReceiptIDs...)
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-		if reachable[current] {
-			continue
+	// Receipt dependencies cannot form a cycle. A visited-only traversal would
+	// accept a self-reference or back edge as a complete successful execution.
+	reachable, visiting := map[string]bool{}, map[string]bool{}
+	var visit func(string) bool
+	visit = func(current string) bool {
+		if visiting[current] {
+			return false
 		}
+		if reachable[current] {
+			return true
+		}
+		visiting[current] = true
+		for _, child := range children[current] {
+			if !visit(child) {
+				return false
+			}
+		}
+		delete(visiting, current)
 		reachable[current] = true
-		queue = append(queue, children[current]...)
+		return true
+	}
+	for _, root := range result.Outcome.Outcome.ReceiptIDs {
+		if !visit(root) {
+			return z, nil
+		}
 	}
 	if len(reachable) != len(seen) {
 		return z, nil

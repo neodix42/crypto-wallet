@@ -15,6 +15,13 @@ var ErrRoute = errors.New("Bybit does not provide an unambiguous supported walle
 // EVM chain IDs. Explicit ledger labels and exact token contracts must match;
 // the core must obtain all fields from the authenticated selected service.
 func ValidateRoute(account model.Account, asset model.Asset, chain, chainType, contract string) error {
+	return ValidateProviderRoute("bybit", account, asset, chain, chainType, contract)
+}
+
+func ValidateProviderRoute(provider string, account model.Account, asset model.Asset, chain, chainType, contract string) error {
+	if _, ok := ProviderByID(provider); !ok {
+		return ErrRoute
+	}
 	if chain == "" || len(chain) > 40 || asset.ID == "" || !strings.HasPrefix(asset.ID, account.Network+":") {
 		return ErrRoute
 	}
@@ -37,8 +44,14 @@ func ValidateRoute(account model.Account, asset model.Asset, chain, chainType, c
 		"aptos-mainnet":    {"APTOS", "Aptos"},
 		"ton-mainnet":      {"TON", "Toncoin", "TON (The Open Network)"},
 	}
-	if account.Network == "ethereum-mainnet" && chain != "ETH" {
-		return ErrRoute
+	if account.Network == "ethereum-mainnet" {
+		expected := "ETH"
+		if provider == "kucoin" {
+			expected = "eth"
+		}
+		if chain != expected {
+			return ErrRoute
+		}
 	}
 	for _, name := range names[account.Network] {
 		if chainType == name {
@@ -51,12 +64,16 @@ func ValidateRoute(account model.Account, asset model.Asset, chain, chainType, c
 // MatchRoute rejects ambiguous multiple matches instead of selecting the first
 // ticker-compatible chain. Maintenance flags are retained for the caller.
 func MatchRoute(account model.Account, asset model.Asset, coin bybit.Coin) (bybit.Chain, error) {
+	return MatchProviderRoute("bybit", account, asset, coin)
+}
+
+func MatchProviderRoute(provider string, account model.Account, asset model.Asset, coin bybit.Coin) (bybit.Chain, error) {
 	if coin.Coin != asset.Symbol {
 		return bybit.Chain{}, ErrRoute
 	}
 	var match *bybit.Chain
 	for _, chain := range coin.Chains {
-		if ValidateRoute(account, asset, chain.Chain, chain.ChainType, chain.ContractAddress) != nil {
+		if ValidateProviderRoute(provider, account, asset, chain.Chain, chain.ChainType, chain.ContractAddress) != nil {
 			continue
 		}
 		if match != nil {

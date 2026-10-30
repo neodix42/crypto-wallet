@@ -17,12 +17,15 @@ import (
 )
 
 type HistoryItem struct {
-	Identity string `json:"identity"`
-	Height   uint32 `json:"height"`
-	Tree     int8   `json:"tree"`
-	Received int64  `json:"received"`
-	Spent    int64  `json:"spent"`
-	State    string `json:"state"`
+	Identity       string                  `json:"identity"`
+	Height         uint32                  `json:"height"`
+	Tree           int8                    `json:"tree"`
+	Received       int64                   `json:"received"`
+	Spent          int64                   `json:"spent"`
+	State          string                  `json:"state"`
+	Timestamp      int64                   `json:"timestamp,omitempty"`
+	Transfers      []model.HistoryTransfer `json:"transfers,omitempty"`
+	EffectsLimited bool                    `json:"effectsLimited,omitempty"`
 }
 type SyncReport struct {
 	Height          uint32           `json:"height"`
@@ -160,22 +163,32 @@ func (a *Adapter) SyncWithProgress(ctx context.Context, ac model.Account, progre
 	r := SyncReport{Height: height, Hash: tip, ScannedFrom: meta.Birthday, AddressLimit: meta.ScanLimit, HighestReceive: -1, HighestChange: -1, Spendable: []Input{}, History: []HistoryItem{}}
 	utxos := make(map[string]Input)
 	var scanErr error
-	apply := func(txs []*wire.MsgTx, tree int8, h uint32) {
+	historyEffects := 0
+	apply := func(txs []*wire.MsgTx, tree int8, h uint32, timestamp int64) {
 		for txi, tx := range txs {
 			if scanErr != nil {
 				return
 			}
 			id := tx.TxHash().String()
-			history := HistoryItem{Identity: id, Height: h, Tree: tree, State: "confirmed"}
+			history := HistoryItem{Identity: id, Height: h, Tree: tree, State: "confirmed", Timestamp: timestamp}
+			var inputAddresses []string
+			allInputsKnown := true
 			for _, in := range tx.TxIn {
 				key := fmt.Sprintf("%s:%d:%d", in.PreviousOutPoint.Hash, in.PreviousOutPoint.Index, in.PreviousOutPoint.Tree)
 				if u, ok := utxos[key]; ok {
+					if address, err := AddressAt(ac, u.Branch, u.Index); err == nil {
+						inputAddresses = append(inputAddresses, address)
+					} else {
+						allInputsKnown = false
+					}
 					if history.Spent > MaxAtoms-u.Value {
 						scanErr = errors.New("Decred synchronized input total exceeds monetary bounds")
 						return
 					}
 					history.Spent += u.Value
 					delete(utxos, key)
+				} else {
+					allInputsKnown = false
 				}
 			}
 			raw, _ := tx.Bytes()
@@ -204,6 +217,8 @@ func (a *Adapter) SyncWithProgress(ctx context.Context, ac model.Account, progre
 				history.Received += o.Value
 			}
 			if history.Received > 0 || history.Spent > 0 {
+				history.Transfers, history.EffectsLimited = historyOutputs(ac.Network, tx, tree, scripts, history.Spent > 0, inputAddresses, allInputsKnown, 16384-historyEffects)
+				historyEffects += len(history.Transfers)
 				r.History = append(r.History, history)
 			}
 			if len(r.History) > 10000 {
@@ -237,7 +252,7 @@ func (a *Adapter) SyncWithProgress(ctx context.Context, ac model.Account, progre
 		if previousBlock != nil {
 			ph := previousBlock.Header.Height
 			if int64(h) < cp.StakeValidationHeight || block.Header.VoteBits&1 != 0 {
-				apply(previousBlock.Transactions, wire.TxTreeRegular, ph)
+				apply(previousBlock.Transactions, wire.TxTreeRegular, ph, previousBlock.Header.Timestamp.Unix())
 			} else {
 				for _, tx := range previousBlock.Transactions {
 					relevant := false
@@ -250,11 +265,11 @@ func (a *Adapter) SyncWithProgress(ctx context.Context, ac model.Account, progre
 						relevant = relevant || ok
 					}
 					if relevant {
-						r.History = append(r.History, HistoryItem{Identity: tx.TxHash().String(), Height: ph, Tree: wire.TxTreeRegular, State: "disapproved"})
+						r.History = append(r.History, HistoryItem{Identity: tx.TxHash().String(), Height: ph, Tree: wire.TxTreeRegular, State: "disapproved", Timestamp: previousBlock.Header.Timestamp.Unix()})
 					}
 				}
 			}
-			apply(previousBlock.STransactions, wire.TxTreeStake, ph)
+			apply(previousBlock.STransactions, wire.TxTreeStake, ph, previousBlock.Header.Timestamp.Unix())
 		}
 		if scanErr != nil {
 			return SyncReport{}, scanErr
@@ -290,9 +305,9 @@ func (a *Adapter) SyncWithProgress(ctx context.Context, ac model.Account, progre
 	}
 	if previousBlock != nil {
 		if int64(height) < cp.StakeValidationHeight {
-			apply(previousBlock.Transactions, wire.TxTreeRegular, height)
+			apply(previousBlock.Transactions, wire.TxTreeRegular, height, previousBlock.Header.Timestamp.Unix())
 		}
-		apply(previousBlock.STransactions, wire.TxTreeStake, height)
+		apply(previousBlock.STransactions, wire.TxTreeStake, height, previousBlock.Header.Timestamp.Unix())
 	}
 	if scanErr != nil {
 		return SyncReport{}, scanErr

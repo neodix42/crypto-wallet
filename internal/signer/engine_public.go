@@ -122,7 +122,7 @@ func (e *Engine) JournalPage(account, asset, cursor string) (JournalPage, error)
 	if e.data == nil {
 		return JournalPage{}, ErrDenied
 	}
-	if (account == "") != (asset == "") {
+	if account == "" && asset != "" {
 		return JournalPage{}, ErrDenied
 	}
 	if account != "" {
@@ -134,7 +134,7 @@ func (e *Engine) JournalPage(account, asset, cursor string) (JournalPage, error)
 		if err != nil {
 			return JournalPage{}, err
 		}
-		found := false
+		found := asset == ""
 		for _, network := range adapter.Networks() {
 			if network.ID == ac.Network {
 				for _, registered := range network.Assets {
@@ -154,7 +154,7 @@ func (e *Engine) JournalPage(account, asset, cursor string) (JournalPage, error)
 	}
 	page := JournalPage{Operations: []journal.Operation{}, Revision: strconv.FormatUint(e.data.Generation, 10)}
 	for _, operation := range e.data.Operations {
-		if account == "" || operation.Plan.Account.ID == account && operation.Plan.Asset == asset {
+		if (account == "" || operation.Plan.Account.ID == account) && (asset == "" || operation.Plan.Asset == asset) {
 			page.Total++
 		}
 	}
@@ -162,7 +162,7 @@ func (e *Engine) JournalPage(account, asset, cursor string) (JournalPage, error)
 	examined := offset
 	for examined < len(e.data.Operations) {
 		operation := e.data.Operations[len(e.data.Operations)-1-examined]
-		if account != "" && (operation.Plan.Account.ID != account || operation.Plan.Asset != asset) {
+		if account != "" && operation.Plan.Account.ID != account || asset != "" && operation.Plan.Asset != asset {
 			examined++
 			continue
 		}

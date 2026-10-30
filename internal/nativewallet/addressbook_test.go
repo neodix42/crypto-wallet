@@ -200,8 +200,8 @@ func TestAddressBookTONMemoAndWalletTabOrder(t *testing.T) {
 		t.Fatal("TON contact selection dropped memo")
 	}
 	pages := a.view().Pages
-	if pages[len(pages)-2].ID != "settings" || pages[len(pages)-1].ID != "addressbook" {
-		t.Fatal("address book is not next to Settings")
+	if pages[len(pages)-2].ID != "addressbook" || pages[len(pages)-1].ID != "settings" {
+		t.Fatal("Settings is not rightmost, next to the address book")
 	}
 	a.fields["bookName"] = "public draft"
 	a.lock()

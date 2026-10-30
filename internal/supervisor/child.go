@@ -3,6 +3,7 @@ package supervisor
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -47,6 +48,10 @@ type Child struct {
 	seenPrompts                  map[string]bool
 	activityIDs                  map[string]bool
 	activitySent                 time.Time
+	historyID, historySession    string
+	historyGeneration            uint64
+	historyCancelled             bool
+	historyReady                 bool
 }
 
 type processOwner struct {
@@ -205,9 +210,28 @@ func (c *Child) CallAt(generation uint64, method string, body any, out any) erro
 	return c.call(&generation, method, body, out)
 }
 
+// CallHistoryAt can be preempted without ending the unlocked signer session.
+// Its cancellation capability is scoped to this original read-only request.
+func (c *Child) CallHistoryAt(ctx context.Context, generation uint64, body, out any) error {
+	if ctx == nil {
+		return errors.New("wallet history requires a context")
+	}
+	if c.SelfRole != "--internal-core" {
+		return errors.New("wallet history cancellation requires the core role")
+	}
+	return c.callContext(&generation, "chainHistory", body, out, ctx)
+}
+
 func (c *Child) call(expected *uint64, method string, body any, out any) error {
+	return c.callContext(expected, method, body, out, nil)
+}
+
+func (c *Child) callContext(expected *uint64, method string, body any, out any, historyContext context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if historyContext != nil && historyContext.Err() != nil {
+		return historyContext.Err()
+	}
 	c.life.Lock()
 	if expected != nil && *expected != c.generation {
 		c.life.Unlock()
@@ -224,7 +248,22 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 	c.counter++
 	id := hex.EncodeToString([]byte{byte(c.counter >> 56), byte(c.counter >> 48), byte(c.counter >> 40), byte(c.counter >> 32), byte(c.counter >> 24), byte(c.counter >> 16), byte(c.counter >> 8), byte(c.counter)})
 	generation := c.generation
+	if method == "chainHistory" && c.SelfRole == "--internal-core" {
+		c.historyID, c.historySession, c.historyGeneration, c.historyCancelled = id, session, generation, false
+		c.historyReady = false
+	}
 	c.life.Unlock()
+	historyDone := make(chan struct{})
+	defer func() {
+		c.life.Lock()
+		if c.historyID == id && c.historySession == session && c.historyGeneration == generation {
+			c.historyID, c.historySession = "", ""
+			c.historyCancelled = false
+			c.historyReady = false
+		}
+		c.life.Unlock()
+		close(historyDone)
+	}()
 	b, e := json.Marshal(body)
 	if e != nil {
 		return e
@@ -232,6 +271,26 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 	if e = ch.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: method, Body: b}); e != nil {
 		c.Kill()
 		return errors.New("secure child unavailable")
+	}
+	if historyContext != nil {
+		c.life.Lock()
+		if c.historyID == id && c.historySession == session && c.historyGeneration == generation {
+			c.historyReady = true
+		}
+		c.life.Unlock()
+		go func() {
+			select {
+			case <-historyDone:
+			case <-historyContext.Done():
+				_ = c.cancelHistoryAt(generation, id, session)
+			}
+		}()
+	} else if method == "chainHistory" {
+		c.life.Lock()
+		if c.historyID == id && c.historySession == session && c.historyGeneration == generation {
+			c.historyReady = true
+		}
+		c.life.Unlock()
 	}
 	var r ipc.Message
 	var activityWindow, lastActivity time.Time
@@ -310,11 +369,41 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 		c.Kill()
 		return errors.New("secure prompt was not answered")
 	}
+	if historyContext != nil && historyContext.Err() != nil {
+		return historyContext.Err()
+	}
 	if r.Error != "" {
 		return ipc.NewRequestError(r.Error)
 	}
 	if out != nil {
 		return json.Unmarshal(r.Body, out)
+	}
+	return nil
+}
+
+func (c *Child) CancelHistory() error {
+	c.life.Lock()
+	generation, id, session := c.historyGeneration, c.historyID, c.historySession
+	c.life.Unlock()
+	return c.cancelHistoryAt(generation, id, session)
+}
+
+func (c *Child) cancelHistoryAt(generation uint64, id, session string) error {
+	c.life.Lock()
+	if c.SelfRole != "--internal-core" || c.cmd == nil || c.channel == nil || id == "" || c.generation != generation || c.historyID != id || c.historySession != session || c.historyGeneration != generation || c.historyCancelled || !c.historyReady {
+		c.life.Unlock()
+		return errors.New("no active wallet history")
+	}
+	c.historyCancelled = true
+	channel := c.channel
+	c.life.Unlock()
+	if err := channel.Write(ipc.Message{Version: 1, ID: id, Session: session, Method: "cancelHistory", Body: []byte(`{}`)}); err != nil {
+		c.life.Lock()
+		if c.generation == generation {
+			c.killLocked()
+		}
+		c.life.Unlock()
+		return errors.New("wallet history cancellation unavailable")
 	}
 	return nil
 }
@@ -391,6 +480,9 @@ func (c *Child) killLocked() {
 	c.seenPrompts = nil
 	c.activityIDs = nil
 	c.activitySent = time.Time{}
+	c.historyID, c.historySession = "", ""
+	c.historyCancelled = false
+	c.historyReady = false
 	if c.cmd != nil {
 		cmd := c.cmd
 		c.owner.kill(cmd)

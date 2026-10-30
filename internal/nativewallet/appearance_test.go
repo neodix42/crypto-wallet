@@ -23,7 +23,12 @@ func TestAppearanceIsAvailableLockedAndPersistsOnlyPublicValidatedPreferences(t 
 	if view.Appearance != webui.DefaultAppearance() || strings.Contains(viewText(view), "Retry storage check") {
 		t.Fatal("locked appearance defaults or removed control changed")
 	}
-	settings := view.Pages[1].Nodes
+	var settings []webui.Node
+	for _, page := range view.Pages {
+		if page.ID == "settings" {
+			settings = page.Nodes
+		}
+	}
 	section, ok := findNode(settings, "settingsSections")
 	if !ok || section.Value != "Appearance" {
 		t.Fatal("settings selection has no explicit public state")

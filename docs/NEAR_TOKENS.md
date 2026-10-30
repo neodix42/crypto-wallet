@@ -67,8 +67,9 @@ Success requires the original transaction and complete successful receipt graph,
 plus the exact token-transfer event or standard self-registration result. An
 ambiguous response retains UNKNOWN and its reservation. Reconcile the original
 operation in **Settings → Journal**; do not create a replacement payment.
-The local journal includes these token operations. The separate bounded NEAR
-chain-history scan currently covers native transfers, not arbitrary token history.
+The local journal includes these token operations. The wallet transaction table
+also reads bounded native and approved-token chain observations, with explicit
+partial/indexer availability limits; see [transaction history](WALLET_TRANSACTIONS.md).
 
 ## Recovery and tests
 

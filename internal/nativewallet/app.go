@@ -12,7 +12,7 @@ import (
 	"localwallet/internal/buildinfo"
 	"localwallet/internal/chains/decred"
 	"localwallet/internal/chains/near"
-	"localwallet/internal/exchange/bybit"
+	"localwallet/internal/exchange"
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
@@ -94,6 +94,8 @@ type App struct {
 	journalCursor, journalRevision        string
 	journalOffset                         int
 	chain                                 model.HistoryPage
+	walletHistory                         map[string]walletHistoryState
+	walletHistoryRevision                 uint64
 	exchange                              json.RawMessage
 	quote                                 json.RawMessage
 	exchangeRevision                      uint64
@@ -109,6 +111,7 @@ type App struct {
 	epoch                                 uint64
 	coreGeneration                        uint64
 	privateRevision                       atomic.Uint64
+	historyCancel                         context.CancelFunc
 	status                                string
 	statusRevision                        uint64
 	monitorState                          string
@@ -300,6 +303,7 @@ func (a *App) lock() {
 	a.journal = nil
 	a.journalCursor, a.journalRevision, a.journalOffset = "", "", 0
 	a.chain = model.HistoryPage{}
+	a.clearWalletHistory()
 	a.chainOwner, a.resultOwner = "", ""
 	a.sendForms = map[string]bool{}
 	a.result = ""
@@ -333,6 +337,9 @@ func (a *App) tick() {
 		a.render()
 	}
 	if a.busy || a.background {
+		return
+	}
+	if a.nextWalletHistory() {
 		return
 	}
 	if len(a.balanceQueue) > 0 {
@@ -373,6 +380,9 @@ func (a *App) work(title string, fn func(uint64) (func(), error)) {
 func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), feedback func(error)) {
 	if a.busy || a.closed {
 		return
+	}
+	if a.historyCancel != nil {
+		a.historyCancel()
 	}
 	a.busy = true
 	a.notice(title)
@@ -470,6 +480,7 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	return first, nil
 }
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
+	a.clearWalletHistory()
 	a.clearAddressBook()
 	a.tokenDiscovery = nil
 	a.clearNearTokenStorage(state.Locked)
@@ -511,6 +522,9 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 		}
 	}
 	a.ensureExchangeSelection()
+	if strings.HasPrefix(a.active, "wallet/") {
+		a.queueWalletHistory(strings.TrimPrefix(a.active, "wallet/"), "initial")
+	}
 }
 func (a *App) refresh() {
 	a.work("Reading local wallet…", func(g uint64) (func(), error) {
@@ -529,6 +543,10 @@ func (a *App) mutation(method string, body any) {
 	title := "Waiting for wallet confirmation…"
 	if method == "unlock" {
 		title = "Unlocking wallet…"
+	} else if method == "importToken" {
+		// The first step reads contract metadata; it is not a signing prompt.
+		// The signer still requests exact policy consent/password when ready.
+		title = "Checking token contract…"
 	}
 	var feedback func(error)
 	var receiveBefore, receiveAfter *model.Account
@@ -782,6 +800,9 @@ func (a *App) event(e webui.Event) {
 	}
 	if e.ID == "tab" {
 		a.active = e.Value
+		if strings.HasPrefix(e.Value, "wallet/") {
+			a.queueWalletHistory(strings.TrimPrefix(e.Value, "wallet/"), "initial")
+		}
 		a.render()
 		if e.Value == "exchange" && !a.state.Locked {
 			a.exchangeAction("exchangeStatus", map[string]string{})
@@ -807,6 +828,10 @@ func (a *App) event(e webui.Event) {
 	}
 	if strings.HasPrefix(e.ID, "field/") {
 		key := strings.TrimPrefix(e.ID, "field/")
+		if key == "exchangeProvider" {
+			a.selectExchangeProvider(e.Value)
+			return
+		}
 		if key == "appearanceTheme" || key == "appearanceFontSize" {
 			a.changeAppearance(key, e.Value)
 			return
@@ -945,11 +970,11 @@ func (a *App) event(e webui.Event) {
 	case "exchangeStatus":
 		a.exchangeAction("exchangeStatus", struct{}{})
 	case "exchangeConnect":
-		a.exchangeAction("exchangeConnect", map[string]string{"endpoint": a.fields["region"]})
+		a.exchangeAction("exchangeConnect", map[string]string{"provider": a.selectedExchangeProvider().ID, "endpoint": a.exchangeEndpoint()})
 	case "exchangeDisconnect":
 		a.exchangeAction("exchangeDisconnect", struct{}{})
 	case "exchangeQuote", "exchangeDeposit", "exchangeWithdraw", "exchangeSwap":
-		body := map[string]string{"accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"]}
+		body := map[string]string{"provider": a.selectedExchangeProvider().ID, "accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"]}
 		if e.ID == "exchangeQuote" || e.ID == "exchangeSwap" {
 			side, quote, ok := spotDirection(a.fields["side"])
 			if !ok {
@@ -1003,6 +1028,7 @@ func (a *App) walletEvent(action string) {
 			a.tabs = append(a.tabs, id)
 		}
 		a.active = "wallet/" + id
+		a.queueWalletHistory(id, "initial")
 		a.render()
 		return
 	}
@@ -1030,7 +1056,7 @@ func (a *App) walletEvent(action string) {
 		return
 	}
 	if kind == "exchangeReconcile" {
-		a.exchangeAction(kind, map[string]string{"id": id})
+		a.exchangeAction(kind, map[string]string{"provider": a.selectedExchangeProvider().ID, "id": id})
 		return
 	}
 	account, ok := a.account(id)
@@ -1051,6 +1077,20 @@ func (a *App) walletEvent(action string) {
 		a.mutation(kind, map[string]string{"accountId": id, "address": a.fields["associate/"+id]})
 	case "chainHistory", "chainMore":
 		a.loadChain(id, kind == "chainMore")
+	case "walletHistory", "walletHistoryMore", "walletHistoryLocalMore":
+		request := map[string]string{"walletHistory": "refresh", "walletHistoryMore": "chainMore", "walletHistoryLocalMore": "localMore"}[kind]
+		a.queueWalletHistory(id, request)
+		a.render()
+	case "walletHistoryPreviousRows", "walletHistoryNextRows":
+		key := "historyRows/" + id
+		offset, _ := strconv.Atoi(a.fields[key])
+		if kind == "walletHistoryNextRows" {
+			offset += 128
+		} else {
+			offset = max(0, offset-128)
+		}
+		a.fields[key] = strconv.Itoa(offset)
+		a.render()
 	case "discovery":
 		birthday, e1 := strconv.ParseUint(a.fields["birthday"], 10, 32)
 		gap, e2 := strconv.ParseUint(a.fields["gap"], 10, 32)
@@ -1075,6 +1115,7 @@ func (a *App) walletEvent(action string) {
 				}
 				a.plan = &plan
 				a.planIsStaking = false
+				a.refreshWalletLocalHistory(id)
 				if kind == "max" {
 					value, e := amount.Format(plan.Amount, asset.Decimals)
 					if e == nil {
@@ -1109,7 +1150,7 @@ func (a *App) paymentAction(method, id string) {
 			break
 		}
 	}
-	a.work("Waiting for exact payment review…", func(g uint64) (func(), error) {
+	a.workWithFeedback("Waiting for exact payment review…", func(g uint64) (func(), error) {
 		var result json.RawMessage
 		err := a.callAt(g, method, map[string]string{"id": id}, &result)
 		value := publicText(result)
@@ -1136,7 +1177,7 @@ func (a *App) paymentAction(method, id string) {
 				a.balanceQueue = append(a.balanceQueue, account.ID)
 			}
 		}, err
-	})
+	}, func(error) { a.refreshWalletLocalHistory(owner) })
 }
 func publicText(raw json.RawMessage) string {
 	if len(raw) > 131072 {
@@ -1248,17 +1289,49 @@ func (a *App) ensureExchangeSelection() {
 }
 func (a *App) exchangeAction(method string, body any) {
 	revision := a.exchangeRevision
-	a.work("Waiting for Bybit observation or exact approval…", func(g uint64) (func(), error) {
+	selected := a.selectedExchangeProvider().ID
+	if request, ok := body.(map[string]string); ok && method == "exchangeSelect" {
+		selected = request["provider"]
+	}
+	title := "Reading " + a.selectedExchangeProvider().Name + "…"
+	if method == "exchangeSelect" {
+		title = "Selecting exchange…"
+	}
+	depositAccount := ""
+	if request, ok := body.(map[string]string); ok && method == "exchangeDeposit" {
+		depositAccount = request["accountId"]
+	}
+	a.workWithFeedback(title, func(g uint64) (func(), error) {
 		var result json.RawMessage
 		err := a.callAt(g, method, body, &result)
 		if err != nil {
 			return nil, err
 		}
+		if method == "exchangeSelect" || method == "exchangeStatus" || method == "exchangeConnect" || method == "exchangeDisconnect" {
+			var status struct {
+				Provider string `json:"provider"`
+			}
+			if json.Unmarshal(result, &status) != nil {
+				return nil, errors.New("invalid exchange status")
+			}
+			if status.Provider == "" {
+				status.Provider = "bybit"
+			}
+			if _, valid := exchange.ProviderByID(status.Provider); !valid || method != "exchangeStatus" && status.Provider != selected {
+				return nil, errors.New("exchange selection mismatch")
+			}
+			selected = status.Provider
+		}
 		return func() {
 			switch method {
-			case "exchangeStatus", "exchangeConnect", "exchangeDisconnect":
+			case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeSelect":
+				a.fields["exchangeProvider"] = selected
 				a.exchange = append(a.exchange[:0], result...)
 				a.quote = nil
+				if method == "exchangeSelect" {
+					a.result = ""
+					a.resultOwner = ""
+				}
 			case "exchangeQuote":
 				if a.exchangeRevision == revision {
 					a.quote = append(a.quote[:0], result...)
@@ -1269,6 +1342,10 @@ func (a *App) exchangeAction(method string, body any) {
 				a.quote = nil
 			}
 		}, nil
+	}, func(error) {
+		if depositAccount != "" {
+			a.refreshWalletLocalHistory(depositAccount)
+		}
 	})
 }
 func node(kind, id, text, value string) webui.Node {
@@ -1352,7 +1429,7 @@ func (a *App) view() webui.View {
 		default:
 			nodes = append(nodes, label("Wallet storage is unavailable. Creation and restoration are blocked until its state can be read safely."))
 		}
-		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "settings", Title: "Settings", Nodes: a.settingsPage()}, {ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()}}
+		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()}, {ID: "settings", Title: "Settings", Nodes: a.settingsPage()}}
 		if view.Active != "settings" && view.Active != "addressbook" {
 			view.Active = "group/0"
 		}
@@ -1392,7 +1469,7 @@ func (a *App) view() webui.View {
 			view.Pages = append(view.Pages, a.walletPage(account))
 		}
 	}
-	view.Pages = append(view.Pages, webui.Page{ID: "exchange", Title: "Exchange", Nodes: a.exchangePage()}, webui.Page{ID: "settings", Title: "Settings", Nodes: a.settingsPage()}, webui.Page{ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()})
+	view.Pages = append(view.Pages, webui.Page{ID: "exchange", Title: "Exchange", Nodes: a.exchangePage()}, webui.Page{ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()}, webui.Page{ID: "settings", Title: "Settings", Nodes: a.settingsPage()})
 	found := false
 	for _, page := range view.Pages {
 		found = found || page.ID == view.Active
@@ -1473,6 +1550,7 @@ func (a *App) walletPage(account model.Account) webui.Page {
 		page.Nodes = append(page.Nodes, tabs)
 		if section == "Staking" {
 			page.Nodes = append(page.Nodes, a.stakingNodes(account)...)
+			page.Nodes = append(page.Nodes, a.walletHistoryNodes(account)...)
 			return page
 		}
 	}
@@ -1511,28 +1589,17 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	if account.Family == "near" {
 		page.Nodes = append(page.Nodes, a.nearTokenNodes(account, asset)...)
 	}
-	page.Nodes = append(page.Nodes, row(a.button("configure/"+account.ID, "Configure trusted RPC", false), a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false), a.button("chainHistory/"+account.ID, "Read chain history", false)))
+	page.Nodes = append(page.Nodes, row(a.button("configure/"+account.ID, "Configure trusted RPC", false), a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false)))
 	if account.Family == "near" || account.Family == "aptos" {
 		page.Nodes = append(page.Nodes, a.entry("associate/"+account.ID, "Named / rotated on-chain account address"), a.button("associate/"+account.ID, "Verify and associate on-chain account", false))
 	}
 	if account.Family == "decred" {
 		page.Nodes = append(page.Nodes, label("Decred requires an authenticated TLS dcrd connection and bounded recovery scan."), row(a.entry("birthday", "Birthday height"), a.entry("gap", "Gap"), a.entry("limit", "Address limit"), a.entry("blockBudget", "Block budget")), a.button("discovery/"+account.ID, "Configure Decred discovery", false))
 	}
-	if a.chainOwner == account.ID {
-		page.Nodes = append(page.Nodes, label("Provider-observed history: "+a.chain.Scope))
-		if len(a.chain.Entries) == 0 {
-			page.Nodes = append(page.Nodes, label("No entries in this observed page. This does not establish zero funds or payment finality."))
-		}
-		for _, receipt := range a.chain.Entries {
-			page.Nodes = append(page.Nodes, label(receipt.Identity+" · "+receipt.State+" · "+receipt.Block+" · "+receipt.Detail))
-		}
-		if a.chain.NextCursor != "" {
-			page.Nodes = append(page.Nodes, a.button("chainMore/"+account.ID, "Next chain-history page", false))
-		}
-	}
 	if a.result != "" && a.resultOwner == account.ID {
 		page.Nodes = append(page.Nodes, label(a.result))
 	}
+	page.Nodes = append(page.Nodes, a.walletHistoryNodes(account)...)
 	return page
 }
 func (a *App) settingsPage() []webui.Node {
@@ -1554,11 +1621,17 @@ func (a *App) settingsPage() []webui.Node {
 	}
 	switch a.fields["settings"] {
 	case "Exchange":
+		provider := a.selectedExchangeProvider()
 		options := []webui.Option{}
-		for _, endpoint := range bybit.Endpoints() {
+		for _, endpoint := range provider.Endpoints {
 			options = append(options, webui.Option{ID: endpoint, Text: endpoint})
 		}
-		nodes = append(nodes, heading("Bybit connection"), a.combo("region", "Official API region", options), label("Enter API key and HMAC secret only in the private wallet dialogs. Connecting confirms the exact service and custody terms; deposit, trade, transfer, withdrawal and disconnect keep their own required authorizations. Credentials are encrypted and are not recovered from the wallet phrase."), row(a.button("exchangeConnect", "Connect Bybit", false), a.button("exchangeDisconnect", "Disconnect Bybit", false), a.button("exchangeStatus", "Refresh connection", false)), label(exchangeConnectionSummary(a.exchange)))
+		a.fields["region"] = a.exchangeEndpoint()
+		credentialText := "Enter the exchange API key and API secret in the masked wallet dialog. Credentials are encrypted locally and are not recovered from the wallet phrase. Connecting confirms the selected service; each payment or trade keeps its own approval."
+		if provider.RequiresPassphrase {
+			credentialText += " KuCoin also requires the API passphrase you created for that key."
+		}
+		nodes = append(nodes, a.exchangeProviderSelector(), heading(provider.Name+" connection"), a.combo("region", "Official API region", options), label(credentialText), row(a.button("exchangeConnect", "Connect "+provider.Name, false), a.button("exchangeDisconnect", "Disconnect "+provider.Name, false), a.button("exchangeStatus", "Refresh connection", false)), label(exchangeConnectionSummary(a.exchange)))
 	case "Journal":
 		nodes = append(nodes, heading("Local payment journal"), label("An unresolved payment must be reconciled by its original identity. A provider observation is not finality."), row(a.button("journalRefresh", "Refresh journal", false), a.button("journalPrevious", "Previous journal page", a.journalOffset == 0), a.button("journalNext", "Next journal page", a.journalOffset+128 >= len(a.journal) && a.journalCursor == "")))
 		start := min(a.journalOffset, len(a.journal))
@@ -1602,10 +1675,14 @@ func (a *App) settingsPage() []webui.Node {
 }
 func (a *App) exchangePage() []webui.Node {
 	var connection struct {
-		Connected bool `json:"connected"`
+		Connected bool   `json:"connected"`
+		Provider  string `json:"provider"`
 	}
 	_ = json.Unmarshal(a.exchange, &connection)
-	disabled := !a.state.RecoveryConfirmed || !connection.Connected
+	if connection.Provider == "" {
+		connection.Provider = "bybit"
+	}
+	disabled := !a.state.RecoveryConfirmed || !connection.Connected || connection.Provider != a.selectedExchangeProvider().ID
 	var accounts []webui.Option
 	for _, account := range a.state.Accounts {
 		if !account.Hidden {
@@ -1629,15 +1706,20 @@ func (a *App) exchangePage() []webui.Node {
 		}
 	}
 	disabled = disabled || !validSelection
-	nodes := []webui.Node{heading("Bybit Exchange"), label("Assets deposited to Bybit are held by Bybit. Each deposit, spot trade, internal transfer and withdrawal requires its own exact confirmation in your private wallet dialog."), label("Imported ERC-20 tokens remain available in Wallet. This Exchange offers only the wallet's reviewed asset routes."), row(a.combo("exchangeAccount", "Wallet / network", accounts), a.combo("exchangeAsset", "Wallet asset", assets)), node("address", "", "Owned wallet receive address", address)}
+	provider := a.selectedExchangeProvider()
+	nodes := []webui.Node{a.exchangeProviderSelector(), heading(provider.Name + " Exchange"), label("Assets deposited to " + provider.Name + " are held by " + provider.Name + ". Each deposit, spot trade, internal transfer and withdrawal requires its own exact confirmation in your wallet dialog."), label("Imported tokens remain available in Wallet. This Exchange offers only the wallet's reviewed asset routes."), row(a.combo("exchangeAccount", "Wallet / network", accounts), a.combo("exchangeAsset", "Wallet asset", assets)), node("address", "", "Owned wallet receive address", address)}
 	if contract != "" {
 		nodes = append(nodes, node("address", "", "Token contract (not your receive address)", contract))
 	}
 	nodes = append(nodes, row(a.combo("side", "Spot direction", []webui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}, {ID: "SellUSDC", Text: "Sell asset for USDC"}, {ID: "BuyUSDC", Text: "Buy asset with USDC"}}), a.entry("exchangeAmount", "Amount to spend / withdraw"), a.entry("slippage", "Slippage limit (%)")), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled))
 	nodes = append(nodes, exchangeQuoteNodes(a.quote)...)
-	nodes = append(nodes, row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || len(a.quote) == 0), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh Bybit status", false))
+	var market struct {
+		Symbol string `json:"symbol"`
+	}
+	marketUnavailable := json.Unmarshal(a.quote, &market) != nil || market.Symbol == ""
+	nodes = append(nodes, row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || marketUnavailable), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh "+provider.Name+" status", false))
 	if !connection.Connected {
-		nodes = append(nodes, label("Connect your Bybit account in Settings → Exchange to enable these actions."))
+		nodes = append(nodes, label("Connect your "+provider.Name+" account in Settings → Exchange to enable these actions."))
 	}
 	var state struct {
 		Operations []struct {

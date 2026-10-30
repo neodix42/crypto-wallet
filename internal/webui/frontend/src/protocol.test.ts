@@ -43,6 +43,19 @@ describe('public representation', () => {
     const empty = view(); empty.Pages = null;
     expect(validView(empty)).toBe(true);
   });
+  it('accepts only complete readonly seven-cell transaction rows without nested controls', () => {
+    const table = node('transactionTable'), row = node('row', 'walletHistory/exact');
+    const cells = [node('label'), node('address'), node('address'), node('label'), node('explorer'), node('label'), node('label')];
+    const state = view(); state.Pages![0].Nodes = [table];
+    for (const empty of [null, []]) { table.Children = empty; expect(validView(state)).toBe(true); }
+    table.Children = [row]; row.Children = cells; expect(validView(state)).toBe(true);
+    cells[0].Children = []; expect(validView(state)).toBe(true);
+    cells[0].Children = [node('button', 'send/forbidden')]; expect(validView(state)).toBe(false);
+    cells[0].Children = null;
+    for (const malformed of [null, 'string', { Kind: 'row', Children: null }, { ...row, Kind: 'button' }, { ...row, Children: cells.slice(1) }, { ...row, Children: [null, ...cells.slice(1)] }, { ...row, Children: [node('entry'), ...cells.slice(1)] }]) {
+      table.Children = [malformed] as Node[]; expect(validView(state)).toBe(false);
+    }
+  });
 });
 
 describe('private prompt validation', () => {
