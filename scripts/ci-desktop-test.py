@@ -7,6 +7,8 @@ import io
 import json
 import os
 import pathlib
+import re
+import shlex
 import stat
 import subprocess
 import sys
@@ -214,6 +216,17 @@ class CIDesktop(unittest.TestCase):
                 ci.run(command)
         self.run.assert_not_called()
 
+    def test_ton_check_allows_only_the_exact_scoped_invocation(self):
+        self.mark_loaded()
+        command = ['./scripts/with-toolchain.sh', 'python3', 'scripts/wails-wallet-test.py',
+                   '--ton-only', '--report-name', 'wails-ton-deployment']
+        for altered in [command + ['--no-sandbox'], command + ['--quick-import'],
+                        command[:-1] + ['other-report'], command[:3],
+                        command[:3] + ['--report-name', 'wails-ton-deployment']]:
+            with self.assertRaisesRegex(RuntimeError, 'Only explicit packaged'):
+                ci.run(altered)
+        self.run.assert_not_called()
+
     def test_cleanup_removes_only_this_profile_and_is_idempotent(self):
         self.mark_loaded()
         with contextlib.redirect_stdout(io.StringIO()):
@@ -276,6 +289,11 @@ class CIDesktop(unittest.TestCase):
         for command in [gui, payment]:
             self.assertNotIn('run: ' + command, text)
             self.assertIn(tuple(command.split()), ci.COMMANDS)
+        workflow_commands = re.findall(r'^\s*run: python3 scripts/ci-desktop.py run -- (.+)$', workflow, re.MULTILINE)
+        self.assertGreaterEqual(len(workflow_commands), 3)
+        for command in workflow_commands:
+            self.assertIn(tuple(shlex.split(command)), ci.COMMANDS,
+                          'Workflow desktop command must be authorized before the hosted run')
         for forbidden in ['--no-sandbox', 'chmod 4755', 'sysctl ', 'apparmor_restrict_unprivileged_userns=0']:
             self.assertNotIn(forbidden, workflow)
         release = (ROOT / '.github/workflows/release.yml').read_text()

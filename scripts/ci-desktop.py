@@ -32,6 +32,8 @@ COMMANDS = frozenset({
     ('make', 'test-packaged'),
     ('make', 'test-wails-wallet'),
     ('make', 'test-send-portable'),
+    ('./scripts/with-toolchain.sh', 'python3', 'scripts/wails-wallet-test.py',
+     '--ton-only', '--report-name', 'wails-ton-deployment'),
     ('make', 'test-packaged-desktop'),
     ('make', 'test-packaged-send-desktop'),
     ('./scripts/with-toolchain.sh', 'python3', 'scripts/packaged-send.py'),
