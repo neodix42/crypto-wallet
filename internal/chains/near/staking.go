@@ -350,6 +350,7 @@ type receiptOutcome struct {
 		Executor   string          `json:"executor_id"`
 		Status     json.RawMessage `json:"status"`
 		ReceiptIDs []string        `json:"receipt_ids"`
+		Logs       []string        `json:"logs"`
 	} `json:"outcome"`
 }
 

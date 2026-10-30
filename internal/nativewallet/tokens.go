@@ -3,6 +3,7 @@ package nativewallet
 import (
 	"encoding/hex"
 	"localwallet/internal/chains/evm"
+	"localwallet/internal/chains/near"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
 	"strconv"
@@ -18,6 +19,9 @@ func (a *App) walletAssets(account model.Account, selected model.Asset) []webui.
 	for _, asset := range network.Assets {
 		value, _ := a.balance(account, asset)
 		identity := "ERC-20 contract · " + account.Network + " · " + asset.Contract
+		if account.Family == "near" {
+			identity = "NEP-141 contract · " + account.Network + " · " + asset.Contract
+		}
 		if asset.Contract == "" {
 			identity = "Native currency · " + account.Network
 		}
@@ -31,6 +35,8 @@ func (a *App) walletAssets(account model.Account, selected model.Asset) []webui.
 	nodes = append(nodes, table)
 	if ethereumTokenNetwork(account) {
 		nodes = append(nodes, heading("Track an ERC-20 token"), a.entry("tokenContract/"+account.ID, "Token contract address on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed))
+	} else if nearTokenNetwork(account) {
+		nodes = append(nodes, heading("Track a NEAR token"), a.entry("tokenContract/"+account.ID, "Token contract account on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed), label("Add a NEP-141 token by its exact contract account. The recovery phrase restores this wallet address; add tracked contracts again after a fresh installation."))
 	}
 	return append(nodes, a.discoveredTokenRows(account)...)
 }
@@ -39,7 +45,14 @@ func ethereumTokenNetwork(account model.Account) bool {
 	return account.Family == "evm" && evm.SupportsTokenImport(account.Network)
 }
 
+func nearTokenNetwork(account model.Account) bool {
+	return account.Family == "near" && near.SupportsTokenImport(account.Network)
+}
+
 func exchangeAssetAllowed(account model.Account, asset model.Asset) bool {
+	if account.Family == "near" {
+		return asset.ID == account.Network+":native" && asset.Contract == ""
+	}
 	return account.Family != "evm" || evm.IsPinnedAsset(account.Network, asset.ID)
 }
 
@@ -72,16 +85,21 @@ func (a *App) tokenEvent(kind, id string) bool {
 		return false
 	}
 	account, ok := a.account(id)
-	if !ok || !ethereumTokenNetwork(account) || a.state.Locked || a.busy || !a.state.RecoveryConfirmed {
+	if !ok || !ethereumTokenNetwork(account) && !nearTokenNetwork(account) || a.state.Locked || a.busy || !a.state.RecoveryConfirmed {
 		return true
 	}
 	contract := strings.TrimSpace(a.fields["tokenContract/"+id])
-	if len(contract) != 42 || !strings.HasPrefix(contract, "0x") {
+	if nearTokenNetwork(account) {
+		if near.New().ValidateAddress(account.Network, contract) != nil {
+			a.notice("Enter the exact NEAR token contract account for this network.")
+			a.render()
+			return true
+		}
+	} else if len(contract) != 42 || !strings.HasPrefix(contract, "0x") {
 		a.notice("Enter the complete ERC-20 contract address for this network.")
 		a.render()
 		return true
-	}
-	if _, err := hex.DecodeString(contract[2:]); err != nil {
+	} else if _, err := hex.DecodeString(contract[2:]); err != nil {
 		a.notice("Enter the complete ERC-20 contract address for this network.")
 		a.render()
 		return true
@@ -111,6 +129,9 @@ func (a *App) selectWalletAsset(id string) {
 		a.planIsStaking = false
 		a.planRevision++
 		a.render()
+		if nearTokenNetwork(account) && asset.Contract != "" {
+			a.readNearTokenStorage(account, asset)
+		}
 		return
 	}
 }

@@ -1,5 +1,7 @@
 # Blockchain compatibility and recovery contract
 
+> Owner update (2026-10-30): additional NEAR NEP-141 tokens are now authorized. Exact-contract tracking, NEP-148 metadata/runtime pinning, per-token balances, canonical `ft_transfer` and separately approved self-only NEP-145 registration extend native NEAR and staking. This supersedes the earlier NEP-141 exclusion only; no generic calls, token callbacks, new Bybit routes, secret-handling relaxation or network removal is authorized. Ethereum/Base ERC-20 behavior remains required. [Token contract and evidence](docs/NEAR_TOKENS.md).
+
 Research baseline: **2026-10-23**. This is an implementation requirement, not evidence that a wallet has already passed these tests. Reverify network identifiers, contracts, SDK releases, protocol rules and endpoints against official sources before implementation and release. Pin reviewed dependency versions and fixture-generator commits; never ship floating `master` dependencies.
 
 ## 1. Required coverage and identity

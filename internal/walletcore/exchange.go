@@ -191,6 +191,9 @@ func (c *core) exchangeAsset(id, assetID string) (model.Account, model.Asset, mo
 	if _, ethereum := adapter.(*evm.Adapter); ethereum && !evm.IsPinnedAsset(account.Network, assetID) {
 		return account, model.Asset{}, nil, errExchange
 	}
+	if account.Family == "near" && assetID != account.Network+":native" {
+		return account, model.Asset{}, nil, errExchange
+	}
 	for _, network := range adapter.Networks() {
 		if network.ID != account.Network || network.Testnet {
 			continue

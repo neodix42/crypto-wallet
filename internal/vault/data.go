@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"localwallet/internal/chains/evm"
+	"localwallet/internal/chains/near"
 	"localwallet/internal/derivation"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
@@ -36,6 +37,7 @@ type Data struct {
 	Endpoints                map[string]Endpoint      `json:"endpoints"`
 	Exchange                 *ExchangeData            `json:"exchange,omitempty"`
 	ERC20Tokens              []model.ERC20Token       `json:"erc20Tokens,omitempty"`
+	NEP141Tokens             []model.NEP141Token      `json:"nep141Tokens,omitempty"`
 	AddressBook              []model.AddressBookEntry `json:"addressBook,omitempty"`
 }
 
@@ -48,6 +50,7 @@ func (d *Data) Destroy() {
 	d.Operations = nil
 	d.Endpoints = nil
 	d.ERC20Tokens = nil
+	d.NEP141Tokens = nil
 	d.AddressBook = nil
 	if d.Exchange != nil {
 		d.Exchange.Destroy()
@@ -130,6 +133,16 @@ func (d *Data) Validate() error {
 		}
 		tokens[token.Asset.ID] = true
 	}
+	if len(d.NEP141Tokens) > near.MaxImportedTokens {
+		return ErrFormat
+	}
+	for _, token := range d.NEP141Tokens {
+		if near.ValidateTokenPolicy(token) != nil || tokens[token.Asset.ID] ||
+			(token.Network == "near-testnet" || token.Network == "near-localnet") != (d.Environment == "testnet") {
+			return ErrFormat
+		}
+		tokens[token.Asset.ID] = true
+	}
 	return nil
 }
 
@@ -147,16 +160,18 @@ func VerifyRecovery(a, b *Data) error {
 		Endpoints   map[string]Endpoint
 		Exchange    *ExchangeData
 		Tokens      []model.ERC20Token
+		NEARTokens  []model.NEP141Token
 		AddressBook []model.AddressBookEntry
-	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens, a.AddressBook})
+	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens, a.NEP141Tokens, a.AddressBook})
 	y, _ := json.Marshal(struct {
 		Accounts    []model.Account
 		Operations  []journal.Operation
 		Endpoints   map[string]Endpoint
 		Exchange    *ExchangeData
 		Tokens      []model.ERC20Token
+		NEARTokens  []model.NEP141Token
 		AddressBook []model.AddressBookEntry
-	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens, b.AddressBook})
+	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens, b.NEP141Tokens, b.AddressBook})
 	if sha256.Sum256(x) != sha256.Sum256(y) {
 		return errors.New("backup public descriptors differ")
 	}

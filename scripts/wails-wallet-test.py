@@ -33,6 +33,7 @@ mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--quick-import", action="store_true", help="Targeted public fixture import/restart check; omits generated-root address comparison")
 mode.add_argument("--staking-only", action="store_true", help="Targeted actual NEAR Staking page check after disposable public-fixture import; no RPC server or transaction approval")
 mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
+mode.add_argument("--near-tokens-only", action="store_true", help="Actual offline NEAR native-asset table and token-contract import guards on a disposable public-fixture profile; no invented token balance or transaction")
 mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
@@ -52,6 +53,9 @@ if args.staking_only:
 if args.tokens_only:
     report["scope"]="Targeted actual Ethereum ETH/USDT wallet presentation on an isolated display after importing the public disposable BIP39 fixture. Public pixels verify separate unknown balances, the complete USDT contract, decimals, explicit selection, whole-USDT Send units, the unchanged owned receive address, encrypted address-book save/retry/validation feedback and recipient persistence after actual restart. No RPC response is mocked and no token is imported, transaction prepared, approved or sent. This partial mode is not full wallet/recovery acceptance."
     report["notRun"].extend(["Generated-root setup, backup, fresh-copy restore and all-eight-wallet comparison (tokens-only mode)", "Custom token metadata import and funded token execution (offline graphical mode)"])
+if args.near_tokens_only:
+    report["scope"]="Actual uninstrumented offline X11 NEAR wallet on a fresh public abandon/about fixture: native NEAR/24-decimal asset table, exact owned address/copy, NEP-141 contract input, URL rejection without approval, real offline metadata-query failure without installing a token, whole-NEAR Send units and unchanged native staking. No RPC response, token balance, import success, registration or transaction is fabricated."
+    report["notRun"].extend(["Generated-root setup, backup and all-eight-wallet restore comparison (near-tokens-only mode)", "Actual custom NEP-141 token import, observed token balance, registration and token-send GUI workflows (offline graphical mode)"])
 if args.decred_copy_only:
     report["scope"]="Targeted repeated actual Decred verified receive/copy on an isolated display after importing a public disposable BIP39 fixture; private windows remain excluded from public pixels and failure diagnostics contain only X11 window metadata. No payment, public RPC or complete wallet acceptance claim."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (Decred copy diagnostic mode)")
@@ -1526,6 +1530,102 @@ def public_words_position(words, rows=None):
         return (left+right)//2,int(row[7])+int(row[9])//2
     return None
 
+def near_native_token_row(rows,bounds):
+    # Require the actual native row inside NEAR's three-column asset table.
+    # A NEAR label in tabs/headings or an unrelated Unknown cannot pass. This
+    # offline mode has installed no token policy, so additional rows also fail.
+    x,y,w,h=bounds
+    if x<0 or y<0 or x+w>1600 or y+h>1100 or w<300 or h<200:
+        raise RuntimeError("NEAR token table exceeds the owned display")
+    content=[row for row in rows if x<=int(row[6]) and int(row[6])+int(row[8])<=x+w and y+145<int(row[7]) and int(row[7])+int(row[9])<y+h-31]
+    heading=public_words_position("Assets on NEAR mainnet",content)
+    tracking=public_words_position("Track a NEAR token",content)
+    if not heading or not tracking or heading[1]>=tracking[1]:return None
+    columns={word:[row for row in content if row[11]==word and heading[1]<int(row[7])<tracking[1]] for word in ("Token","Balance","Decimals")}
+    if any(len(matches)!=1 for matches in columns.values()):return None
+    headers={word:matches[0] for word,matches in columns.items()}
+    if max(int(row[7]) for row in headers.values())-min(int(row[7]) for row in headers.values())>8:return None
+    if not int(headers["Token"][6])<int(headers["Balance"][6])<int(headers["Decimals"][6]):return None
+    table_top=max(int(row[7])+int(row[9]) for row in headers.values())
+    symbols=[row for row in content if table_top<int(row[7])<tracking[1]-15 and int(headers["Token"][6])-12<=int(row[6])<int(headers["Balance"][6])-20]
+    if len(symbols)!=1 or symbols[0][11]!="NEAR":return None
+    native=symbols[0]
+    cy=int(native[7])+int(native[9])//2
+    balances=[row for row in content if row[11]=="Unknown" and int(headers["Balance"][6])-12<=int(row[6])<int(headers["Decimals"][6])-15 and abs(int(row[7])+int(row[9])//2-cy)<=12]
+    return cy if len(balances)==1 else None
+
+def wait_near_token_import_failure(seconds=45):
+    deadline=time.monotonic()+seconds
+    while time.monotonic()<deadline:
+        if app is not None and app.poll() is not None:
+            raise RuntimeError("Owned wallet exited during offline NEAR token inspection")
+        if desktop.secret_window():
+            # Escape only in our owned main window; no unexpected approval is
+            # accepted or authenticated, and no private pixels are persisted.
+            desktop.focus(desktop.wait("CryptoWallet")[0])
+            desktop.key("Escape")
+            raise RuntimeError("Offline NEAR token inspection unexpectedly requested a dialog; cancelled")
+        visible=text()
+        if "Prepared payment" in visible or "Original prepared token registration" in visible:
+            raise RuntimeError("Read-only NEAR token inspection prepared a payment or registration")
+        if public_status_contains("Request failed or is unavailable."):return
+        time.sleep(.1)
+    raise RuntimeError("Offline NEAR token metadata failure was not shown within its bounded deadline")
+
+def near_tokens():
+    stage("Open NEAR native wallet before exact-contract token tracking")
+    click("Main account",top=True)
+    scroll_public(4,35)
+    wait_near_navigation("wallet")
+    expected_address="5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412"
+    if request_receive_copy()!=expected_address:
+        raise RuntimeError("NEAR receive address differs from the independent public BIP39 fixture")
+    stage("Verify native NEAR table, precision and exact-contract import controls")
+    scroll_public(4,35)
+    wait(lambda:public_words_position("Track a NEAR token"))
+    rows,picture,bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
+    row_y=near_native_token_row(rows,bounds)
+    if row_y is None or not public_decimal_cell(rows,picture,bounds,row_y,"24"):
+        raise RuntimeError("Offline NEAR assets did not show only native NEAR, Unknown balance and exact 24 decimals")
+    if not all(public_words_position(label,rows) for label in ("Token contract account on NEAR mainnet","Verify and add token")):
+        raise RuntimeError("NEAR exact-contract token input or import action is missing")
+    passed("Actual NEAR wallet shows its exact owned address/copy, native NEAR asset row with Unknown balance and 24 decimals, and contract-only token tracking controls")
+    def contract_field(value):
+        position=scroll_to_public_words("Token contract account on NEAR mainnet")
+        if desktop.secret_window():raise PrivateWindowVisible("Unexpected dialog before public NEAR contract entry")
+        desktop.click(position[0],position[1]+40)
+        desktop.key("a",ctrl=True)
+        desktop.type(value)
+        time.sleep(.25)
+    stage("Reject a URL as a NEAR token contract before any private confirmation")
+    contract_field("https://invalid.near")
+    click("Verify and add token")
+    wait(lambda:public_status_contains("Enter the exact NEAR token contract account for this network."))
+    if desktop.secret_window():raise RuntimeError("Invalid NEAR token URL opened a private approval")
+    passed("Actual NEAR token tracking rejects a URL with actionable contract-account feedback and no approval dialog")
+    stage("Request real offline metadata for an exact NEAR contract without fabricating an import")
+    contract_field("wrap.near")
+    click("Verify and add token")
+    wait_near_token_import_failure()
+    scroll_public(4,35)
+    rows,picture,bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
+    row_y=near_native_token_row(rows,bounds)
+    if row_y is None or not public_decimal_cell(rows,picture,bounds,row_y,"24"):
+        raise RuntimeError("Failed offline token inspection installed an asset or corrupted native NEAR precision/balance")
+    if request_receive_copy()!=expected_address:
+        raise RuntimeError("Failed token import changed the owned NEAR receive address")
+    report["nearTokenPresentation"]={"network":"near-mainnet","assets":["NEAR"],"decimals":[24],"receiveAddressSHA256":hashlib.sha256(expected_address.encode()).hexdigest(),"invalidSelectorRejected":True,"offlineContract":"wrap.near","offlineMetadataFailure":True,"tokenInstalled":False,"preparedOrSent":False}
+    passed("A real offline NEAR token metadata request fails honestly without installing a token, inventing a balance, changing the owned address or requesting spending approval")
+    stage("Verify ordinary native NEAR Send units before staking")
+    click("Send")
+    wait(lambda:"Amount (1 means 1 NEAR)" in text())
+    if desktop.secret_window() or "Prepared payment" in text():
+        raise RuntimeError("Opening ordinary NEAR Send requested approval or prepared a payment")
+    click("Send")
+    wait(lambda:"Recipient address" not in text())
+    passed("Native NEAR Send retains whole-NEAR units and remains an unprepared ordinary form")
+    staking_page()
+
 def scroll_to_public_words(words, contrast=False):
     for _ in range(12):
         position=public_words_position(words,public_rows(contrast=contrast))
@@ -2137,7 +2237,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -2159,6 +2259,8 @@ try:
                 staking_page()
             if args.tokens_only:
                 ethereum_tokens()
+            if args.near_tokens_only:
+                near_tokens()
             if args.decred_copy_only:
                 for _ in range(3):
                     addresses(("Decred",))

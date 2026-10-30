@@ -10,6 +10,7 @@ SOAK_SECONDS ?= 86400
 .PHONY: test-install-portable
 .PHONY: test-near-staking test-near-staking-local test-near-staking-gui test-near-staking-testnet
 .PHONY: test-erc20
+.PHONY: test-near-tokens test-near-tokens-local test-near-tokens-gui
 .PHONY: test-ci test-security-ci test-race-ci check-deps-ci
 .PHONY: test-packaged-desktop test-packaged-send-desktop build-components install-desktop package-portable package-components test-portable build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
@@ -40,6 +41,7 @@ test:
 	python3 scripts/crash-security-test.py
 	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
+	python3 scripts/near-token-mutation-test.py
 	python3 scripts/ci-desktop-test.py
 	python3 scripts/desktop-startup-test.py
 	python3 scripts/desktop-ocr-test.py
@@ -62,6 +64,7 @@ test-ci:
 	python3 scripts/crash-security-test.py
 	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
+	python3 scripts/near-token-mutation-test.py
 	python3 scripts/ci-desktop-test.py
 	python3 scripts/desktop-startup-test.py --current-ui
 	python3 scripts/campaign-test.py
@@ -86,6 +89,13 @@ test-near-staking-testnet:
 test-erc20: frontend
 	$(GO_TOOLS) go test -race ./internal/chains/evm ./internal/signer ./internal/walletcore ./internal/walletsigner ./internal/nativewallet ./internal/vault -run 'ERC20|Token' -count=1
 	WALLET_ERC20_EVM=1 $(TOOLS) go test ./internal/chains/evm -run '^TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache$$' -v -count=1
+test-near-tokens: frontend
+	$(GO_TOOLS) go test -race ./internal/model ./internal/chains/near ./internal/vault ./internal/signer ./internal/walletsigner ./internal/walletcore ./internal/nativewallet -run 'NEP141|NearToken|Token' -count=1
+	$(GO_TOOLS) python3 scripts/near-token-mutation.py
+test-near-tokens-local:
+	$(TOOLS) node tests/oracles/near/run-tokens-local.mjs
+test-near-tokens-gui: build
+	$(GO_TOOLS) python3 scripts/wails-wallet-test.py --near-tokens-only --report-name wails-near-tokens
 test-exchange:
 	$(GO_TOOLS) go test ./internal/exchange/...
 	$(GO_TOOLS) go test ./internal/signer ./internal/walletsigner ./internal/walletcore ./internal/chains/evm -run 'Exchange|Bybit|USDT|USDC'
@@ -100,12 +110,14 @@ test-security:
 	$(TOOLS) python3 scripts/mutation.py
 	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
+	$(GO_TOOLS) python3 scripts/near-token-mutation.py
 	$(TOOLS) python3 scripts/surface-check.py
 test-security-ci:
 	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./internal/walletcore ./internal/walletsigner ./internal/webui
 	$(TOOLS) python3 scripts/mutation.py
 	$(GO_TOOLS) python3 internal/exchange/bybit/test-mutations.py
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
+	$(GO_TOOLS) python3 scripts/near-token-mutation.py
 	$(TOOLS) python3 scripts/surface-check.py --current-ui
 test-race:
 	$(GO_TOOLS) go test -race -p 2 ./...

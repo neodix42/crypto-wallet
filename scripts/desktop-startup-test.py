@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pre-input diagnostics must explain startup failures without retaining workflow logs."""
 import ast
+import argparse
 import contextlib
 import hashlib
 import io
@@ -866,6 +867,119 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
                                                     mock.call(self.desktop.d,50,1,0),
                                                     mock.call(self.desktop.d,37,0,0)])
         self.keyboard.XFlush.assert_called_once_with(self.desktop.d)
+
+
+class WailsNearTokenPresentation(unittest.TestCase):
+    def setUp(self):
+        self.tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('near_native_token_row','wait_near_token_import_failure','public_words_position')
+        functions=[node for node in self.tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
+        self.clock=SimpleNamespace(now=0)
+        self.clock.monotonic=lambda:self.clock.now
+        self.clock.sleep=lambda seconds:setattr(self.clock,'now',self.clock.now+seconds)
+        self.desktop=SimpleNamespace(secret_window=mock.Mock(return_value=False),
+                                     wait=mock.Mock(return_value=(17,'CryptoWallet')),
+                                     focus=mock.Mock(),key=mock.Mock())
+        self.status=mock.Mock(return_value=False)
+        self.visible=mock.Mock(return_value='NEAR mainnet · NEAR')
+        self.scope={'time':self.clock,'desktop':self.desktop,'app':None,'text':self.visible,
+                    'public_status_contains':self.status}
+        exec(compile(ast.Module(body=functions,type_ignores=[]),'near-token-public-observation','exec'),self.scope)
+        self.bounds=(80,32,1440,1036)
+
+    def words(self,text,x,y,line):
+        return [['5','1',str(line),'1','1',str(index),str(x+60*index),str(y),'50','18','99',word]
+                for index,word in enumerate(text.split())]
+
+    def native_table(self):
+        return (self.words('Assets on NEAR mainnet',130,500,1)
+                +self.words('Token',130,550,2)+self.words('Balance',700,550,2)+self.words('Decimals',1100,550,2)
+                +self.words('NEAR',140,600,3)+self.words('Unknown',700,600,3)+self.words('24',1100,600,3)
+                +self.words('Track a NEAR token',130,690,4))
+
+    def test_native_row_requires_exact_near_table_columns_and_its_own_unknown_balance(self):
+        self.assertEqual(self.scope['near_native_token_row'](self.native_table(),self.bounds),609)
+        for word in ('Token','Balance','Decimals','Unknown'):
+            rows=[row for row in self.native_table() if row[11]!=word]
+            with self.subTest(word=word):self.assertIsNone(self.scope['near_native_token_row'](rows,self.bounds))
+        rows=self.native_table()
+        next(row for row in rows if row[11]=='Unknown')[7]='640'
+        self.assertIsNone(self.scope['near_native_token_row'](rows,self.bounds))
+
+    def test_wrong_network_extra_token_or_split_columns_cannot_pass_native_only_observation(self):
+        wrong=self.native_table()
+        next(row for row in wrong if row[11]=='mainnet')[11]='testnet'
+        split=self.native_table()
+        next(row for row in split if row[11]=='Balance')[7]='570'
+        extra=self.native_table()+self.words('SPAM',140,645,5)+self.words('Unknown',700,645,5)
+        for rows in (wrong,split,extra):
+            with self.subTest(rows=rows):self.assertIsNone(self.scope['near_native_token_row'](rows,self.bounds))
+
+    def test_top_tab_labels_or_out_of_bounds_text_cannot_supply_the_native_row(self):
+        rows=[row for row in self.native_table() if row[11]!='NEAR' or int(row[7])!=600]
+        rows+=self.words('NEAR',140,95,10)+self.words('NEAR',1540,600,11)
+        self.assertIsNone(self.scope['near_native_token_row'](rows,self.bounds))
+        for bounds in ((-1,0,1440,900),(80,32,1600,1036),(80,32,1440,1200)):
+            with self.subTest(bounds=bounds),self.assertRaisesRegex(RuntimeError,'owned display'):
+                self.scope['near_native_token_row'](self.native_table(),bounds)
+
+    def test_real_metadata_failure_needs_explicit_error_instead_of_busy_completed_or_old_status(self):
+        self.status.side_effect=[False,False,True]
+        self.scope['wait_near_token_import_failure'](seconds=1)
+        self.assertEqual(self.status.call_args_list,[mock.call('Request failed or is unavailable.')]*3)
+        self.desktop.key.assert_not_called()
+        self.status.side_effect=None
+        self.status.return_value=False
+        self.visible.return_value='Request completed. Waiting for wallet confirmation…'
+        with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
+            self.scope['wait_near_token_import_failure'](seconds=.3)
+
+    def test_unexpected_dialog_is_cancelled_in_owned_main_window_without_reading_or_accepting(self):
+        self.desktop.secret_window.return_value=True
+        with self.assertRaisesRegex(RuntimeError,'unexpectedly requested a dialog; cancelled'):
+            self.scope['wait_near_token_import_failure'](seconds=1)
+        self.desktop.focus.assert_called_once_with(17)
+        self.desktop.key.assert_called_once_with('Escape')
+        self.visible.assert_not_called()
+        self.status.assert_not_called()
+
+    def test_prepared_operation_or_exited_app_cannot_be_counted_as_metadata_failure(self):
+        self.status.return_value=True
+        for visible in ('Prepared payment','Original prepared token registration'):
+            self.visible.return_value=visible
+            with self.subTest(visible=visible),self.assertRaisesRegex(RuntimeError,'prepared a payment or registration'):
+                self.scope['wait_near_token_import_failure'](seconds=1)
+        self.status.assert_not_called()
+        self.scope['app']=SimpleNamespace(poll=lambda:23)
+        with self.assertRaisesRegex(RuntimeError,'exited'):
+            self.scope['wait_near_token_import_failure'](seconds=1)
+
+    def actual_parser_and_targeted_route(self):
+        nodes=[]
+        for node in self.tree.body:
+            if isinstance(node,ast.Assign) and any(isinstance(target,ast.Name) and target.id in ('parser','mode') for target in node.targets):
+                nodes.append(node)
+            elif isinstance(node,ast.Expr) and isinstance(node.value,ast.Call) and isinstance(node.value.func,ast.Attribute) and isinstance(node.value.func.value,ast.Name) and node.value.func.value.id in ('parser','mode'):
+                nodes.append(node)
+        scope={'argparse':argparse,'pathlib':pathlib,'ROOT':ROOT,'__doc__':'Owned test-mode routing'}
+        exec(compile(ast.Module(body=nodes,type_ignores=[]),'actual-wallet-acceptance-arguments','exec'),scope)
+        routes=[node.test for node in ast.walk(self.tree) if isinstance(node,ast.If) and isinstance(node.test,ast.BoolOp)
+                and any(isinstance(item,ast.Attribute) and item.attr=='near_tokens_only' for item in node.test.values)
+                and any(isinstance(item,ast.Attribute) and item.attr=='quick_import' for item in node.test.values)]
+        self.assertEqual(len(routes),1)
+        return scope['parser'],compile(ast.Expression(routes[0]),'actual-targeted-fixture-route','eval')
+
+    def test_all_explicit_targeted_modes_keep_their_fixture_route_and_default_keeps_full_recovery(self):
+        parser,route=self.actual_parser_and_targeted_route()
+        self.assertFalse(eval(route,{'args':parser.parse_args([])}))
+        for flag in ('--quick-import','--staking-only','--tokens-only','--near-tokens-only','--decred-copy-only','--appearance-only','--main-row-copy-only','--recovery-layout-only','--clipboard-only'):
+            with self.subTest(flag=flag):self.assertTrue(eval(route,{'args':parser.parse_args([flag])}))
+
+    def test_near_token_mode_cannot_silently_combine_with_another_acceptance_mode(self):
+        parser,_=self.actual_parser_and_targeted_route()
+        for flag in ('--tokens-only','--staking-only','--clipboard-only'):
+            with self.subTest(flag=flag),contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
+                parser.parse_args(['--near-tokens-only',flag])
 
 
 class WailsNearNavigation(unittest.TestCase):
@@ -2013,7 +2127,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

@@ -176,7 +176,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
 		interactive = true
 	}
 	if interactive {
@@ -446,6 +446,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		return c.importTokenAt(m, epoch)
 	case "nearStakingState", "prepareNearStaking":
 		return c.nearStakingAt(m, epoch)
+	case "nearTokenStorage", "prepareNearTokenRegistration":
+		return c.nearTokenStorageAt(m, epoch)
 	case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
 		return c.exchangeAt(m, epoch)
 	case "networks":
@@ -774,9 +776,18 @@ func (c *core) applySettingsAt(epoch uint64) error {
 	evms := map[string]string{}
 	cores := map[string]string{}
 	var tokens []model.ERC20Token
+	var nearTokens []model.NEP141Token
 	for _, adapter := range adapters {
 		if _, ok := adapter.(*evm.Adapter); ok {
 			if err := c.childCallAt(epoch, "tokenPolicies", struct{}{}, &tokens); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	for _, adapter := range adapters {
+		if _, ok := adapter.(*near.Adapter); ok {
+			if err := c.childCallAt(epoch, "nearTokenPolicies", struct{}{}, &nearTokens); err != nil {
 				return err
 			}
 			break
@@ -812,6 +823,12 @@ func (c *core) applySettingsAt(epoch uint64) error {
 	}
 	for i, a := range adapters {
 		switch a.(type) {
+		case *near.Adapter:
+			n, err := a.(*near.Adapter).WithTokens(nearTokens)
+			if err != nil {
+				return err
+			}
+			adapters[i] = n
 		case *evm.Adapter:
 			n, e := evm.NewWithEndpoints(evms)
 			if e != nil {

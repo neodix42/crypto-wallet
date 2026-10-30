@@ -306,6 +306,22 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err == nil {
 			out, err = e.SnapshotPage("")
 		}
+	case "nearTokenPolicies":
+		if signer.DecodeBody(m.Body, &struct{}{}) != nil {
+			return nil, signer.ErrDenied
+		}
+		out = e.NEP141TokenPolicies()
+	case "importNearToken":
+		var b struct {
+			AccountID string            `json:"accountId"`
+			Token     model.NEP141Token `json:"token"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			err = e.ImportNEP141Token(b.AccountID, b.Token)
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "associate":
 		var a model.Account
 		if err = signer.DecodeBody(m.Body, &a); err == nil {

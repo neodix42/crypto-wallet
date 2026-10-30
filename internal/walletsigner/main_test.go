@@ -456,7 +456,15 @@ func TestDispatchCancelReleasesOnlyAnUnsignedPreparationDurably(t *testing.T) {
 	if len(e.Pending()) != 1 || e.Pending()[0].State != "CANCELLED" || e.Pending()[0].Signed != nil || e.Pending()[0].Digest != journal.Digest(p) {
 		t.Fatal("cancellation changed the original unsigned identity")
 	}
-	denied(t, e, "cancelPrepared", map[string]string{"id": p.ID})
+	before, err := e.Files.Read("vault.lwv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dispatch(t, e, "cancelPrepared", map[string]string{"id": p.ID})
+	after, err := e.Files.Read("vault.lwv")
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("idempotent cancellation rewrote durable state")
+	}
 	denied(t, e, "cancelPrepared", map[string]string{"id": "unknown"})
 	dispatch(t, e, "lock", struct{}{})
 	unlockFixture(t, e, u)

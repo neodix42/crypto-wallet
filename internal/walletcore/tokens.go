@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"localwallet/internal/chains/evm"
+	"localwallet/internal/chains/near"
 	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
@@ -51,21 +52,35 @@ func (c *core) importTokenAt(message ipc.Message, epoch uint64) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	ethereum, ok := adapter.(*evm.Adapter)
-	if !ok {
-		return nil, errors.New("token import requires a supported Ethereum or Base wallet")
-	}
 	ctx, cancel := c.networkContextAt(45*time.Second, epoch)
 	defer cancel()
-	token, err := ethereum.InspectToken(ctx, account, string(request.Contract))
-	if err != nil {
-		return nil, err
+	var body any
+	method := "importToken"
+	switch chain := adapter.(type) {
+	case *evm.Adapter:
+		token, err := chain.InspectToken(ctx, account, string(request.Contract))
+		if err != nil {
+			return nil, err
+		}
+		body = struct {
+			AccountID string           `json:"accountId"`
+			Token     model.ERC20Token `json:"token"`
+		}{account.ID, token}
+	case *near.Adapter:
+		token, err := chain.InspectToken(ctx, account, string(request.Contract))
+		if err != nil {
+			return nil, err
+		}
+		method = "importNearToken"
+		body = struct {
+			AccountID string            `json:"accountId"`
+			Token     model.NEP141Token `json:"token"`
+		}{account.ID, token}
+	default:
+		return nil, errors.New("token import requires a supported Ethereum, Base or NEAR wallet")
 	}
 	var output json.RawMessage
-	if err = c.childCallAt(epoch, "importToken", struct {
-		AccountID string           `json:"accountId"`
-		Token     model.ERC20Token `json:"token"`
-	}{account.ID, token}, &output); err != nil {
+	if err = c.childCallAt(epoch, method, body, &output); err != nil {
 		return nil, err
 	}
 	if err = c.applySettingsAt(epoch); err != nil {

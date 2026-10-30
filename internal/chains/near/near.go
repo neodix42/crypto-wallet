@@ -34,6 +34,7 @@ var accountPattern = regexp.MustCompile(`^[a-z0-9]+([._-][a-z0-9]+)*$`)
 type Adapter struct {
 	endpoints map[string]string
 	client    *chainutil.Client
+	tokens    []model.NEP141Token
 }
 
 func New() *Adapter {
@@ -56,6 +57,9 @@ func (a *Adapter) Networks() []model.Network {
 	out := []model.Network{}
 	for _, id := range []string{"near-mainnet", "near-testnet", "near-localnet"} {
 		out = append(out, model.Network{ID: id, Family: "near", Name: "NEAR " + chain(id), Testnet: id != "near-mainnet", ChainID: chain(id), RPC: a.endpoints[id], Trust: "TLS RPC; provider assertion, not verified consensus", Assets: []model.Asset{{ID: asset(id), Symbol: "NEAR", Decimals: 24}}})
+		for _, token := range a.networkTokens(id) {
+			out[len(out)-1].Assets = append(out[len(out)-1].Assets, token.Asset)
+		}
 	}
 	return out
 }
@@ -252,6 +256,23 @@ func (a *Adapter) Associate(ctx context.Context, ac model.Account, name string) 
 	return ac, e
 }
 func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balance, error) {
+	balances, err := a.nativeBalance(ctx, ac)
+	if err != nil || len(a.networkTokens(ac.Network)) == 0 {
+		return balances, err
+	}
+	block, err := a.tokenBlock(ctx, ac.Network, balances[0].At)
+	for _, token := range a.networkTokens(ac.Network) {
+		balance := model.Balance{Asset: token.Asset.ID, State: "UNKNOWN (token RPC or policy unavailable)"}
+		if err == nil && a.verifyTokenAt(ctx, token, block) == nil {
+			if value, queryErr := a.tokenBalanceAt(ctx, token, ac.Address, block); queryErr == nil {
+				balance.Atomic, balance.State, balance.At = value, "FINAL", block.Hash
+			}
+		}
+		balances = append(balances, balance)
+	}
+	return balances, nil
+}
+func (a *Adapter) nativeBalance(ctx context.Context, ac model.Account) ([]model.Balance, error) {
 	st, _, e := a.state(ctx, ac)
 	if e != nil {
 		var query *accountQueryFailure
@@ -300,10 +321,14 @@ type Payload struct {
 	Prepared        int64        `json:"prepared"`
 	FeePolicy       string       `json:"feePolicy"`
 	Staking         *StakingCall `json:"staking,omitempty"`
+	Token           *TokenCall   `json:"token,omitempty"`
 }
 
 func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfer) (model.Plan, error) {
 	var z model.Plan
+	if t.Asset != asset(ac.Network) {
+		return a.prepareTokenTransfer(ctx, ac, t)
+	}
 	if t.AccountID != ac.ID || t.Asset != asset(ac.Network) || t.Memo != "" || a.ValidateAddress(ac.Network, t.Recipient) != nil {
 		return z, errInvalid
 	}
@@ -412,7 +437,7 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	if e := a.account(p.Account); e != nil {
 		return e
 	}
-	if p.Asset != asset(p.Account.Network) || p.FeeAsset != p.Asset || p.Memo != "" || a.ValidateAddress(p.Account.Network, p.Recipient) != nil {
+	if p.FeeAsset != asset(p.Account.Network) || p.Memo != "" || a.ValidateAddress(p.Account.Network, p.Recipient) != nil {
 		return errInvalid
 	}
 	n, e := chainutil.Big(p.Amount, 128)
@@ -426,6 +451,16 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	var d Payload
 	if e = chainutil.DecodeStrict(p.Payload, &d); e != nil {
 		return e
+	}
+	if d.Token == nil {
+		if p.Asset != asset(p.Account.Network) {
+			return errInvalid
+		}
+	} else {
+		policy, ok := a.token(p.Account.Network, d.Token.Policy.Asset.ID)
+		if !ok || policy != d.Token.Policy || validateToken(p, d) != nil {
+			return errInvalid
+		}
 	}
 	if d.FeePolicy != "protocol-assessed fee; estimate reserve is not a signed fee cap" || d.Version != 1 || len(base58.Decode(d.BlockHash)) != 32 || d.BlockHash != base58.Encode(base58.Decode(d.BlockHash)) || d.Prepared <= 0 || p.Expires != d.Prepared+60 || p.Expires <= time.Now().Unix() || p.Expires > time.Now().Unix()+60 {
 		return errInvalid
@@ -445,6 +480,9 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 		if e := validateStaking(p, d); e != nil {
 			return e
 		}
+	}
+	if d.Token != nil {
+		maxGas = 40_000_000_000_000
 	}
 	if e != nil || gas.Sign() == 0 || gas.Cmp(big.NewInt(maxGas)) > 0 {
 		return errInvalid
@@ -489,10 +527,24 @@ func transaction(p model.Plan) ([]byte, error) {
 	buf.WriteByte(0)
 	buf.Write(pub)
 	_ = binary.Write(buf, binary.LittleEndian, n)
-	writeString(p.Recipient)
+	receiver := p.Recipient
+	if d.Token != nil {
+		receiver = d.Token.Policy.Asset.Contract
+	}
+	writeString(receiver)
 	buf.Write(base58.Decode(d.BlockHash))
 	_ = binary.Write(buf, binary.LittleEndian, uint32(1))
-	if d.Staking != nil {
+	if d.Token != nil {
+		if e := validateToken(p, d); e != nil {
+			return nil, e
+		}
+		buf.WriteByte(2)
+		writeString(d.Token.Method)
+		writeString(d.Token.Args)
+		gas, _ := chainutil.Uint(d.Token.Gas, 64)
+		_ = binary.Write(buf, binary.LittleEndian, gas)
+		value, _ = chainutil.Big(d.Token.Deposit, 128)
+	} else if d.Staking != nil {
 		if e := validateStaking(p, d); e != nil {
 			return nil, e
 		}
@@ -571,6 +623,11 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	_ = current
 	var d Payload
 	_ = json.Unmarshal(p.Payload, &d)
+	if d.Token != nil {
+		if e := a.tokenPreflight(ctx, p, d, current); e != nil {
+			return z, e
+		}
+	}
 	var gp struct {
 		Price string `json:"gas_price"`
 	}
@@ -589,6 +646,9 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	var r execution
 	if e := a.rpc(ctx, p.Account.Network, "send_tx", map[string]string{"signed_tx_base64": base64.StdEncoding.EncodeToString(s.Bytes), "wait_until": "FINAL"}, &r); e != nil {
 		return z, e
+	}
+	if d.Token != nil {
+		return tokenReceipt(p, s.Identity, r)
 	}
 	if d.Staking != nil && (r.Transaction.Signer != p.Account.Address || r.Transaction.Receiver != p.Recipient) {
 		return z, errInvalid
@@ -654,6 +714,9 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 	var r execution
 	if e := a.rpc(ctx, p.Account.Network, "tx", map[string]string{"tx_hash": s.Identity, "sender_account_id": p.Account.Address, "wait_until": "FINAL"}, &r); e != nil {
 		return z, e
+	}
+	if IsTokenPlan(p) {
+		return tokenReceipt(p, s.Identity, r)
 	}
 	if r.Transaction.Signer != p.Account.Address || r.Transaction.Receiver != p.Recipient {
 		return z, errInvalid

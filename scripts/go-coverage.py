@@ -31,6 +31,7 @@ def local_gates(env):
     # These flags can only enable local emulator/simnet tests. External funded
     # testnet gates stay separate; do not inherit a user-selected live endpoint.
     for name in ("WALLET_NEAR_LOCAL_RPC", "WALLET_NEAR_STAKING_LOCAL_RPC", "WALLET_NEAR_STAKING_TESTNET",
+                 "WALLET_NEAR_TOKEN_LOCAL_RPC", "WALLET_NEAR_TOKEN_COVERAGE",
                  "WALLET_APTOS_LOCAL", "WALLET_APTOS_ROTATION", "LOCALWALLET_EVM_NODE"):
         env.pop(name, None)
     candidates = [os.environ.get("WALLET_DCRD", ""), str(root / ".tools/dcrd/dcrd"),
@@ -180,6 +181,36 @@ def all_packages(env):
 PORTABLE_MEMORY_TESTS = {"TestStaticBuildDoesNotPretendLegacySandboxIsInstalled",
                          "TestTP041MemoryProtectionPreservesCoordinatorNetworking",
                          "TestTP041MemoryProtectionFailsClosedOnKernelErrors"}
+
+
+def near_token_coverage(env):
+    """Require real local FT execution and fresh counters, never a skipped test."""
+    evidence_path = reports / "near-tokens-local.json"
+    profile = reports / "near-token-local.cover"
+    evidence_path.unlink(missing_ok=True)
+    profile.unlink(missing_ok=True)
+    row = {"gate": "near-token-contract", "status": "NOT_RUN"}
+    report["gates"].append(row)
+    log = reports / "near-token-coverage-node.log"
+    try:
+        with log.open("w") as output:
+            result = subprocess.run(["node", "tests/oracles/near/run-tokens-local.mjs"],
+                cwd=root, env={**env, "WALLET_NEAR_TOKEN_COVERAGE": "1"},
+                stdout=output, stderr=subprocess.STDOUT, timeout=240)
+        evidence = json.loads(evidence_path.read_text())
+        source = root / "tests/oracles/near/run-tokens-local.mjs"
+        valid = (result.returncode == 0 and evidence.get("status") == "PASS" and
+                 evidence.get("sourceStable") is True and
+                 evidence.get("producerSHA256") == hashlib.sha256(source.read_bytes()).hexdigest() and
+                 evidence.get("network") == "localnet" and evidence.get("transactions") == 7 and
+                 evidence.get("decimals") == [6, 18] and profile.is_file() and
+                 profile.read_text().startswith("mode: atomic\n"))
+        row.update(status="PASS" if valid else "FAIL", exit=result.returncode,
+                   report=str(evidence_path.relative_to(root)), log=str(log.relative_to(root)))
+    except (OSError, ValueError, subprocess.SubprocessError):
+        row.update(status="BLOCKED", reason="Local FT node/counters unavailable or malformed; inspect " + str(log.relative_to(root)))
+    print("NEAR token contract coverage:", row["status"], flush=True)
+    return 0 if row["status"] == "PASS" else 1
 
 
 def portable_memory_coverage(env):
@@ -352,6 +383,7 @@ def main():
         env = os.environ.copy()
         local_gates(env)
         go_exit = all_packages(env)
+        near_token_exit = near_token_coverage(env)
         native = subprocess.run(["python3", "scripts/native-input.py"], cwd=root, timeout=120)
         native_report = reports / "native-input.json"
         report["nativeInput"] = json.loads(native_report.read_text()) if native_report.is_file() else {"status": "BLOCKED", "reason": "Native report missing"}
@@ -367,7 +399,7 @@ def main():
             raise RuntimeError("Go sources/module pins changed during measurement; rerun on a stable working tree")
         report["sourceSHA256"] = before
         report["sourceCommit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-        if go_exit or native.returncode or native_ui.returncode or memory_exit or diagnostic_exit or runtime_exit:
+        if go_exit or near_token_exit or native.returncode or native_ui.returncode or memory_exit or diagnostic_exit or runtime_exit:
             raise RuntimeError("A Go/native suite failed; do not reuse old coverage as evidence")
         # Retain the exact input to this measurement: a later standalone native
         # security run rewrites native-input.cover with different counters.
@@ -377,7 +409,7 @@ def main():
         # regression counters; both must remain available to evidence verification.
         native_ui_profile = reports / "go-nativeui.cover"
         shutil.copyfile(reports / "native-ui.cover", native_ui_profile)
-        profile = merge_profiles([reports / "go-base.cover", native_profile, native_ui_profile, reports / "go-native-runtime.cover", reports / "go-portable-memory.cover", reports / "go-webui-diagnostic.cover"])
+        profile = merge_profiles([reports / "go-base.cover", reports / "near-token-local.cover", native_profile, native_ui_profile, reports / "go-native-runtime.cover", reports / "go-portable-memory.cover", reports / "go-webui-diagnostic.cover"])
         uncovered_blocks(profile)
         subprocess.run(["go", "tool", "cover", "-html=" + str(profile), "-o", str(reports / "go.html")], cwd=root, check=True)
         floor = subprocess.run(["python3", "scripts/coverage.py", str(profile)], cwd=root)

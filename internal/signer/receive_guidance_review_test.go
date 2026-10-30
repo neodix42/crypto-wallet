@@ -13,6 +13,7 @@ func TestTP033VerifiedReceiveKeepsActivationAndProfileGuidance(t *testing.T) {
 	for _, tc := range []struct{ network, required string }{
 		{"hypercore-testnet", "Activation is NOT established by this address"},
 		{"ton-testnet", "TON BIP39 Wallet V5R1"},
+		{"near-testnet", "Select the tracked token in Wallet, check its registration state"},
 	} {
 		a := findAccount(t, e, tc.network)
 		if png, err := e.Receive(a.ID); err != nil || len(png) == 0 {

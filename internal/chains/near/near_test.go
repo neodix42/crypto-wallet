@@ -22,7 +22,7 @@ import (
 const phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
 func seed() []byte { return bip39.NewSeed(phrase, "") }
-func fixturePlan(t *testing.T, a *Adapter) model.Plan {
+func fixturePlan(t testing.TB, a *Adapter) model.Plan {
 	t.Helper()
 	ac, e := a.Derive(seed(), 0, "near-testnet")
 	if e != nil {

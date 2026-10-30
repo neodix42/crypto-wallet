@@ -1,6 +1,6 @@
 # CryptoWallet
 
-Portable Go multichain desktop wallet for Ubuntu amd64, with a Wails/React interface rendered by system WebKitGTK 4.1. The downloaded wallet is **one executable**, `cryptowallet`. It contains the UI, coordinator and signer roles and embedded third-party notices. There is no bundled Electron, Chromium or SUID sandbox helper. This uses the main UI approach from the sibling charting project; its separate Chromium-based Screener is not included. Implemented domains remain Ethereum ETH and USDT, NEAR, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN and approved standard ERC-20 tokens on Base (plus ETH gas), Decred and TON Wallet V5R1. The optional **Exchange** tab connects to Bybit for Deposit, Swap and Withdraw. [Repository implementation instructions](START_HERE.txt).
+Portable Go multichain desktop wallet for Ubuntu amd64, with a Wails/React interface rendered by system WebKitGTK 4.1. The downloaded wallet is **one executable**, `cryptowallet`. It contains the UI, coordinator and signer roles and embedded third-party notices. There is no bundled Electron, Chromium or SUID sandbox helper. This uses the main UI approach from the sibling charting project; its separate Chromium-based Screener is not included. Implemented domains remain Ethereum ETH and USDT, native NEAR and tracked NEP-141 tokens, HyperEVM and HyperCore HYPE, Aptos, canonical ZEN and approved standard ERC-20 tokens on Base (plus ETH gas), Decred and TON Wallet V5R1. The optional **Exchange** tab connects to Bybit for Deposit, Swap and Withdraw. [Repository implementation instructions](START_HERE.txt).
 
 Passwords, recovery phrases, Receive and payment confirmations now use dialogs **inside the main window**. There are no separate prompt executables or temporary WebKit windows. Copy buttons, text selection, Ctrl+C / Ctrl+Shift+C / Ctrl+Insert, paste and the native context menu work in the trusted UI. The UI can see entered passwords and displayed phrases; keep the installed application trusted. [Current UI trust and clipboard behavior](docs/TRUSTED_UI.md).
 
@@ -111,6 +111,27 @@ locally and must be imported again after phrase-only recovery on another
 installation; the phrase still restores the same addresses and token ownership.
 See [supported ERC-20 behavior, limits and test evidence](docs/ERC20.md).
 
+## NEAR tokens
+
+Open a NEAR wallet and use **Track a NEAR token → Verify and add token** with the
+exact token contract account. Review its network, symbol, decimals and code hash,
+then confirm with the app password. Tracked NEP-141 tokens appear alongside NEAR
+in the **Token / Balance / Decimals** table; select a token before **Send**. `1`
+means one token at its approved precision. Keep native NEAR for fees.
+
+**Receive** uses the owned NEAR account address, shared by its tokens. After
+selecting a token, **Check token registration** reads its contract's registration
+state. If needed, **Register to receive token** prepares the exact storage deposit;
+**Review and register** separately asks for confirmation and the app password.
+Fund the wallet with native NEAR first. A sender can also register your address.
+Registration is an on-chain transaction; tracking a token alone sends no funds.
+
+NEAR uses explicit contract tracking, with no claim to discover every held token.
+Failed balances or registration reads stay unknown. Policies are encrypted locally;
+phrase-only recovery restores the same account and token ownership, but requires
+adding tracked contracts again. Imported tokens do not gain Bybit routes.
+See [supported NEAR token behavior and evidence](docs/NEAR_TOKENS.md).
+
 ## Tests
 
 Use public synthetic fixtures only. No test automatically spends mainnet funds. The default tests run offline after dependencies/toolchains have been installed; optional node integrations explicitly report a skip when their prerequisites are absent.
@@ -128,7 +149,10 @@ python3 scripts/check-build-inputs-test.py # missing/untracked source and lockfi
 make test-go              # compile embedded frontend, then Go unit/corpus tests
 make frontend             # prepare embedded assets before direct go test ./...
 make test-exchange        # Bybit/signing/IPC/UI guards, mutations and explicit local USDT integration
-make test-erc20           # token import/policy/UI guards and real two-token local EVM transfers
+make test-erc20           # Ethereum/Base token guards and real two-token local EVM transfers
+make test-near-tokens     # NEAR token policy/signing/race and security mutation checks
+make test-near-tokens-local # real NEAR token registration, transfers and reconciliation
+make test-near-tokens-gui # actual offline NEAR token interface on a private display
 make test                 # Go plus current React and retained desktop tests
 make test-ci              # current Go/React/helper tests; excludes legacy Electron
 make test-security        # vault/prompt/IPC/lifecycle, mutations, API surface checks
@@ -203,7 +227,7 @@ On a fresh installation, choose **Restore from recovery phrase**, specify the ap
 
 Deterministic account groups appear as tabs across the top, starting with **Main account**. Each group's table contains eight mainnet network wallets and ten pinned asset identities, with a native-currency balance in every row (ETH on Base and separate HYPE balances on HyperEVM/Core). Ethereum also supports six-decimal USDT at its pinned Ethereum contract; USDT payments require Ethereum ETH for gas. This adds no TON USDT jetton or other stablecoin network. **Refresh wallet state** reloads the encrypted account list and queues configured-provider balance observations for nonhidden wallets. Verified amounts display only their exact decimal value; observation state, block and provider details appear on hover. Failed or incomplete queries stay unknown/unavailable. Click a row to open its wallet tab. Keys follow each chain's pinned derivation profile; EVM networks can share an address while their balances remain separate. Receive addresses occupy their complete single-line width; narrow windows scroll the table instead of truncating them. The copy icon immediately copies the displayed address through the native clipboard runtime, without a wallet confirmation or core/signer request.
 
-Each wallet tab always shows **Receive address: `<address>`** on one line with its copy icon. Its selected asset appears in the title and tab name. Multi-asset EVM wallets show a **Token / Balance / Decimals** table, preserving ETH/USDT and ETH/ZEN choices plus explicitly tracked tokens; new views start with their native asset. Hover or keyboard-focus a token button to inspect its exact network and full ERC-20 contract. Wallet tabs show the amount and currency. Observation metadata appears only on the account table’s balance hover. **Send** reveals the otherwise hidden payment form, without a QR-image scan control. **Amount** uses whole asset units: entering `1` means 1 ETH or 1 TON, with exact decimal conversion in Go. **Receive** opens the Go-authored native wallet dialog with QR code, full address and an explicit **Copy address** button. These actions are enabled after recording and confirming the phrase; pending setup offers **Record and confirm recovery phrase** on the account and wallet pages. Middle-click a wallet tab to close it. Closing a tab or form preserves durable reservations. Go-validated approval and password checks use the existing real transaction pipeline.
+Each wallet tab always shows **Receive address: `<address>`** on one line with its copy icon. Its selected asset appears in the title and tab name. Multi-asset EVM and NEAR wallets show a **Token / Balance / Decimals** table, preserving ETH/USDT and ETH/ZEN choices plus explicitly tracked tokens; new views start with their native asset. Hover or keyboard-focus a token button to inspect its exact network and full token contract. Wallet tabs show the amount and currency. Observation metadata appears only on the account table’s balance hover. **Send** reveals the otherwise hidden payment form, without a QR-image scan control. **Amount** uses whole asset units: entering `1` means 1 ETH or 1 TON, with exact decimal conversion in Go. **Receive** opens the Go-authored native wallet dialog with QR code, full address and an explicit **Copy address** button. These actions are enabled after recording and confirming the phrase; pending setup offers **Record and confirm recovery phrase** on the account and wallet pages. Middle-click a wallet tab to close it. Closing a tab or form preserves durable reservations. Go-validated approval and password checks use the existing real transaction pipeline.
 
 The **Address book** tab next to **Settings** stores named recipients separately for each wallet account and network. Select a wallet to assign its network automatically, enter a name/address and choose **Save address**. The recipient field's book icon loads a saved address; its save icon opens a prefilled contact form. **Use address** fills that wallet's Send form without preparing or sending a payment. TON contacts can include a comment. Edit/Delete manage contacts; all contacts are encrypted in the local vault and cleared from the unlocked UI on lock. A recovery phrase restores keys, not this local address book. See [address-book behavior and tests](docs/ADDRESS_BOOK.md).
 

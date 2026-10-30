@@ -1,5 +1,7 @@
 # Security requirements and threat model
 
+> Owner update (2026-10-30): additional NEAR NEP-141 tokens are now authorized. Exact-contract tracking, NEP-148 metadata/runtime pinning, per-token balances, canonical `ft_transfer` and separately approved self-only NEP-145 registration extend native NEAR and staking. This supersedes the earlier NEP-141 exclusion only; no generic calls, token callbacks, new Bybit routes, secret-handling relaxation or network removal is authorized. Ethereum/Base ERC-20 behavior remains required. [Token contract and evidence](docs/NEAR_TOKENS.md).
+
 > Owner update (2026-10-29): the shipped Wails UI now uses one trusted main window with reusable in-page dialogs and ordinary Wails bindings. It no longer launches a private UI self-role, isolated prompt page or one-use UI pipe. Normal selection/copy/cut/paste are enabled. The main UI is trusted with entered/displayed secrets and approval intent. This supersedes the separate-renderer and noncopyable-secret requirements below, which describe earlier designs. Go signer/core isolation, cryptography, reauthentication and transaction validation remain. See [the current trust model](docs/TRUSTED_UI.md).
 
 

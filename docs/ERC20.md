@@ -1,7 +1,7 @@
-# Ethereum ERC-20 wallets
+# Ethereum and Base ERC-20 wallets
 
-Ethereum wallets display native ETH and all configured ERC-20 assets together.
-ETH and pinned USDT remain present by default on mainnet. Additional tokens are
+Ethereum and Base wallets display native ETH and all configured ERC-20 assets together.
+Ethereum mainnet includes pinned USDT; Base includes canonical ZEN. Additional tokens are
 explicitly tracked by their full contract address on Ethereum mainnet/Sepolia or Base mainnet/Sepolia;
 Horizen networks are explicitly retired under the later owner request; the existing canonical Base ZEN identity remains pinned.
 
@@ -67,7 +67,7 @@ complete behavior. The local integration proves the standard-token flows only.
 The signer stores approved public token policies inside the existing encrypted
 vault, alongside the unchanged wallet data. Lock/unlock and restart must reload
 those policies before a token can be used. The recovery phrase still derives the
-same Ethereum addresses and keys; tracking a token never creates a different
+same addresses and keys on the selected EVM networks; tracking a token never creates a different
 wallet or private key.
 
 Phrase-only recovery on a new installation does not restore the watch list or
@@ -120,3 +120,33 @@ Choose **Verify and add token** to run the ordinary exact-contract private confi
 Indexer inventory is incomplete and provider availability is not guaranteed. Failure displays **inventory unknown**, partial verification has a separate warning, and an empty response never claims that the account holds no other tokens. **Refresh token discovery** retries explicitly; exact-contract import remains available. The live provider probe in this development environment returned HTTP403, so live indexer acceptance is **BLOCKED** here. Controlled provider/RPC tests and real local EVM token execution are different evidence.
 
 Active Horizen mainnet/testnet networks, gas domains, endpoints and exchange routes have been removed. Existing vaults still authenticate their exact historical derivation descriptors, retain encrypted endpoints and journal, and unlock the unchanged active wallets. Historical records do not enable RPC/signing; their journal remains visible through the general Journal page. No legacy operation, descriptor or funds are silently deleted or reinterpreted as Base. At the same account index, the frozen EVM profile derives the same EOA on Base, but balances and transaction histories remain distinct ledgers. Fresh phrase restoration reconstructs the eight active mainnet networks (24 descriptors at indices0,1,127), not retired network tabs.
+
+## Focused Base verification, 2026-10-30
+
+Base token support already uses the same tracked-token transfer engine; it does
+not require a separate wallet or seed. The new Base-specific regressions pass
+for both [chain IDs](https://docs.base.org/base-chain/api-reference/ethereum-json-rpc-api/eth_chainId), mainnet `8453` and Sepolia `84532`, with two same-symbol
+contracts using different 6/18-decimal precision. They verify independent
+balances, exact signed contract/network/native-value identity, native ETH gas,
+and rejection of chain/contract/fee substitutions. Inspection alone cannot
+enable signing. Changed runtime/precision, a false transfer result, missing ETH
+and a wrong-chain RPC all fail without replacing another verified token balance
+with zero or broadcasting a payment.
+
+The actual local execution gate also passed with `sourceStable: true`: two
+deployed contracts on each owned Ethereum/Base Sepolia-shaped EVM, eight
+Go-signed out/back transfers in total and exactly twelve mined transactions
+including deployments. Independent ethers checks cover signatures, calldata,
+receipts, balances, gas and nonces. The Base report additionally rejects missing
+or increased fixture fee-oracle quotes and preserves absent pinned ZEN as
+unavailable. See `reports/base-erc20-execution.json`,
+`reports/erc20-execution.json` and `reports/base-two-chain-local-execution.log`.
+This is local standard-token execution; public Base acceptance, live indexer
+availability, actual rollup fees, GUI acceptance and independent review are
+separate gates.
+
+```sh
+./scripts/with-go.sh go test ./internal/chains/evm -run '^TestBase' -count=1
+WALLET_ERC20_EVM=1 ./scripts/with-toolchain.sh go test ./internal/chains/evm \
+  -run '^TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache$' -v -count=1
+```

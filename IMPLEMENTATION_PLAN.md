@@ -137,3 +137,8 @@ The owner-authorized NEAR staking extension (2026-10-28) adds `make test-near-st
 Provide source commit, build/package paths, installation commands, exact supported OS matrix, per-chain capability/evidence table, coverage per critical package, mutation/fuzz/race results, stress environment/results, clean recovery evidence, dependency/security findings and review status.
 
 Use explicit statuses: **PASS**, **FAIL**, **BLOCKED**, **NOT_RUN**, or **NOT_APPLICABLE with reason**. State why a blocked test matters, what unaffected work is complete, and the precise next action needed. Lack of a public faucet or external reviewer does not justify leaving the remaining local implementation unfinished, and does not justify calling the missing gate passed.
+
+
+## Owner extension — NEAR fungible tokens, 2026-10-30
+
+Extend the native adapter with exact NEP-141/148 token policies, bounded final-block observations and separate NEP-145 receiving registration. Reuse signer-authored approval/current password, encrypted watch policies, nonce reservations, signed-byte persistence and original receipt reconciliation. Native NEAR/staking and Base ERC-20 transfers remain mandatory. `make test-near-tokens` runs focused security/race/mutation controls, `make test-near-tokens-local` executes the real pinned FT WASM on the private sandbox, and `make test-near-tokens-gui` checks actual offline presentation. The ordinary integration/fuzz campaigns also include this extension. Public/funded graphical acceptance and independent review remain separately recorded gates. See TP-106–107 and [NEAR_TOKENS.md](docs/NEAR_TOKENS.md).

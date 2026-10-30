@@ -75,6 +75,9 @@ type App struct {
 	balances                              map[string][]model.Balance
 	balanceErrors                         map[string]bool
 	tokenDiscovery                        map[string]tokenDiscoveryState
+	nearTokenStorage                      map[string]nearTokenStorageObservation
+	nearTokenPending                      map[string]model.Plan
+	nearTokenRevision                     uint64
 	fields                                map[string]string
 	active                                string
 	tabs                                  []string
@@ -287,6 +290,7 @@ func (a *App) lock() {
 	a.stakingPending = nil
 	a.stakingReading = ""
 	a.tokenDiscovery = nil
+	a.clearNearTokenStorage(true)
 	a.stakingRevision++
 	a.balances = map[string][]model.Balance{}
 	a.balanceQueue = nil
@@ -468,6 +472,7 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 	a.clearAddressBook()
 	a.tokenDiscovery = nil
+	a.clearNearTokenStorage(state.Locked)
 	a.state = state
 	a.networks = networks
 	a.plan = nil
@@ -492,6 +497,12 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 		account, ok := a.account(id)
 		if !ok || account.Address != plan.Account.Address || account.PublicKey != plan.Account.PublicKey || account.Network != plan.Account.Network || account.Profile != plan.Account.Profile {
 			delete(a.stakingPending, id)
+		}
+	}
+	for id, plan := range a.nearTokenPending {
+		account, ok := a.account(id)
+		if !ok || account.Address != plan.Account.Address || account.PublicKey != plan.Account.PublicKey || account.Network != plan.Account.Network || account.Profile != plan.Account.Profile {
+			delete(a.nearTokenPending, id)
 		}
 	}
 	for _, account := range state.Accounts {
@@ -969,6 +980,9 @@ func (a *App) walletEvent(action string) {
 	if a.tokenEvent(kind, id) {
 		return
 	}
+	if a.nearTokenEvent(kind, id) {
+		return
+	}
 	if a.stakingEvent(kind, id) {
 		return
 	}
@@ -1083,6 +1097,12 @@ func (a *App) paymentAction(method, id string) {
 			break
 		}
 	}
+	for accountID, pending := range a.nearTokenPending {
+		if pending.ID == id {
+			owner = accountID
+			break
+		}
+	}
 	for _, operation := range a.journal {
 		if operation.Plan.ID == id {
 			owner = operation.Plan.Account.ID
@@ -1103,6 +1123,12 @@ func (a *App) paymentAction(method, id string) {
 					delete(a.stakingPending, accountID)
 				}
 			}
+			for accountID, pending := range a.nearTokenPending {
+				if pending.ID == id {
+					delete(a.nearTokenPending, accountID)
+				}
+			}
+			a.clearNearTokenStorage(false)
 			delete(a.staking, owner)
 			delete(a.stakingErrors, owner)
 			a.stakingRevision++
@@ -1431,6 +1457,9 @@ func (a *App) groupPage(index uint32) webui.Page {
 func (a *App) walletPage(account model.Account) webui.Page {
 	asset := a.asset(account)
 	network := a.network(account.Network)
+	if account.Family == "near" && a.fields["walletSection/"+account.ID] == "Staking" && len(network.Assets) > 0 {
+		asset = network.Assets[0]
+	}
 	value, _ := a.balance(account, asset)
 	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
 	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉ Copy address")), heading(value + " " + asset.Symbol)}
@@ -1465,11 +1494,22 @@ func (a *App) walletPage(account model.Account) webui.Page {
 					symbol = item.Symbol
 				}
 			}
-			page.Nodes = append(page.Nodes, label("Prepared payment\nNetwork: "+account.Network+"\nFrom: "+account.Address+"\nTo: "+a.plan.Recipient+"\nAmount: "+amountText+" "+asset.Symbol+"\nMaximum fee: "+fee+" "+symbol+"\nMemo: "+a.plan.Memo+"\nExpires: "+time.Unix(a.plan.Expires, 0).UTC().Format(time.RFC3339)), a.button("send/"+account.ID, "Review and send", false), a.button("cancelPrepared/"+a.plan.ID, "Cancel prepared payment", false))
+			feeLabel := "Maximum fee: "
+			if account.Family == "near" {
+				feeLabel = "Estimated fee reserve: "
+			}
+			preview := "Prepared payment\nNetwork: " + account.Network + "\nFrom: " + account.Address + "\nTo: " + a.plan.Recipient + "\nAmount: " + amountText + " " + asset.Symbol + "\n" + feeLabel + fee + " " + symbol + "\nMemo: " + a.plan.Memo + "\nExpires: " + time.Unix(a.plan.Expires, 0).UTC().Format(time.RFC3339)
+			if effects, ok := near.TokenEffects(*a.plan); ok {
+				preview += "\n" + effects
+			}
+			page.Nodes = append(page.Nodes, label(preview), a.button("send/"+account.ID, "Review and send", false), a.button("cancelPrepared/"+a.plan.ID, "Cancel prepared payment", false))
 		}
 	}
-	if account.Family == "evm" {
+	if account.Family == "evm" || account.Family == "near" {
 		page.Nodes = append(page.Nodes, a.walletAssets(account, asset)...)
+	}
+	if account.Family == "near" {
+		page.Nodes = append(page.Nodes, a.nearTokenNodes(account, asset)...)
 	}
 	page.Nodes = append(page.Nodes, row(a.button("configure/"+account.ID, "Configure trusted RPC", false), a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false), a.button("chainHistory/"+account.ID, "Read chain history", false)))
 	if account.Family == "near" || account.Family == "aptos" {
@@ -1535,6 +1575,9 @@ func (a *App) settingsPage() []webui.Node {
 			title := operation.Plan.ID + " · " + operation.State + "\n" + operation.Plan.Account.Network + " · " + operation.Plan.Account.Address + " → " + operation.Plan.Recipient + "\nAmount: " + amountText + " " + symbol
 			if staking, ok := stakingJournalDescription(operation.Plan); ok {
 				title = operation.Plan.ID + " · " + operation.State + "\n" + staking
+			}
+			if token, ok := near.TokenEffects(operation.Plan); ok {
+				title = operation.Plan.ID + " · " + operation.State + "\nNetwork: " + operation.Plan.Account.Network + "\n" + token
 			}
 			if operation.Receipt != nil {
 				title += "\n" + operation.Receipt.Identity + " · " + operation.Receipt.State + " · " + operation.Receipt.Detail

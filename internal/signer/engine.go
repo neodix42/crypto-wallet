@@ -127,6 +127,9 @@ func (e *Engine) Lock() {
 	if adapters, err := adaptersWithTokens(e.Adapters, nil); err == nil {
 		e.Adapters = adapters
 	}
+	if adapters, err := adaptersWithNEP141Tokens(e.Adapters, nil); err == nil {
+		e.Adapters = adapters
+	}
 }
 func wipeInputs(in [][]byte) {
 	for _, p := range in {
@@ -451,6 +454,9 @@ func (e *Engine) Unlock() error {
 	d.DeprecatedBackupVerified = false
 	e.data = d
 	adapters, err := adaptersWithTokens(e.Adapters, d.ERC20Tokens)
+	if err == nil {
+		adapters, err = adaptersWithNEP141Tokens(adapters, d.NEP141Tokens)
+	}
 	if err != nil {
 		e.Lock()
 		return err
@@ -595,6 +601,8 @@ func (e *Engine) Receive(id string) ([]byte, error) {
 	}
 	guidance := ""
 	switch a.Family {
+	case "near":
+		guidance = "\nNEP-141 tokens on this NEAR network use this same owned account address, not the token contract as the recipient. Receiving a token may require separate storage registration at that exact token contract. Select the tracked token in Wallet, check its registration state and explicitly register this owned account before depositing when required. This QR does not verify token registration."
 	case "hypercore":
 		guidance = "\nHyperCore spot is separate from HyperEVM. Activation is NOT established by this address. Initial fresh-account activation is not implemented; check the documented recipient prerequisites before any deposit."
 	case "ton":
@@ -719,6 +727,11 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 			passwordTitle = "Reauthenticate this NEAR staking operation"
 			amountLabel = "Staking effect amount (yoctoNEAR; see method effects)"
 		}
+		if near.IsTokenRegistrationPlan(p) {
+			approvalTitle = "Authorize NEAR token storage registration — Go signer"
+			passwordTitle = "Reauthenticate this NEAR token registration"
+			amountLabel = "Attached storage deposit (yoctoNEAR)"
+		}
 		feeLabel := "Maximum network fee"
 		if p.Account.Family == "ton" {
 			feeLabel = "Estimated fee reserve (TON protocol has no signed fee cap)"
@@ -731,6 +744,7 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 		}
 		summary := fmt.Sprintf("Network: %s\nSource: %s\nDestination: %s\nAsset identity: %s\n%s: %s\n%s: %s %s\nNonce/sequence: %s\nExpiry (Unix): %d\nMemo: %q\nExact chain effects:\n%s", p.Account.Network, p.Account.Address, p.Recipient, p.Asset, amountLabel, p.Amount, feeLabel, p.MaxFee, p.FeeAsset, p.Nonce, p.Expires, p.Memo, nativeEffects(p))
 		summary += e.tokenApproval(p)
+		summary += e.nearTokenApproval(p)
 		if !e.UI.Confirm(approvalTitle, summary) {
 			o.State = "CANCELLED"
 			return model.Signed{}, e.cancelError()
@@ -794,6 +808,14 @@ func (e *Engine) CancelPrepared(id string) error {
 	for i := range e.data.Operations {
 		o := &e.data.Operations[i]
 		if o.Plan.ID == id {
+			if o.State == "CANCELLED" {
+				if _, err := e.account(o.Plan.Account.ID); err != nil || o.Signed != nil || journal.Digest(o.Plan) != o.Digest {
+					return ErrDenied
+				}
+				// A previous denied/cancelled approval already durably released
+				// this exact unsigned operation. Acknowledge it without a rewrite.
+				return nil
+			}
 			if o.State != "PREPARED" || o.Signed != nil {
 				return ErrDenied
 			}
@@ -1001,6 +1023,12 @@ func (e *Engine) Associate(updated model.Account) error {
 }
 
 func nativeEffects(p model.Plan) string {
+	if near.IsTokenPlan(p) || near.IsTokenRegistrationPlan(p) {
+		if effects, valid := near.TokenEffects(p); valid {
+			return effects
+		}
+		return "Invalid NEAR token operation"
+	}
 	if near.IsStakingPlan(p) {
 		if effects, valid := near.StakingEffects(p); valid {
 			return effects

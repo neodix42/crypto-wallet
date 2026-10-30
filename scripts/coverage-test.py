@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Evidence-integrity regressions; synthetic counters, no wallet secrets."""
 import importlib.util
+import hashlib
+import json
 import pathlib
 import subprocess
 import tempfile
@@ -29,6 +31,51 @@ class CoverageEvidence(unittest.TestCase):
         path = coverage.reports / name
         path.write_text("mode: " + mode + "\n" + "".join(row + "\n" for row in rows))
         return path
+
+    def token_evidence(self, **changes):
+        runner = coverage.root / 'tests/oracles/near/run-tokens-local.mjs'
+        runner.parent.mkdir(parents=True, exist_ok=True)
+        runner.write_text('// public local fixture producer\n')
+        return {'status':'PASS','sourceStable':True,'network':'localnet','transactions':7,
+                'decimals':[6,18],'producerSHA256':hashlib.sha256(runner.read_bytes()).hexdigest(),**changes}
+
+    def test_near_token_coverage_requires_fresh_local_execution_and_atomic_counters(self):
+        evidence = self.token_evidence()
+        coverage.report['gates'] = []
+        def execute(command, **kwargs):
+            self.assertEqual(command, ['node','tests/oracles/near/run-tokens-local.mjs'])
+            self.assertEqual(kwargs['env']['WALLET_NEAR_TOKEN_COVERAGE'],'1')
+            self.assertFalse((coverage.reports/'near-token-local.cover').exists())
+            (coverage.reports/'near-tokens-local.json').write_text(json.dumps(evidence))
+            self.profile('near-token-local.cover',['localwallet/internal/chains/near/tokens.go:1.1,2.1 1 1'])
+            return subprocess.CompletedProcess(command,0)
+        with mock.patch.object(coverage.subprocess,'run',side_effect=execute):
+            self.assertEqual(coverage.near_token_coverage({}),0)
+        self.assertEqual(coverage.report['gates'][0]['status'],'PASS')
+
+    def test_near_token_coverage_never_accepts_old_or_incomplete_node_evidence(self):
+        baseline = self.token_evidence()
+        for failure in ('stale','nonzero','changed','wrong producer','wrong chain','missing call','wrong precision','missing counters','set counters'):
+            with self.subTest(failure=failure):
+                coverage.report['gates']=[]
+                (coverage.reports/'near-tokens-local.json').write_text(json.dumps(baseline))
+                self.profile('near-token-local.cover',['localwallet/internal/chains/near/tokens.go:1.1,2.1 1 1'])
+                def execute(command, **kwargs):
+                    self.assertFalse((coverage.reports/'near-tokens-local.json').exists())
+                    self.assertFalse((coverage.reports/'near-token-local.cover').exists())
+                    if failure=='stale':return subprocess.CompletedProcess(command,0)
+                    result={**baseline}
+                    if failure=='changed':result['sourceStable']=False
+                    if failure=='wrong producer':result['producerSHA256']='0'*64
+                    if failure=='wrong chain':result['network']='mainnet'
+                    if failure=='missing call':result['transactions']=6
+                    if failure=='wrong precision':result['decimals']=[6]
+                    (coverage.reports/'near-tokens-local.json').write_text(json.dumps(result))
+                    if failure!='missing counters':self.profile('near-token-local.cover',['localwallet/internal/chains/near/tokens.go:1.1,2.1 1 1'],mode='set' if failure=='set counters' else 'atomic')
+                    return subprocess.CompletedProcess(command,1 if failure=='nonzero' else 0)
+                with mock.patch.object(coverage.subprocess,'run',side_effect=execute):
+                    self.assertEqual(coverage.near_token_coverage({}),1)
+                self.assertNotEqual(coverage.report['gates'][0]['status'],'PASS')
 
     def test_instrumentation_uses_exact_owned_packages_including_glue_and_oracles(self):
         rows = ["localwallet/internal/webui\t" + str(coverage.root / "internal/webui") + "\tlocalwallet",

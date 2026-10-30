@@ -28,8 +28,8 @@ func TestTP060CancelPreparedIsDurableAndReleasesOnlyUnsignedReservation(t *testi
 	if err := e.CancelPrepared(p.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.Sign(p.ID); err == nil || e.CancelPrepared(p.ID) == nil {
-		t.Fatal("cancelled plan remained authorizable or cancellable")
+	if _, err := e.Sign(p.ID); err == nil || e.CancelPrepared(p.ID) != nil {
+		t.Fatal("cancelled plan remained authorizable or failed idempotent acknowledgement")
 	}
 	b, err := e.Files.Read("vault.lwv")
 	if err != nil {
@@ -59,7 +59,7 @@ func TestTP060CancelPreparedIsDurableAndReleasesOnlyUnsignedReservation(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, state := range []string{"SIGNED_NOT_SUBMITTED", "SUBMITTING", "UNKNOWN", "SUBMITTED", "CONFIRMED", "FAILED", "REPLACED", "REORGED", "PREPARED"} {
+	for _, state := range []string{"SIGNED_NOT_SUBMITTED", "SUBMITTING", "UNKNOWN", "SUBMITTED", "CONFIRMED", "FAILED", "REPLACED", "REORGED", "PREPARED", "CANCELLED"} {
 		// PREPARED with a signed artifact represents a corrupt/inconsistent
 		// journal. It must also retain its artifact and reservation.
 		e.data.Operations[1].State = state
