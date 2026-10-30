@@ -206,7 +206,7 @@ def launch(installation, home):
 def addresses():
     result = {}
     # These are the display labels in the pinned mainnet registry.
-    for network in ("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON"):
+    for network in ("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Arbitrum", "TON"):
         report["currentStep"] = "Select main account before " + network
         click("Main account", top=True)
         # Some network labels contain an ecosystem prefix; match the unique word.
@@ -243,7 +243,7 @@ def addresses():
         desktop.accept("Verify receive address")
         report["currentStep"] = "Wait for " + network + " public portfolio after receive dialog"
         wait(lambda:not desktop.secret_window())
-        pattern = {"NEAR":r"[0-9a-f]{64}","Aptos":r"0x[0-9a-fA-F]{64}","Decred":r"Ds[1-9A-HJ-NP-Za-km-z]{32,34}","TON":r"[UE]Q[A-Za-z0-9_-]{46}"}.get(network,r"0x[0-9a-fA-F]{40}")
+        pattern = {"NEAR":r"[0-9a-f]{64}","Aptos":r"0x[0-9a-fA-F]{64}","TON":r"[UE]Q[A-Za-z0-9_-]{46}"}.get(network,r"0x[0-9a-fA-F]{40}")
         report["currentStep"] = "Read " + network + " public clipboard address"
         value = wait(lambda: (observed if re.fullmatch(pattern, observed:=clipboard()) else None))
         wait(lambda:"Request completed" in text())
@@ -287,7 +287,7 @@ try:
     with tempfile.TemporaryDirectory(prefix="cryptowallet-native-acceptance-") as temporary, tempfile.TemporaryFile() as display_log:
         folder = pathlib.Path(temporary)
         hosts_fixture=folder/"hosts"
-        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz mainnet.base.org api.hyperliquid.xyz rpc.mainnet.near.org api.mainnet.aptoslabs.com toncenter.com\n")
+        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz base-rpc.publicnode.com base-sepolia-rpc.publicnode.com arb1.arbitrum.io sepolia-rollup.arbitrum.io api.hyperliquid.xyz rpc.mainnet.fastnear.com rpc.testnet.fastnear.com archival-rpc.mainnet.fastnear.com archival-rpc.testnet.fastnear.com api.mainnet.aptoslabs.com toncenter.com\n")
         hosts_fixture.chmod(0o600)
         report["networkIsolation"]="Owned user/mount/network namespace; pinned public RPC hostnames resolve to the unreachable test-only loopback; no RPC service, mocked response or host /etc modification; namespace capabilities dropped before wallet exec."
         installations = [folder / "machine-a/app", folder / "machine-b/app"]

@@ -41,6 +41,8 @@ jobs:
         run: python3 scripts/ci-desktop.py setup
       - name: Exercise the actual Wails application on a private display
         run: python3 scripts/ci-desktop.py run -- make test-wails-wallet
+      - name: Exercise GRAM labels, TON status and exact recovery-profile controls
+        run: python3 scripts/ci-desktop.py run -- ./scripts/with-toolchain.sh python3 scripts/wails-wallet-test.py --ton-only --report-name wails-ton-deployment
       - name: Exercise actual executable installation in disposable directories
         run: ./scripts/with-go.sh python3 scripts/portable-install-test.py
       - name: Provision the pinned real private-chain node before network isolation

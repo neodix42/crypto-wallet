@@ -108,7 +108,7 @@ func TestTP032AllProfilesCleanPortableRecovery(t *testing.T) {
 	for _, a := range initial.Accounts {
 		families[a.Family] = true
 	}
-	if len(families) != 6 {
+	if len(families) != 5 {
 		t.Fatal("required family omitted")
 	}
 	if err := e.AddAccount(1); err != nil {
@@ -116,14 +116,6 @@ func TestTP032AllProfilesCleanPortableRecovery(t *testing.T) {
 	}
 	if e.AddAccount(1) == nil || e.AddAccount(1000001) == nil {
 		t.Fatal("index policy")
-	}
-	for _, a := range e.Snapshot().Accounts {
-		if a.Family == "decred" {
-			if _, err := e.Receive(a.ID); err != nil {
-				t.Fatal(err)
-			}
-			break
-		}
 	}
 	backupDir := filepath.Join(t.TempDir(), "backup")
 	if err := os.Mkdir(backupDir, 0755); err != nil {

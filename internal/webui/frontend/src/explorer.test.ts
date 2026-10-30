@@ -5,7 +5,7 @@ const hash = 'a1'.repeat(32), evm = '0x' + hash;
 describe('reviewed transaction explorer routes', () => {
   it('accepts the exact routes constructed for supported public networks', () => {
     const urls = [
-      ...['etherscan.io', 'sepolia.etherscan.io', 'basescan.org', 'sepolia.basescan.org', 'hyperevmscan.io'].map(host => `https://${host}/tx/${evm}`),
+      ...['etherscan.io', 'sepolia.etherscan.io', 'basescan.org', 'sepolia.basescan.org', 'arbiscan.io', 'sepolia.arbiscan.io', 'hyperevmscan.io'].map(host => `https://${host}/tx/${evm}`),
       ...['app.hyperliquid.xyz', 'app.hyperliquid-testnet.xyz'].map(host => `https://${host}/explorer/tx/${evm}`),
       ...['nearblocks.io', 'testnet.nearblocks.io'].map(host => `https://${host}/txns/${'1'.repeat(32)}`),
       'https://nearblocks.io/txns/11111111111111111111111111111112',

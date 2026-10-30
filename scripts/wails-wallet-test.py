@@ -34,8 +34,9 @@ mode.add_argument("--quick-import", action="store_true", help="Targeted public f
 mode.add_argument("--staking-only", action="store_true", help="Targeted actual NEAR Staking page check after disposable public-fixture import; no RPC server or transaction approval")
 mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
 mode.add_argument("--near-tokens-only", action="store_true", help="Actual offline NEAR native-asset table and token-contract import guards on a disposable public-fixture profile; no invented token balance or transaction")
+mode.add_argument("--ton-only", action="store_true", help="Actual offline TON contract-status and deployment funding guards on a disposable public-fixture profile; no invented funding or deployment")
 mode.add_argument("--history-layout-only", action="store_true", help="Actual offline transaction-table headers, rightmost Settings and acknowledged Bybit/Binance/KuCoin selection on a disposable public profile; no credentials or funds")
-mode.add_argument("--decred-copy-only", action="store_true", help="Targeted repeated Decred receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
+mode.add_argument("--arbitrum-copy-only", action="store_true", help="Targeted repeated Arbitrum receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
 mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and direct address copy using a public disposable phrase; no wallet opening, RPC service or payment")
@@ -57,12 +58,15 @@ if args.tokens_only:
 if args.near_tokens_only:
     report["scope"]="Actual uninstrumented offline X11 NEAR wallet on a fresh public abandon/about fixture: native NEAR/24-decimal asset table, exact owned address/copy, NEP-141 contract input, URL rejection without approval, real offline metadata-query failure without installing a token, whole-NEAR Send units and unchanged native staking. No RPC response, token balance, import success, registration or transaction is fabricated."
     report["notRun"].extend(["Generated-root setup, backup and all-eight-wallet restore comparison (near-tokens-only mode)", "Actual custom NEP-141 token import, observed token balance, registration and token-send GUI workflows (offline graphical mode)"])
+if args.ton_only:
+    report["scope"]="Actual uninstrumented offline X11 TON wallet on a fresh public abandon/about fixture: owned receiving address, honest unavailable contract state, refresh without private approval, no deployment control without verified funding, and explicit Settings recovery profile/index controls. No RPC response, positive balance, active/uninit state, prepared transaction or deployment is fabricated. Actual deployment byte/signature parity and execution are separate pinned TVM emulator tests."
+    report["notRun"].extend(["Funded TON uninit/active graphical workflow and transaction approval", "TON public testnet deployment", "Generated-root all-wallet recovery campaign (targeted TON mode)"])
 if args.history_layout_only:
     report["scope"]="Actual uninstrumented offline X11 history/layout/provider selection after importing the public abandon/about fixture: rightmost Settings, expanded content, all seven transaction-table headers with honest failed-provider scope, Settings Wallet/Appearance/Exchange navigation, actual acknowledged Bybit/Binance/KuCoin selection on both pages and disabled disconnected funding actions. No fabricated transaction, successful RPC response, API credential or exchange order."
     report["notRun"].extend(["Successful graphical transaction rows and external explorer opening", "Live Binance/KuCoin credentials, deposits, trades and withdrawals", "Full generated-root recovery campaign (targeted mode)"])
-if args.decred_copy_only:
-    report["scope"]="Targeted repeated actual Decred verified receive/copy on an isolated display after importing a public disposable BIP39 fixture; private windows remain excluded from public pixels and failure diagnostics contain only X11 window metadata. No payment, public RPC or complete wallet acceptance claim."
-    report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (Decred copy diagnostic mode)")
+if args.arbitrum_copy_only:
+    report["scope"]="Targeted repeated actual Arbitrum verified receive/copy on an isolated display after importing a public disposable BIP39 fixture; private windows remain excluded from public pixels and failure diagnostics contain only X11 window metadata. No payment, public RPC or complete wallet acceptance claim."
+    report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (Arbitrum copy diagnostic mode)")
 if args.appearance_only:
     report["scope"]="Targeted actual Light/18 px defaults, selected Settings tabs, Dark/24 px rendering and persistence after graceful restart, Enter-only unlock, and private two-field Bybit/footer layout. Disposable public fixture and API canaries only; custody confirmation is cancelled before encrypted credentials or any Bybit observation. No private pixels or values are retained."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (appearance-only mode)")
@@ -255,7 +259,7 @@ class Desktop(mod.Desktop):
         # the monitor-fitted 1440px-wide wallet and centered private prompts. Move only, without
         # clicking, focusing a window or inspecting any private pixels. This
         # retires WebKit's native public-hover tooltip before a slow prompt
-        # (notably a persisted Decred receive advance) finishes starting.
+        # finishes updating its backend-authored contents.
         mod.T.XTestFakeMotionEvent(self.d, -1, 1590, 1090, 0)
         mod.X.XFlush(self.d)
         time.sleep(.15)
@@ -697,7 +701,7 @@ def click(words, top=False, last=False, button=1):
             desktop.click(int(row[6])+int(row[8])//2, int(row[7])+int(row[9])//2, button=button)
             time.sleep(.25)
             return clicked_at
-        if not top and words in ("Ethereum","Base","HyperEVM","HyperCore","NEAR","Aptos","Decred","TON") and attempt in (2,5,8):
+        if not top and words in ("Ethereum","Base","HyperEVM","HyperCore","NEAR","Aptos","Arbitrum","TON") and attempt in (2,5,8):
             if desktop.secret_window():raise PrivateWindowVisible("Refusing public scrolling while a private prompt is visible")
             x,y,w,h=desktop.geometry(desktop.wait("CryptoWallet")[0])
             mod.T.XTestFakeMotionEvent(desktop.d,-1,x+w-22,y+h//2,0)
@@ -1197,7 +1201,7 @@ def clipboard_campaign(expected_address,secret):
     click("Main account",top=True)
     passed("Ordinary Ctrl+V password entry authenticates the exact recovery phrase in a dialog inside the main application window")
 
-def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Decred", "TON")):
+def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Aptos", "Arbitrum", "TON")):
     result = {}
     # These are the display labels in the pinned mainnet registry.
     for network in networks:
@@ -1214,7 +1218,7 @@ def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Ap
         wait(lambda: "Copy address" in text())
         report["currentStep"] = "Request " + network + " address copy"
         value=request_receive_copy()
-        pattern = {"NEAR":r"[0-9a-f]{64}","Aptos":r"0x[0-9a-fA-F]{64}","Decred":r"Ds[1-9A-HJ-NP-Za-km-z]{32,34}","TON":r"[UE]Q[A-Za-z0-9_-]{46}"}.get(network,r"0x[0-9a-fA-F]{40}")
+        pattern = {"NEAR":r"[0-9a-f]{64}","Aptos":r"0x[0-9a-fA-F]{64}","TON":r"[UE]Q[A-Za-z0-9_-]{46}"}.get(network,r"0x[0-9a-fA-F]{40}")
         if not re.fullmatch(pattern,value):
             raise RuntimeError("Fresh copied address did not match the selected network: "+network)
         result[network] = value
@@ -1275,7 +1279,7 @@ def verify_window_icon():
 
 def overview_layout():
     stage("Verify complete default 18px overview without vertical scrolling")
-    expected={"ethereum","near","hyperevm","hypercore","aptos","base","decred","ton"}
+    expected={"ethereum","near","hyperevm","hypercore","aptos","base","arbitrum","ton"}
     def positions():
         rows,_,bounds=public_rows(with_picture=True,with_geometry=True)
         x,y,w,h=bounds
@@ -2203,6 +2207,48 @@ def address_book_campaign():
     report["addressBook"]={"saved":True,"loaded":True,"identicalCreateRetry":True,"singleObservedSavedRowAfterRetry":True,"retryComposerCleared":True,"rejectFeedback":["invalid-address","duplicate-name","duplicate-recipient"],"savedRowUsableAfterReject":True,"network":"ethereum-mainnet","recipientSHA256":hashlib.sha256(recipient.encode()).hexdigest(),"preparedOrSent":False}
     passed("Recipient Save/Load icons persist and restore a scoped entry, identical Save retries succeed, and invalid/duplicate edits retain usable saved contacts with actionable feedback and no payment authority")
 
+def ton_contract_page():
+    stage("Open actual TON wallet and observe unavailable contract status")
+    click("Main account",top=True)
+    scroll_public(4,35)
+    click("TON")
+    wait(lambda:"Copy address" in text() and "Contract status" in text())
+    wait(lambda:re.search(r"Contract status[: ]+unavailable",text(),re.I),30)
+    visible=text()
+    if not re.search(r"\bGRAM\b",visible):
+        raise RuntimeError("TON wallet still displays the retired native currency ticker")
+    if "Deploy Wallet" in visible or "Review and deploy" in visible:
+        raise RuntimeError("Offline TON observation enabled deployment without verified funding")
+    if desktop.secret_window():
+        raise RuntimeError("Read-only TON contract observation requested private approval")
+    passed("Actual offline TON wallet keeps contract state unavailable and exposes no deployment authority without verified funding")
+    stage("Refresh actual TON contract state without an approval")
+    click("Refresh contract status")
+    wait(lambda:re.search(r"Contract status[: ]+unavailable",text(),re.I),30)
+    if desktop.secret_window() or "Prepared TON deployment" in text():
+        raise RuntimeError("TON status refresh prepared a transaction or opened an approval")
+    passed("Explicit TON status refresh returns an honest provider failure without a private approval or prepared operation")
+    click("Send")
+    wait(lambda:"Recipient address" in text())
+    if "1 means 1 GRAM" not in text():
+        raise RuntimeError("TON send form did not use whole GRAM units")
+    click("Send")
+    wait(lambda:"Recipient address" not in text())
+    stage("Inspect explicit TON recovery profile and account index controls")
+    click("Settings",top=True)
+    click("Wallet")
+    scroll_to_public_words("TON recovery profiles")
+    scroll_to_public_words("Add / recover TON profile")
+    visible=text()
+    if "Subwallet 42" not in visible or "TON account index" not in visible:
+        raise RuntimeError("TON explicit recovery profile/index controls missing")
+    if "different receive address" not in visible:
+        scroll_public(5,2)
+        if "different receive address" not in text():
+            raise RuntimeError("TON profile selector omitted changed-address recovery guidance")
+    report["tonContractState"]={"actualRPCUnavailable":True,"deploymentWithoutVerifiedFunding":False,"readonlyRefreshApproval":False,"explicitRecoveryProfileAndIndex":True,"network":"ton-mainnet","fabricatedResponse":False}
+    passed("Actual Settings exposes separate TON contract recovery profiles and explains that selecting another subwallet creates a different receive address")
+
 def staking_page():
     stage("Open actual NEAR wallet Staking page")
     click("Main account",top=True)
@@ -2304,7 +2350,7 @@ try:
     with tempfile.TemporaryDirectory(prefix="cryptowallet-native-acceptance-") as temporary, tempfile.TemporaryFile() as display_log:
         folder = pathlib.Path(temporary)
         hosts_fixture=folder/"hosts"
-        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz mainnet.base.org api.hyperliquid.xyz rpc.mainnet.near.org api.mainnet.aptoslabs.com toncenter.com\n")
+        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz base-rpc.publicnode.com base-sepolia-rpc.publicnode.com arb1.arbitrum.io sepolia-rollup.arbitrum.io api.hyperliquid.xyz rpc.mainnet.fastnear.com rpc.testnet.fastnear.com archival-rpc.mainnet.fastnear.com archival-rpc.testnet.fastnear.com api.mainnet.aptoslabs.com toncenter.com\n")
         hosts_fixture.chmod(0o600)
         report["networkIsolation"]="Owned user/mount/network namespace; pinned public RPC hostnames resolve to the unreachable test-only loopback; no RPC service, mocked response or host /etc modification; namespace capabilities dropped before wallet exec."
         installations = [folder / "machine-a/app", folder / "machine-b/app"]
@@ -2316,7 +2362,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.history_layout_only or args.decred_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -2340,12 +2386,14 @@ try:
                 ethereum_tokens()
             if args.near_tokens_only:
                 near_tokens()
+            if args.ton_only:
+                ton_contract_page()
             if args.history_layout_only:
                 history_layout_campaign()
-            if args.decred_copy_only:
+            if args.arbitrum_copy_only:
                 for _ in range(3):
-                    addresses(("Decred",))
-                passed("Three repeated actual Decred direct copies completed with fresh native clipboard acknowledgments")
+                    addresses(("Arbitrum",))
+                passed("Three repeated actual Arbitrum direct copies completed with fresh native clipboard acknowledgments")
             if args.appearance_only:
                 appearance_campaign(installations[0],home,different_password)
             if args.main_row_copy_only:

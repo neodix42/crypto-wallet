@@ -16,9 +16,9 @@
     },
     {
       "id": "BC-DCR",
-      "status": "NOT_RUN",
-      "evidence": "Official Child/script engine, leadingzero divergence, actual dcrd simnet",
-      "remaining": "Currenttestnet and externalwallet version import NOT_RUN"
+      "status": "PASS",
+      "evidence": "Retired from active support by owner 2026-10-30. Historical encrypted descriptors, contacts, endpoints and original-operation journal are authenticated and preserved; active RPC, derivation, receive and signing routes are denied. Historical standalone protocol fixtures remain regression evidence only.",
+      "remaining": "No active Decred acceptance gate. Candidate retirement and legacy recovery tests are part of TP110; historical reports are retained without an active support claim."
     },
     {
       "id": "BC-EVM",
@@ -418,6 +418,12 @@
       "status": "PASS",
       "evidence": "docs/evidence/x11-diagnostics.json: exact three known upstream cache diagnostics omitted with bounded buffering; genuine/FATAL/unknown/partial/binary output preserved. Twelve real process/fault/lifecycle cases and 32 repeated exec/private-pipe checks pass; scoped race passes. Final artifact passes 27 packaged X11 and seven actual isolated-geth Send checks, six clean live-log observations, fresh recovery and Go crash checks.",
       "remaining": "Application diagnostic workaround; upstream Chromium cache preload table is unchanged. Full supported OS/display matrix and production acceptance remain NOT_RUN."
+    },
+    {
+      "id": "TP110-provider-arbitrum-ton-valuation",
+      "status": "NOT_RUN",
+      "evidence": "Implementation and current scoped evidence checklist: docs/RPC_TON_ARBITRUM_VALUATION.md. Replacement provider production-Go read-only queries; independent Arbitrum protocol/local EVM execution; TON immutable V5R1 subwallet42/legacy recovery and zero-outgoing TVM deployment; GRAM identity and public-price rational totals with named missing-asset hints; retired Decred encrypted-record recovery and route denial.",
+      "remaining": "Final aggregate/hosted verification in progress. Public funded Arbitrum/TON acceptance and actual Nitro-node execution NOT_RUN. Base/Arbitrum public history index HTTP403; no private index key supplied. Full OS matrix/soak/independent review remain separate gates."
     }
   ]
 }

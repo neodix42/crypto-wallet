@@ -1,0 +1,60 @@
+{
+  "oracle": "@ton/ton 16.3.0; @ton/core 0.63.1; public BIP39 abandon/about",
+  "profile": "ton-bip39-slip10-v5r1-subwallet42-v2",
+  "accounts": [
+    {
+      "network": "ton-mainnet",
+      "index": 0,
+      "publicKey": "7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf",
+      "address": "UQDjBRTf4jrMXA7dTRXCCgcZ7j4dAq8nhlCT1FTfz1oJuVxO",
+      "stateHash": "e30514dfe23acc5c0edd4d15c20a0719ee3e1d02af27865093d454dfcf5a09b9",
+      "bodyHash": "1dfd3f9d03770e04d568fe93a798750eef285a5487b480966e1e37917b01bdf6",
+      "deploymentExternalHash": "0f6632e38a6253fe31dec0b898b7311bb2502573dae14f1d14665badb283d9a2"
+    },
+    {
+      "network": "ton-mainnet",
+      "index": 1,
+      "publicKey": "1d87da6f9190dddea5650e9156ff32ca359e61fb473642f0c76b7b79514f0d4d",
+      "address": "UQCylzCSpjqAZBORjdKgWNT2C4Qgzd2hzO-BA70XIC1zEmWK",
+      "stateHash": "b2973092a63a806413918dd2a058d4f60b8420cddda1ccef8103bd17202d7312",
+      "bodyHash": "1d15b2b76bd431276f0667f40289ab99ee125453850a62a062243ef31c285103",
+      "deploymentExternalHash": "0eaaa2cf9cd884757592884a6946288d00c1325043c58eea986637d3c6d35696"
+    },
+    {
+      "network": "ton-mainnet",
+      "index": 17,
+      "publicKey": "f5855f4393b4e50efa5ea1fdaa8da6142d993c0a9c7daef449cf85c97f842634",
+      "address": "UQAp9eBtaicdlLlwKnkDJyS_m7yBPRikejDiHzHO2B0wRxcM",
+      "stateHash": "29f5e06d6a271d94b9702a79032724bf9bbc813d18a47a30e21f31ced81d3047",
+      "bodyHash": "f17b4a71644a089d7367262f1cb62b316936061515a7ef1d625be7690c02f02c",
+      "deploymentExternalHash": "40986c5dc940183a8749105cccd24180b7359e224d122469e38938329fc449d9"
+    },
+    {
+      "network": "ton-testnet",
+      "index": 0,
+      "publicKey": "7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf",
+      "address": "0QBX_FBumreQ0y4yeWhQH1toyXHfbi17h1FHCLEUtmj0FmCD",
+      "stateHash": "57fc506e9ab790d32e327968501f5b68c971df6e2d7b87514708b114b668f416",
+      "bodyHash": "92b6ae79b32dbdecbace985338b288b07a614363496d097a8e045b71a34e9ce3",
+      "deploymentExternalHash": "84ceebd630add54a521bf6be0ef0e11a615594887e7d77d39291982a2b504891"
+    },
+    {
+      "network": "ton-testnet",
+      "index": 1,
+      "publicKey": "1d87da6f9190dddea5650e9156ff32ca359e61fb473642f0c76b7b79514f0d4d",
+      "address": "0QBxiWWlRc84cYJCS836hoOtmInIHiX5D2UjckzBQMz6FeA7",
+      "stateHash": "718965a545cf387182424bcdfa8683ad9889c81e25f90f6523724cc140ccfa15",
+      "bodyHash": "ac68000b3aa0bfa67b07f239f5b674dd29bdd3937fbca8efaf7a5891180f33bd",
+      "deploymentExternalHash": "6da4c932dc9bba772200d8e8e8a97296c07a66a7583fef960e2676ff5660fb24"
+    },
+    {
+      "network": "ton-testnet",
+      "index": 17,
+      "publicKey": "f5855f4393b4e50efa5ea1fdaa8da6142d993c0a9c7daef449cf85c97f842634",
+      "address": "0QDFPrnkYXX63A5ITv33Py2KO5dqvz4QSrSQbrWoWCn9w4ko",
+      "stateHash": "c53eb9e46175fadc0e484efdf73f2d8a3b976abf3e104ab4906eb5a85829fdc3",
+      "bodyHash": "7a86b4273c8aff40803867d4b604da493f272fce868fa7fc30269ca706f5f4ed",
+      "deploymentExternalHash": "0270070fbc5973b68a0aded7f2aa8d44ec69a94ab0208f8beb9fa6fcd1b6f165"
+    }
+  ]
+}

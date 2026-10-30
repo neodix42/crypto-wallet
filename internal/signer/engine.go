@@ -17,11 +17,12 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/skip2/go-qrcode"
+	"localwallet/internal/chains"
 	"localwallet/internal/chains/aptos"
 	"localwallet/internal/chains/chainutil"
 	"localwallet/internal/chains/decred"
-	"localwallet/internal/chains/evm"
 	"localwallet/internal/chains/near"
+	"localwallet/internal/chains/ton"
 	"localwallet/internal/derivation"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
@@ -72,6 +73,9 @@ func ID() string {
 	return hex.EncodeToString(b[:])
 }
 func (e *Engine) adapter(network string) (model.Adapter, error) {
+	if chains.IsRetiredNetwork(network) {
+		return nil, ErrDenied
+	}
 	for _, a := range e.Adapters {
 		for _, n := range a.Networks() {
 			if n.ID == network {
@@ -203,9 +207,15 @@ func (e *Engine) validateAccounts(d *vault.Data) error {
 	}
 	defer clear(seed)
 	for _, a := range d.Accounts {
-		if evm.IsRetiredNetwork(a.Network) {
-			if err := evm.ValidateRetiredAccount(seed, a); err != nil {
+		if chains.IsRetiredNetwork(a.Network) {
+			if err := chains.ValidateRetiredAccount(seed, a); err != nil {
 				return err
+			}
+			continue
+		}
+		if a.Family == "ton" {
+			if ton.ValidateRecovery(seed, a) != nil {
+				return ErrDenied
 			}
 			continue
 		}
@@ -450,7 +460,12 @@ func (e *Engine) Unlock() error {
 	}
 	// Old portable-file verification never substitutes for acknowledging the
 	// recovery words. Clear the retired flag without changing the root or paths.
-	changed := d.DeprecatedBackupVerified
+	added, err := e.addSupportedNetworks(d)
+	if err != nil {
+		d.Destroy()
+		return err
+	}
+	changed := d.DeprecatedBackupVerified || added
 	d.DeprecatedBackupVerified = false
 	e.data = d
 	adapters, err := adaptersWithTokens(e.Adapters, d.ERC20Tokens)
@@ -510,6 +525,9 @@ func (e *Engine) addAccounts(index, end uint32) error {
 	for ; index <= end; index++ {
 		for _, adapter := range e.Adapters {
 			for _, n := range adapter.Networks() {
+				if chains.IsRetiredNetwork(n.ID) {
+					continue
+				}
 				if n.Testnet != (e.data.Environment == "testnet") {
 					continue
 				}
@@ -562,7 +580,7 @@ func (e *Engine) account(id string) (model.Account, error) {
 		return model.Account{}, ErrDenied
 	}
 	for _, a := range e.data.Accounts {
-		if a.ID == id && !evm.IsRetiredNetwork(a.Network) {
+		if a.ID == id && !chains.IsRetiredNetwork(a.Network) {
 			return a, nil
 		}
 	}
@@ -705,6 +723,9 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 		if o.Plan.ID != id {
 			continue
 		}
+		if chains.IsRetiredNetwork(o.Plan.Account.Network) {
+			return model.Signed{}, ErrDenied
+		}
 		if o.State != "PREPARED" || journal.Digest(o.Plan) != o.Digest || o.Plan.Expires <= time.Now().Unix() {
 			return model.Signed{}, ErrDenied
 		}
@@ -726,6 +747,11 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 			approvalTitle = "Authorize NEAR staking operation — Go signer"
 			passwordTitle = "Reauthenticate this NEAR staking operation"
 			amountLabel = "Staking effect amount (yoctoNEAR; see method effects)"
+		}
+		if ton.IsDeploymentPlan(p) {
+			approvalTitle = "Authorize TON Wallet V5R1 deployment — Go signer"
+			passwordTitle = "Reauthenticate this TON deployment"
+			amountLabel = "Outgoing transfer amount (deployment sends no transfers)"
 		}
 		if near.IsTokenRegistrationPlan(p) {
 			approvalTitle = "Authorize NEAR token storage registration — Go signer"
@@ -946,7 +972,7 @@ func (e *Engine) Settings() map[string]vault.Endpoint {
 	}
 	settings := make(map[string]vault.Endpoint, len(e.data.Endpoints))
 	for network, endpoint := range e.data.Endpoints {
-		if !evm.IsRetiredNetwork(network) {
+		if !chains.IsRetiredNetwork(network) {
 			settings[network] = endpoint
 		}
 	}
@@ -1023,6 +1049,9 @@ func (e *Engine) Associate(updated model.Account) error {
 }
 
 func nativeEffects(p model.Plan) string {
+	if ton.IsDeploymentPlan(p) {
+		return ton.DeploymentEffects(p)
+	}
 	if near.IsTokenPlan(p) || near.IsTokenRegistrationPlan(p) {
 		if effects, valid := near.TokenEffects(p); valid {
 			return effects

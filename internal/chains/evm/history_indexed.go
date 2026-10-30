@@ -42,6 +42,10 @@ func historyIndexEndpoints(network string) []string {
 		return []string{"https://base.blockscout.com/api"}
 	case "base-sepolia":
 		return []string{"https://base-sepolia.blockscout.com/api"}
+	case "arbitrum-mainnet":
+		return []string{"https://arbitrum.blockscout.com/api"}
+	case "arbitrum-sepolia":
+		return []string{"https://arbitrum-sepolia.blockscout.com/api"}
 	}
 	return nil
 }
@@ -211,7 +215,7 @@ func (a *Adapter) historyCandidates(ctx context.Context, endpoint string, accoun
 }
 
 func (a *Adapter) historyIndexedPage(ctx context.Context, account model.Account, rawCursor string) (model.HistoryPage, error) {
-	page := model.HistoryPage{Entries: []model.Receipt{}, Scope: "Address-indexed native and tracked ERC-20 history; each transaction, canonical block, receipt and owned effect is checked through the configured chain RPC. Token runtime/precision is checked at the frozen current head; historical upgrades or precision changes are not independently certified. Index coverage, internal calls and bridge effects may be missing. An exhausted index is not proof of complete account history. Powered by Routescan.io APIs (Ethereum) and Blockscout (Base/Sepolia)."}
+	page := model.HistoryPage{Entries: []model.Receipt{}, Scope: "Address-indexed native and tracked ERC-20 history; each transaction, canonical block, receipt and owned effect is checked through the configured chain RPC. Token runtime/precision is checked at the frozen current head; historical upgrades or precision changes are not independently certified. Index coverage, internal calls and bridge effects may be missing. An exhausted index is not proof of complete account history. Powered by Routescan.io APIs (Ethereum) and Blockscout (Base/Arbitrum/Sepolia)."}
 	n, err := a.validateAccount(account)
 	if err != nil {
 		return page, err

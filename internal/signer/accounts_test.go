@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"localwallet/internal/chains"
-	"localwallet/internal/chains/decred"
 	"os"
 	"path/filepath"
 	"testing"
@@ -69,37 +68,33 @@ func TestTP032OlderBackupManualRangeAndHiddenRecovery(t *testing.T) {
 	}
 }
 
-func TestTP022DurableDiscoveryBlockBudget(t *testing.T) {
+func TestRetiredDecredDiscoveryBudgetRemainsDurableAndInactive(t *testing.T) {
 	e, u, _ := newEngine(t, chains.All())
 	createImported(t, e, u, "testnet")
-	var id string
-	for _, a := range e.Snapshot().Accounts {
-		if a.Family == "decred" {
-			id = a.ID
-			break
+	account := legacyDecredAccount(t, e, "decred-testnet3", 0)
+	before := append([]byte(nil), account.Parameters...)
+	for _, args := range [][]uint32{{2000001}, {1, 2}, {12345}} {
+		if e.Discovery(account.ID, 123, 20, 100, args...) == nil {
+			t.Fatal("retired discovery budget accepted")
 		}
 	}
-	for _, args := range [][]uint32{{2000001}, {1, 2}} {
-		if e.Discovery(id, 123, 20, 100, args...) == nil {
-			t.Fatal("invalid block budget")
-		}
+	if !bytes.Equal(before, e.data.Accounts[len(e.data.Accounts)-1].Parameters) {
+		t.Fatal("retired discovery budget mutated")
 	}
-	if err := e.Discovery(id, 123, 20, 100, 12345); err != nil {
+	if err := e.persist(); err != nil {
 		t.Fatal(err)
-	}
-	a, _ := e.account(id)
-	var p decred.Parameters
-	if json.Unmarshal(a.Parameters, &p) != nil || p.BlockBudget != 12345 {
-		t.Fatal("block budget omitted")
 	}
 	e.Lock()
 	u.inputs = append(u.inputs, input(syntheticPassword))
-	if e.Unlock() != nil {
-		t.Fatal("reopen")
+	if err := e.Unlock(); err != nil {
+		t.Fatal(err)
 	}
-	a, _ = e.account(id)
-	json.Unmarshal(a.Parameters, &p)
-	if p.BlockBudget != 12345 {
-		t.Fatal("block budget not durable")
+	if _, err := e.PublicAccount(account.ID); err == nil {
+		t.Fatal("retired discovery account exposed")
+	}
+	for _, historical := range e.data.Accounts {
+		if historical.ID == account.ID && !bytes.Equal(before, historical.Parameters) {
+			t.Fatal("retired budget changed on reopen")
+		}
 	}
 }

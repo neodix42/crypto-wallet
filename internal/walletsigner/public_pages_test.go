@@ -69,8 +69,8 @@ func TestPrivatePagedDispatchUnlocksLargeJournalAndRetainsExactArtifacts(t *test
 		t.Fatal("unlock still returns whole archive")
 	}
 	var first signer.SnapshotPage
-	if json.Unmarshal(raw, &first) != nil || len(first.Accounts) != 128 || first.TotalAccounts != 300 || first.TotalOperations != 300 || first.AccountsCursor == "" {
-		t.Fatal("bounded unlock omitted metadata")
+	if json.Unmarshal(raw, &first) != nil || len(first.Accounts) != 128 || first.TotalAccounts != 600 || first.TotalOperations != 300 || first.AccountsCursor == "" {
+		t.Fatal("bounded unlock omitted metadata including 300 migrated Arbitrum accounts")
 	}
 	count := len(first.Accounts)
 	cursor := first.AccountsCursor
@@ -83,7 +83,7 @@ func TestPrivatePagedDispatchUnlocksLargeJournalAndRetainsExactArtifacts(t *test
 		count += len(page.Accounts)
 		cursor = page.AccountsCursor
 	}
-	if count != 300 {
+	if count != 600 {
 		t.Fatal("account pages truncated", count)
 	}
 	var account model.Account

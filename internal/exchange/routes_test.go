@@ -17,7 +17,11 @@ func nativeRoute(network, symbol string) (model.Account, model.Asset) {
 	if network == "ton-mainnet" {
 		id = network + ":TON"
 	}
-	return model.Account{ID: network + "-fixture-account", Network: network}, model.Asset{ID: id, Symbol: symbol}
+	asset := model.Asset{ID: id, Symbol: symbol}
+	if network == "ton-mainnet" {
+		asset.Decimals = 9
+	}
+	return model.Account{ID: network + "-fixture-account", Network: network}, asset
 }
 
 func TestExchangeRoutesUseActualWalletRegistryIdentities(t *testing.T) {
@@ -40,7 +44,7 @@ func TestExchangeRoutesUseActualWalletRegistryIdentities(t *testing.T) {
 	if len(seen) != len(labels) {
 		t.Fatal("registry coverage lost", seen)
 	}
-	account, asset := nativeRoute("ton-mainnet", "TON")
+	account, asset := nativeRoute("ton-mainnet", "GRAM")
 	asset.ID = "ton-mainnet:native"
 	if ValidateRoute(account, asset, "TON", "TON", "") == nil {
 		t.Fatal("unregistered TON asset admitted")
@@ -63,9 +67,9 @@ func TestExchangeRouteMatchesActualLedgerAndFullTokenIdentity(t *testing.T) {
 		{"near-mainnet", "NEAR", "service-near", "Near Protocol"},
 		{"aptos-mainnet", "APT", "service-aptos", "Aptos"},
 		{"aptos-mainnet", "APT", "service-aptos", "APTOS"},
-		{"ton-mainnet", "TON", "service-ton", "TON"},
-		{"ton-mainnet", "TON", "service-ton", "Toncoin"},
-		{"ton-mainnet", "TON", "service-ton", "TON (The Open Network)"},
+		{"ton-mainnet", "GRAM", "service-ton", "TON"},
+		{"ton-mainnet", "GRAM", "service-ton", "Toncoin"},
+		{"ton-mainnet", "GRAM", "service-ton", "TON (The Open Network)"},
 	} {
 		t.Run(row.network+"/"+row.chainType, func(t *testing.T) {
 			account, asset := nativeRoute(row.network, row.symbol)
@@ -118,9 +122,9 @@ func TestExchangeRouteRejectsWrongEnvironmentUnsupportedAndMalformedSelections(t
 			t.Fatalf("unsafe selection accepted: %+v %v", row, e)
 		}
 	}
-	for _, network := range []string{"ethereum-sepolia", "ton-testnet", "near-testnet", "aptos-testnet", "decred-mainnet", "decred-testnet", "hypercore-mainnet", "hypercore-testnet", "unknown"} {
+	for _, network := range []string{"ethereum-sepolia", "arbitrum-mainnet", "arbitrum-sepolia", "ton-testnet", "near-testnet", "aptos-testnet", "decred-mainnet", "decred-testnet", "hypercore-mainnet", "hypercore-testnet", "unknown"} {
 		account, asset := nativeRoute(network, "HYPE")
-		for _, label := range []string{"Ethereum", "TON", "HyperEVM", "NEAR", "APTOS", "Decred", "HyperCore"} {
+		for _, label := range []string{"Ethereum", "Arbitrum One", "TON", "HyperEVM", "NEAR", "APTOS", "Decred", "HyperCore"} {
 			if ValidateRoute(account, asset, "ETH", label, "") == nil {
 				t.Fatal("unsupported/environment substitution", network, label)
 			}
@@ -129,9 +133,9 @@ func TestExchangeRouteRejectsWrongEnvironmentUnsupportedAndMalformedSelections(t
 }
 
 func TestExchangeMatchRouteRejectsAmbiguityAndPreservesProviderMaintenance(t *testing.T) {
-	account, asset := nativeRoute("ton-mainnet", "TON")
+	account, asset := nativeRoute("ton-mainnet", "GRAM")
 	route := bybit.Chain{Chain: "service-ton", ChainType: "TON", ChainDeposit: "0", ChainWithdraw: "1", DepositMin: "1", WithdrawFee: "0.1", WithdrawPercentageFee: "0", MinAccuracy: "9", ContractAddress: ""}
-	coin := bybit.Coin{Coin: "TON", Name: "Toncoin", Chains: []bybit.Chain{
+	coin := bybit.Coin{Coin: "GRAM", Name: "Gram", Chains: []bybit.Chain{
 		{Chain: "ETH", ChainType: "Ethereum", ContractAddress: publicUSDTContract}, route,
 	}}
 	got, e := MatchRoute(account, asset, coin)
@@ -160,7 +164,34 @@ func TestExchangeMatchRouteRejectsAmbiguityAndPreservesProviderMaintenance(t *te
 	if _, e := MatchRoute(account, asset, missing); !errors.Is(e, ErrRoute) {
 		t.Fatal("missing network invented", e)
 	}
-	if _, e := MatchRoute(account, asset, bybit.Coin{Coin: "TON"}); !errors.Is(e, ErrRoute) {
+	if _, e := MatchRoute(account, asset, bybit.Coin{Coin: "GRAM"}); !errors.Is(e, ErrRoute) {
 		t.Fatal("empty route accepted", e)
+	}
+}
+
+func TestGramNativeRoutesRejectOldTickerAndTokenImpostorsForNewOperations(t *testing.T) {
+	account, canonical := nativeRoute("ton-mainnet", "GRAM")
+	for _, provider := range []string{"bybit", "binance", "kucoin"} {
+		coin := bybit.Coin{Coin: "GRAM", Name: "Gram", Chains: []bybit.Chain{{Chain: "TON", ChainType: "TON"}}}
+		if _, err := MatchProviderRoute(provider, account, canonical, coin); err != nil {
+			t.Fatal("canonical GRAM route unavailable", provider, err)
+		}
+		for _, change := range []func(*model.Asset){
+			func(a *model.Asset) { a.Symbol = "TON" },
+			func(a *model.Asset) { a.Decimals = 18 },
+			func(a *model.Asset) { a.ID = "ton-mainnet:GRAM" },
+			func(a *model.Asset) { a.ID = "ton-mainnet:jetton:public-impostor"; a.Contract = "public-impostor" },
+			func(a *model.Asset) { a.Contract = "public-impostor" },
+		} {
+			bad := canonical
+			change(&bad)
+			if ValidateProviderRoute(provider, account, bad, "TON", "TON", bad.Contract) == nil {
+				t.Fatal("ticker/precision/token substitution authorized", provider, bad)
+			}
+		}
+		coin.Coin = "TON"
+		if _, err := MatchProviderRoute(provider, account, canonical, coin); err == nil {
+			t.Fatal("old TON service asset reused for new GRAM operation", provider)
+		}
 	}
 }

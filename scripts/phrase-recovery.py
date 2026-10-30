@@ -13,6 +13,8 @@ args=parser.parse_args()
 root=pathlib.Path(__file__).resolve().parents[1];reports=root/'reports';reports.mkdir(exist_ok=True)
 report={'status':'NOT_RUN','scope':__doc__,'mode':'portable-go-self-roles' if args.portable else 'legacy-go-components','producerSHA256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),'steps':[],'notRun':['Graphical UI interaction','Separate physical machines','Full supported OS/Wayland matrix','Funded transactions']}
 children=[];logs=[];canaries=[];public_frames=[]
+active_networks={'ethereum-mainnet','base-mainnet','arbitrum-mainnet','hyperevm-mainnet','hypercore-mainnet','near-mainnet','aptos-mainnet','ton-mainnet'}
+report['activeNetworks']=sorted(active_networks)
 def check(ok,message):
  if not ok:raise RuntimeError(message)
 def passed(name):report['steps'].append({'name':name,'status':'PASS'});print('PASS '+name,flush=True)
@@ -103,9 +105,14 @@ try:
   check(phrase is not None and not pending['locked'] and not pending['recoveryConfirmed'],'Incorrect words enabled the wallet')
   check((first[2]/'cryptowallet/mainnet/vault.lwv').exists(),'Generated root was not encrypted durably')
   passed('Headless Go backend persists a random root and rejects wrong recorded words through typed signer prompts')
-  ready=a.call('confirmRecovery',expected_phrase=phrase);check(ready['recoveryConfirmed'] and len(ready['accounts'])==8,'Phrase confirmation did not enable all networks')
+  ready=a.call('confirmRecovery',expected_phrase=phrase);check(ready['recoveryConfirmed'] and len(ready['accounts'])==8 and {account['network'] for account in ready['accounts']}==active_networks,'Phrase confirmation did not enable the exact active networks')
   for index in [1,127]:a.call('addAccount',{'index':index})
-  expected=descriptors(a.call('accounts'));check(len(expected)==24,'Canonical account groups missing');a.stop()
+  expected=descriptors(a.call('accounts'));check(len(expected)==24,'Canonical account groups missing')
+  for index in [0,1,127]:
+   group={account['network']:account for account in expected if account['index']==index}
+   check(set(group)==active_networks,'Recovery group contains a retired network or omits Arbitrum')
+   check(group['arbitrum-mainnet']['address']==group['ethereum-mainnet']['address'] and group['arbitrum-mainnet']['publicKey']==group['ethereum-mainnet']['publicKey'] and group['arbitrum-mainnet']['profile']==group['ethereum-mainnet']['profile'],'Arbitrum changed the canonical EVM recovery profile')
+  a.stop()
   passed('Password reauthentication and correct words enable all eight networks at indices0,1,127')
   # Reconstruct only the old directory layout of this disposable installation.
   # Migration must preserve ciphertext before unlock and every derived identity.

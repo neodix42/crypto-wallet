@@ -34,7 +34,8 @@ func (d *Data) validateAddressBook() error {
 		adapter := validators[entry.Network]
 		recipient := entry.AccountID + "\x00" + entry.Address + "\x00" + entry.Memo
 		counts[entry.AccountID]++
-		if !exists || !entry.ValidFor(account) || adapter == nil || adapter.ValidateAddress(entry.Network, entry.Address) != nil ||
+		validAddress := adapter != nil && adapter.ValidateAddress(entry.Network, entry.Address) == nil || chains.ValidateRetiredContact(entry.Network, entry.Address)
+		if !exists || !entry.ValidFor(account) || !validAddress ||
 			ids[entry.ID] || recipients[recipient] || counts[entry.AccountID] > model.MaxAccountAddressBookEntries {
 			return ErrFormat
 		}

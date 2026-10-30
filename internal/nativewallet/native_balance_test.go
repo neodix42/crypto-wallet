@@ -9,9 +9,9 @@ import (
 func TestOverviewDisplaysTheNativeBalanceOfEverySupportedNetwork(t *testing.T) {
 	a, _, _ := fixture(t)
 	expected := map[string]string{
-		"ethereum-mainnet": "ETH", "base-mainnet": "ETH",
+		"ethereum-mainnet": "ETH", "base-mainnet": "ETH", "arbitrum-mainnet": "ETH",
 		"hyperevm-mainnet": "HYPE", "hypercore-mainnet": "HYPE", "near-mainnet": "NEAR",
-		"aptos-mainnet": "APT", "decred-mainnet": "DCR", "ton-mainnet": "TON",
+		"aptos-mainnet": "APT", "ton-mainnet": "GRAM",
 	}
 	for _, account := range a.state.Accounts {
 		symbol, ok := expected[account.Network]

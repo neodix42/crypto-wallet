@@ -972,7 +972,7 @@ class WailsNearTokenPresentation(unittest.TestCase):
     def test_all_explicit_targeted_modes_keep_their_fixture_route_and_default_keeps_full_recovery(self):
         parser,route=self.actual_parser_and_targeted_route()
         self.assertFalse(eval(route,{'args':parser.parse_args([])}))
-        for flag in ('--quick-import','--staking-only','--tokens-only','--near-tokens-only','--history-layout-only','--decred-copy-only','--appearance-only','--main-row-copy-only','--recovery-layout-only','--clipboard-only'):
+        for flag in ('--quick-import','--staking-only','--tokens-only','--near-tokens-only','--history-layout-only','--arbitrum-copy-only','--appearance-only','--main-row-copy-only','--recovery-layout-only','--clipboard-only'):
             with self.subTest(flag=flag):self.assertTrue(eval(route,{'args':parser.parse_args([flag])}))
 
     def test_near_token_mode_cannot_silently_combine_with_another_acceptance_mode(self):

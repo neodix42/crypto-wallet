@@ -76,7 +76,7 @@ func TestTONHistoryUsesActualEmulatorObservations(t *testing.T) {
 	}{{"source", source, 0, "native outbound message123456789"}, {"recipient", recipient, 1, "account native credit phase123456789"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, seed, _ := testPlan(t)
-			ac, e := a.Derive(seed, tc.index, p.Account.Network)
+			ac, e := a.DeriveProfile(seed, tc.index, p.Account.Network, Profile)
 			if e != nil {
 				t.Fatal(e)
 			}

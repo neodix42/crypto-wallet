@@ -7,7 +7,7 @@ const seed='0x'+Array.from({length:64},(_,i)=>i.toString(16).padStart(2,'0')).jo
 const wallet=HDNodeWallet.fromSeed(seed).derivePath("m/44'/60'/0'/0/0");
 const chainId=Number(process.env.LOCAL_CHAIN_ID??11155111);
 const port=Number(process.env.LOCAL_NODE_PORT??18545);
-if(![11155111,84532,2651420,998].includes(chainId))throw Error('Testnets only');
+if(![11155111,84532,2651420,998,421614].includes(chainId))throw Error('Testnets only');
 const server=ganache.server({chain:{chainId,hardfork:'shanghai'},miner:{blockTime:1},wallet:{accounts:[{secretKey:wallet.privateKey,balance:toBeHex(1000n*10n**18n)}]},logging:{quiet:true}});
 await server.listen(port,'127.0.0.1');
 if([84532,2651420].includes(chainId)){

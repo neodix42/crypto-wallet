@@ -14,6 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 TARGETS = [('uiprompt', 'FuzzPromptProtocol'), ('vault', 'FuzzTP012Envelope'),
     ('derivation', 'FuzzTP012Mnemonic'), ('ipc', 'FuzzTP012IPC'),
     ('strictjson', 'FuzzTP012JSON'), ('amount', 'FuzzTP012Amount'),
+    ('marketdata', 'FuzzPublicPriceJSON'),
     ('qr', 'FuzzTP012QR'), ('chains/chainutil', 'FuzzJSON'),
     ('chains/evm', 'FuzzTP012AddressAndPlan'), ('chains/evm', 'FuzzERC20TokenPolicy'), ('chains/hypercore', 'FuzzTP012CoreAction'),
     ('chains/near', 'FuzzAddress'), ('chains/near', 'FuzzStakingCallPolicy'),

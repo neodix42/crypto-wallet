@@ -58,11 +58,11 @@ func testPlan(t *testing.T) (*Adapter, []byte, model.Plan) {
 	t.Helper()
 	_, seed := fixtures(t)
 	a := New()
-	ac, e := a.Derive(seed, 0, "ton-testnet")
+	ac, e := a.DeriveProfile(seed, 0, "ton-testnet", Profile)
 	if e != nil {
 		t.Fatal(e)
 	}
-	dest, e := a.Derive(seed, 1, "ton-testnet")
+	dest, e := a.DeriveProfile(seed, 1, "ton-testnet", Profile)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -77,7 +77,7 @@ func TestIndependentProfilesStateInitAndSignature(t *testing.T) {
 	a := New()
 	for _, row := range f.Accounts {
 		t.Run(row.Network+strconv.Itoa(int(row.Index)), func(t *testing.T) {
-			ac, e := a.Derive(seed, row.Index, row.Network)
+			ac, e := a.DeriveProfile(seed, row.Index, row.Network, Profile)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -161,7 +161,7 @@ func TestSignVerifyTamperingAndRecovery(t *testing.T) {
 	if _, _, e = a.validateSigned(p, forged); e == nil {
 		t.Fatal("invalid Ed25519 signature accepted in otherwise valid BOC")
 	}
-	restored, e := a.Derive(seed, 0, "ton-testnet")
+	restored, e := a.DeriveProfile(seed, 0, "ton-testnet", Profile)
 	if e != nil || restored.Address != p.Account.Address {
 		t.Fatal("recovery descriptor differs")
 	}
@@ -313,7 +313,7 @@ func TestWalletV5R1Emulator(t *testing.T) {
 		t.Fatal(e)
 	}
 	back := p
-	back.Account, e = a.Derive(seed, 1, p.Account.Network)
+	back.Account, e = a.DeriveProfile(seed, 1, p.Account.Network, Profile)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -448,7 +448,7 @@ func TestWalletV5R1Emulator(t *testing.T) {
 		t.Fatal("actual TVM return source+recipient credit", receipt, e)
 	}
 	for _, index := range []uint32{0, 1} {
-		account, err := a.Derive(seed, index, "ton-testnet")
+		account, err := a.DeriveProfile(seed, index, "ton-testnet", Profile)
 		if err != nil {
 			t.Fatal(err)
 		}

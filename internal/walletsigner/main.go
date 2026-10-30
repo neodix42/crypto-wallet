@@ -245,6 +245,17 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err == nil {
 			out, err = e.SnapshotPage("")
 		}
+	case "addTonAccount":
+		var b struct {
+			Index   uint32 `json:"index"`
+			Profile string `json:"profile"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			err = e.AddTONAccount(b.Index, b.Profile)
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "receive":
 		var b struct {
 			AccountID string `json:"accountId"`

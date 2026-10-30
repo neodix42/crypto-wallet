@@ -155,6 +155,25 @@ func (a *Adapter) tokenIdentity(ctx context.Context, n model.Network, s model.As
 	if crypto.Keccak256Hash(codeBytes).Hex() != expected {
 		return errors.New("registered token runtime code hash mismatch")
 	}
+	if s.ID == ARBAsset {
+		// Pin the canonical governance-token proxy and its observed EIP-1967
+		// implementation. A proxy hash alone cannot detect a logic upgrade.
+		// Administrative/governance authority is still trusted; this is not an audit.
+		var implementation, implementationCode string
+		if e := a.rpc(ctx, n, "eth_getStorageAt", []any{s.Contract, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc", at}, &implementation); e != nil {
+			return e
+		}
+		if implementation != "0x"+strings.Repeat("0", 24)+arbImplementation[2:] {
+			return errors.New("ARB implementation requires a reviewed policy update")
+		}
+		if e := a.rpc(ctx, n, "eth_getCode", []any{arbImplementation, at}, &implementationCode); e != nil {
+			return e
+		}
+		bytes, e := hex.DecodeString(strings.TrimPrefix(implementationCode, "0x"))
+		if e != nil || !strings.HasPrefix(implementationCode, "0x") || len(bytes) == 0 || crypto.Keccak256Hash(bytes).Hex() != arbImplementationHash {
+			return errors.New("ARB implementation code requires a reviewed policy update")
+		}
+	}
 	var raw string
 	if e := a.rpc(ctx, n, "eth_call", []any{map[string]string{"to": s.Contract, "data": callData("decimals()")}, at}, &raw); e != nil {
 		return e

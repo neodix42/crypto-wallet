@@ -2,7 +2,7 @@
   "name": "localwallet-ton-independent-oracle",
   "private": true,
   "version": "1.0.0",
-  "scripts": { "test": "node oracle.cjs" },
+  "scripts": { "test": "node oracle.cjs && node subwallet42.cjs" },
   "dependencies": {
     "@ton/core": "0.63.1",
     "@ton/ton": "16.3.0",

@@ -108,7 +108,7 @@ func newIndexedHistory(t *testing.T, network string) *indexedHistoryFixture {
 }
 
 func TestIndexedEthereumAndBaseRecoverOldNativeAndTrackedTokenEffects(t *testing.T) {
-	for _, network := range []string{"ethereum-mainnet", "base-mainnet"} {
+	for _, network := range []string{"ethereum-mainnet", "base-mainnet", "arbitrum-mainnet"} {
 		t.Run(network, func(t *testing.T) {
 			h := newIndexedHistory(t, network)
 			page, err := h.f.a.HistoryPage(context.Background(), h.account, "")
@@ -116,7 +116,7 @@ func TestIndexedEthereumAndBaseRecoverOldNativeAndTrackedTokenEffects(t *testing
 				t.Fatal("older indexed native/token history lost", page, err)
 			}
 			row := page.Entries[0]
-			if row.Timestamp != 1700000000 || row.State != "CONFIRMED" || row.Transfers[0].Atomic != "1" || row.Transfers[1].Atomic != "800000" || row.Transfers[1].Asset.Decimals != map[string]uint8{"ethereum-mainnet": 6, "base-mainnet": 18}[network] || h.f.calls["eth_getTransactionReceipt"] != 1 {
+			if row.Timestamp != 1700000000 || row.State != "CONFIRMED" || row.Transfers[0].Atomic != "1" || row.Transfers[1].Atomic != "800000" || row.Transfers[1].Asset.Decimals != map[string]uint8{"ethereum-mainnet": 6, "base-mainnet": 18, "arbitrum-mainnet": 18}[network] || h.f.calls["eth_getTransactionReceipt"] != 1 {
 				t.Fatal("index metadata trusted or duplicate candidate not merged", row, h.f.calls)
 			}
 			if h.f.sent != "" || len(h.f.a.tokens) != 0 || h.f.calls["eth_getLogs"] != 0 {

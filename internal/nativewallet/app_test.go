@@ -82,7 +82,7 @@ func fixture(t *testing.T) (*App, *testFrontend, *testBackend) {
 	ui := &testFrontend{queue: make(chan func(), 32)}
 	core := &testBackend{replies: make(chan json.RawMessage, 8)}
 	core.generation.Store(1)
-	a := &App{ui: ui, core: core, coreGeneration: 1, environment: "mainnet", fields: map[string]string{"side": "Sell", "slippage": "0.5", "settings": "Wallet"}, balances: map[string][]model.Balance{}, balanceErrors: map[string]bool{}, sendForms: map[string]bool{}, active: "group/0", lastActivity: time.Now()}
+	a := &App{ui: ui, core: core, coreGeneration: 1, environment: "mainnet", fields: map[string]string{"side": "Sell", "slippage": "0.5", "settings": "Wallet"}, balances: map[string][]model.Balance{}, balanceErrors: map[string]bool{}, sendForms: map[string]bool{}, active: "group/0", lastActivity: time.Now(), marketPricesAttempt: time.Now()}
 	for _, adapter := range chains.All() {
 		for _, network := range adapter.Networks() {
 			if !network.Testnet {
@@ -131,7 +131,7 @@ func TestNativeControllerAllNetworksPublicBalancesAndWholeAssetUnits(t *testing.
 	for _, n := range a.networks {
 		assetCount += len(n.Assets)
 	}
-	if assetCount != 10 {
+	if assetCount != 11 {
 		t.Fatal("native controller narrowed supported assets")
 	}
 	account := ethAccount(t, a)

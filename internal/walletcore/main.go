@@ -67,6 +67,7 @@ type core struct {
 	historyControls map[string]*historyControl
 	publicScans     map[string]publicContinuation
 	newExchange     exchangeFactory
+	marketData      marketPriceReader
 }
 
 func (c *core) lock() {
@@ -178,7 +179,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
 		interactive = true
 	}
 	if interactive {
@@ -466,6 +467,13 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 	}
 	switch m.Method {
+	case "marketPrices":
+		if strictjson.Decode(m.Body, &struct{}{}) != nil {
+			return nil, errors.New("invalid fields")
+		}
+		return c.marketPricesAt(epoch)
+	case "tonWalletState", "prepareTonDeployment":
+		return c.tonDeploymentAt(m, epoch)
 	case "addressBook", "saveAddress", "removeAddress":
 		return c.addressBookAt(m, epoch)
 	case "discoverTokens":
@@ -505,7 +513,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			Version string `json:"version"`
 			snapshot
 		}{buildinfo.Version, s}, err
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "addTonAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
 		var out json.RawMessage
 		if e := c.childCallAt(epoch, m.Method, json.RawMessage(m.Body), &out); e != nil {
 			return nil, e

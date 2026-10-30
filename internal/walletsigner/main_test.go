@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"localwallet/internal/chains/decred"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/chains/near"
 	"localwallet/internal/derivation"
@@ -96,7 +95,7 @@ func dispatchEngine(t *testing.T, environment string, withVault bool) (*signer.E
 	}
 	t.Cleanup(func() { _ = f.Close() })
 	u := &dispatchUI{approve: true}
-	adapters := []model.Adapter{evm.New(), near.New(), decred.New()}
+	adapters := []model.Adapter{evm.New(), near.New()}
 	// Use the production format's explicitly permitted 64-MiB/3-pass/4-lane
 	// floor for test cost. Restore the public default before returning; no
 	// production configuration or validation floor is changed.
@@ -280,7 +279,6 @@ func TestDispatchPublicReceiveQRConfigurationAssociationAndDiscovery(t *testing.
 	unlockFixture(t, e, u)
 	a := accountFor(t, e, "evm")
 	n := accountFor(t, e, "near")
-	d := accountFor(t, e, "decred")
 	var result struct {
 		PNG     []byte        `json:"png"`
 		Account model.Account `json:"account"`
@@ -313,11 +311,11 @@ func TestDispatchPublicReceiveQRConfigurationAssociationAndDiscovery(t *testing.
 	// dispatch/native approval path without asserting any network authority.
 	dispatch(t, e, "associate", n)
 	denied(t, e, "associate", a)
-	dispatch(t, e, "discovery", map[string]any{"accountId": d.ID, "birthday": 1, "gap": 10, "limit": 100})
-	dispatch(t, e, "discovery", map[string]any{"accountId": d.ID, "birthday": 1, "gap": 10, "limit": 100, "blockBudget": 2000000})
-	denied(t, e, "discovery", map[string]any{"accountId": d.ID, "birthday": 1, "gap": 10, "limit": 100, "blockBudget": 2000001})
+	denied(t, e, "discovery", map[string]any{"accountId": "retired-decred-account", "birthday": 1, "gap": 10, "limit": 100})
+	denied(t, e, "discovery", map[string]any{"accountId": "retired-decred-account", "birthday": 1, "gap": 10, "limit": 100, "blockBudget": 2000000})
+	denied(t, e, "discovery", map[string]any{"accountId": "retired-decred-account", "birthday": 1, "gap": 10, "limit": 100, "blockBudget": 2000001})
 	denied(t, e, "discovery", map[string]any{"accountId": a.ID, "birthday": 1, "gap": 10, "limit": 100})
-	denied(t, e, "discovery", map[string]any{"accountId": d.ID, "birthday": 1, "gap": 0, "limit": 100})
+	denied(t, e, "discovery", map[string]any{"accountId": "retired-decred-account", "birthday": 1, "gap": 0, "limit": 100})
 	initialAccounts := len(e.Snapshot().Accounts)
 	dispatch(t, e, "addAccount", map[string]uint32{"index": 1})
 	if len(e.Snapshot().Accounts) != initialAccounts*2 {

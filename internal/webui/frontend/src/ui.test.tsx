@@ -319,3 +319,25 @@ describe('public React renderer', () => {
     expect(host.textContent).not.toContain('Dismiss');
   });
 });
+
+describe('indicative USDT account subtotal', () => {
+  it('shows a loading spinner beside the account heading without hiding wallet rows', () => {
+    const row = node('row', 'open/eth');
+    row.Children = [node('button', 'open/eth', 'Ethereum'), node('label', '', '1 ETH'), node('address', '', '', '0x123'), node('button', 'copyReceive/eth', 'Copy', '0x123')];
+    const valuation = node('label', 'portfolioValuation', 'USDT', 'loading');
+    valuation.Tooltip = 'Public prices; excludes staking';
+    const html = renderToStaticMarkup(<PublicContent page={{ ID: 'group/0', Title: 'Main account', Nodes: [valuation, row] }} emit={() => {}}/>);
+    expect(html).toContain('Fetching USDT value');
+    expect(html).toContain('1 ETH');
+    expect(html.match(/Public prices; excludes staking/g)?.length).toBe(1);
+    expect(html).toContain('role="status"');
+  });
+  it('labels a partial subtotal and keeps its explanation in a tooltip', () => {
+    const valuation = node('label', 'portfolioValuation', '~3,564.23 USDT (partial)', 'partial');
+    valuation.Tooltip = '1 asset has no fresh quote';
+    const html = renderToStaticMarkup(<PublicNode node={valuation} emit={() => {}}/>);
+    expect(html).toContain('~3,564.23 USDT (partial)');
+    expect(html).toContain('title="1 asset has no fresh quote"');
+    expect(html).not.toContain('price-spinner');
+  });
+});

@@ -80,7 +80,7 @@ func TestTP002IndependentEthersFixtures(t *testing.T) {
 }
 func TestTP022RegistryAndDescriptors(t *testing.T) {
 	a := New()
-	if len(a.Networks()) != 6 {
+	if len(a.Networks()) != 8 {
 		t.Fatal("coverage narrowed")
 	}
 	for _, n := range a.Networks() {
@@ -137,7 +137,7 @@ func TestTP002AllEVMNetworkDomainFixtures(t *testing.T) {
 	if e = json.Unmarshal(raw, &f); e != nil {
 		t.Fatal(e)
 	}
-	if len(f.NetworkFixtures) != 24 {
+	if len(f.NetworkFixtures) != 30 {
 		t.Fatal("network fixture coverage narrowed")
 	}
 	a := New()
@@ -350,6 +350,19 @@ type nodeFixture struct {
 
 func deployedCode(t *testing.T, network string) string {
 	t.Helper()
+	if network == "arbitrum-mainnet" {
+		raw, err := os.ReadFile("../../../tests/oracles/evm/arbitrum-runtime.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var runtime struct {
+			Code string `json:"code"`
+		}
+		if json.Unmarshal(raw, &runtime) != nil {
+			t.Fatal("invalid pinned ARB runtime")
+		}
+		return runtime.Code
+	}
 	if network == "ethereum-mainnet" {
 		raw, e := os.ReadFile("../../../tests/oracles/evm/usdt-runtime.json")
 		if e != nil {
@@ -420,10 +433,19 @@ func fakeNode(t *testing.T, net string) *nodeFixture {
 				result = quantity(chain)
 			case "eth_getBlockByNumber":
 				result = map[string]string{"number": "0x10", "hash": "0x" + strings.Repeat("a", 64), "timestamp": fmt.Sprintf("0x%x", time.Now().Unix()), "baseFeePerGas": "0x3b9aca00"}
+			case "eth_getStorageAt":
+				result = "0x" + strings.Repeat("0", 24) + arbImplementation[2:]
 			case "eth_getCode":
 				var addr string
 				_ = json.Unmarshal(req.Params[0], &addr)
-				if strings.EqualFold(addr, n.Assets[0].Contract) {
+				if n.ID == "arbitrum-mainnet" && strings.EqualFold(addr, arbImplementation) {
+					var runtime struct {
+						Code string `json:"implementationCode"`
+					}
+					raw, _ := os.ReadFile("../../../tests/oracles/evm/arbitrum-runtime.json")
+					_ = json.Unmarshal(raw, &runtime)
+					result = runtime.Code
+				} else if strings.EqualFold(addr, n.Assets[0].Contract) {
 					result = "0x6000"
 				} else if len(n.Assets) > 1 && strings.EqualFold(addr, n.Assets[1].Contract) {
 					result = tokenCode
@@ -494,7 +516,7 @@ func (f *nodeFixture) prepare(t *testing.T, net string, token bool) (model.Plan,
 	return f.a.Prepare(context.Background(), ac, model.Transfer{AccountID: ac.ID, Asset: n.Assets[idx].ID, Recipient: "0x1111111111111111111111111111111111111111", Amount: "123456789"})
 }
 func TestTP050RPCPrepareSubmitReconcile(t *testing.T) {
-	for _, net := range []string{"ethereum-sepolia", "hyperevm-testnet", "base-sepolia"} {
+	for _, net := range []string{"ethereum-sepolia", "hyperevm-testnet", "base-sepolia", "arbitrum-sepolia"} {
 		t.Run(net, func(t *testing.T) {
 			f := fakeNode(t, net)
 			for _, token := range []bool{false, true} {

@@ -17,7 +17,7 @@ const MaxImportedTokens = 32
 // chain identities never inherit ERC-20 approval or discovery authority.
 func SupportsTokenImport(network string) bool {
 	switch network {
-	case "ethereum-mainnet", "ethereum-sepolia", "base-mainnet", "base-sepolia":
+	case "ethereum-mainnet", "ethereum-sepolia", "base-mainnet", "base-sepolia", "arbitrum-mainnet", "arbitrum-sepolia":
 		return true
 	}
 	return false
@@ -126,7 +126,7 @@ func decodeTokenSymbol(raw string) (string, error) {
 func (a *Adapter) InspectToken(ctx context.Context, account model.Account, contract string) (model.ERC20Token, error) {
 	n, err := a.validateAccount(account)
 	if err != nil || !SupportsTokenImport(n.ID) || a.ValidateAddress(n.ID, contract) != nil {
-		return model.ERC20Token{}, errors.New("token import requires an owned Ethereum or Base wallet and exact contract")
+		return model.ERC20Token{}, errors.New("token import requires an owned Ethereum, Base or Arbitrum wallet and exact contract")
 	}
 	contract = common.HexToAddress(contract).Hex()
 	for _, asset := range n.Assets {

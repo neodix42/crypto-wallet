@@ -1,4 +1,4 @@
-// TEST ONLY. Own loopback Ethereum/Base Sepolia-shaped EVMs and public synthetic
+// TEST ONLY. Own loopback Ethereum/Base/Arbitrum Sepolia-shaped EVMs and public synthetic
 // keys. This fixture never reads user profiles, secrets or remote endpoints.
 import ganache from 'ganache';
 import solc from 'solc';
@@ -14,8 +14,8 @@ for (const [name, version] of Object.entries(packages)) {
 }
 const seed = '0x' + Array.from({ length: 64 }, (_, i) => i.toString(16).padStart(2, '0')).join('');
 const chainId = process.argv[2] ?? '11155111';
-if (process.argv.length > 3 || !['11155111', '84532'].includes(chainId)) throw Error('Unsupported owned local execution chain');
-const network = chainId === '84532' ? 'base-sepolia' : 'ethereum-sepolia';
+if (process.argv.length > 3 || !['11155111', '84532', '421614'].includes(chainId)) throw Error('Unsupported owned local execution chain');
+const network = chainId === '84532' ? 'base-sepolia' : chainId === '421614' ? 'arbitrum-sepolia' : 'ethereum-sepolia';
 const rollupOracleAddress = '0x420000000000000000000000000000000000000F';
 const accounts = [0, 1, 2].map(index => HDNodeWallet.fromSeed(seed).derivePath(`m/44'/60'/0'/0/${index}`));
 const server = ganache.server({
@@ -184,7 +184,7 @@ try {
       const expected = new Set([...deployments, ...transfers.map(row => row.identity)]);
       assert(mined.length === 6 && new Set(mined).size === 6 && mined.every(hash => expected.has(hash)), 'Unexpected transaction beyond two deployments and four approved transfers');
       write({ status: 'PASS', chainId, network, independentOracle: 'ethers 6.17.0 / Ganache 7.9.2 / solc 0.8.30 actual deployed ERC20 execution',
-        scope: 'Owned loopback Ethereum/Base Sepolia-shaped EVM; synthetic public fixture keys/funds only; Base L1/operator fee oracle is deterministic fixture-only and not charged; no public network, wallet GUI, independent consensus, Base rollup economics or real finality claim',
+        scope: 'Owned loopback Ethereum/Base/Arbitrum Sepolia-shaped EVM; synthetic public fixture keys/funds only; Base L1/operator fee oracle is deterministic fixture-only and not charged; no public network, wallet GUI, independent consensus, Base rollup economics or real finality claim',
         producerSHA256: sha(readFileSync(new URL(import.meta.url))), packages, transfers, faults, feeFaults, rollupFeeFixture: feeFixture, minedTransactions: mined, final });
       input.close(); break;
     }

@@ -1,7 +1,7 @@
 package signer
 
 import (
-	"localwallet/internal/chains/evm"
+	"localwallet/internal/chains"
 	"localwallet/internal/model"
 )
 
@@ -13,7 +13,7 @@ func (e *Engine) activeAccounts() []model.Account {
 	}
 	accounts := make([]model.Account, 0, len(e.data.Accounts))
 	for _, account := range e.data.Accounts {
-		if !evm.IsRetiredNetwork(account.Network) {
+		if !chains.IsRetiredNetwork(account.Network) {
 			accounts = append(accounts, account)
 		}
 	}

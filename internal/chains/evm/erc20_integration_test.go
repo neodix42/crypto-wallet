@@ -56,7 +56,7 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 		t.Skip("NOT_RUN: set WALLET_ERC20_EVM=1 with cached pinned Node/solc/Ganache/ethers for owned loopback execution; no public RPC or funds")
 	}
 	const fixture = "tests/oracles/evm/erc20-node.mjs"
-	const scope = "Go InspectToken/WithTokens/Balance/Prepare/Sign/Submit/Reconcile for two actual deployed ERC20 contracts on both Ethereum Sepolia-shaped and Base Sepolia-shaped owned loopback EVMs, with independent ethers signature/calldata/receipt/log/balance/gas/nonce checks; Base L1/operator fee oracle is deterministic fixture-only and not actually charged; synthetic public fixture keys/funds only; no GUI, public network, independent consensus, Base rollup economics or real-finality claim"
+	const scope = "Go InspectToken/WithTokens/Balance/Prepare/Sign/Submit/Reconcile for two actual deployed ERC20 contracts on Ethereum, Base and Arbitrum Sepolia-shaped owned loopback EVMs, with independent ethers signature/calldata/receipt/log/balance/gas/nonce checks; Base L1/operator fee oracle is deterministic fixture-only and not actually charged; synthetic public fixture keys/funds only; no GUI, public network, independent consensus, Base/Arbitrum rollup economics or real-finality claim"
 	writeReport := func(name string, value any) {
 		t.Helper()
 		raw, err := json.MarshalIndent(value, "", "  ")
@@ -68,12 +68,12 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 			t.Fatal("cannot persist local ERC20 execution report")
 		}
 	}
-	for _, name := range []string{"erc20-execution", "base-erc20-execution"} {
+	for _, name := range []string{"erc20-execution", "base-erc20-execution", "arbitrum-erc20-execution"} {
 		writeReport(name, map[string]any{"status": "RUNNING", "sourceStable": false, "scope": scope})
 	}
 	t.Cleanup(func() {
 		if t.Failed() {
-			for _, name := range []string{"erc20-execution", "base-erc20-execution"} {
+			for _, name := range []string{"erc20-execution", "base-erc20-execution", "arbitrum-erc20-execution"} {
 				writeReport(name, map[string]any{"status": "FAIL", "sourceStable": false, "scope": scope,
 					"reason": "local-erc20-execution-failed; no acceptance claim"})
 			}
@@ -102,7 +102,7 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 	}
 	beforeSources := snapshotSources(t)
 	results := map[string]map[string]any{}
-	for _, profile := range []struct{ network, chainID string }{{"ethereum-sepolia", "11155111"}, {"base-sepolia", "84532"}} {
+	for _, profile := range []struct{ network, chainID string }{{"ethereum-sepolia", "11155111"}, {"base-sepolia", "84532"}, {"arbitrum-sepolia", "421614"}} {
 		t.Run(profile.network, func(t *testing.T) {
 			node, err := exec.LookPath("node")
 			if err != nil {
@@ -157,7 +157,7 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 				t.Fatal("independent local ERC20 producer/chain/dependency identity mismatch")
 			}
 			if (profile.network == "base-sepolia" && ready.RollupFees["status"] != "FIXTURE_ONLY") ||
-				(profile.network == "ethereum-sepolia" && ready.RollupFees["status"] != "NOT_APPLICABLE") || ready.RollupFees["actuallyChargedByNode"] != false {
+				(profile.network != "base-sepolia" && ready.RollupFees["status"] != "NOT_APPLICABLE") || ready.RollupFees["actuallyChargedByNode"] != false {
 				t.Fatal("independent node misrepresented the deterministic rollup fee fixture")
 			}
 			base, err := NewWithEndpoints(map[string]string{profile.network: ready.Endpoint})
@@ -423,13 +423,13 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 			if err != nil || !reflect.DeepEqual(beforeSources, snapshotSources(t)) {
 				t.Fatal("local ERC20 oracle failed or measured source changed during execution")
 			}
-			networkScope := "Complete two-token out/back Go-signed execution on owned loopback " + profile.network + " (chain " + profile.chainID + "); synthetic public keys/funds only; any Base fee oracle quotes are deterministic fixtures, not charged rollup fees; no public-network, GUI, independent-consensus or real-finality claim"
+			networkScope := "Complete two-token out/back Go-signed execution on owned loopback " + profile.network + " (chain " + profile.chainID + "); synthetic public keys/funds only; any Base fee oracle quotes are deterministic fixtures, not charged rollup fees; no public-network, GUI, independent-consensus, Nitro posting-fee execution or real-finality claim"
 			results[profile.network] = map[string]any{"status": "PASS", "sourceStable": true, "scope": networkScope, "network": profile.network, "producerSHA256": beforeSources[fixture],
 				"sourceSHA256": beforeSources, "negativeCases": negativeCases, "tokenPolicies": tokens,
 				"goReconciledReceipts": reconciled, "observedHistory": observedHistory, "independentExecution": final, "pinnedUnavailableTokens": pinnedUnavailable}
 		})
 	}
-	if t.Failed() || len(results) != 2 {
+	if t.Failed() || len(results) != 3 {
 		return
 	}
 	// Keep the original Ethereum report fields for existing evidence collectors;
@@ -442,4 +442,5 @@ func TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache(t *testin
 	combined["scope"] = scope
 	writeReport("erc20-execution", combined)
 	writeReport("base-erc20-execution", results["base-sepolia"])
+	writeReport("arbitrum-erc20-execution", results["arbitrum-sepolia"])
 }

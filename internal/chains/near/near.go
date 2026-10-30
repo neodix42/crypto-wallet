@@ -39,7 +39,9 @@ type Adapter struct {
 }
 
 func New() *Adapter {
-	return &Adapter{historyEndpoints: map[string]string{"near-mainnet": "https://api.nearblocks.io", "near-testnet": "https://api-testnet.nearblocks.io"}, endpoints: map[string]string{"near-mainnet": "https://rpc.mainnet.near.org", "near-testnet": "https://rpc.testnet.near.org", "near-localnet": "http://127.0.0.1:3030"}, client: chainutil.NewClient()}
+	// FASTNEAR is listed by NEAR's RPC-provider directory. These URLs are
+	// maintained in the provider's RPC reference; configured URLs remain exact.
+	return &Adapter{historyEndpoints: map[string]string{"near-mainnet": "https://api.nearblocks.io", "near-testnet": "https://api-testnet.nearblocks.io"}, endpoints: map[string]string{"near-mainnet": "https://rpc.mainnet.fastnear.com", "near-testnet": "https://rpc.testnet.fastnear.com", "near-localnet": "http://127.0.0.1:3030"}, client: chainutil.NewClient()}
 }
 func (a *Adapter) SetEndpoint(network, endpoint string) error {
 	if !known(network) {

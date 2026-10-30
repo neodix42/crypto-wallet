@@ -16,7 +16,7 @@ import (
 )
 
 func (*Adapter) HistoryScope() string {
-	return "Trusted archival RPC, at most 100 account transaction BOCs per page; explicit older-history continuation; native TON message/credit observations only, not recipient-payment confirmation or independent finality. At most 256 messages per transaction and 1000 per scan; jettons and other currencies require separate interpretation. Complete means the locally linked account chain reached its beginning within the selected provider; it is not a consensus proof. An empty window is not proof of no historical funds."
+	return "Trusted archival RPC, at most 100 account transaction BOCs per page; explicit older-history continuation; native GRAM on TON message/credit observations only, not recipient-payment confirmation or independent finality. At most 256 messages per transaction and 1000 per scan; jettons and other currencies require separate interpretation. Complete means the locally linked account chain reached its beginning within the selected provider; it is not a consensus proof. An empty window is not proof of no historical funds."
 }
 
 // History deliberately returns OBSERVED. Reconcile separately binds a journaled
@@ -53,7 +53,7 @@ func (a *Adapter) historyReceipts(ac model.Account, txs []*tlb.Transaction) ([]m
 		}
 		effects += int(tx.OutMsgCount)
 		transfers := []model.HistoryTransfer{}
-		native := model.Asset{ID: ac.Network + ":TON", Symbol: "TON", Decimals: 9}
+		native := model.Asset{ID: ac.Network + ":TON", Symbol: "GRAM", Decimals: 9}
 		var detail strings.Builder
 		fmt.Fprintf(&detail, "%s; transaction LT%d; recorded native fees %s nanos; ", a.HistoryScope(), tx.LT, tx.TotalFees.Coins.Nano())
 		if tx.IO.In != nil && tx.IO.In.MsgType == tlb.MsgTypeInternal {

@@ -26,6 +26,12 @@ func TransactionExplorer(network, identity string) string {
 	case "base-sepolia":
 		base = "https://sepolia.basescan.org/tx/"
 		evm = true
+	case "arbitrum-mainnet":
+		base = "https://arbiscan.io/tx/"
+		evm = true
+	case "arbitrum-sepolia":
+		base = "https://sepolia.arbiscan.io/tx/"
+		evm = true
 	case "hyperevm-mainnet":
 		base = "https://hyperevmscan.io/tx/"
 		evm = true

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"localwallet/internal/chains"
-	"localwallet/internal/chains/decred"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/model"
 	"localwallet/internal/qr"
@@ -79,28 +78,17 @@ func TestVerifiedReceiveCopyKeepsRecoveryGate(t *testing.T) {
 	}
 }
 
-func TestVerifiedReceiveCopyCancellationAdvancesDecredOnlyOnce(t *testing.T) {
+func TestRetiredDecredReceiveAndCopyNeverPromptOrAdvance(t *testing.T) {
 	e, base, _ := newEngine(t, chains.All())
 	createImported(t, e, base, "testnet")
+	account := legacyDecredAccount(t, e, "decred-testnet3", 0)
 	ui := &receiveCopyUI{testUI: base}
 	e.UI = ui
-	before := findAccount(t, e, "decred-testnet3")
-	expected, err := decred.AdvanceReceive(before)
-	if err != nil {
-		t.Fatal(err)
+	before := append([]byte(nil), account.Parameters...)
+	if _, err := e.Receive(account.ID); err == nil || e.CopyReceive(account.ID) == nil {
+		t.Fatal("retired receive/copy accepted")
 	}
-	ui.approve = false
-	if _, err := e.Receive(before.ID); err == nil {
-		t.Fatal("cancelled receive window accepted")
-	}
-	after, err := e.account(before.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(after.Parameters, expected.Parameters) || after.Address != expected.Address || len(ui.addresses) != 1 || ui.addresses[0] != after.Address || after.Address == before.Address {
-		t.Fatal("native copy capability advanced Decred twice or displayed the previous address")
-	}
-	if ui.copied != "" {
-		t.Fatal("cancelled view implicitly copied a Decred address")
+	if len(ui.addresses) != 0 || ui.copied != "" || !bytes.Equal(e.data.Accounts[len(e.data.Accounts)-1].Parameters, before) {
+		t.Fatal("retired view advanced address or copied clipboard")
 	}
 }

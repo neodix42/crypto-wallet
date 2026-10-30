@@ -95,7 +95,7 @@ func (a *Adapter) Networks() []model.Network {
 		if id == "ton-testnet" {
 			name = "TON Testnet"
 		}
-		out = append(out, model.Network{ID: id, Family: "ton", Name: name, Testnet: id == "ton-testnet", ChainID: strconv.FormatInt(int64(n.global), 10), RPC: a.endpoints[id].URL, Assets: []model.Asset{{ID: id + ":TON", Symbol: "TON", Decimals: 9}}, Trust: "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"})
+		out = append(out, model.Network{ID: id, Family: "ton", Name: name, Testnet: id == "ton-testnet", ChainID: strconv.FormatInt(int64(n.global), 10), RPC: a.endpoints[id].URL, Assets: []model.Asset{{ID: id + ":TON", Symbol: "GRAM", Decimals: 9}}, Trust: "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"})
 	}
 	return out
 }
@@ -188,11 +188,18 @@ func decodeBOC(s string) (*cell.Cell, error) {
 	}
 	return parseBOC(raw)
 }
+
+// StateInit retains the original V1 contract parameters for fixture and legacy
+// recovery compatibility. New accounts use Derive's explicit DefaultProfile;
+// sending/deployment reconstruct StateInit from the recorded descriptor.
 func StateInit(pub ed25519.PublicKey, id string) (*tlb.StateInit, *cell.Cell, error) {
 	n, e := netInfo(id)
 	if e != nil {
 		return nil, nil, e
 	}
+	return stateInitForWalletID(pub, n.wallet)
+}
+func stateInitForWalletID(pub ed25519.PublicKey, walletID uint32) (*tlb.StateInit, *cell.Cell, error) {
 	if len(pub) != 32 {
 		return nil, nil, errors.New("invalid TON public key")
 	}
@@ -200,26 +207,40 @@ func StateInit(pub ed25519.PublicKey, id string) (*tlb.StateInit, *cell.Cell, er
 	if e != nil || hex.EncodeToString(code.Hash()) != CodeHash {
 		return nil, nil, errors.New("pinned TON V5R1 code hash mismatch")
 	}
-	data := cell.BeginCell().MustStoreBoolBit(true).MustStoreUInt(0, 32).MustStoreUInt(uint64(n.wallet), 32).MustStoreSlice(pub, 256).MustStoreBoolBit(false).EndCell()
+	data := cell.BeginCell().MustStoreBoolBit(true).MustStoreUInt(0, 32).MustStoreUInt(uint64(walletID), 32).MustStoreSlice(pub, 256).MustStoreBoolBit(false).EndCell()
 	s := &tlb.StateInit{Code: code, Data: data}
 	c, e := tlb.ToCell(s)
 	return s, c, e
 }
 func account(pub ed25519.PublicKey, index uint32, id string) (model.Account, error) {
+	return accountForProfile(pub, index, id, Profile)
+}
+func accountForProfile(pub ed25519.PublicKey, index uint32, id, profile string) (model.Account, error) {
 	n, e := netInfo(id)
 	if e != nil || index >= derivation.MaxIndex {
 		return model.Account{}, errors.New("invalid TON account")
 	}
-	_, state, e := StateInit(pub, id)
+	subwallet, walletID, e := profileWalletID(profile, n.global)
+	if e != nil {
+		return model.Account{}, e
+	}
+	_, state, e := stateInitForWalletID(pub, walletID)
 	if e != nil {
 		return model.Account{}, e
 	}
 	ad := address.NewAddress(0, 0, state.Hash()).Bounce(false).Testnet(id == "ton-testnet")
-	p := Parameters{Version: "V5R1", WalletID: n.wallet, GlobalID: n.global, CodeHash: CodeHash, StateInit: base64.StdEncoding.EncodeToString(state.ToBOC())}
+	p := Parameters{Version: "V5R1", WalletID: walletID, GlobalID: n.global, Subwallet: subwallet, CodeHash: CodeHash, StateInit: base64.StdEncoding.EncodeToString(state.ToBOC())}
 	raw, _ := json.Marshal(p)
-	return model.Account{ID: fmt.Sprintf("ton:%s:%d", id, index), Family: "ton", Profile: Profile, Index: index, Network: id, Address: ad.String(), PublicKey: hex.EncodeToString(pub), Parameters: raw}, nil
+	accountID := fmt.Sprintf("ton:%s:%d", id, index)
+	if profile != Profile {
+		accountID += ":subwallet42"
+	}
+	return model.Account{ID: accountID, Family: "ton", Profile: profile, Index: index, Network: id, Address: ad.String(), PublicKey: hex.EncodeToString(pub), Parameters: raw}, nil
 }
 func (a *Adapter) Derive(seed []byte, index uint32, id string) (model.Account, error) {
+	return a.DeriveProfile(seed, index, id, DefaultProfile)
+}
+func (a *Adapter) DeriveProfile(seed []byte, index uint32, id, profile string) (model.Account, error) {
 	if index >= derivation.MaxIndex {
 		return model.Account{}, errors.New("TON account index exceeds bound")
 	}
@@ -228,19 +249,20 @@ func (a *Adapter) Derive(seed []byte, index uint32, id string) (model.Account, e
 		return model.Account{}, e
 	}
 	defer clear(k)
-	return account(k.Public().(ed25519.PublicKey), index, id)
+	return accountForProfile(k.Public().(ed25519.PublicKey), index, id, profile)
 }
 func descriptor(ac model.Account) (Parameters, ed25519.PublicKey, error) {
 	var p Parameters
-	if ac.Family != "ton" || ac.Profile != Profile || strictjson.Decode(ac.Parameters, &p) != nil {
+	if ac.Family != "ton" || strictjson.Decode(ac.Parameters, &p) != nil {
 		return p, nil, errors.New("invalid TON account descriptor")
 	}
 	pub, e := hex.DecodeString(ac.PublicKey)
 	if e != nil || len(pub) != 32 {
 		return p, nil, errors.New("invalid TON public key")
 	}
-	want, e := account(pub, ac.Index, ac.Network)
-	if e != nil || want.Address != ac.Address || !bytes.Equal(want.Parameters, ac.Parameters) {
+	want, e := accountForProfile(pub, ac.Index, ac.Network, ac.Profile)
+	canonicalParameters, _ := json.Marshal(p)
+	if e != nil || want.ID != ac.ID || want.Address != ac.Address || !bytes.Equal(want.Parameters, canonicalParameters) {
 		return p, nil, errors.New("TON StateInit or contract parameters mismatch")
 	}
 	return p, pub, nil
@@ -285,6 +307,7 @@ func planID(p model.Plan) string {
 }
 
 type Payload struct {
+	Kind           string `json:"kind,omitempty"`
 	Seqno          uint32 `json:"seqno"`
 	Deploy         bool   `json:"deploy"`
 	Bounce         bool   `json:"bounce"`
@@ -303,13 +326,23 @@ func payload(p model.Plan) (Payload, error) {
 	return x, nil
 }
 func message(p model.Plan, x Payload) (*cell.Cell, *tlb.InternalMessage, error) {
+	meta, _, e := descriptor(p.Account)
+	if e != nil {
+		return nil, nil, e
+	}
+	if x.Kind == "deployment" {
+		// InnerRequest with neither outgoing messages nor extended actions. The
+		// signed external message activates exactly its own StateInit only.
+		unsigned := cell.BeginCell().MustStoreUInt(0x7369676e, 32).MustStoreUInt(uint64(meta.WalletID), 32).MustStoreUInt(uint64(p.Expires), 32).MustStoreUInt(uint64(x.Seqno), 32).MustStoreBoolBit(false).MustStoreBoolBit(false).EndCell()
+		return unsigned, nil, nil
+	}
 	ad, e := parseAddress(p.Account.Network, p.Recipient)
 	if e != nil {
 		return nil, nil, e
 	}
 	amount, e := chainutil.Big(p.Amount, 120)
 	if e != nil || amount.Sign() == 0 {
-		return nil, nil, errors.New("invalid TON transfer amount")
+		return nil, nil, errors.New("invalid GRAM transfer amount")
 	}
 	body := cell.BeginCell()
 	if p.Memo != "" {
@@ -321,10 +354,6 @@ func message(p model.Plan, x Payload) (*cell.Cell, *tlb.InternalMessage, error) 
 		return nil, nil, e
 	}
 	list := cell.BeginCell().MustStoreRef(cell.BeginCell().EndCell()).MustStoreUInt(0x0ec3c86d, 32).MustStoreUInt(3, 8).MustStoreRef(out).EndCell()
-	meta, _, e := descriptor(p.Account)
-	if e != nil {
-		return nil, nil, e
-	}
 	unsigned := cell.BeginCell().MustStoreUInt(0x7369676e, 32).MustStoreUInt(uint64(meta.WalletID), 32).MustStoreUInt(uint64(p.Expires), 32).MustStoreUInt(uint64(x.Seqno), 32).MustStoreBoolBit(true).MustStoreRef(list).MustStoreBoolBit(false).EndCell()
 	return unsigned, internal, nil
 }
@@ -340,7 +369,7 @@ func external(p model.Plan, x Payload, body *cell.Cell) (*cell.Cell, error) {
 	}
 	ext := &tlb.ExternalMessage{DstAddr: ad, Body: body}
 	if x.Deploy {
-		ext.StateInit, _, e = StateInit(pub, p.Account.Network)
+		ext.StateInit, _, e = stateInitForWalletID(pub, meta.WalletID)
 		if e != nil {
 			return nil, e
 		}
@@ -361,9 +390,16 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	if e = a.ValidateAddress(p.Account.Network, p.Recipient); e != nil {
 		return e
 	}
+	deployment := x.Kind == "deployment"
+	if x.Kind != "" && !deployment {
+		return errors.New("unsupported TON operation")
+	}
+	if deployment && (!x.Deploy || x.Seqno != 0 || x.Bounce || x.SourceDataHash != "" || p.Recipient != p.Account.Address || p.Memo != "" || p.Amount != "0") {
+		return errors.New("TON deployment must initialize only its exact owned contract without outgoing actions")
+	}
 	amount, e := chainutil.Big(p.Amount, 120)
-	if e != nil || amount.Sign() == 0 {
-		return errors.New("invalid TON amount")
+	if e != nil || (!deployment && amount.Sign() == 0) {
+		return errors.New("invalid GRAM amount")
 	}
 	fee, e := chainutil.Uint(p.MaxFee, 64)
 	if e != nil || fee > 500_000_000 {
@@ -379,7 +415,7 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	}
 	cost := new(big.Int).Add(amount, new(big.Int).SetUint64(fee+10_000_000))
 	if balance.Cmp(cost) < 0 {
-		return errors.New("insufficient TON for payment, fees and storage reserve")
+		return errors.New("insufficient GRAM for payment, fees and storage reserve")
 	}
 	if x.Deploy && x.Seqno != 0 {
 		return errors.New("TON deployment seqno must be zero")
@@ -444,7 +480,12 @@ func (a *Adapter) validateSigned(p model.Plan, s model.Signed) (*cell.Cell, *tlb
 	if e != nil {
 		return nil, nil, e
 	}
-	if bs.BitsLeft() != 642 || bs.RefsNum() != 1 {
+	x, _ := payload(p)
+	wantRefs := 1
+	if x.Kind == "deployment" {
+		wantRefs = 0
+	}
+	if bs.BitsLeft() != 642 || bs.RefsNum() != wantRefs {
 		return nil, nil, errors.New("invalid TON signed body shape")
 	}
 	head, e := bs.LoadSlice(130)
@@ -456,13 +497,14 @@ func (a *Adapter) validateSigned(p model.Plan, s model.Signed) (*cell.Cell, *tlb
 		return nil, nil, e
 	}
 	unsigned := cell.BeginCell().MustStoreSlice(head, 130)
-	ref, e := bs.LoadRefCell()
-	if e != nil {
-		return nil, nil, e
+	if wantRefs == 1 {
+		ref, e := bs.LoadRefCell()
+		if e != nil {
+			return nil, nil, e
+		}
+		unsigned.MustStoreRef(ref)
 	}
-	unsigned.MustStoreRef(ref)
 	u := unsigned.EndCell()
-	x, _ := payload(p)
 	want, _, e := message(p, x)
 	if e != nil {
 		return nil, nil, e

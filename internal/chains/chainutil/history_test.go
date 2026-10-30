@@ -17,6 +17,8 @@ func TestTransactionExplorerUsesOnlyFixedNetworkRoutesAndCanonicalIdentities(t *
 		"ethereum-sepolia":  "https://sepolia.etherscan.io/tx/0x" + hex,
 		"base-mainnet":      "https://basescan.org/tx/0x" + hex,
 		"base-sepolia":      "https://sepolia.basescan.org/tx/0x" + hex,
+		"arbitrum-mainnet":  "https://arbiscan.io/tx/0x" + hex,
+		"arbitrum-sepolia":  "https://sepolia.arbiscan.io/tx/0x" + hex,
 		"hyperevm-mainnet":  "https://hyperevmscan.io/tx/0x" + hex,
 		"hypercore-mainnet": "https://app.hyperliquid.xyz/explorer/tx/0x" + hex,
 		"hypercore-testnet": "https://app.hyperliquid-testnet.xyz/explorer/tx/0x" + hex,

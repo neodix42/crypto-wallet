@@ -11,6 +11,10 @@ import (
 const Profile = "evm-bip39-bip32-v1"
 const USDTContract = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
 const USDTAsset = "ethereum-mainnet:erc20:" + USDTContract
+const ARBContract = "0x912CE59144191C1204E64559FE8253a0e49E6548"
+const ARBAsset = "arbitrum-mainnet:erc20:" + ARBContract
+const arbImplementation = "0xd47d14a315394ddf063174f2286ab4eb7c507fa0"
+const arbImplementationHash = "0x4ed0051dbe33461d7a75e3a6454026e3af9d2b25ba2811aa0b3eeaa1b73491d1"
 
 // Frozen against official deployments on 2026-10-23. An unexpected upgrade fails
 // closed and requires a reviewed registry update. These are runtime code hashes.
@@ -18,6 +22,7 @@ var tokenCodeHashes = map[string]string{
 	"ethereum-mainnet": "0xb44fb4e949d0f78f87f79ee46428f23a2a5713ce6fc6e0beb3dda78c2ac1ea55",
 	"base-mainnet":     "0x92a6294a008ae778c19a6f894f1c0f66818ce2a00c32d25eb6fa6a7923b23c3c",
 	"base-sepolia":     "0xd0ed2947f1aaa2a3eecc272403016fe1a8e49e21beadf7d189946f679d1a4a39",
+	"arbitrum-mainnet": "0x9bf9f69edb06af79f6871dcd5b3c205dd358be1783b5f05c1ca163ae09a78880",
 }
 
 // Adapter has no secret state. HTTPClient is public for bounded custom transports.
@@ -34,6 +39,9 @@ func registry() []model.Network {
 		if id == "ethereum-mainnet" {
 			assets = append(assets, model.Asset{ID: USDTAsset, Symbol: "USDT", Decimals: 6, Contract: USDTContract})
 		}
+		if id == "arbitrum-mainnet" {
+			assets = append(assets, model.Asset{ID: ARBAsset, Symbol: "ARB", Decimals: 18, Contract: ARBContract})
+		}
 		if contract != "" {
 			assets = append(assets, model.Asset{ID: id + ":erc20:" + contract, Symbol: "ZEN", Decimals: 18, Contract: contract})
 		}
@@ -44,8 +52,12 @@ func registry() []model.Network {
 		n("ethereum-sepolia", "Ethereum Sepolia", "11155111", "https://ethereum-sepolia-rpc.publicnode.com", "ETH", "", true),
 		n("hyperevm-mainnet", "HyperEVM", "999", "https://rpc.hyperliquid.xyz/evm", "HYPE", "", false),
 		n("hyperevm-testnet", "HyperEVM Testnet", "998", "https://rpc.hyperliquid-testnet.xyz/evm", "HYPE", "", true),
-		n("base-mainnet", "Base", "8453", "https://mainnet.base.org", "ETH", "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229", false),
-		n("base-sepolia", "Base Sepolia", "84532", "https://sepolia.base.org", "ETH", "0x107fdE93838e3404934877935993782F977324BB", true),
+		// PublicNode is an operator-published public gateway, not a dedicated
+		// production SLA. Users may configure their own provider URL unchanged.
+		n("base-mainnet", "Base", "8453", "https://base-rpc.publicnode.com", "ETH", "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229", false),
+		n("base-sepolia", "Base Sepolia", "84532", "https://base-sepolia-rpc.publicnode.com", "ETH", "0x107fdE93838e3404934877935993782F977324BB", true),
+		n("arbitrum-mainnet", "Arbitrum One", "42161", "https://arb1.arbitrum.io/rpc", "ETH", "", false),
+		n("arbitrum-sepolia", "Arbitrum Sepolia", "421614", "https://sepolia-rollup.arbitrum.io/rpc", "ETH", "", true),
 	}
 }
 
@@ -103,5 +115,8 @@ func asset(n model.Network, id string) (model.Asset, error) {
 	return model.Asset{}, fmt.Errorf("unsupported asset identity")
 }
 func rollup(n model.Network) bool {
+	// Arbitrum Nitro's eth_estimateGas already includes the parent-chain
+	// posting cost in L2 gas units. Applying OP Stack's oracle as well would
+	// double-count fees and query an unrelated contract on Arbitrum.
 	return n.ChainID == "8453" || n.ChainID == "84532"
 }

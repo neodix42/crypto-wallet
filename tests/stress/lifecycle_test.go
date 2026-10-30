@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"localwallet/internal/chains"
+	"localwallet/internal/chains/decred"
+	"localwallet/internal/chains/evm"
 	"localwallet/internal/model"
 	"localwallet/internal/signer"
 	"localwallet/internal/vault"
@@ -50,6 +53,7 @@ type lifecycle struct {
 	dir       string
 	ui        *stressUI
 	node      *stressNode
+	arbitrum  *stressNode
 	dcr       *stressDCR
 	adapters  []model.Adapter
 	times     []int64
@@ -60,8 +64,8 @@ func newLifecycle(t *testing.T, r *report) *lifecycle {
 	return newScopedLifecycle(t, r, true)
 }
 
-// The owner's deferred Decred work can be excluded explicitly without turning
-// a narrower campaign into a passing all-chain release gate.
+// The retired Decred parser is optional supplementary compatibility evidence.
+// It never creates an active Decred wallet or restores a signing route.
 func newScopedLifecycle(t *testing.T, r *report, includeDecred bool) *lifecycle {
 	t.Helper()
 	dir := t.TempDir()
@@ -70,10 +74,16 @@ func newScopedLifecycle(t *testing.T, r *report, includeDecred bool) *lifecycle 
 		t.Fatal(e)
 	}
 	l := &lifecycle{dir: dir, files: f, ui: &stressUI{}, node: newStressNode(t), confirmed: map[string]model.Signed{}}
-	l.adapters = []model.Adapter{l.node.adapter}
+	l.arbitrum = newStressNodeForNetwork(t, "arbitrum-sepolia")
+	combined, err := evm.NewWithEndpoints(map[string]string{"ethereum-sepolia": l.node.server.URL, "arbitrum-sepolia": l.arbitrum.server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.adapters = []model.Adapter{combined}
 	if includeDecred {
 		l.dcr = newStressDCR(t)
-		l.adapters = append(l.adapters, l.dcr.adapter)
+		// Retired protocol parser remains supplementary direct-adapter evidence.
+		// It must never be registered as an active wallet or signing route.
 	}
 	l.engine = signer.New(f, l.ui, l.adapters)
 	l.engine.Environment = "testnet"
@@ -81,6 +91,11 @@ func newScopedLifecycle(t *testing.T, r *report, includeDecred bool) *lifecycle 
 		t.Fatal("production signer creation", e)
 	}
 	t.Cleanup(func() { l.engine.Lock(); _ = l.files.Close() })
+	for _, account := range l.engine.Snapshot().Accounts {
+		if chains.IsRetiredNetwork(account.Network) {
+			t.Fatal("retired wallet became active during stress creation")
+		}
+	}
 	r.Workloads["productionSignerCreate"]++
 	return l
 }
@@ -116,20 +131,24 @@ func (l *lifecycle) restart(t *testing.T, r *report) {
 func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	t.Helper()
 	begin := time.Now()
-	ac := l.account(t, "ethereum-sepolia")
-	l.node.sourceSet(ac.Address)
-	intent := model.Transfer{AccountID: ac.ID, Asset: "ethereum-sepolia:native", Recipient: "0x1111111111111111111111111111111111111111", Amount: fmt.Sprint(1000 + cycle*2)}
+	network, node := "ethereum-sepolia", l.node
+	if cycle%2 == 1 {
+		network, node = "arbitrum-sepolia", l.arbitrum
+	}
+	ac := l.account(t, network)
+	node.sourceSet(ac.Address)
+	intent := model.Transfer{AccountID: ac.ID, Asset: network + ":native", Recipient: "0x1111111111111111111111111111111111111111", Amount: fmt.Sprint(1000 + cycle*2)}
 	for _, mode := range []string{"outage", "rate-limit"} {
-		l.node.modeSet(mode)
-		if _, e := l.node.adapter.Prepare(context.Background(), ac, intent); e == nil {
+		node.modeSet(mode)
+		if _, e := node.adapter.Prepare(context.Background(), ac, intent); e == nil {
 			t.Fatal("failed RPC authorized a plan", mode)
 		}
 		r.Workloads["lifecycleRPC-"+mode]++
 	}
-	l.node.modeSet("")
+	node.modeSet("")
 	// PREPARED approval cannot survive a lock. The production unlock recovery
 	// cancels it; it must never become a usable signature or a lost reservation.
-	cancelled := l.node.prepare(t, ac, intent.Amount)
+	cancelled := node.prepare(t, ac, intent.Amount)
 	if e := l.engine.Prepare(cancelled); e != nil {
 		t.Fatal(e)
 	}
@@ -150,7 +169,7 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	if !found {
 		t.Fatal("unconfirmed prepared operation survived restart")
 	}
-	p := l.node.prepare(t, ac, fmt.Sprint(1001+cycle*2))
+	p := node.prepare(t, ac, fmt.Sprint(1001+cycle*2))
 	if e := l.engine.Prepare(p); e != nil {
 		t.Fatal(e)
 	}
@@ -161,8 +180,8 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	if e = l.engine.Update(p.ID, "SUBMITTING", nil); e != nil {
 		t.Fatal(e)
 	}
-	l.node.modeSet("accept-timeout")
-	receipt, e := l.node.adapter.Submit(context.Background(), p, signed)
+	node.modeSet("accept-timeout")
+	receipt, e := node.adapter.Submit(context.Background(), p, signed)
 	if e == nil || receipt.State != "UNKNOWN" {
 		t.Fatal("submission ambiguity lost", e, receipt)
 	}
@@ -179,12 +198,12 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	if restored == nil || restored.Identity != signed.Identity || !bytes.Equal(restored.Bytes, signed.Bytes) {
 		t.Fatal("restart replaced signed transaction")
 	}
-	l.node.modeSet("rate-limit")
-	if _, e = l.node.adapter.Reconcile(context.Background(), p, *restored); e == nil {
+	node.modeSet("rate-limit")
+	if _, e = node.adapter.Reconcile(context.Background(), p, *restored); e == nil {
 		t.Fatal("rate-limited reconciliation invented state")
 	}
-	l.node.modeSet("")
-	receipt, e = l.node.adapter.Reconcile(context.Background(), p, *restored)
+	node.modeSet("")
+	receipt, e = node.adapter.Reconcile(context.Background(), p, *restored)
 	if e != nil || receipt.State != "CONFIRMED" {
 		t.Fatal("final receipt reconciliation", e, receipt)
 	}
@@ -193,34 +212,45 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 	}
 	l.confirmed[p.ID] = signed
 	r.Workloads["productionSignedJournalReconciled"]++
+	r.Workloads["productionSignedJournalReconciled-"+network]++
 	if l.dcr != nil {
-		// Discovery settings and next receive address are persisted by the real
-		// signer; the real adapter then walks bounded fake full-block RPC responses.
-		dcr := l.account(t, "decred-simnet")
-		if e = l.engine.Discovery(dcr.ID, 1, 5, uint32(20+cycle), 64); e != nil {
-			t.Fatal(e)
+		// Historical Decred parser compatibility only: no active signer account,
+		// receive-address mutation or retired-network signing capability exists.
+		publicSeed := make([]byte, 64)
+		for index := range publicSeed {
+			publicSeed[index] = byte(index)
 		}
-		if _, e = l.engine.Receive(dcr.ID); e != nil {
-			t.Fatal(e)
+		legacy, err := l.dcr.adapter.Derive(publicSeed, 0, "decred-simnet")
+		clear(publicSeed)
+		if err != nil {
+			t.Fatal(err)
 		}
-		dcr = l.account(t, "decred-simnet")
+		legacy, err = decred.SetDiscovery(legacy, 1, 5, uint32(20+cycle))
+		if err != nil {
+			t.Fatal(err)
+		}
+		legacy, err = decred.SetDiscoveryBudget(legacy, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
 		l.dcr.mu.Lock()
 		l.dcr.height = uint32(5 + cycle%55)
 		l.dcr.mu.Unlock()
-		discovery, e := l.dcr.adapter.Sync(context.Background(), dcr)
-		if e != nil || discovery.ScannedFrom != 1 || discovery.AddressLimit != uint32(20+cycle) {
-			t.Fatal("bounded discovery failed", e)
+		discovery, err := l.dcr.adapter.Sync(context.Background(), legacy)
+		if err != nil || discovery.ScannedFrom != 1 || discovery.AddressLimit != uint32(20+cycle) {
+			t.Fatal("historical bounded parser failed", err)
 		}
-		r.Workloads["DCRAccountDiscoveryScans"]++
-		r.Workloads["DCRDiscoveryBlocks"] += int(discovery.Height)
+		r.Workloads["LegacyDCRParserScans"]++
+		r.Workloads["LegacyDCRParserBlocks"] += int(discovery.Height)
 	}
+
 	if cycle < 16 {
 		if e = l.engine.AddAccount(uint32(cycle + 1)); e != nil {
 			t.Fatal("account index growth", e)
 		}
 		r.Workloads["additionalAccountGroups"]++
 	}
-	history, e := l.node.adapter.History(context.Background(), ac)
+	history, e := node.adapter.History(context.Background(), ac)
 	if e != nil || len(history) == 0 {
 		t.Fatal("growing history scan", e)
 	}
@@ -274,6 +304,7 @@ func (l *lifecycle) cycle(t *testing.T, r *report, cycle int) {
 func (l *lifecycle) reconcile(t *testing.T, r *report) {
 	t.Helper()
 	l.node.modeSet("")
+	l.arbitrum.modeSet("")
 	confirmed, cancelled := 0, 0
 	for _, op := range l.engine.Snapshot().Operations {
 		if op.State == "CANCELLED" {
@@ -284,13 +315,20 @@ func (l *lifecycle) reconcile(t *testing.T, r *report) {
 		if !ok {
 			t.Fatal("unaccounted signed operation", op.State)
 		}
-		receipt, e := l.node.adapter.Reconcile(context.Background(), op.Plan, signed)
+		node := l.node
+		if op.Plan.Account.Network == "arbitrum-sepolia" {
+			node = l.arbitrum
+		}
+		receipt, e := node.adapter.Reconcile(context.Background(), op.Plan, signed)
 		if e != nil || receipt.State != "CONFIRMED" || op.State != "CONFIRMED" {
 			t.Fatal("final operation reconciliation", e, receipt, op.State)
 		}
 		confirmed++
 	}
 	payments, calls, _ := l.node.stats()
+	arbPayments, arbCalls, _ := l.arbitrum.stats()
+	payments += arbPayments
+	calls += arbCalls
 	if confirmed != payments || confirmed != r.Workloads["cycles"] || cancelled != confirmed || l.ui.approvals != confirmed {
 		t.Fatal("final ledger/journal/approval counts differ", confirmed, cancelled, payments, l.ui.approvals)
 	}

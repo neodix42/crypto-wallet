@@ -468,7 +468,7 @@ func TestExchangeDepositsReuseWalletJournalAndTONMemoIsSigned(t *testing.T) {
 	state = readPublicState(t, path)
 	state["accounts"] = []model.Account{{ID: "exchange-account", Family: "ton", Network: "ton-mainnet", Address: "EQpublicSyntheticOwnedTON"}}
 	writePublicState(t, path, state)
-	adapter.networks = []model.Network{{ID: "ton-mainnet", Family: "ton", Assets: []model.Asset{{ID: "ton-mainnet:TON", Symbol: "TON", Decimals: 9}}}}
+	adapter.networks = []model.Network{{ID: "ton-mainnet", Family: "ton", Assets: []model.Asset{{ID: "ton-mainnet:TON", Symbol: "GRAM", Decimals: 9}}}}
 	api.chain.Chain = "service-ton"
 	api.chain.ChainType = "TON"
 	api.chain.MinAccuracy = "9"

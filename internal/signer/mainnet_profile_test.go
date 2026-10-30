@@ -44,7 +44,7 @@ func TestMainnetRootAllFamiliesBackupAndNativeAuthorization(t *testing.T) {
 			t.Fatal("mainnet copy bypassed verified-backup gate", ac.Network)
 		}
 	}
-	if len(families) != 6 || len(ui.summaries) != 0 {
+	if len(families) != 5 || len(ui.summaries) != 0 {
 		t.Fatal("mainnet family omitted or pre-backup receive reached native display")
 	}
 	ac := findAccount(t, e, "ethereum-mainnet")
@@ -101,35 +101,29 @@ func TestMainnetRootAllFamiliesBackupAndNativeAuthorization(t *testing.T) {
 	}
 }
 
-func TestMainnetRPCConfigurationEnforcesProfileAndAuthenticatedDCR(t *testing.T) {
+func TestMainnetRPCConfigurationRejectsForeignAndRetiredNetworks(t *testing.T) {
 	e, ui, _ := newEngine(t, chains.All())
 	e.Environment = "mainnet"
 	createImported(t, e, ui, "mainnet")
 	ui.summaries = nil
-	for _, network := range []string{"ethereum-sepolia", "near-localnet", "aptos-localnet", "decred-simnet", "ton-testnet"} {
+	for _, network := range []string{"ethereum-sepolia", "near-localnet", "aptos-localnet", "decred-mainnet", "decred-testnet3", "decred-simnet", "ton-testnet", "arbitrum-sepolia"} {
 		ui.inputs = append(ui.inputs, input("https://rpc.example.org", "", "", ""))
-		if err := e.Configure(network); err == nil || len(ui.inputs) != 1 || len(e.Settings()) != 0 {
-			t.Fatal("mainnet profile accepted foreign network or opened credential input", network)
+		if err := e.Configure(network); err == nil || len(ui.inputs) != 1 || len(e.Settings()) != 0 || len(ui.summaries) != 0 {
+			t.Fatal("foreign/retired endpoint accepted or opened credential input", network)
 		}
 		ui.inputs = nil
 	}
-	for _, values := range [][]string{{"https://dcr.example.org", "", "", ""}, {"http://127.0.0.1:9109", "public-user", "public-node-password", ""}} {
-		ui.inputs = append(ui.inputs, input(values...))
-		if err := e.Configure("decred-mainnet"); err == nil || len(e.Settings()) != 0 || len(ui.summaries) != 0 {
-			t.Fatal("mainnet dcrd accepted absent authentication or plaintext transport")
-		}
+	ui.inputs = append(ui.inputs, input("https://rpc.example.org/PUBLIC-PATH-TOKEN", "public-user", "public-node-password", ""))
+	if err := e.Configure("arbitrum-mainnet"); err != nil {
+		t.Fatal("active authenticated endpoint failed", err)
 	}
-	ui.inputs = append(ui.inputs, input("https://dcr.example.org/PUBLIC-PATH-TOKEN", "public-user", "public-node-password", ""))
-	if err := e.Configure("decred-mainnet"); err != nil {
-		t.Fatal("authenticated mainnet node settings failed", err)
-	}
-	if len(e.Settings()) != 1 || e.Settings()["decred-mainnet"].User != "public-user" {
-		t.Fatal("authenticated mainnet settings not stored in encrypted profile")
+	if len(e.Settings()) != 1 || e.Settings()["arbitrum-mainnet"].User != "public-user" {
+		t.Fatal("active endpoint not retained encrypted")
 	}
 	public, _ := json.Marshal(e.Snapshot())
 	for _, credential := range []string{"PUBLIC-PATH-TOKEN", "public-user", "public-node-password"} {
 		if bytes.Contains(public, []byte(credential)) {
-			t.Fatal("RPC credential appeared in public snapshot")
+			t.Fatal("RPC credential entered public snapshot")
 		}
 	}
 }

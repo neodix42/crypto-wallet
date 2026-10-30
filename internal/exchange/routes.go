@@ -25,6 +25,12 @@ func ValidateProviderRoute(provider string, account model.Account, asset model.A
 	if chain == "" || len(chain) > 40 || asset.ID == "" || !strings.HasPrefix(asset.ID, account.Network+":") {
 		return ErrRoute
 	}
+	// TON is the ledger, GRAM is its current native currency. The durable
+	// :TON identifier remains unchanged; the ticker cannot admit an unrelated
+	// jetton or revive an obsolete TON spot/deposit route for a new operation.
+	if account.Network == "ton-mainnet" && (asset.ID != "ton-mainnet:TON" || asset.Symbol != "GRAM" || asset.Decimals != 9 || asset.Contract != "" || contract != "") {
+		return ErrRoute
+	}
 	if asset.Contract == "" {
 		nativeID := account.Network + ":native"
 		if account.Network == "ton-mainnet" {

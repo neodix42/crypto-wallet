@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"localwallet/internal/amount"
 	"localwallet/internal/buildinfo"
+	"localwallet/internal/chains"
 	"localwallet/internal/chains/decred"
 	"localwallet/internal/chains/near"
+	"localwallet/internal/chains/ton"
 	"localwallet/internal/exchange"
 	"localwallet/internal/ipc"
 	"localwallet/internal/journal"
+	"localwallet/internal/marketdata"
 	"localwallet/internal/model"
 	"localwallet/internal/profilepath"
 	"localwallet/internal/sessionwatch"
@@ -72,9 +75,16 @@ type App struct {
 	environment                           string
 	state                                 snapshot
 	networks                              []model.Network
+	marketPrices                          marketdata.Snapshot
+	marketPricesLoading                   bool
+	marketPricesAttempt                   time.Time
+	marketPricesRevision                  uint64
 	balances                              map[string][]model.Balance
 	balanceErrors                         map[string]bool
 	tokenDiscovery                        map[string]tokenDiscoveryState
+	tonStates                             map[string]tonObservation
+	tonPending                            map[string]model.Plan
+	tonRevision                           uint64
 	nearTokenStorage                      map[string]nearTokenStorageObservation
 	nearTokenPending                      map[string]model.Plan
 	nearTokenRevision                     uint64
@@ -269,6 +279,7 @@ func (a *App) close() {
 		return
 	}
 	a.closed = true
+	a.clearMarketPrices()
 	a.epoch++
 	a.privateRevision.Add(1)
 	a.ui.CancelPrompt()
@@ -277,6 +288,10 @@ func (a *App) close() {
 	a.ui.Close()
 }
 func (a *App) lock() {
+	a.tonRevision++
+	a.tonStates = nil
+	a.tonPending = nil
+	a.clearMarketPrices()
 	a.epoch++
 	a.privateRevision.Add(1)
 	a.ui.CancelPrompt()
@@ -336,6 +351,7 @@ func (a *App) tick() {
 		a.status = ""
 		a.render()
 	}
+	a.refreshMarketPrices()
 	if a.busy || a.background {
 		return
 	}
@@ -480,6 +496,25 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	return first, nil
 }
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
+	activeAccounts := make([]model.Account, 0, len(state.Accounts))
+	for _, account := range state.Accounts {
+		if !chains.IsRetiredNetwork(account.Network) {
+			activeAccounts = append(activeAccounts, account)
+		}
+	}
+	state.Accounts = activeAccounts
+	activeNetworks := make([]model.Network, 0, len(networks))
+	for _, network := range networks {
+		if !chains.IsRetiredNetwork(network.ID) {
+			activeNetworks = append(activeNetworks, network)
+		}
+	}
+	networks = activeNetworks
+	a.tonRevision++
+	a.tonStates = nil
+	if state.Locked {
+		a.tonPending = nil
+	}
 	a.clearWalletHistory()
 	a.clearAddressBook()
 	a.tokenDiscovery = nil
@@ -497,6 +532,7 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 	a.balanceErrors = map[string]bool{}
 	a.balanceQueue = nil
 	if state.Locked {
+		a.clearMarketPrices()
 		a.stakingPending = nil
 		a.tabs = nil
 		a.journal = nil
@@ -522,6 +558,8 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 		}
 	}
 	a.ensureExchangeSelection()
+	a.refreshMarketPrices()
+	a.refreshActiveTONState()
 	if strings.HasPrefix(a.active, "wallet/") {
 		a.queueWalletHistory(strings.TrimPrefix(a.active, "wallet/"), "initial")
 	}
@@ -708,7 +746,7 @@ func (a *App) nextBalance() {
 }
 func (a *App) account(id string) (model.Account, bool) {
 	for _, v := range a.state.Accounts {
-		if v.ID == id {
+		if v.ID == id && !chains.IsRetiredNetwork(v.Network) {
 			return v, true
 		}
 	}
@@ -924,6 +962,18 @@ func (a *App) event(e webui.Event) {
 		a.mutation(method, map[string]int{"words": words})
 	case "unlock", "confirmRecovery", "backupPhrase", "password":
 		a.mutation(e.ID, struct{}{})
+	case "addTonAccount":
+		index, err := strconv.ParseUint(a.fields["tonIndex"], 10, 32)
+		if err != nil {
+			a.notice("Enter a valid TON account index.")
+			a.render()
+			return
+		}
+		profile := a.fields["tonProfile"]
+		if profile == "" {
+			profile = ton.ProfileSubwallet42
+		}
+		a.mutation("addTonAccount", map[string]any{"index": uint32(index), "profile": profile})
 	case "addAccount":
 		index, err := strconv.ParseUint(a.fields["index"], 10, 32)
 		if err != nil {
@@ -1008,6 +1058,9 @@ func (a *App) walletEvent(action string) {
 	if a.nearTokenEvent(kind, id) {
 		return
 	}
+	if a.tonEvent(kind, id) {
+		return
+	}
 	if a.stakingEvent(kind, id) {
 		return
 	}
@@ -1028,6 +1081,9 @@ func (a *App) walletEvent(action string) {
 			a.tabs = append(a.tabs, id)
 		}
 		a.active = "wallet/" + id
+		if account, ok := a.account(id); ok && account.Family == "ton" {
+			a.readTONState(account)
+		}
 		a.queueWalletHistory(id, "initial")
 		a.render()
 		return
@@ -1138,6 +1194,12 @@ func (a *App) paymentAction(method, id string) {
 			break
 		}
 	}
+	for accountID, pending := range a.tonPending {
+		if pending.ID == id {
+			owner = accountID
+			break
+		}
+	}
 	for accountID, pending := range a.nearTokenPending {
 		if pending.ID == id {
 			owner = accountID
@@ -1170,6 +1232,13 @@ func (a *App) paymentAction(method, id string) {
 				}
 			}
 			a.clearNearTokenStorage(false)
+			for accountID, pending := range a.tonPending {
+				if pending.ID == id {
+					delete(a.tonPending, accountID)
+				}
+			}
+			delete(a.tonStates, owner)
+			a.refreshActiveTONState()
 			delete(a.staking, owner)
 			delete(a.stakingErrors, owner)
 			a.stakingRevision++
@@ -1484,6 +1553,22 @@ func (a *App) groupPage(index uint32) webui.Page {
 	if !a.state.RecoveryConfirmed {
 		page.Nodes = append(page.Nodes, label("Record and confirm the recovery phrase to enable receiving and spending."), a.button("confirmRecovery", "Record and confirm recovery phrase", false))
 	}
+	valuation := a.portfolioValuation(index, time.Now())
+	value := node("label", "portfolioValuation", "", "")
+	value.Value, value.Tooltip = valuation.State, valuation.Detail
+	switch valuation.State {
+	case "loading":
+		value.Text = "USDT"
+	case "ready":
+		value.Text = "~" + valuation.USDT + " USDT"
+	case "partial":
+		value.Text = "~" + valuation.USDT + " USDT (partial)"
+	case "testnet":
+		value.Text = "Testnet — no USDT value"
+	default:
+		value.Text = "USDT value unavailable"
+	}
+	page.Nodes = append(page.Nodes, value)
 	page.Nodes = append(page.Nodes, row(heading("Network"), heading("Native balance"), heading("Receive address")))
 	count := 0
 	for _, account := range a.state.Accounts {
@@ -1540,6 +1625,9 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	value, _ := a.balance(account, asset)
 	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
 	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉ Copy address")), heading(value + " " + asset.Symbol)}
+	if account.Family == "ton" {
+		page.Nodes = append(page.Nodes, a.tonNodes(account)...)
+	}
 	if account.Family == "near" {
 		section := a.fields["walletSection/"+account.ID]
 		if section != "Staking" {
@@ -1655,6 +1743,10 @@ func (a *App) settingsPage() []webui.Node {
 			if operation.Receipt != nil {
 				title += "\n" + operation.Receipt.Identity + " · " + operation.Receipt.State + " · " + operation.Receipt.Detail
 			}
+			if chains.IsRetiredNetwork(operation.Plan.Account.Network) {
+				nodes = append(nodes, label(title+"\nRetired network — historical record only"))
+				continue
+			}
 			nodes = append(nodes, label(title))
 			switch operation.State {
 			case "PREPARED":
@@ -1670,6 +1762,13 @@ func (a *App) settingsPage() []webui.Node {
 		}
 	default:
 		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels, the address book or the local payment/exchange journal."))
+		if a.fields["tonProfile"] == "" {
+			a.fields["tonProfile"] = ton.ProfileSubwallet42
+		}
+		if a.fields["tonIndex"] == "" {
+			a.fields["tonIndex"] = "0"
+		}
+		nodes = append(nodes, heading("TON recovery profiles"), row(a.entry("tonIndex", "TON account index"), a.combo("tonProfile", "Wallet V5R1 profile", []webui.Option{{ID: ton.ProfileSubwallet42, Text: "Subwallet 42 (separate receiving address)"}, {ID: ton.Profile, Text: "Original subwallet 0 (legacy address)"}}), a.button("addTonAccount", "Add / recover TON profile", !a.state.RecoveryConfirmed)), label("A different TON subwallet creates a different receive address. Existing funded addresses keep their recorded wallet ID. Record the profile and account index with your recovery words."))
 	}
 	return nodes
 }

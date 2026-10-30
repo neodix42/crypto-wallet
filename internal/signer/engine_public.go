@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"localwallet/internal/chains/evm"
+	"localwallet/internal/chains"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
@@ -101,7 +101,7 @@ func (e *Engine) PublicAccount(id string) (model.Account, error) {
 		return model.Account{}, ErrDenied
 	}
 	for _, account := range e.data.Accounts {
-		if account.ID == id && !evm.IsRetiredNetwork(account.Network) {
+		if account.ID == id && !chains.IsRetiredNetwork(account.Network) {
 			return account, nil
 		}
 	}

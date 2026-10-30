@@ -181,9 +181,8 @@ func TestTP043LockDropsConfiguredAdaptersAndStaleSettingsCannotRestoreThem(t *te
 	c.adapters = chains.All()
 	state := readPublicState(t, path)
 	state["settings"] = map[string]any{
-		"near-testnet":    map[string]string{"url": "http://127.0.0.1:3030"},
-		"decred-testnet3": map[string]string{"url": "https://127.0.0.1:19109", "user": "synthetic-rpc-user", "password": "public-synthetic-rpc-password"},
-		"ton-testnet":     map[string]string{"url": "http://127.0.0.1:8089", "apiKey": "public-synthetic-api-key"},
+		"near-testnet": map[string]string{"url": "http://127.0.0.1:3030"},
+		"ton-testnet":  map[string]string{"url": "http://127.0.0.1:8089", "apiKey": "public-synthetic-api-key"},
 	}
 	writePublicState(t, path, state)
 	if err := c.applySettings(); err != nil {
@@ -200,7 +199,7 @@ func TestTP043LockDropsConfiguredAdaptersAndStaleSettingsCannotRestoreThem(t *te
 	}
 	for _, a := range c.adaptersSnapshot() {
 		for _, n := range a.Networks() {
-			if (n.ID == "near-testnet" || n.ID == "decred-testnet3" || n.ID == "ton-testnet") && strings.Contains(n.RPC, "127.0.0.1") {
+			if (n.ID == "near-testnet" || n.ID == "arbitrum-sepolia" || n.ID == "ton-testnet") && strings.Contains(n.RPC, "127.0.0.1") {
 				t.Fatal("locked coordinator retained custom RPC endpoints")
 			}
 		}

@@ -47,8 +47,15 @@ func blockIdentity(height uint64) string {
 	sum := sha256.Sum256([]byte(fmt.Sprintf("public stress block %d", height)))
 	return "0x" + hex.EncodeToString(sum[:])
 }
-func newStressNode(t *testing.T) *stressNode {
+func newStressNode(t *testing.T) *stressNode { return newStressNodeForNetwork(t, "ethereum-sepolia") }
+func newStressNodeForNetwork(t *testing.T, network string) *stressNode {
 	t.Helper()
+	chainID := int64(11155111)
+	if network == "arbitrum-sepolia" {
+		chainID = 421614
+	} else if network != "ethereum-sepolia" {
+		t.Fatal("unsupported stress fixture chain")
+	}
 	n := &stressNode{nonce: 7, height: 10, transfers: map[string]stressTransfer{}, byHeight: map[uint64]stressTransfer{}, credits: new(big.Int)}
 	n.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -79,7 +86,7 @@ func newStressNode(t *testing.T) *stressNode {
 		}
 		switch q.Method {
 		case "eth_chainId":
-			result = "0xaa36a7"
+			result = fmt.Sprintf("0x%x", chainID)
 		case "eth_getCode":
 			result = "0x"
 		case "eth_getBalance":
@@ -120,11 +127,11 @@ func newStressNode(t *testing.T) *stressNode {
 			_ = json.Unmarshal(q.Params[0], &raw)
 			data, e := hex.DecodeString(strings.TrimPrefix(raw, "0x"))
 			var tx types.Transaction
-			if e != nil || tx.UnmarshalBinary(data) != nil || tx.ChainId().Cmp(big.NewInt(11155111)) != 0 || tx.To() == nil {
+			if e != nil || tx.UnmarshalBinary(data) != nil || tx.ChainId().Cmp(big.NewInt(chainID)) != 0 || tx.To() == nil {
 				fail()
 				return
 			}
-			from, e := types.Sender(types.LatestSignerForChainID(big.NewInt(11155111)), &tx)
+			from, e := types.Sender(types.LatestSignerForChainID(big.NewInt(chainID)), &tx)
 			if e != nil || !strings.EqualFold(from.Hex(), n.source) {
 				fail()
 				return
@@ -172,7 +179,7 @@ func newStressNode(t *testing.T) *stressNode {
 		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": q.ID, "result": result})
 	}))
 	var e error
-	n.adapter, e = evm.NewWithEndpoints(map[string]string{"ethereum-sepolia": n.server.URL})
+	n.adapter, e = evm.NewWithEndpoints(map[string]string{network: n.server.URL})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -200,7 +207,7 @@ func (n *stressNode) stats() (int, int, string) {
 }
 func (n *stressNode) prepare(t *testing.T, ac model.Account, value string) model.Plan {
 	t.Helper()
-	p, e := n.adapter.Prepare(context.Background(), ac, model.Transfer{AccountID: ac.ID, Asset: "ethereum-sepolia:native", Recipient: "0x1111111111111111111111111111111111111111", Amount: value})
+	p, e := n.adapter.Prepare(context.Background(), ac, model.Transfer{AccountID: ac.ID, Asset: ac.Network + ":native", Recipient: "0x1111111111111111111111111111111111111111", Amount: value})
 	if e != nil {
 		t.Fatal(e)
 	}

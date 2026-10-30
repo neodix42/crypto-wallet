@@ -1,6 +1,6 @@
 // Keep this list aligned with Go's chainutil.TransactionExplorer. Provider data
 // never chooses an arbitrary browser URL or changes the wallet's navigation.
-const evmHosts = new Set(['etherscan.io', 'sepolia.etherscan.io', 'basescan.org', 'sepolia.basescan.org', 'hyperevmscan.io']);
+const evmHosts = new Set(['etherscan.io', 'sepolia.etherscan.io', 'basescan.org', 'sepolia.basescan.org', 'arbiscan.io', 'sepolia.arbiscan.io', 'hyperevmscan.io']);
 const coreHosts = new Set(['app.hyperliquid.xyz', 'app.hyperliquid-testnet.xyz']);
 const nearHosts = new Set(['nearblocks.io', 'testnet.nearblocks.io']);
 const decredHosts = new Set(['dcrdata.decred.org', 'testnet.dcrdata.org']);

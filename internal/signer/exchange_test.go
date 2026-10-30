@@ -281,12 +281,14 @@ func TestExchangeTP042MalformedPlansAndUntrustedNetworkMetadata(t *testing.T) {
 	for network, names := range map[string][]string{"base-mainnet": {"Base", "BASE"}, "hyperevm-mainnet": {"HyperEVM", "Hyperliquid HyperEVM"}, "near-mainnet": {"NEAR", "NEAR Protocol", "Near Protocol"}, "aptos-mainnet": {"APTOS", "Aptos"}, "ton-mainnet": {"TON", "Toncoin", "TON (The Open Network)"}} {
 		ac := a
 		ac.Network = network
-		asset.ID = network + ":native"
+		selection, withdrawal := asset, w
+		selection.ID = network + ":native"
 		if network == "ton-mainnet" {
-			asset.ID = "ton-mainnet:TON"
+			selection.ID, selection.Symbol, selection.Decimals = "ton-mainnet:TON", "GRAM", 9
+			withdrawal.Coin = "GRAM"
 		}
 		for _, name := range names {
-			if !exchangeWithdrawalNetwork(ac, asset, w, name, "") {
+			if !exchangeWithdrawalNetwork(ac, selection, withdrawal, name, "") {
 				t.Fatal("known ledger label rejected")
 			}
 		}
@@ -327,7 +329,7 @@ func TestExchangeTP042ActualTONRegistryOwnedWithdrawalAuthorization(t *testing.T
 	for _, network := range adapter.Networks() {
 		if network.ID == account.Network {
 			for _, item := range network.Assets {
-				if item.Symbol == "TON" {
+				if item.Symbol == "GRAM" {
 					asset = item
 				}
 			}
@@ -340,7 +342,7 @@ func TestExchangeTP042ActualTONRegistryOwnedWithdrawalAuthorization(t *testing.T
 	if err := e.ConnectExchange("https://api.bybit.com"); err != nil {
 		t.Fatal(err)
 	}
-	in := ExchangeIntent{Kind: "withdraw", AccountID: account.ID, AssetID: asset.ID, ChainType: "TON", Fee: "0.001", FeeCoin: "TON", Withdrawal: &bybit.WithdrawalRequest{Coin: "TON", Chain: "TON", Address: account.Address, Amount: "0.123456789", ForceChain: 1, AccountType: "FUND", FeeType: 1}}
+	in := ExchangeIntent{Kind: "withdraw", AccountID: account.ID, AssetID: asset.ID, ChainType: "TON", Fee: "0.001", FeeCoin: "GRAM", Withdrawal: &bybit.WithdrawalRequest{Coin: "GRAM", Chain: "TON", Address: account.Address, Amount: "0.123456789", ForceChain: 1, AccountType: "FUND", FeeType: 1}}
 	fake := in
 	fake.AssetID = "ton-mainnet:native"
 	if _, err := e.PrepareExchange(fake); err == nil {
@@ -352,7 +354,7 @@ func TestExchangeTP042ActualTONRegistryOwnedWithdrawalAuthorization(t *testing.T
 	}
 	op = authorizeExchange(t, e, u, op)
 	var request bybit.WithdrawalRequest
-	if json.Unmarshal([]byte(op.Payload), &request) != nil || request.Coin != "TON" || request.Chain != "TON" || request.Address != account.Address || request.Amount != "0.123456789" || request.RequestID != op.ID {
+	if json.Unmarshal([]byte(op.Payload), &request) != nil || request.Coin != "GRAM" || request.Chain != "TON" || request.Address != account.Address || request.Amount != "0.123456789" || request.RequestID != op.ID {
 		t.Fatal("actual TON withdrawal changed its owned destination or exact amount")
 	}
 	authRequest := exchangeRequest(op)

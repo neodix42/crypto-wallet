@@ -68,8 +68,8 @@ func methodFixtures() []methodFixture {
 			return e
 		}},
 		{"coin", `{"rows":[{"name":"Ethereum","coin":"ETH","chains":[{"chain":"ETH","chainType":"Ethereum (ERC20)","confirmation":"12","withdrawFee":"0.0002","depositMin":"0.0001","withdrawMin":"0.0004","minAccuracy":"18","chainDeposit":"1","chainWithdraw":"1","withdrawPercentageFee":"0","contractAddress":"","safeConfirmNumber":"64","withdrawMax":"-1"}]}]}`, func(c *Client) error { _, e := c.CoinInfo(ctx, "ETH"); return e }},
-		{"deposit", `{"coin":"TON","chains":[{"chain":"TON","chainType":"TON","addressDeposit":"EQpublicSyntheticAddress","tagDeposit":"1234567","contractAddress":"","batchReleaseLimit":"-1"}]}`, func(c *Client) error {
-			v, e := c.DepositAddress(ctx, "TON", "TON")
+		{"deposit", `{"coin":"GRAM","chains":[{"chain":"TON","chainType":"TON","addressDeposit":"EQpublicSyntheticAddress","tagDeposit":"1234567","contractAddress":"","batchReleaseLimit":"-1"}]}`, func(c *Client) error {
+			v, e := c.DepositAddress(ctx, "GRAM", "TON")
 			if e == nil && v.Tag != "1234567" {
 				return errors.New("lost TON memo")
 			}

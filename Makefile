@@ -13,6 +13,7 @@ SOAK_SECONDS ?= 86400
 .PHONY: test-near-tokens test-near-tokens-local test-near-tokens-gui
 .PHONY: test-wallet-history test-wallet-history-gui
 .PHONY: test-ci test-security-ci test-race-ci check-deps-ci
+.PHONY: test-ton-deployment test-arbitrum
 .PHONY: test-packaged-desktop test-packaged-send-desktop build-components install-desktop package-portable package-components test-portable build build-go build-desktop install dev test test-go test-security test-race test-interop test-integration test-native test-dialogs test-fuzz test-fuzz-long test-crash test-release-auth test-release-evidence test-license-notices test-packaged test-packaged-send test-recovery test-e2e test-testnet test-stress test-soak test-soak-non-decred test-exchange coverage package-desktop package-go verify-release check-deps
 build:
 	./scripts/build.sh
@@ -128,7 +129,16 @@ test-security-ci:
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	$(GO_TOOLS) python3 internal/exchange/test-native-mutations.py
 	$(GO_TOOLS) python3 scripts/near-token-mutation.py
+	$(GO_TOOLS) python3 tests/oracles/evm/arbitrum-mutation.py
+	$(TOOLS) python3 tests/oracles/ton/deployment-mutations.py
 	$(TOOLS) python3 scripts/surface-check.py --current-ui
+test-ton-deployment: frontend
+	WALLET_TON_EMULATOR=1 $(TOOLS) go test -race ./internal/chains/ton ./internal/signer ./internal/walletcore ./internal/nativewallet -run 'TON|Ton|V5R1|Deployment' -count=1
+	$(TOOLS) python3 tests/oracles/ton/deployment-mutations.py
+test-arbitrum: frontend
+	$(GO_TOOLS) go test -race ./internal/chains/evm ./internal/signer ./internal/walletcore ./internal/nativewallet -run 'Arbitrum|RetiredDecred|SupportedNetworks' -count=1
+	WALLET_ERC20_EVM=1 $(TOOLS) go test ./internal/chains/evm -run '^TestTP050ImportedERC20GoSignedTwoWayExecutionOnIndependentGanache$$' -v -count=1
+	$(GO_TOOLS) python3 tests/oracles/evm/arbitrum-mutation.py
 test-race:
 	$(GO_TOOLS) go test -race -p 2 ./...
 test-race-ci:

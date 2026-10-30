@@ -68,3 +68,8 @@
 .transaction-table tbody tr:last-child td{border-bottom:0}
 .explorer-link{border:0;background:transparent;color:var(--accent);padding:0;min-height:0;text-decoration:underline;text-underline-offset:3px;line-height:1.6;white-space:nowrap;font-weight:500;user-select:text;-webkit-user-select:text}
 .explorer-link:hover{background:transparent;color:var(--accent-hover)}
+
+.portfolio-valuation { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: 1rem; margin-top: .3rem; }
+.price-spinner { width: .9em; height: .9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: price-spin .8s linear infinite; }
+@keyframes price-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .price-spinner { animation: none; border-style: dotted; } }

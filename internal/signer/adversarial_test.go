@@ -434,6 +434,7 @@ func TestTP032PasswordAndBackupFailureBoundaries(t *testing.T) {
 func TestTP011ImmutableRecoveryValidation(t *testing.T) {
 	e, u, _ := newEngine(t, []model.Adapter{evm.New(), near.New(), aptos.New(), decred.New()})
 	createImported(t, e, u, "testnet")
+	legacyDecredAccount(t, e, "decred-testnet3", 0)
 	clone := func() *vault.Data {
 		b, _ := json.Marshal(e.data)
 		var d vault.Data
@@ -680,29 +681,16 @@ func TestTP042SigningBoundaryFailures(t *testing.T) {
 		})
 	}
 }
-func TestTP032DCRChangeAdvanceAfterDurableSign(t *testing.T) {
-	real := decred.New()
-	adapter := &signerFaultAdapter{Adapter: real, mode: "public-only"}
-	e, u, _ := newEngine(t, []model.Adapter{adapter})
+func TestRetiredDCRCannotPrepareOrAdvanceChange(t *testing.T) {
+	e, u, _ := newEngine(t, []model.Adapter{evm.New()})
 	createImported(t, e, u, "testnet")
-	a := findAccount(t, e, "decred-simnet")
-	p := model.Plan{ID: "public-dcr-engine-test", Account: a, Asset: "decred-simnet:DCR", FeeAsset: "decred-simnet:DCR", Recipient: a.Address, Amount: "1", MaxFee: "1", Nonce: "1", Expires: time.Now().Unix() + 60, Payload: json.RawMessage(`{}`)} // Engine plan validation is isolated below, never used in production.
-	adapterForEngine := &engineOnlyPlanAdapter{signerFaultAdapter: adapter}
-	e.Adapters = []model.Adapter{adapterForEngine}
-	if err := e.Prepare(p); err != nil {
-		t.Fatal(err)
+	account := legacyDecredAccount(t, e, "decred-simnet", 0)
+	before := append([]byte(nil), account.Parameters...)
+	if err := e.Prepare(retiredDecredPlan(account)); err == nil {
+		t.Fatal("retired DCR payment prepared")
 	}
-	before := findAccount(t, e, a.Network)
-	u.inputs = append(u.inputs, input(syntheticPassword))
-	if _, err := e.Sign(p.ID); err != nil {
-		t.Fatal(err)
-	}
-	after := findAccount(t, e, a.Network)
-	if bytes.Equal(before.Parameters, after.Parameters) {
-		t.Fatal("DCR change index not advanced")
-	}
-	if after.ID != before.ID || after.PublicKey != before.PublicKey {
-		t.Fatal("DCR account root changed")
+	if len(e.data.Operations) != 0 || !bytes.Equal(e.data.Accounts[len(e.data.Accounts)-1].Parameters, before) {
+		t.Fatal("retired prepare changed journal or change sequence")
 	}
 }
 
@@ -845,88 +833,73 @@ func TestTP031SaveQRShortWriteFailsClosed(t *testing.T) {
 		t.Fatal("short QR write accepted")
 	}
 }
-func TestTP032ReceiveFailurePreservesDCRSequence(t *testing.T) {
-	for _, mode := range []string{"invalid-descriptor", "persistence"} {
-		e, u, _ := newEngine(t, []model.Adapter{decred.New()})
-		createImported(t, e, u, "testnet")
-		a := findAccount(t, e, "decred-simnet")
-		if mode == "invalid-descriptor" {
-			for i := range e.data.Accounts {
-				if e.data.Accounts[i].ID == a.ID {
-					e.data.Accounts[i].Parameters = []byte(`{}`)
-				}
+func TestRetiredDCRReceiveRejectsBeforeSequenceOrPersistence(t *testing.T) {
+	for _, mode := range []string{"valid-historical", "invalid-descriptor", "unavailable-persistence"} {
+		t.Run(mode, func(t *testing.T) {
+			e, u, _ := newEngine(t, []model.Adapter{evm.New()})
+			createImported(t, e, u, "testnet")
+			account := legacyDecredAccount(t, e, "decred-simnet", 0)
+			if mode == "invalid-descriptor" {
+				e.data.Accounts[len(e.data.Accounts)-1].Parameters = []byte(`{}`)
 			}
-		} else {
-			e.parameters = vault.Parameters{}
-		}
-		if _, err := e.Receive(a.ID); err == nil {
-			t.Fatal("invalid receive sequence released")
-		}
-		if mode == "persistence" && !e.Snapshot().Locked {
-			t.Fatal("undurable receive index left unlocked")
-		}
+			if mode == "unavailable-persistence" {
+				e.parameters = vault.Parameters{}
+			}
+			before := append([]byte(nil), e.data.Accounts[len(e.data.Accounts)-1].Parameters...)
+			summaries := len(u.summaries)
+			if _, err := e.Receive(account.ID); err == nil || e.CopyReceive(account.ID) == nil || len(u.summaries) != summaries {
+				t.Fatal("retired receive/copy reached UI")
+			}
+			if !bytes.Equal(before, e.data.Accounts[len(e.data.Accounts)-1].Parameters) || e.Snapshot().Locked {
+				t.Fatal("rejected retired receive mutated durable sequence or active session")
+			}
+		})
 	}
 }
-func TestTP022BoundedDiscoveryRequiresNativeApproval(t *testing.T) {
-	e, u, _ := newEngine(t, []model.Adapter{decred.New(), evm.New()})
+
+func TestRetiredDCRDiscoveryIsUnavailableRegardlessOfBoundsOrApproval(t *testing.T) {
+	e, u, _ := newEngine(t, []model.Adapter{evm.New()})
 	if e.Discovery("missing", 0, 20, 100) == nil {
 		t.Fatal("locked discovery")
 	}
 	createImported(t, e, u, "testnet")
-	a := findAccount(t, e, "decred-simnet")
+	account := legacyDecredAccount(t, e, "decred-simnet", 0)
 	evmAccount := findAccount(t, e, "ethereum-sepolia")
 	if e.Discovery(evmAccount.ID, 0, 20, 100) == nil {
-		t.Fatal("non-Decred discovery")
+		t.Fatal("non-DCR discovery accepted")
 	}
-	if e.Discovery(a.ID, 0, 0, 100) == nil {
-		t.Fatal("zero gap")
-	}
-	if e.Discovery(a.ID, 0, 20, 10001) == nil {
-		t.Fatal("unbounded scan")
-	}
-	u.approve = false
-	if e.Discovery(a.ID, 0, 20, 100) == nil {
-		t.Fatal("unapproved scan mutation")
-	}
-	u.approve = true
-	if err := e.Discovery(a.ID, 123, 25, 200); err != nil {
-		t.Fatal(err)
-	}
-	updated := findAccount(t, e, a.Network)
-	var p decred.Parameters
-	if err := json.Unmarshal(updated.Parameters, &p); err != nil {
-		t.Fatal(err)
-	}
-	if p.Birthday != 123 || p.GapLimit != 25 || p.ScanLimit != 200 || updated.ID != a.ID || updated.Address != a.Address || !e.data.RecoveryConfirmed {
-		t.Fatal("discovery changed root or lost explicit bounds")
-	}
-}
-func TestReviewTP060DCRExhaustionCannotExposeUndurableArtifact(t *testing.T) {
-	adapter := &engineOnlyPlanAdapter{signerFaultAdapter: &signerFaultAdapter{Adapter: decred.New(), mode: "public-only"}}
-	e, u, _ := newEngine(t, []model.Adapter{adapter})
-	createImported(t, e, u, "testnet")
-	a := findAccount(t, e, "decred-simnet")
-	var metadata decred.Parameters
-	_ = json.Unmarshal(a.Parameters, &metadata)
-	metadata.ChangeIndex = 999999
-	a.Parameters, _ = json.Marshal(metadata)
-	for i := range e.data.Accounts {
-		if e.data.Accounts[i].ID == a.ID {
-			e.data.Accounts[i] = a
+	before := append([]byte(nil), account.Parameters...)
+	summaries := len(u.summaries)
+	for _, args := range [][4]uint32{{0, 0, 100, 1}, {0, 20, 10001, 1}, {123, 25, 200, 1000}} {
+		if e.Discovery(account.ID, args[0], args[1], args[2], args[3]) == nil {
+			t.Fatal("retired DCR discovery reenabled")
 		}
 	}
-	p := model.Plan{ID: "public-dcr-exhausted-engine-test", Account: a, Asset: "decred-simnet:DCR", FeeAsset: "decred-simnet:DCR", Recipient: a.Address, Amount: "1", MaxFee: "1", Nonce: "1", Expires: time.Now().Unix() + 60, Payload: json.RawMessage(`{}`)}
-	if err := e.Prepare(p); err != nil {
-		t.Fatal(err)
-	}
-	u.inputs = append(u.inputs, input(syntheticPassword))
-	if result, err := e.Sign(p.ID); err == nil || len(result.Bytes) != 0 {
-		t.Fatal("exhausted change sequence exposed artifact")
-	}
-	if e.Pending() != nil || !e.Snapshot().Locked {
-		t.Fatal("undurable DCR artifact reachable after change exhaustion")
+	if len(u.summaries) != summaries || !bytes.Equal(e.data.Accounts[len(e.data.Accounts)-1].Parameters, before) {
+		t.Fatal("retired discovery prompted or changed recovery metadata")
 	}
 }
+
+func TestRetiredDCRPendingOperationCannotReleaseAnArtifact(t *testing.T) {
+	e, u, _ := newEngine(t, []model.Adapter{evm.New()})
+	createImported(t, e, u, "testnet")
+	account := legacyDecredAccount(t, e, "decred-simnet", 0)
+	plan := retiredDecredPlan(account)
+	e.data.Operations = []journal.Operation{{Plan: plan, Digest: journal.Digest(plan), State: "PREPARED"}}
+	if err := e.persist(); err != nil {
+		t.Fatal(err)
+	}
+	before := e.data.Operations[0]
+	summaries := len(u.summaries)
+	if result, err := e.Sign(plan.ID); err == nil || len(result.Bytes) > 0 || result.Identity != "" {
+		t.Fatal("retired operation released signed artifact")
+	}
+	after := e.data.Operations[0]
+	if len(u.summaries) != summaries || after.State != before.State || after.Signed != nil || after.Digest != before.Digest {
+		t.Fatal("retired sign changed preserved journal or prompted")
+	}
+}
+
 func TestTP031FinalVaultShortWritePreservesPriorGeneration(t *testing.T) {
 	e, u, _ := newEngine(t, []model.Adapter{evm.New()})
 	createImported(t, e, u, "testnet")

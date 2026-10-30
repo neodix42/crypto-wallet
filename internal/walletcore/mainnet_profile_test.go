@@ -14,7 +14,7 @@ func TestPublicNetworkRegistrySeparatesCompleteMainnetAndTestProfiles(t *testing
 	for _, test := range []struct {
 		environment      string
 		networks, assets int
-	}{{"mainnet", 8, 10}, {"testnet", 11, 12}} {
+	}{{"mainnet", 8, 11}, {"testnet", 10, 11}} {
 		t.Run(test.environment, func(t *testing.T) {
 			c := &core{child: &supervisor.Child{Environment: test.environment}, adapters: chains.All()}
 			out, err := c.handle(message("networks", struct{}{}))
@@ -29,14 +29,14 @@ func TestPublicNetworkRegistrySeparatesCompleteMainnetAndTestProfiles(t *testing
 				}
 				families[network.Family] = true
 				assets += len(network.Assets)
-				if test.environment == "mainnet" && network.Family != "decred" && network.RPC == "" {
+				if test.environment == "mainnet" && network.RPC == "" {
 					t.Fatal("mainnet public RPC absent", network.ID)
 				}
-				if network.Family == "decred" && network.RPC != "" {
-					t.Fatal("unconfigured Decred claimed a default RPC")
+				if network.Family == "decred" {
+					t.Fatal("retired Decred network exposed")
 				}
 			}
-			if len(networks) != test.networks || assets != test.assets || len(families) != 6 {
+			if len(networks) != test.networks || assets != test.assets || len(families) != 5 {
 				t.Fatal("profile omitted required mainnet/testnet chain family or asset", len(networks), assets, len(families))
 			}
 		})

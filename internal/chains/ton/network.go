@@ -85,11 +85,14 @@ func (a *Adapter) state(ctx context.Context, id, addr string) (accountState, err
 	return st, nil
 }
 func (a *Adapter) authority(ctx context.Context, ac model.Account) (authority, error) {
-	meta, pub, e := descriptor(ac)
+	st, e := a.state(ctx, ac.Network, ac.Address)
 	if e != nil {
 		return authority{}, e
 	}
-	st, e := a.state(ctx, ac.Network, ac.Address)
+	return a.authorityFromState(ac, st)
+}
+func (a *Adapter) authorityFromState(ac model.Account, st accountState) (authority, error) {
+	meta, pub, e := descriptor(ac)
 	if e != nil {
 		return authority{}, e
 	}
@@ -154,11 +157,11 @@ func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balanc
 func (a *Adapter) estimate(ctx context.Context, p model.Plan, x Payload, body *cell.Cell, ignoreSignature bool) (uint64, error) {
 	args := map[string]any{"address": p.Account.Address, "body": base64.StdEncoding.EncodeToString(body.ToBOC()), "ignore_chksig": ignoreSignature, "init_code": "", "init_data": ""}
 	if x.Deploy {
-		_, pub, e := descriptor(p.Account)
+		meta, pub, e := descriptor(p.Account)
 		if e != nil {
 			return 0, e
 		}
-		init, _, e := StateInit(pub, p.Account.Network)
+		init, _, e := stateInitForWalletID(pub, meta.WalletID)
 		if e != nil {
 			return 0, e
 		}
@@ -253,12 +256,14 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	if auth.Seqno != x.Seqno || auth.Deploy != x.Deploy || auth.DataHash != x.SourceDataHash {
 		return model.Receipt{}, errors.New("TON authority or seqno changed since approval")
 	}
-	dst, e := a.state(ctx, p.Account.Network, p.Recipient)
-	if e != nil {
-		return model.Receipt{}, e
-	}
-	if (dst.State == "active") != x.Bounce || dst.State == "frozen" {
-		return model.Receipt{}, errors.New("TON recipient activation changed; new approval required")
+	if x.Kind != "deployment" {
+		dst, e := a.state(ctx, p.Account.Network, p.Recipient)
+		if e != nil {
+			return model.Receipt{}, e
+		}
+		if (dst.State == "active") != x.Bounce || dst.State == "frozen" {
+			return model.Receipt{}, errors.New("TON recipient activation changed; new approval required")
+		}
 	}
 	fee, e := a.estimate(ctx, p, x, ext.Body, false)
 	if e != nil {
@@ -279,7 +284,11 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	if e != nil {
 		return model.Receipt{Identity: s.Identity, State: "UNKNOWN", Detail: "submission uncertain; reconcile journaled external message before retrying"}, e
 	}
-	return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "external message submitted; source action and recipient credit await trace verification"}, nil
+	detail := "external message submitted; source action and recipient credit await trace verification"
+	if x.Kind == "deployment" {
+		detail = "deployment external message submitted; matching source execution and deployed authority await verification"
+	}
+	return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: detail}, nil
 }
 
 func (a *Adapter) transactions(ctx context.Context, id, addr string) ([]*tlb.Transaction, error) {
@@ -405,6 +414,9 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 		}
 		if !ok {
 			return model.Receipt{Identity: s.Identity, State: "FAILED", Detail: "source computation/action failed", Block: hex.EncodeToString(tx.Hash)}, nil
+		}
+		if x.Kind == "deployment" {
+			return a.reconcileDeployment(ctx, p, s, tx)
 		}
 		description := tx.Description.(tlb.TransactionDescriptionOrdinary)
 		if description.ActionPhase == nil {
