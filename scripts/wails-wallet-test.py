@@ -59,7 +59,7 @@ if args.appearance_only:
     report["scope"]="Targeted actual Light/18 px defaults, selected Settings tabs, Dark/24 px rendering and persistence after graceful restart, Enter-only unlock, and private two-field Bybit/footer layout. Disposable public fixture and API canaries only; custody confirmation is cancelled before encrypted credentials or any Bybit observation. No private pixels or values are retained."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (appearance-only mode)")
 if args.main_row_copy_only:
-    report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and direct Go-validated copy using the public disposable abandon/about phrase. The icon must keep the account overview open and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
+    report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and direct native copying of the displayed public address using the disposable abandon/about phrase. The icon must keep the account overview open, avoid wallet confirmation and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
 if args.clipboard_only:
     report["scope"]="Actual uninstrumented X11 copy buttons and Ctrl+C/Ctrl+Shift+C/Ctrl+Insert for selected public addresses in the overview, wallet tab and verified Receive window. Every operation replaces a fresh public sentinel in an independent native clipboard client; no DOM/test bridge, private recovery words or transaction. Public disposable fixture only."
@@ -685,9 +685,10 @@ def click(words, top=False, last=False, button=1):
         if matches:
             row = matches[-1] if last else matches[0]
             desktop.focus(desktop.wait("CryptoWallet")[0])
+            clicked_at=time.monotonic()
             desktop.click(int(row[6])+int(row[8])//2, int(row[7])+int(row[9])//2, button=button)
             time.sleep(.25)
-            return
+            return clicked_at
         if not top and words in ("Ethereum","Base","HyperEVM","HyperCore","NEAR","Aptos","Decred","TON") and attempt in (2,5,8):
             if desktop.secret_window():raise PrivateWindowVisible("Refusing public scrolling while a private prompt is visible")
             x,y,w,h=desktop.geometry(desktop.wait("CryptoWallet")[0])
@@ -803,9 +804,9 @@ def launch(installation, home):
     verify_window_icon()
 
 def receive_dialog_state(windows):
-    # A private GTK window can be mapped under its executable name before
-    # Wails assigns the verified title. It remains private throughout; this
-    # classifier never permits public OCR or acceptance of that loading view.
+    # Active dialogs live inside the main Wails window. Unexpected extra
+    # native windows, including obsolete prompt titles, still block public
+    # OCR and direct-copy acceptance rather than being treated as wallet UI.
     private = [title for _, title in windows if title != "CryptoWallet" and not title.startswith("CryptoWallet · ")]
     if not private:
         capture=getattr(desktop,"dialog_capture",None)
@@ -827,29 +828,45 @@ def reset_public_clipboard():
         raise RuntimeError("Owned test clipboard did not acknowledge its fresh public sentinel")
     return sentinel
 
-def public_copy_feedback(sentinel):
+def public_copy_feedback(sentinel,timing=None):
     if desktop.secret_window():
         raise PrivateWindowVisible("Unexpected private window during direct address copy")
     value=clipboard()
     if not value or value==sentinel:return None
-    if "Address copied." not in text():return None
+    observed_at=time.monotonic()
+    if timing is not None and "nativeClipboardObservedSeconds" not in timing:
+        # This upper bound ends at the independent native selection read,
+        # before expensive status OCR. Existing input-settle and window-guard
+        # overhead is included; there is deliberately no performance cutoff.
+        timing["nativeClipboardObservedSeconds"]=round(observed_at-timing["clickedAt"],4)
+    visible=text()
+    if timing is not None:
+        timing["feedbackReadSeconds"]=round(time.monotonic()-observed_at,4)
+    if "waiting for wallet confirmation" in visible.lower():
+        raise RuntimeError("Direct address copy incorrectly entered wallet confirmation")
+    if "Address copied." not in visible:return None
+    if timing is not None:timing["walletConfirmationAbsent"]=True
     return value
 
 def request_receive_copy(seconds=30):
-    # Direct Go validation/copy has no Receive approval. A new nonaddress
+    # Copying the displayed public value has no wallet request or approval. A new nonaddress
     # sentinel prevents a stale address or status from satisfying this check.
     sentinel=reset_public_clipboard()
     deadline=time.monotonic()+seconds
     requested=False
+    timing=None
     next_click=0
     while time.monotonic()<deadline:
         if receive_dialog_state(desktop.windows())!="absent":
             raise RuntimeError("Unexpected native dialog during direct address copy")
         if requested:
-            value=public_copy_feedback(sentinel)
-            if value:return value
+            value=public_copy_feedback(sentinel,timing)
+            if value:
+                report.setdefault("addressCopyTiming",[]).append({key:value for key,value in timing.items() if key!="clickedAt"})
+                return value
         if time.monotonic()>=next_click:
-            click("Copy address")
+            clicked_at=click("Copy address")
+            timing={"context":"wallet-address-button","clickedAt":clicked_at,"measurement":"native clipboard observation upper bound before status OCR; input settling and window guard included"}
             requested=True
             desktop.park_pointer()
             next_click=time.monotonic()+.75
@@ -945,14 +962,20 @@ def request_main_row_copy(seconds=30):
     sentinel=reset_public_clipboard()
     deadline=time.monotonic()+seconds
     requested=False
+    timing=None
     next_click=0
     desktop.park_pointer()
     while time.monotonic()<deadline:
         if receive_dialog_state(desktop.windows())!="absent":
             raise RuntimeError("Unexpected native dialog during direct main-row address copy")
         if requested:
-            value=public_copy_feedback(sentinel)
-            if value:return value
+            value=public_copy_feedback(sentinel,timing)
+            if value:
+                rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
+                if main_row_copy_target(rows,picture,geometry) is None:
+                    raise RuntimeError("Main-row copy icon became unavailable after direct address copy")
+                report.setdefault("addressCopyTiming",[]).append({key:value for key,value in timing.items() if key!="clickedAt"})
+                return value
         if time.monotonic()>=next_click:
             rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
             point=main_row_copy_target(rows,picture,geometry)
@@ -968,6 +991,7 @@ def request_main_row_copy(seconds=30):
                 if desktop.geometry(desktop.wait("CryptoWallet")[0])!=geometry:
                     raise RuntimeError("Main-row wallet geometry changed before address input")
                 desktop.focus(desktop.wait("CryptoWallet")[0])
+                timing={"context":"main-account-row-icon","clickedAt":time.monotonic(),"measurement":"native clipboard observation upper bound before status OCR; input settling and window guard included"}
                 desktop.click(*point)
                 requested=True
                 report.setdefault("mainRowCopy",{}).setdefault("attempts",0)

@@ -1,6 +1,22 @@
 # Implementation and release evidence
 
 
+## Immediate public-address copy — 2026-10-30
+
+The overview and wallet-tab copy buttons previously entered the generic wallet mutation queue, displayed “Waiting for wallet confirmation…” and reached the core/signer even though their public addresses were already visible. They now pass that exact visible address to the ordinary native clipboard runtime directly. Copy remains available during other wallet work. Only native clipboard writes are ordered together, so rapid clicks on different addresses leave the last requested address in the clipboard; wallet operations do not delay them. No confirmation, balance query or signing request is needed.
+
+| State | Evidence and limits |
+| --- | --- |
+| PASS, Go/race | All eight networks have matching displayed/copy values in overview and wallet tabs, including busy views. Changed descriptors update both values; locked, unconfirmed and empty addresses remain unavailable. Affected nativewallet/webui race suites pass. `reports/immediate-copy-go-tests.log`, `reports/immediate-copy-go-race.log`. |
+| PASS, helper controls | 131 current desktop-helper checks pass. Fresh exact native clipboard data plus success text cannot pass with a wallet-confirmation message; a disabled main copy icon fails. Native clipboard observation is recorded before expensive status OCR without a latency threshold. `reports/immediate-copy-helper-tests.log`. |
+| PASS, final frontend/build | 98 React tests, TypeScript and unchanged local coverage floors pass. Deferred distinct-address controls fail before the ordering guard and pass after it, including a rejected first write. Tests also cover a stalled/missing wallet bridge, strict native acknowledgment, fixed failure messages, seven-second repeated-copy feedback and stale-result suppression. `reports/clipboard-frontend-ordering-red.log`, `reports/clipboard-frontend-coverage.log`, `reports/clipboard-frontend-typecheck.log`. Final executable SHA256 `29a1b735d3b0f35ac8a758628ac4442df2fc5524365c66b277820ff6df800928`; `reports/immediate-copy-build-final.log`. |
+| PASS, actual clipboard | Seven uninstrumented owned-X11 checks pass on the exact final executable with sourceStable=true. One main-row click writes the exact address, leaves its icon enabled and shows no wallet-confirmation message; the wallet-tab button also passes. Native clipboard observation upper bounds are 0.374/0.632 seconds including input settling/window guards, before separate status OCR, without a performance cutoff. All nine overview/wallet/Receive selection shortcuts, Receive copy and password paste followed by Go authentication and exact phrase recovery pass. `reports/immediate-copy-clipboard.json`. This does not certify a new clean OS or Wayland matrix. |
+| PASS, final aggregate | `make test-ci` passes the current Go/stress suites, all 98 React tests and 131 current desktop-helper checks. `reports/immediate-copy-test-ci-final.log`. |
+| NOT_RUN at local checkpoint | New hosted CI/release, physical-machine/clean OS matrix, funded public-chain/Bybit acceptance and independent review. The previous architecture's acceptance below remains scoped to its recorded candidate. |
+
+Only public fixtures and disposable test profiles are used. The KDF, key handling, derivation, transaction approvals and blockchain coverage are unchanged.
+
+
 ## Single trusted UI and normal clipboard — 2026-10-29–30
 
 The owner explicitly replaced the separate prompt trust boundary. Passwords, import, recovery, Receive and transaction confirmations now use reusable dialogs in the main Wails window. The private UI self-role, separate HTML entry, inherited UI pipes, one-use renderer transport and per-view copy restrictions are removed. Ordinary bindings/runtime, Copy/Cut/Paste and the native context menu are enabled. Go still owns keys, encrypted storage, exact transaction validation and password/recovery checks. See [TRUSTED_UI.md](TRUSTED_UI.md).

@@ -74,7 +74,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
       const copy = node.ID.startsWith('copyReceive/');
       const loadAddress = node.ID.startsWith('addressBookLoad/'), saveAddress = node.ID.startsWith('addressBookSave/');
       const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap)/.test(node.ID);
-      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''} ${loadAddress || saveAddress ? 'addressbook-action' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : loadAddress || saveAddress ? node.Text : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : loadAddress || saveAddress ? node.Text : undefined} onClick={() => emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : loadAddress ? <AddressBookIcon/> : saveAddress ? <SaveAddressIcon/> : node.Text}</button>;
+      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button' : ''} ${primary ? 'primary' : ''} ${loadAddress || saveAddress ? 'addressbook-action' : ''}`} disabled={node.Disabled} title={node.Tooltip || (copy ? 'Copy receive address' : loadAddress || saveAddress ? node.Text : undefined)} aria-label={node.Text === '⧉' ? 'Copy receive address' : loadAddress || saveAddress ? node.Text : undefined} onClick={() => copy ? emit(node.ID, node.Value) : emit(node.ID)}>{copy ? <><CopyIcon/>{node.Text !== '⧉' && <span>Copy address</span>}</> : loadAddress ? <AddressBookIcon/> : saveAddress ? <SaveAddressIcon/> : node.Text}</button>;
     }
   }
 }
@@ -118,8 +118,36 @@ export function WalletShell({ view, status, emit }: { view: View; status: string
 
 export function PublicApp() {
   const [view, setView] = useState(blank), [status, setStatus] = useState('');
-  const queue = useRef(Promise.resolve()), live = useRef(true);
+  const [copyFeedbackRevision, setCopyFeedbackRevision] = useState(0);
+  const queue = useRef(Promise.resolve()), clipboardQueue = useRef(Promise.resolve()), live = useRef(true), currentView = useRef(blank), copyRequest = useRef(0);
+  const copyTarget = useRef<{ ID: string; Value: string; page: string } | null>(null);
+  const copyable = (ID: string, Value: string, state = currentView.current) => {
+    const pages = state.Pages || [], page = pages.find(page => page.ID === state.Active) || pages[0];
+    const matches = (nodes: Node[]): boolean => nodes.some(node => node.Kind === 'button' && node.ID === ID && !node.Disabled && node.Value === Value || matches(node.Children || []));
+    return !!Value && matches(page?.Nodes || []);
+  };
+  const copyFeedback = (message: string) => { setStatus(message); setCopyFeedbackRevision(revision => revision + 1); };
   const emit: Emit = (ID, Value = '') => {
+    if (ID.startsWith('copyReceive/')) {
+      const request = ++copyRequest.current, page = currentView.current.Active;
+      if (!copyable(ID, Value)) { copyTarget.current = null; copyFeedback('Could not copy address. Try again.'); return; }
+      copyTarget.current = { ID, Value, page };
+      copyFeedback('');
+      const current = () => live.current && request === copyRequest.current && page === currentView.current.Active && copyable(ID, Value);
+      const write = async () => {
+        if (!current()) return;
+        try {
+          const copied = await window.runtime?.ClipboardSetText?.(Value);
+          if (current()) copyFeedback(copied === true ? 'Address copied.' : 'Could not copy address. Try again.');
+        } catch { if (current()) copyFeedback('Could not copy address. Try again.'); }
+        finally { if (request === copyRequest.current) copyTarget.current = null; }
+      };
+      // Native runtime calls can be dispatched concurrently. Keep clipboard
+      // writes ordered without waiting for any wallet operation or approval.
+      clipboardQueue.current = clipboardQueue.current.then(write, write);
+      return;
+    }
+    if (ID !== 'activity') { copyRequest.current++; copyTarget.current = null; }
     const bridge = window.go?.webui?.PublicBridge;
     if (!bridge) { setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.'); return; }
     const event: WalletEvent = { ID, Value };
@@ -128,7 +156,14 @@ export function PublicApp() {
   useEffect(() => {
     live.current = true; applyAppearance();
     let disposed = false, pushed = false;
-    const accept = (value: unknown) => { if (disposed) return; if (validView(value)) { applyAppearance(value.Appearance); setView(value); document.title = value.Title; } else setStatus('The wallet returned an invalid view. Close and reopen CryptoWallet.'); };
+    const accept = (value: unknown) => {
+      if (disposed) return;
+      if (validView(value)) {
+        const target = copyTarget.current;
+        if (target && (target.page !== value.Active || value.Status !== currentView.current.Status || value.StatusRevision !== currentView.current.StatusRevision || !copyable(target.ID, target.Value, value))) { copyRequest.current++; copyTarget.current = null; }
+        currentView.current = value; applyAppearance(value.Appearance); setView(value); document.title = value.Title;
+      } else { copyRequest.current++; copyTarget.current = null; setStatus('The wallet returned an invalid view. Close and reopen CryptoWallet.'); }
+    };
     const bridge = window.go?.webui?.PublicBridge;
     const unsubscribe = window.runtime?.EventsOn('wallet:view', value => { pushed = true; accept(value); });
     if (bridge) bridge.Snapshot().then(value => { if (!pushed) accept(value); }).catch(() => { if (!disposed) setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.'); });
@@ -136,9 +171,9 @@ export function PublicApp() {
     let lastActivity = 0;
     const activity = () => { const now = Date.now(); if (now - lastActivity >= 1000) { lastActivity = now; emit('activity'); } };
     window.addEventListener('pointerdown', activity); window.addEventListener('keydown', activity);
-    return () => { disposed = true; live.current = false; unsubscribe?.(); window.removeEventListener('pointerdown', activity); window.removeEventListener('keydown', activity); };
+    return () => { disposed = true; live.current = false; copyRequest.current++; copyTarget.current = null; unsubscribe?.(); window.removeEventListener('pointerdown', activity); window.removeEventListener('keydown', activity); };
   }, []);
   useEffect(() => { setStatus(view.Status); }, [view.Status, view.StatusRevision]);
-  useEffect(() => { if (!status) return; const timer = window.setTimeout(() => setStatus(''), 7000); return () => window.clearTimeout(timer); }, [status, view.StatusRevision]);
+  useEffect(() => { if (!status) return; const timer = window.setTimeout(() => setStatus(''), 7000); return () => window.clearTimeout(timer); }, [status, view.StatusRevision, copyFeedbackRevision]);
   return <><WalletShell view={view} status={status} emit={emit}/><DialogHost onError={setStatus}/></>;
 }

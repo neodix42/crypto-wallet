@@ -35,20 +35,20 @@ describe('public React renderer', () => {
   });
   it('keeps full addresses and provider observation only in tooltip, with copy independent of row open', async () => {
     const address = 'a'.repeat(97), row = node('row', 'open/a');
-    row.Children = [node('button', 'open/a', 'Ethereum'), node('label', '', '1.25 ETH'), node('address', '', '', address), node('button', 'copyReceive/a', '⧉')];
+    row.Children = [node('button', 'open/a', 'Ethereum'), node('label', '', '1.25 ETH'), node('address', '', '', address), node('button', 'copyReceive/a', '⧉', address)];
     row.Children[1].Tooltip = 'Provider observed at 123';
     const emit = vi.fn(); await mount(<PublicContent page={{ ID: 'group/0', Title: 'Main account', Nodes: [row] }} emit={emit}/>);
     expect(host.querySelector('code')!.textContent).toBe(address);
     expect(host.textContent).not.toContain('Provider observed');
     expect(host.querySelector('[title="Provider observed at 123"]')).not.toBeNull();
     await click(host.querySelector('[data-action="copyReceive/a"]'));
-    expect(emit.mock.calls).toEqual([['copyReceive/a']]);
+    expect(emit.mock.calls).toEqual([['copyReceive/a', address]]);
     await click(host.querySelector('td:nth-child(2)'));
     expect(emit.mock.calls[1]).toEqual(['open/a']);
   });
   it('preserves public address selection and native copy shortcuts without opening the wallet row', async () => {
     const address = '0x' + '2'.repeat(40), row = node('row', 'open/public');
-    row.Children = [node('button', 'open/public', 'Ethereum'), node('label', '', 'Unknown ETH'), node('address', '', '', address), node('button', 'copyReceive/public', '⧉')];
+    row.Children = [node('button', 'open/public', 'Ethereum'), node('label', '', 'Unknown ETH'), node('address', '', '', address), node('button', 'copyReceive/public', '⧉', address)];
     const emit = vi.fn(); await mount(<PublicContent page={{ ID: 'group/0', Title: 'Main account', Nodes: [row] }} emit={emit}/>);
     const tr = host.querySelector('tbody tr')!, code = tr.querySelector('code')!, balance = tr.querySelector('td:nth-child(2)')!;
     await click(code);
@@ -72,7 +72,7 @@ describe('public React renderer', () => {
       expect(selection.toString()).toBe(address);
       expect(emit).not.toHaveBeenCalled();
       await click(tr.querySelector('[data-action="copyReceive/public"]'));
-      expect(emit.mock.calls).toEqual([['copyReceive/public']]);
+      expect(emit.mock.calls).toEqual([['copyReceive/public', address]]);
       selection.removeAllRanges();
       await click(balance);
       for (const key of ['Enter', ' ']) {
@@ -80,7 +80,7 @@ describe('public React renderer', () => {
         await act(async () => { tr.dispatchEvent(activation); });
         expect(activation.defaultPrevented).toBe(true);
       }
-      expect(emit.mock.calls).toEqual([['copyReceive/public'], ['open/public'], ['open/public'], ['open/public']]);
+      expect(emit.mock.calls).toEqual([['copyReceive/public', address], ['open/public'], ['open/public'], ['open/public']]);
     } finally { selection.removeAllRanges(); }
   });
   it('renders token balances in three columns and exposes exact contract identity only on hover or focus', async () => {

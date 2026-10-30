@@ -335,7 +335,7 @@ class WailsPrivateStartup(unittest.TestCase):
         ticks = iter(range(1, 10000))
         self.clock.monotonic_ns = lambda: next(ticks)
         self.desktop = SimpleNamespace(windows=mock.Mock(), image=mock.Mock(), park_pointer=mock.Mock(), dialog_capture=mock.Mock(return_value=None), d=object())
-        self.click = mock.Mock()
+        self.click = mock.Mock(side_effect=lambda *_: self.clock.now)
         self.address = '0x1111111111111111111111111111111111111111'
         self.clipboard_value = self.address
         def clipboard(value=None):
@@ -344,7 +344,8 @@ class WailsPrivateStartup(unittest.TestCase):
             return self.clipboard_value
         self.clipboard = mock.Mock(side_effect=clipboard)
         self.status = mock.Mock(return_value='Copy address')
-        self.scope = {'time': self.clock, 'desktop': self.desktop, 'click': self.click,
+        self.report = {}
+        self.scope = {'time': self.clock, 'desktop': self.desktop, 'click': self.click, 'report': self.report,
                       'clipboard': self.clipboard, 'text': self.status,
                       'PrivateWindowVisible': type('PrivateWindowVisible', (RuntimeError,), {})}
         self.desktop.secret_window = lambda: self.scope['secret_window'](self.desktop)
@@ -367,6 +368,7 @@ class WailsPrivateStartup(unittest.TestCase):
     def complete_copy(self, *_):
         self.clipboard_value = self.address
         self.status.return_value = 'Address copied.'
+        return self.clock.now
 
     def test_direct_copy_returns_a_fresh_write_and_status_without_a_private_prompt(self):
         self.click.side_effect = self.complete_copy
@@ -387,7 +389,7 @@ class WailsPrivateStartup(unittest.TestCase):
         self.desktop.image.assert_not_called()
 
     def test_clipboard_write_without_success_status_does_not_claim_copy_success(self):
-        self.click.side_effect = lambda *_: setattr(self, 'clipboard_value', self.address)
+        self.click.side_effect = lambda *_: (setattr(self, 'clipboard_value', self.address), self.clock.now)[1]
         with self.assertRaisesRegex(RuntimeError, 'bounded deadline'):
             self.scope['request_receive_copy'](seconds=.2)
         self.assertEqual(self.clipboard_value, self.address)
@@ -403,6 +405,42 @@ class WailsPrivateStartup(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'fresh public sentinel'):
             self.scope['request_receive_copy'](seconds=.2)
         self.click.assert_not_called()
+
+    def test_confirmation_message_cannot_pass_even_with_a_fresh_exact_address_and_success_text(self):
+        def copied_with_confirmation(*_):
+            self.clipboard_value = self.address
+            self.status.return_value = 'Waiting for wallet confirmation… Address copied.'
+            return self.clock.now
+        self.click.side_effect = copied_with_confirmation
+        with self.assertRaisesRegex(RuntimeError, 'incorrectly entered wallet confirmation'):
+            self.scope['request_receive_copy'](seconds=1)
+        self.assertNotIn('addressCopyTiming', self.report)
+
+    def test_native_clipboard_timing_is_recorded_before_slow_status_ocr_without_a_latency_gate(self):
+        sentinel = self.scope['reset_public_clipboard']()
+        self.clipboard_value = self.address
+        self.clock.now = 10
+        timing = {'clickedAt': 9.75}
+        def slow_ocr():
+            self.clock.now += 5
+            return 'Address copied.'
+        self.status.side_effect = slow_ocr
+        self.assertEqual(self.scope['public_copy_feedback'](sentinel,timing),self.address)
+        self.assertEqual(timing['nativeClipboardObservedSeconds'],.25)
+        self.assertEqual(timing['feedbackReadSeconds'],5)
+        self.assertTrue(timing['walletConfirmationAbsent'])
+        self.assertEqual(self.clock.now,15)
+
+    def test_pending_status_keeps_the_first_fresh_native_observation_time(self):
+        sentinel = self.scope['reset_public_clipboard']()
+        self.clipboard_value = self.address
+        timing = {'clickedAt': 0}
+        self.clock.now = .4
+        self.assertIsNone(self.scope['public_copy_feedback'](sentinel,timing))
+        self.clock.now = 3
+        self.status.return_value = 'Address copied.'
+        self.assertEqual(self.scope['public_copy_feedback'](sentinel,timing),self.address)
+        self.assertEqual(timing['nativeClipboardObservedSeconds'],.4)
 
     def test_feedback_needs_a_nonempty_new_value_and_status_and_checks_private_state_first(self):
         sentinel = self.scope['reset_public_clipboard']()
@@ -601,9 +639,28 @@ class WailsMainRowCopy(unittest.TestCase):
         self.desktop.click.side_effect=self.complete_copy
         self.assertEqual(self.scope['request_main_row_copy'](seconds=2),self.address)
         self.desktop.click.assert_called_once_with(1416,558)
-        self.assertEqual(self.rows.call_count,2)
+        self.assertEqual(self.rows.call_count,3)
         self.assertEqual(self.report['mainRowCopy']['attempts'],1)
+        self.assertTrue(self.report['addressCopyTiming'][0]['walletConfirmationAbsent'])
         self.desktop.accept.assert_not_called()
+
+    def test_copy_cannot_succeed_if_its_icon_becomes_disabled_after_the_native_write(self):
+        self.targets('enabled','disabled')
+        self.desktop.click.side_effect=self.complete_copy
+        with self.assertRaisesRegex(RuntimeError,'became unavailable after direct address copy'):
+            self.scope['request_main_row_copy'](seconds=1)
+        self.desktop.click.assert_called_once_with(1416,558)
+        self.assertNotIn('addressCopyTiming',self.report)
+
+    def test_main_copy_rejects_wallet_confirmation_even_when_clipboard_and_status_succeed(self):
+        self.targets('enabled')
+        def confirmed_copy(*_):
+            self.clipboard_value=self.address
+            self.status.return_value='Account group Waiting for wallet confirmation… Address copied.'
+        self.desktop.click.side_effect=confirmed_copy
+        with self.assertRaisesRegex(RuntimeError,'incorrectly entered wallet confirmation'):
+            self.scope['request_main_row_copy'](seconds=1)
+        self.assertNotIn('addressCopyTiming',self.report)
 
     def test_disabled_control_cannot_copy_or_claim_success_from_old_clipboard_and_status(self):
         self.targets('disabled')
@@ -661,7 +718,7 @@ class WailsMainRowCopy(unittest.TestCase):
         self.assertEqual(self.scope['request_main_row_copy'](seconds=1),self.address)
         reveal.assert_called_once_with(self.geometry)
         self.desktop.click.assert_called_once_with(1416,558)
-        self.assertEqual(self.rows.call_count,2)
+        self.assertEqual(self.rows.call_count,3)
 
     def test_actual_reveal_uses_only_owned_horizontal_wheel_and_rejects_private_window(self):
         motion,button,flush=mock.Mock(),mock.Mock(),mock.Mock()

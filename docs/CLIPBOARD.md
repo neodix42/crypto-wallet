@@ -1,5 +1,5 @@
 # Clipboard interaction
 
-The entire application now uses a trusted single-window UI. See [TRUSTED_UI.md](TRUSTED_UI.md) for normal Copy/Cut/Paste, keyboard shortcuts, direct address buttons, phrase copying and the changed trust model. No private prompt process, separate entry page or per-view native copy permission remains.
+The entire application now uses a trusted single-window UI. See [TRUSTED_UI.md](TRUSTED_UI.md) for normal Copy/Cut/Paste, keyboard shortcuts, direct address buttons, phrase copying and the changed trust model. Overview and wallet-tab copy buttons use the already displayed address and call the ordinary native clipboard runtime immediately, outside the wallet request queue. No confirmation or core/signer roundtrip is involved. No private prompt process, separate entry page or per-view native copy permission remains.
 
 `make test-wails-security` exercises actual system WebKit/GTK clipboard behavior with public markers on an owned display. `scripts/wails-wallet-test.py --clipboard-only` exercises actual wallet buttons and selected address shortcuts. The complete GUI campaign also checks setup, recovery and reusable dialogs. Clipboard reports must distinguish exact successful OS clipboard values from missing selection, blocked execution or unrun paths; an accepted click alone is not a copy pass.

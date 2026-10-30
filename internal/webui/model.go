@@ -1,5 +1,5 @@
-// Package webui renders public wallet data with Wails and system WebKitGTK.
-// Private signer prompts run in a separate process and never enter View.
+// Package webui renders wallet pages and dialogs with Wails and system WebKitGTK.
+// View contains page data; DialogView represents the current in-window dialog.
 package webui
 
 import (

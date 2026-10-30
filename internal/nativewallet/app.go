@@ -1258,6 +1258,14 @@ func (a *App) button(id, text string, disabled bool) webui.Node {
 	n.Disabled = disabled || a.busy
 	return n
 }
+
+// The trusted UI copies this already displayed public value directly through
+// the native clipboard runtime. It does not need wallet work or its busy gate.
+func (a *App) addressCopyButton(account model.Account, text string) webui.Node {
+	n := node("button", "copyReceive/"+account.ID, text, account.Address)
+	n.Disabled = a.state.Locked || !a.state.RecoveryConfirmed || account.Address == ""
+	return n
+}
 func (a *App) entry(key, title string) webui.Node {
 	n := node("entry", "field/"+key, title, a.fields[key])
 	n.Disabled = a.busy
@@ -1411,7 +1419,7 @@ func (a *App) groupPage(index uint32) webui.Page {
 		balance := label(value + " " + native.Symbol)
 		balance.Tooltip = observation
 		address := node("address", "", "", account.Address)
-		r := row(a.button("open/"+account.ID, network.Name, false), balance, address, a.button("copyReceive/"+account.ID, "⧉", !a.state.RecoveryConfirmed))
+		r := row(a.button("open/"+account.ID, network.Name, false), balance, address, a.addressCopyButton(account, "⧉"))
 		r.ID = "open/" + account.ID
 		page.Nodes = append(page.Nodes, r)
 	}
@@ -1425,7 +1433,7 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	network := a.network(account.Network)
 	value, _ := a.balance(account, asset)
 	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
-	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.button("copyReceive/"+account.ID, "⧉ Copy address", !a.state.RecoveryConfirmed)), heading(value + " " + asset.Symbol)}
+	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉ Copy address")), heading(value + " " + asset.Symbol)}
 	if account.Family == "near" {
 		section := a.fields["walletSection/"+account.ID]
 		if section != "Staking" {
