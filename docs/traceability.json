@@ -421,9 +421,9 @@
     },
     {
       "id": "TP110-provider-arbitrum-ton-valuation",
-      "status": "NOT_RUN",
-      "evidence": "Implementation and current scoped evidence checklist: docs/RPC_TON_ARBITRUM_VALUATION.md. Replacement provider production-Go read-only queries; independent Arbitrum protocol/local EVM execution; TON immutable V5R1 subwallet42/legacy recovery and zero-outgoing TVM deployment; GRAM identity and public-price rational totals with named missing-asset hints; retired Decred encrypted-record recovery and route denial.",
-      "remaining": "Final aggregate/hosted verification in progress. Public funded Arbitrum/TON acceptance and actual Nitro-node execution NOT_RUN. Base/Arbitrum public history index HTTP403; no private index key supplied. Full OS matrix/soak/independent review remain separate gates."
+      "status": "PASS",
+      "evidence": "Scoped local/read-only acceptance passes: docs/RPC_TON_ARBITRUM_VALUATION.md and current docs/STATUS.md. Exact source 4a20e5a passes both hosted jobs in https://github.com/neodix42/crypto-wallet/actions/runs/41088343394: complete units/race/stress, semantic mutants, interoperability, actual local chain integrations, fuzz, dependency, recovery/crash and desktop/installer/private-geth gates. Replacement providers pass production-Go read-only probes; Arbitrum has independent protocol and isolated EVM execution; TON preserves V1/42 identities and passes zero-outgoing TVM deployment; GRAM and exact public-price totals include named missing-asset hints; retired Decred encrypted records remain recoverable with active routes denied. Normal release 0.1.27 passes independent publisher, archive, inventory and version verification.",
+      "remaining": "Public funded Arbitrum/TON acceptance, positive funded GUI deployment, actual Nitro-node execution and candidate-wide coverage-floor acceptance NOT_RUN. Base/Arbitrum public history index HTTP403; no private index key supplied. Full X11/Wayland OS matrix, 24-hour soak and independent review remain separate unpassed gates; this scoped PASS is not a production or audit claim."
     }
   ]
 }

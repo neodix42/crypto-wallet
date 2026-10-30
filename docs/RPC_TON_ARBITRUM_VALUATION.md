@@ -30,14 +30,17 @@ Known zero balances need no quote. Unknown balances, positive unsupported tokens
 
 ## Evidence checklist
 
-Evidence is being collected for this candidate. Passing local tests do not imply public funded acceptance, a production SLA, complete historical indexing, a Nitro-node integration, an OS matrix or an independent audit. See the current section in [STATUS.md](STATUS.md).
+Evidence below records the stated local and read-only scope for this candidate. Passing local tests do not imply public funded acceptance, a production SLA, complete historical indexing, a Nitro-node integration, an OS matrix or an independent audit. See the current section in [STATUS.md](STATUS.md).
 
 - PASS: production Go read-only identity/capability probes of the replacement providers and Arbitrum.
 - PASS: independent EVM vectors and isolated Go-signed native/ERC-20 execution across Ethereum/Base/Arbitrum-shaped ledgers; no public funds used.
 - PASS: actual TON emulator activates the exact funded V5R1 contract with no outgoing transfers, rejects replay/expiry/wrong network; critical TON package coverage exceeds 95%.
 - PASS: public price client, strict identity, rational valuation, cancellation/privacy/cache regressions and read-only live price observations.
 - PASS: 71 semantic security mutants, 11 real local integration gates, 29 actual generated-root Wails/X11 steps, four scoped TON GUI checks, fresh-copy 24-descriptor recovery, ten portable installer checks, dependency/workflow checks and 109 frontend tests.
-- PASS: final complete current unit/helper/React aggregate and all 23 permanent fuzz targets with source stability.
-- IN_PROGRESS: complete race aggregate, final security binding rerun and hosted CI/release.
+- PASS: final complete current unit/helper/React aggregate, full Go race/stress suite, all 23 permanent fuzz targets with source stability, and final 146 desktop-helper regressions. The final generated-root GUI rerun passes all 29 steps with source stability and exact native clipboard comparisons.
+- PASS: final 71-mutant local campaign; all semantic records pass with stable sources at execution. Subsequent changes are confined to the desktop helper/locator.
+- PASS: hosted build/publication and independent publisher authentication of normal release 0.1.27 for exact commit `4a20e5a`; one portable archive, matching version and four-file inventory.
+- PASS: complete hosted desktop job for that exact commit, including all 29 generated-root GUI steps, four TON/GRAM checks, fresh-copy recovery, portable installation and eight private-geth headless send checks.
+- PASS: complete hosted backend job at that exact commit: unit/frontend/tools, security/mutants, full race/stress, independent interoperability, actual local chain execution, fuzzing, signed USDT, dependencies, recovery and crash/canary checks. Both jobs in [run 41088343394](https://github.com/neodix42/crypto-wallet/actions/runs/41088343394) pass without skipped steps.
 - BLOCKED: Base/Arbitrum public history index HTTP 403; no private indexing key supplied.
 - NOT_RUN: public funded Arbitrum/TON deployment acceptance, actual Nitro local node, complete X11/Wayland OS matrix, 24-hour soak and independent security review.
