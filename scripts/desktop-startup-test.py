@@ -766,7 +766,7 @@ class WailsMainRowCopy(unittest.TestCase):
 class WailsPublicKeyboardCopy(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('address_selection_target','native_copy_shortcut','public_words_position')
+        names=('address_phrase_bounds','address_selection_target','native_copy_shortcut','public_words_position')
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
         self.desktop=SimpleNamespace(d=object())
         self.clock=SimpleNamespace(sleep=mock.Mock())
@@ -786,14 +786,16 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
 
     def fixture(self,context):
         if context=='overview':
-            labels=[self.word('Account',180,300,line=1),self.word('group',270,300,line=1),self.word('Ethereum',178,552,line=2)]
+            labels=[self.word('Account',180,300,line=1),self.word('group',270,300,line=1),
+                    self.word('Network',160,500,90),self.word('Native',320,500,70),self.word('balance',400,500,75),
+                    self.word('Receive',500,500,75),self.word('address',585,500,80),self.word('Ethereum',178,552,line=2)]
             top=552
         elif context=='wallet':
-            labels=[self.word('Copy',1100,400,line=1),self.word('address',1195,400,line=1),
+            labels=[self.word('Copy',1300,490,line=1),self.word('address',1395,490,line=1),
                     self.word('Receive',180,490,line=2),self.word('address',275,490,line=2)]
             top=490
         else:
-            labels=[self.word('Copy',1100,520,line=1),self.word('address',1195,520,line=1)]
+            labels=[self.word('Copy',1300,520,line=1),self.word('address',1395,520,line=1)]
             top=520
         return labels+[self.word(self.address,500,top,700,line=3)],(850,top+9)
 
@@ -827,15 +829,75 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
     def test_ambiguous_address_tokens_clipped_tokens_and_unowned_bounds_are_rejected(self):
         rows,_=self.fixture('overview')
         for extra in (self.word('Ethereum',178,552,line=4),self.word(self.address,510,552,700,line=4)):
-            with self.subTest(extra=extra[11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+            with self.subTest(extra=extra[11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible|ambiguous'):
                 self.scope['address_selection_target']('overview',rows+[extra],self.geometry)
         for left in ('70','1000'):
             clipped=[list(row) for row in rows];clipped[-1][6]=left
-            with self.subTest(left=left),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+            with self.subTest(left=left),self.assertRaisesRegex(RuntimeError,'not uniquely visible|clipped'):
                 self.scope['address_selection_target']('overview',clipped,self.geometry)
         with self.assertRaisesRegex(RuntimeError,'owned display'):
             self.scope['address_selection_target']('overview',rows,(80,100,1600,1100))
         self.events.assert_not_called()
+
+    def test_separate_zero_x_hex_and_punctuation_chunks_locate_each_public_context(self):
+        for context in ('overview','wallet','receive'):
+            for chunks in (['0x','73410EA1','FcbE1b8b','CA883762dC56beF46403A469'],
+                           ['0','x','73410EA1FcbE1b8bCA883762dC56beF46403A469'],
+                           ['(0x73410EA1FcbE1b8bCA883762dC56beF46403A469),'],
+                           ['73410EA1FcbE1b8bCA883762dC56beF46403A469']):
+                rows,_=self.fixture(context);top=int(rows[-1][7]);rows.pop();left=500
+                for chunk in chunks:
+                    width=max(10,len(chunk)*10)
+                    # Different OCR blocks/lines still represent one visible
+                    # code line; the exact OS clipboard is checked separately.
+                    rows.append(self.word(chunk,left,top,width,line=len(rows)+1));left+=width+3
+                with self.subTest(context=context,chunks=len(chunks)):
+                    point=self.scope['address_selection_target'](context,rows,self.geometry)
+                    self.assertTrue(500<=point[0]<left)
+                    self.assertEqual(point[1],top+9)
+        self.events.assert_not_called()
+
+    def test_other_wallet_rows_and_native_balance_cannot_supply_the_fallback(self):
+        rows,_=self.fixture('overview');rows[-1][11]='0x';rows[-1][8]='20'
+        rows.extend([self.word('73410EA1FcbE1b8bCA883762dC56beF46403A469',525,552,400),
+                     self.word('Base',178,616),self.word('0x',500,616,20),self.word('f'*40,525,616,400),
+                     self.word('a'*12,325,552,120)])
+        self.assertEqual(self.scope['address_selection_target']('overview',rows,self.geometry),(725,561))
+        rows=[r for r in rows if not (r[11].startswith('73410'))]
+        with self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+            self.scope['address_selection_target']('overview',rows,self.geometry)
+
+    def test_duplicate_headers_labels_and_overlapping_body_boxes_fail_closed(self):
+        for context in ('overview','wallet','receive'):
+            rows,_=self.fixture(context)
+            extra=self.word(self.address[2:],510,int(rows[-1][7]),400,line=20)
+            with self.subTest(context=context),self.assertRaisesRegex(RuntimeError,'ambiguous'):
+                self.scope['address_selection_target'](context,rows+[extra],self.geometry)
+        rows,_=self.fixture('overview')
+        for extra in ([self.word('Receive',900,500,75),self.word('address',985,500,80)],
+                      [self.word('Ethereum',178,616)],
+                      [self.word('Network',160,450,90),self.word('Native',320,450,70),self.word('balance',400,450,75),self.word('Receive',500,450,75),self.word('address',585,450,80)]):
+            with self.subTest(extra=extra[0][11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+                self.scope['address_selection_target']('overview',rows+extra,self.geometry)
+
+    def test_chunk_fallback_cannot_cross_address_column_or_copy_button(self):
+        for context in ('overview','wallet','receive'):
+            rows,_=self.fixture(context);top=int(rows[-1][7]);rows.pop()
+            for left,width in ((480,60),(1450,150)) if context=='overview' else ((70,80),(1250,120)):
+                candidate=rows+[self.word('0x',500,top,20),self.word('a'*12,left,top,width)]
+                with self.subTest(context=context,left=left),self.assertRaisesRegex(RuntimeError,'clipped|not uniquely visible'):
+                    self.scope['address_selection_target'](context,candidate,self.geometry)
+
+    def test_fallback_reports_numeric_geometry_without_retaining_ocr_values(self):
+        rows,_=self.fixture('overview');rows[-1][11]='0x';rows[-1][8]='20'
+        rows.append(self.word('a'*40,525,552,400))
+        diagnostic={}
+        point=self.scope['address_selection_target']('overview',rows,self.geometry,diagnostic)
+        self.assertEqual(point,(725,561))
+        self.assertEqual(diagnostic['prefixCandidates'],0)
+        self.assertEqual(diagnostic['fallbackCandidates'],1)
+        self.assertNotIn('a'*40,json.dumps(diagnostic))
+        self.assertEqual(diagnostic['column'],[492,1472])
 
     def test_supported_native_shortcuts_release_all_keys_in_reverse_order(self):
         for shortcut,codes in (('Ctrl+C',(37,54)),('Ctrl+Shift+C',(37,50,54)),('Ctrl+Insert',(37,118))):

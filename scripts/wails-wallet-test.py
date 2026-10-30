@@ -1027,7 +1027,27 @@ def main_row_copy(expected_address=None):
     passed("Main-account row copy icon directly copies its validated address without opening a wallet tab or private dialog")
     return copied
 
-def address_selection_target(context,rows,geometry):
+def address_phrase_bounds(words,rows):
+    # Locate static public labels geometrically. PSM 11 may assign adjacent
+    # words different block IDs; labels still need one baseline and sane gaps.
+    wanted=words.lower().split()
+    normalized=lambda value:value.lower().strip("·.,:;()[]")
+    result=[]
+    for row in rows:
+        if len(row)!=12:continue
+        left,top,width,height=(int(row[index]) for index in (6,7,8,9))
+        if width<=0 or not 8<=height<=36:continue
+        if normalized(row[11])==" ".join(wanted):
+            result.append((left,top,left+width,top+height))
+        elif len(wanted)==2 and normalized(row[11])==wanted[0]:
+            for other in rows:
+                if len(other)!=12 or normalized(other[11])!=wanted[1]:continue
+                x,y,w,h=(int(other[index]) for index in (6,7,8,9))
+                if w>0 and 8<=h<=36 and 0<=x-(left+width)<=max(40,height*3) and abs(y+h//2-(top+height//2))<=6:
+                    result.append((left,min(top,y),x+w,max(top+height,y+h)))
+    return result
+
+def address_selection_target(context,rows,geometry,diagnostics=None):
     # OCR locates a visible public code token; only an independent exact OS
     # clipboard comparison determines whether the selected address is right.
     # No glyph is rewritten to the expected address and no DOM is inspected.
@@ -1036,6 +1056,9 @@ def address_selection_target(context,rows,geometry):
     x,y,w,h=geometry
     if x<0 or y<0 or x+w>1600 or y+h>1100:
         raise RuntimeError("Public address-selection bounds exceed the owned display")
+    if diagnostics is not None:diagnostics.update(view=context,window=list(geometry))
+    inside=lambda box:x<box[0]<box[2]<x+w and y<box[1]<box[3]<y+h
+    left_bound,right_bound=x+12,x+w-12
     visible=" ".join(row[11] for row in rows)
     if context=="overview":
         if "Account group" not in visible or public_words_position("Copy address",rows):
@@ -1043,24 +1066,86 @@ def address_selection_target(context,rows,geometry):
         labels=[row for row in rows if row[11]=="Ethereum" and y+145<int(row[7])<y+h-55]
         if len(labels)!=1:raise RuntimeError("Ethereum selection row was not uniquely visible")
         center_y=int(labels[0][7])+int(labels[0][9])//2
+        # An OCR fragment in Native balance or another wallet row is never an
+        # address target. Require the ordered, same-baseline table headings.
+        headers=[]
+        for network in address_phrase_bounds("Network",rows):
+            for balance in address_phrase_bounds("Native balance",rows):
+                for receive in address_phrase_bounds("Receive address",rows):
+                    if (all(inside(box) for box in (network,balance,receive)) and network[2]<balance[0]<balance[2]<receive[0]
+                        and max(box[3] for box in (network,balance,receive))-min(box[1] for box in (network,balance,receive))<=36
+                        and max(box[3] for box in (network,balance,receive))<int(labels[0][7])-12
+                        and network[0]-8<=int(labels[0][6])<balance[0]-8):
+                        headers.append((network,balance,receive))
+        if len(headers)!=1:raise RuntimeError("Receive-address selection column was not uniquely visible")
+        left_bound=headers[0][2][0]-8
+        right_bound=x+w-48 # Leave the icon column outside eligible text boxes.
     else:
         if context=="wallet" and not public_words_position("Copy address",rows):
             raise RuntimeError("Address selection left the wallet page")
-        label=public_words_position("Receive address" if context=="wallet" else "Copy address",rows)
-        if not label:raise RuntimeError("Public address label was not visible")
-        center_y=label[1]
+        labels=address_phrase_bounds("Receive address" if context=="wallet" else "Copy address",rows)
+        labels=[box for box in labels if inside(box)]
+        if len(labels)!=1:raise RuntimeError("Public address label was not uniquely visible")
+        label=labels[0]
+        center_y=(label[1]+label[3])//2
+        if context=="wallet":left_bound=label[2]+4
+        copies=[box for box in address_phrase_bounds("Copy address",rows) if inside(box) and abs((box[1]+box[3])//2-center_y)<=24]
+        if len(copies)!=1:raise RuntimeError("Public address Copy button was not uniquely visible")
+        right_bound=copies[0][0]-8
+    if right_bound-left_bound<80:raise RuntimeError("Public address selection column was clipped")
+    if diagnostics is not None:diagnostics.update(column=[left_bound,right_bound],rowCenter=center_y)
+    eligible=[]
     candidates=[]
     for row in rows:
         left,top,width,height=(int(row[index]) for index in (6,7,8,9))
         # PSM 6 can split a long rendered address into adjacent OCR tokens.
         # A unique visible prefix locates the native double-click only; the
         # fresh OS clipboard must still equal the complete independent address.
-        if not re.fullmatch(r"[0Oo][xX][0-9A-Za-z]{4,64}",row[11]):continue
-        if not (x<left and left+width<x+w and y<top and top+height<y+h):continue
-        if width<40 or not 8<=height<=36 or abs(top+height//2-center_y)>20:continue
-        candidates.append((left+width//2,top+height//2))
-    if len(candidates)!=1:raise RuntimeError("Public address selection token was not uniquely visible")
-    return candidates[0]
+        if not 8<=height<=36 or abs(top+height//2-center_y)>20:continue
+        address_like=re.fullmatch(r"[0Oo][xX][0-9A-Za-z]*|[0-9A-Fa-fOoIl]{8,64}",row[11].strip(".,:;()[]{}<>\"'`|"))
+        if address_like and left<right_bound and left+width>left_bound and not (inside((left,top,left+width,top+height)) and left_bound<=left and left+width<=right_bound):
+            raise RuntimeError("Public address selection token was clipped by its column")
+        if not (inside((left,top,left+width,top+height)) and left_bound<=left and left+width<=right_bound):continue
+        eligible.append((left,top,width,height,row[11]))
+        if width>=40 and re.fullmatch(r"[0Oo][xX][0-9A-Za-z]{4,64}",row[11]):
+            candidates.append((left+width//2,top+height//2))
+    if diagnostics is not None:diagnostics.update(prefixCandidates=len(candidates),eligibleBoxes=[list(box[:4]) for box in eligible])
+    ordered=sorted(eligible)
+    if any(b[0]<a[0]+a[2] and abs(b[1]+b[3]//2-(a[1]+a[3]//2))<=6 for a,b in zip(ordered,ordered[1:])):
+        raise RuntimeError("Overlapping public address OCR chunks were ambiguous")
+    # Keep the existing unique prefix locator first. It supplies a click point,
+    # never expected clipboard text or proof of the address's actual contents.
+    if len(candidates)==1:return candidates[0]
+    if candidates:raise RuntimeError("Public address selection token was not uniquely visible")
+    chunks=[]
+    for left,top,width,height,value in sorted(eligible):
+        value=value.strip(".,:;()[]{}<>\"'`|")
+        if value and re.fullmatch(r"[0-9A-Za-z]+",value):chunks.append((left,top,width,height,value))
+    runs=[]
+    for chunk in chunks:
+        if runs:
+            previous=runs[-1][-1]
+            gap=chunk[0]-(previous[0]+previous[2])
+            if gap<0:raise RuntimeError("Overlapping public address OCR chunks were ambiguous")
+            if gap<=max(32,chunk[3]*2) and abs(chunk[1]+chunk[3]//2-(previous[1]+previous[3]//2))<=6:
+                runs[-1].append(chunk);continue
+        runs.append([chunk])
+    fallback=[]
+    for run in runs:
+        value="".join(chunk[4] for chunk in run)
+        width=run[-1][0]+run[-1][2]-run[0][0]
+        # No OCR glyph is repaired or compared to an expected address. A
+        # split 0 / x / body, punctuation-wrapped prefix or body-only fragment
+        # may locate text in the independently anchored address cell.
+        if width<40 or not 6<=len(value)<=66:continue
+        prefixed=re.fullmatch(r"[0Oo][xX][0-9A-Za-z]{4,64}",value)
+        body=re.fullmatch(r"[0-9A-Fa-fOoIl]{8,64}",value)
+        if not prefixed and not body:continue
+        target=max(run,key=lambda chunk:chunk[2])
+        fallback.append((target[0]+target[2]//2,target[1]+target[3]//2))
+    if diagnostics is not None:diagnostics.update(chunkRuns=[[[v[0],v[1],v[2],v[3]] for v in run] for run in runs],fallbackCandidates=len(fallback))
+    if len(fallback)!=1:raise RuntimeError("Public address selection token was not uniquely visible")
+    return fallback[0]
 
 def native_copy_shortcut(shortcut):
     keys={"Ctrl+C":("Control_L","c"),"Ctrl+Shift+C":("Control_L","Shift_L","c"),"Ctrl+Insert":("Control_L","Insert")}
@@ -1108,7 +1193,9 @@ def selected_address_copy(context,expected_address):
     else:
         rows,_,geometry=public_rows(with_picture=True,with_geometry=True)
         window,_=desktop.wait("CryptoWallet")
-    point=address_selection_target(context,rows,geometry)
+    locator={}
+    try:point=address_selection_target(context,rows,geometry,locator)
+    finally:report.setdefault("addressSelectionLocator",[]).append(locator)
     report.setdefault("addressSelectionGeometry",[]).append({"view":context,"window":list(geometry),"point":list(point),
         "publicCodeBoxes":[[int(row[index]) for index in (6,7,8,9)] for row in rows if re.match(r"[0Oo][xX]",row[11])]})
     desktop.focus(window)
