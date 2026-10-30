@@ -16,16 +16,16 @@ import (
 )
 
 func (*Adapter) HistoryScope() string {
-	return "Bounded RPC scan of the latest 128 blocks, native transfers and every pinned/explicitly tracked ERC-20 Transfer event. Earlier, internal contract, and bridge history requires an archival explorer or wider explicit rescan; an empty scan is not proof of no historical funds."
+	return "Ethereum and Base use paginated address-index candidates, independently checked against the configured chain RPC for native transfers and pinned/explicitly tracked ERC-20 events. Local nodes and other EVM networks use the latest 128 blocks. Indexer coverage, internal calls and bridge effects can be incomplete; an empty page is not proof of no historical funds."
 }
 
 var errTokenHistoryUnavailable = errors.New("EVM token history is unavailable/incomplete")
 
-func (a *Adapter) HistoryPage(ctx context.Context, account model.Account, cursor string) (model.HistoryPage, error) {
+func (a *Adapter) historyRecentPage(ctx context.Context, account model.Account, cursor string) (model.HistoryPage, error) {
 	if cursor != "" {
 		return model.HistoryPage{}, errors.New("EVM bounded snapshot has no adapter continuation")
 	}
-	rows, err := a.History(ctx, account)
+	rows, err := a.historyRecentRPC(ctx, account)
 	scope := a.HistoryScope()
 	if errors.Is(err, errTokenHistoryUnavailable) {
 		scope += " " + err.Error() + ". Checked native and other tracked-token rows are retained; missing token records remain unknown."
@@ -58,7 +58,7 @@ func hashValid(s string) bool {
 
 // History returns observed transfers in a fixed, explicitly limited window. It
 // neither discovers arbitrary assets nor treats absence as complete recovery.
-func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receipt, error) {
+func (a *Adapter) historyRecentRPC(ctx context.Context, ac model.Account) ([]model.Receipt, error) {
 	n, e := a.validateAccount(ac)
 	if e != nil {
 		return nil, e

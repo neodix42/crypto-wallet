@@ -48,7 +48,7 @@ func tokenHistoryFixture(t *testing.T, mutate func(map[string]any), fullScan ...
 			_ = json.Unmarshal(params["sender_account_id"], &signer)
 			_ = json.Unmarshal(params["wait_until"], &final)
 			if requested == historyHash(22) && len(fullScan) > 0 {
-				return map[string]any{"status": map[string]any{"SuccessValue": ""}, "final_execution_status": "FINAL", "transaction": map[string]any{"hash": requested, "signer_id": account.Address, "receiver_id": "receiver.testnet"}, "transaction_outcome": map[string]any{"block_hash": historyHash(2)}}, nil
+				return map[string]any{"status": map[string]any{"SuccessValue": ""}, "final_execution_status": "FINAL", "transaction": map[string]any{"hash": requested, "signer_id": account.Address, "receiver_id": "receiver.testnet", "nonce": 43, "public_key": account.PublicKey, "actions": []any{map[string]any{"Transfer": map[string]any{"deposit": "1"}}}}, "transaction_outcome": map[string]any{"block_hash": historyHash(2), "outcome": map[string]any{"receipt_ids": []string{historyHash(32)}}}, "receipts_outcome": []any{map[string]any{"id": historyHash(32), "block_hash": historyHash(2), "outcome": map[string]any{"executor_id": "receiver.testnet", "status": map[string]any{"SuccessValue": ""}, "receipt_ids": []string{}, "logs": []string{}}}}}, nil
 			}
 			if requested != historyHash(21) || signer != "sender.testnet" || final != "FINAL" {
 				t.Errorf("wrong transaction authority %s %s %s", requested, signer, final)
@@ -57,7 +57,7 @@ func tokenHistoryFixture(t *testing.T, mutate func(map[string]any), fullScan ...
 			result := map[string]any{
 				"status": map[string]any{"SuccessValue": ""}, "final_execution_status": "FINAL",
 				// A nested token receipt may originate at a different contract.
-				"transaction":         map[string]any{"hash": historyHash(21), "signer_id": "sender.testnet", "receiver_id": "router.testnet"},
+				"transaction":         map[string]any{"hash": historyHash(21), "signer_id": "sender.testnet", "receiver_id": "router.testnet", "nonce": 42, "public_key": account.PublicKey, "actions": []any{map[string]any{"FunctionCall": map[string]any{"method_name": "ft_transfer", "args": "e30=", "deposit": "1", "gas": 30000000000000}}}},
 				"transaction_outcome": map[string]any{"block_hash": historyHash(2), "outcome": map[string]any{"receipt_ids": []string{historyHash(31)}}},
 				"receipts_outcome":    []any{map[string]any{"id": historyHash(31), "block_hash": historyHash(2), "outcome": map[string]any{"executor_id": "token.testnet", "status": map[string]any{"SuccessValue": ""}, "receipt_ids": []string{}, "logs": []string{event}}}},
 			}
@@ -68,6 +68,11 @@ func tokenHistoryFixture(t *testing.T, mutate func(map[string]any), fullScan ...
 				result["transaction"].(map[string]any)["receiver_id"] = "token.testnet"
 			}
 			return result, nil
+		case "EXPERIMENTAL_receipt":
+			if stringParam(params, "receipt_id") == historyHash(32) {
+				return map[string]any{"receipt_id": historyHash(32), "predecessor_id": account.Address, "receiver_id": "receiver.testnet", "receipt": map[string]any{"Action": map[string]any{"signer_id": account.Address, "actions": []any{map[string]any{"Transfer": map[string]any{"deposit": "1"}}}}}}, nil
+			}
+			return map[string]any{"receipt_id": historyHash(31), "predecessor_id": "sender.testnet", "receiver_id": "token.testnet", "receipt": map[string]any{"Action": map[string]any{"signer_id": "sender.testnet", "actions": []any{map[string]any{"FunctionCall": map[string]any{"method_name": "ft_transfer", "args": "e30=", "deposit": "1", "gas": 30000000000000}}}}}}, nil
 		case "block":
 			if len(fullScan) > 0 {
 				id := stringParam(params, "block_id")
@@ -132,8 +137,12 @@ func TestNEARHistoryPreservesCheckedRowsOnlyForIndexerAvailabilityFailures(t *te
 				}
 				return
 			}
-			if err != nil || len(page.Entries) != 2 || page.Complete || page.NextCursor != "" || !strings.Contains(page.Scope, "unavailable/incomplete") {
+			if err != nil || len(page.Entries) != 2 || page.Complete || page.NextCursor == "" || !strings.Contains(page.Scope, "unavailable/incomplete") {
 				t.Fatal("availability failure hid checked rows or claimed completion", page, err)
+			}
+			position, positionErr := adapter.historyPosition(context.Background(), account, page.NextCursor)
+			if positionErr != nil || position.Phase != "receipts" || position.Next != "" {
+				t.Fatal("failed native index did not preserve the independent receipt/token continuation", position, positionErr)
 			}
 			if len(page.Entries[0].Transfers)+len(page.Entries[1].Transfers) != 3 {
 				t.Fatal("native/direct-token effects lost", page.Entries)

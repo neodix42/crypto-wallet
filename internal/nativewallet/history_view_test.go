@@ -39,6 +39,33 @@ func TestEveryWalletAndStakingPageHasBottomHistoryAndSettingsIsRightmost(t *test
 	}
 }
 
+func TestWalletEmptyHistorySeparatesUnavailableFilteredAndCompletedObservations(t *testing.T) {
+	a, _, _ := fixture(t)
+	account := ethAccount(t, a)
+	a.active = "wallet/" + account.ID
+	for _, test := range []struct {
+		name, expected string
+		state          walletHistoryState
+	}{
+		{"unavailable", "Transaction history could not be loaded", walletHistoryState{Loaded: true, ChainFailed: true}},
+		{"paused", "Transaction history loading is paused", walletHistoryState{Loaded: true, ChainPaused: true}},
+		{"filtered", "More history is available", walletHistoryState{Loaded: true, Chain: model.HistoryPage{NextCursor: strings.Repeat("a", 32)}}},
+		{"incomplete", "Historical activity has not been fully checked", walletHistoryState{Loaded: true}},
+		{"complete", "completed provider query", walletHistoryState{Loaded: true, Chain: model.HistoryPage{Complete: true}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			a.walletHistory = map[string]walletHistoryState{account.ID: test.state}
+			text := viewText(a.walletHistoryNodes(account))
+			if !strings.Contains(text, test.expected) || strings.Contains(text, "No transactions in the loaded scope") {
+				t.Fatal("unavailable or filtered history presented as empty", text)
+			}
+			if test.name != "complete" && strings.Contains(text, "completed provider query") {
+				t.Fatal("partial history became completed empty result")
+			}
+		})
+	}
+}
+
 type historyContextBackend struct {
 	*testBackend
 	started chan struct{}

@@ -16,20 +16,7 @@ import (
 const historyBlocks = 12
 
 func (*Adapter) HistoryScope() string {
-	return "Last 12 final blocks on the selected chain; direct transactions containing exactly one native NEAR Transfer action only. Tracked NEP-141 v1 transfer/mint/burn events are additionally read from recent direct token calls and the latest 25 NearBlocks-indexed account FT event candidates, then checked against final RPC receipt graphs and approved token identities. Powered by Nearblocks.io APIs. Other contract-mediated native receipts, multi-action native transfers, untracked tokens and older records remain unresolved; this bounded scope is incomplete, and an empty result never proves no funds."
-}
-
-func (a *Adapter) HistoryPage(ctx context.Context, account model.Account, cursor string) (model.HistoryPage, error) {
-	if cursor != "" {
-		return model.HistoryPage{}, errors.New("NEAR bounded snapshot has no adapter continuation")
-	}
-	rows, err := a.History(ctx, account)
-	scope := a.HistoryScope()
-	if errors.Is(err, errIndexedHistoryUnavailable) {
-		scope += " Indexed token history is unavailable/incomplete; only checked native and direct token-call rows are supplied. Missing indexed records remain unknown."
-		return model.HistoryPage{Entries: rows, Scope: scope, Complete: false}, nil
-	}
-	return model.HistoryPage{Entries: rows, Scope: scope, Complete: false}, err
+	return "Address-indexed historical native NEAR transactions, contract Transfer receipts and tracked NEP-141 transfer/mint/burn candidates are paged through Nearblocks.io APIs and independently interpreted against FINAL RPC transactions, receipt graphs, exact actions and approved token identities. Load older chain transactions continues each bounded index. Token precision/runtime is pinned at the frozen current head; historical contract upgrades or precision changes are not independently certified. System refunds, unknown actions, untracked tokens and provider omissions are outside this observation; index exhaustion does not prove archive completeness or no funds. Without an indexer, the fallback covers the last 12 final blocks only."
 }
 
 type historyBlock struct {
@@ -63,9 +50,22 @@ func blockHash(s string) bool {
 // History follows final block parents and new chunks only, so reused chunks do
 // not duplicate payments. Execution is queried by the original native identity.
 func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receipt, error) {
-	state, _, e := a.state(ctx, ac)
-	if e != nil {
-		return nil, e
+	return a.recentHistory(ctx, ac, true)
+}
+
+func (a *Adapter) recentHistory(ctx context.Context, ac model.Account, includeIndexed bool, canonical ...historicalPosition) ([]model.Receipt, error) {
+	var state accountState
+	var e error
+	if len(canonical) != 0 {
+		if e = a.account(ac); e != nil {
+			return nil, e
+		}
+		state.Hash, state.Height = canonical[0].Head, json.Number(canonical[0].Height)
+	} else {
+		state, _, e = a.state(ctx, ac)
+		if e != nil {
+			return nil, e
+		}
 	}
 	next := state.Hash
 	lastHeight, e := chainutil.Uint(state.Height.String(), 64)
@@ -114,6 +114,32 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 				return nil, errInvalid
 			}
 			for _, tx := range chunk.Transactions {
+				if len(canonical) != 0 {
+					_, tracked := a.token(ac.Network, ac.Network+":nep141:"+tx.Receiver)
+					if tx.Signer != ac.Address && tx.Receiver != ac.Address && !tracked {
+						continue
+					}
+					if seen[tx.Hash] || !blockHash(tx.Hash) {
+						return nil, errInvalid
+					}
+					seen[tx.Hash] = true
+					position := canonical[0]
+					position.Phase = "txns"
+					observed, err := a.historicalTransaction(ctx, ac, tx.Hash, tx.Signer, historicalCandidate{Hash: tx.Hash, Signer: tx.Signer, Receiver: tx.Receiver}, position)
+					if err != nil {
+						if errors.Is(err, errHistoricalUnavailable) && ctx.Err() == nil {
+							continue
+						}
+						return nil, err
+					}
+					if len(observed.Row.Transfers) != 0 {
+						if len(out) >= 4096 {
+							return nil, errors.New("NEAR history payment count exceeds bound; narrower scan required")
+						}
+						out = append(out, observed.Row)
+					}
+					continue
+				}
 				if len(policies) > 0 {
 					for _, policy := range policies {
 						if tx.Receiver == policy.Asset.Contract && !tokenSeen[tx.Hash] {
@@ -192,7 +218,7 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 		lastHeight = height
 	}
 	var indexedErr error
-	if len(policies) > 0 && a.historyEndpoints[ac.Network] != "" {
+	if includeIndexed && len(policies) > 0 && a.historyEndpoints[ac.Network] != "" {
 		rows, err := a.indexedTokenHistory(ctx, ac, tokenSeen)
 		if err != nil && !errors.Is(err, errIndexedHistoryUnavailable) {
 			return nil, err

@@ -1,5 +1,7 @@
 # Test plan and release gates
 
+> Owner history correction (2026-10-30): [START_HERE.txt](START_HERE.txt) requires paginated address-indexed Ethereum, Base, Aptos and NEAR history beyond recent global block/version windows. Indexers supply candidates only; checked chain transactions/receipts supply owned effects and exact native/tracked-token metadata. Keep historical/archival availability explicit, bounded continuation and exact cross-stream deduplication, all existing signing/recovery/network rules and honest live versus local evidence. See [history scopes and verification](docs/WALLET_TRANSACTIONS.md).
+
 > Owner update (2026-10-29): the shipped Wails UI now uses one trusted main window with reusable in-page dialogs and ordinary Wails bindings. It no longer launches a private UI self-role, isolated prompt page or one-use UI pipe. Normal selection/copy/cut/paste are enabled. The main UI is trusted with entered/displayed secrets and approval intent. This supersedes the separate-renderer and noncopyable-secret requirements below, which describe earlier designs. Go signer/core isolation, cryptography, reauthentication and transaction validation remain. See [the current trust model](docs/TRUSTED_UI.md).
 
 

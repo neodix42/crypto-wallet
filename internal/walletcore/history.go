@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sort"
 	"time"
 	"unicode/utf8"
 
@@ -20,6 +21,8 @@ const historyScanEntries = 10000
 const historyRetainedBytes = 4 << 20
 const historyAllRetainedBytes = 16 << 20
 const historyContexts = 16
+const historyFetchPages = 4
+const historyAdapterPages = 256
 
 // A continuation is a one-use capability, never a URL or adapter-provided token.
 // Its state is volatile and expires on lock, RPC reconfiguration or inactivity.
@@ -30,7 +33,9 @@ type historyScan struct {
 	pending          []model.Receipt
 	next, scope      string
 	complete         bool
-	seen             map[string]bool
+	seen             map[string][32]byte
+	positions        map[string]bool
+	pages            int
 	bytes            int
 }
 
@@ -79,12 +84,18 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 				delete(c.historyScans, token)
 			}
 		}
-		scan = &historyScan{epoch: epoch, session: session, account: key, seen: map[string]bool{}}
+		scan = &historyScan{epoch: epoch, session: session, account: key, seen: map[string][32]byte{}, positions: map[string]bool{}}
 	}
 	c.mu.Unlock()
 	ctx, cancel := c.historyContextAt(2*time.Minute, epoch, session)
 	defer cancel()
-	if cursor == "" || len(scan.pending) == 0 && scan.next != "" {
+	initial := cursor == ""
+	for fetched := 0; fetched < historyFetchPages && len(scan.pending) == 0 && (initial || scan.next != ""); fetched++ {
+		initial = false
+		if scan.pages >= historyAdapterPages {
+			return nil, errors.New("history provider page bound reached; refresh or narrow the query")
+		}
+		scan.pages++
 		var page model.HistoryPage
 		var err error
 		if d, ok := adapter.(*decred.Adapter); ok {
@@ -105,7 +116,13 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 		if len(page.NextCursor) > 4096 || !utf8.ValidString(page.NextCursor) || len(page.Scope) > 16384 || !utf8.ValidString(page.Scope) || page.Scope == "" || page.Complete && page.NextCursor != "" || page.NextCursor != "" && page.NextCursor == scan.next {
 			return nil, errors.New("history provider returned an invalid or nonprogressing page")
 		}
-		if len(page.Entries) > historyScanEntries-len(scan.seen) {
+		if page.NextCursor != "" {
+			if scan.positions[page.NextCursor] {
+				return nil, errors.New("history provider repeated an earlier position")
+			}
+			scan.positions[page.NextCursor] = true
+		}
+		if len(page.Entries) > historyScanEntries {
 			return nil, errors.New("history scan reached its record bound; narrow the query")
 		}
 		raw, err := json.Marshal(page.Entries)
@@ -113,16 +130,34 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 			return nil, errors.New("history snapshot exceeds memory bound")
 		}
 		scan.bytes = len(raw)
+		overlap := false
+		if pager, ok := adapter.(interface{ HistoryPagesOverlap() bool }); ok {
+			overlap = pager.HistoryPagesOverlap()
+		}
+		withinPage := map[string]bool{}
+		unique := make([]model.Receipt, 0, len(page.Entries))
 		for _, row := range page.Entries {
 			if err := validateHistoryReceipt(adapter, ac, row); err != nil {
 				return nil, err
 			}
-			if row.Identity == "" || len(row.Identity) > 512 || !utf8.ValidString(row.Identity) || scan.seen[row.Identity] {
+			if row.Identity == "" || len(row.Identity) > 512 || !utf8.ValidString(row.Identity) || withinPage[row.Identity] {
 				return nil, errors.New("history provider returned a duplicate or invalid transaction identity")
 			}
-			scan.seen[row.Identity] = true
+			withinPage[row.Identity] = true
+			fingerprint := historyObservationHash(row)
+			if previous, exists := scan.seen[row.Identity]; exists {
+				if !overlap || fingerprint != previous {
+					return nil, errors.New("history provider repeated or contradicted an earlier observation")
+				}
+				continue
+			}
+			if len(scan.seen) >= historyScanEntries {
+				return nil, errors.New("history scan reached its record bound; narrow the query")
+			}
+			scan.seen[row.Identity] = fingerprint
+			unique = append(unique, row)
 		}
-		scan.pending, scan.next, scan.scope, scan.complete = page.Entries, page.NextCursor, page.Scope, page.Complete
+		scan.pending, scan.next, scan.scope, scan.complete = unique, page.NextCursor, page.Scope, page.Complete
 	}
 	page := model.HistoryPage{Entries: []model.Receipt{}, Scope: scan.scope}
 	used := 0
@@ -145,7 +180,10 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 		retained, _ := json.Marshal(scan.pending)
 		scan.bytes = len(retained)
 		for identity := range scan.seen {
-			scan.bytes += len(identity) + 32
+			scan.bytes += len(identity) + 64
+		}
+		for position := range scan.positions {
+			scan.bytes += len(position) + 32
 		}
 		if scan.bytes > historyRetainedBytes {
 			return nil, errors.New("history scan reached memory bound; restart with a narrower query")
@@ -190,6 +228,17 @@ func (c *core) chainHistoryAt(epoch uint64, session, accountID, cursor string) (
 		page.Scope += " Detailed synchronization report omitted from this page to retain the response-size bound."
 	}
 	return page, nil
+}
+
+// Reviewed multi-stream indexes can repeat the same transaction on their
+// native/receipt/token pages. Only an identical interpreted observation may be
+// suppressed; descriptions do not define an amount, effect or finality state.
+func historyObservationHash(row model.Receipt) [32]byte {
+	row.Detail = ""
+	row.Transfers = append([]model.HistoryTransfer(nil), row.Transfers...)
+	sort.Slice(row.Transfers, func(i, j int) bool { return row.Transfers[i].ID < row.Transfers[j].ID })
+	raw, _ := json.Marshal(row)
+	return sha256.Sum256(raw)
 }
 func lowerHex(s string) bool {
 	for _, ch := range s {

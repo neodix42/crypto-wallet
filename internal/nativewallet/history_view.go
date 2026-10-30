@@ -430,8 +430,19 @@ func (a *App) walletHistoryNodes(account model.Account) []webui.Node {
 	if len(rows) > 128 {
 		nodes = append(nodes, row(a.button("walletHistoryPreviousRows/"+account.ID, "Previous transactions", offset == 0), label(strconv.Itoa(offset+1)+"–"+strconv.Itoa(end)+" of "+strconv.Itoa(len(rows))+" loaded transfers"), a.button("walletHistoryNextRows/"+account.ID, "Next transactions", end >= len(rows))))
 	}
-	if state.Loaded && !state.Loading && len(rows) == 0 {
-		nodes = append(nodes, label("No transactions in the loaded scope. Older or unavailable activity may be missing."))
+	if state.Loaded && !state.Loading && state.Request == "" && len(rows) == 0 {
+		switch {
+		case state.ChainFailed || state.LocalFailed:
+			nodes = append(nodes, label("Transaction history could not be loaded. Refresh history to try again."))
+		case state.ChainPaused:
+			nodes = append(nodes, label("Transaction history loading is paused. Refresh history to continue."))
+		case state.Chain.NextCursor != "" || state.Local.NextCursor != "":
+			nodes = append(nodes, label("No matching transfers on these pages. More history is available; load older transactions."))
+		case !state.Chain.Complete:
+			nodes = append(nodes, label("Historical activity has not been fully checked. No matching transfers have been loaded."))
+		default:
+			nodes = append(nodes, label("No matching native or tracked-token transfers were found in the completed provider query."))
+		}
 	}
 	if state.Chain.NextCursor != "" {
 		nodes = append(nodes, a.button("walletHistoryMore/"+account.ID, "Load older chain transactions", state.Loading))

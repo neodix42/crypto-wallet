@@ -150,6 +150,10 @@ func (a *Adapter) tokenHistoryTransaction(ctx context.Context, ac model.Account,
 	if err := a.rpc(ctx, ac.Network, "tx", map[string]string{"tx_hash": hash, "sender_account_id": signer, "wait_until": "FINAL"}, &execution); err != nil {
 		return nil, err
 	}
+	return a.tokenHistoryExecution(ctx, ac, hash, signer, requiredReceipt, requiredContract, execution)
+}
+
+func (a *Adapter) tokenHistoryExecution(ctx context.Context, ac model.Account, hash, signer, requiredReceipt, requiredContract string, execution execution) ([]model.Receipt, error) {
 	if execution.Transaction.Signer != signer || a.ValidateAddress(ac.Network, execution.Transaction.Receiver) != nil {
 		return nil, errInvalid
 	}
