@@ -1103,7 +1103,7 @@ def address_selection_target(context,rows,geometry,diagnostics=None):
         # fresh OS clipboard must still equal the complete independent address.
         if not 8<=height<=36 or abs(top+height//2-center_y)>20:continue
         address_like=re.fullmatch(r"[0Oo][xX][0-9A-Za-z]*|[0-9A-Fa-fOoIl]{8,64}",row[11].strip(".,:;()[]{}<>\"'`|"))
-        if address_like and left<right_bound and left+width>left_bound and not (inside((left,top,left+width,top+height)) and left_bound<=left and left+width<=right_bound):
+        if (address_like or width>=80) and left<right_bound and left+width>left_bound and not (inside((left,top,left+width,top+height)) and left_bound<=left and left+width<=right_bound):
             raise RuntimeError("Public address selection token was clipped by its column")
         if not (inside((left,top,left+width,top+height)) and left_bound<=left and left+width<=right_bound):continue
         eligible.append((left,top,width,height,row[11]))
@@ -1144,8 +1144,28 @@ def address_selection_target(context,rows,geometry,diagnostics=None):
         target=max(run,key=lambda chunk:chunk[2])
         fallback.append((target[0]+target[2]//2,target[1]+target[3]//2))
     if diagnostics is not None:diagnostics.update(chunkRuns=[[[v[0],v[1],v[2],v[3]] for v in run] for run in runs],fallbackCandidates=len(fallback))
-    if len(fallback)!=1:raise RuntimeError("Public address selection token was not uniquely visible")
-    return fallback[0]
+    if len(fallback)==1:return fallback[0]
+    if fallback:raise RuntimeError("Public address selection token was not uniquely visible")
+    # OCR may put punctuation or non-Latin lookalikes inside the one rendered
+    # address word. Its spelling is not evidence. Within the uniquely anchored
+    # public address cell, locate a single wide geometric text run instead;
+    # fresh exact native clipboard equality remains the only content proof.
+    geometric_runs=[]
+    for chunk in sorted(eligible):
+        if geometric_runs:
+            previous=geometric_runs[-1][-1]
+            gap=chunk[0]-(previous[0]+previous[2])
+            if gap<=max(32,chunk[3]*2) and abs(chunk[1]+chunk[3]//2-(previous[1]+previous[3]//2))<=6:
+                geometric_runs[-1].append(chunk);continue
+        geometric_runs.append([chunk])
+    geometric=[]
+    for run in geometric_runs:
+        if run[-1][0]+run[-1][2]-run[0][0]<80:continue
+        target=max(run,key=lambda chunk:chunk[2])
+        geometric.append((target[0]+target[2]//2,target[1]+target[3]//2))
+    if diagnostics is not None:diagnostics.update(geometricRuns=[[[v[0],v[1],v[2],v[3]] for v in run] for run in geometric_runs],geometricCandidates=len(geometric))
+    if len(geometric)!=1:raise RuntimeError("Public address selection token was not uniquely visible")
+    return geometric[0]
 
 def native_copy_shortcut(shortcut):
     keys={"Ctrl+C":("Control_L","c"),"Ctrl+Shift+C":("Control_L","Shift_L","c"),"Ctrl+Insert":("Control_L","Insert")}

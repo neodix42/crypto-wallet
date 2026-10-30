@@ -899,6 +899,29 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
         self.assertNotIn('a'*40,json.dumps(diagnostic))
         self.assertEqual(diagnostic['column'],[492,1472])
 
+    def test_ocr_spelling_never_proves_content_but_unique_anchored_geometry_can_locate_it(self):
+        for context in ('overview','wallet','receive'):
+            for value in ('0x73_410EA1FcbE1b8bCA883762dC56beF46403A469',
+                          'Ox73410EA1FcbE1b8bCA883762dC56beF46403A4é9',
+                          '0x73410EA1FcbE1b8bCA883762dC56beF4 6403A469'):
+                rows,point=self.fixture(context);rows[-1][11]=value;diagnostic={}
+                with self.subTest(context=context,value=value):
+                    self.assertEqual(self.scope['address_selection_target'](context,rows,self.geometry,diagnostic),point)
+                    self.assertEqual(diagnostic['geometricCandidates'],1)
+                    self.assertNotIn(value,json.dumps(diagnostic))
+        self.events.assert_not_called()
+
+    def test_geometric_fallback_rejects_separate_wide_runs_and_clipped_nonhex_text(self):
+        for context in ('overview','wallet','receive'):
+            rows,_=self.fixture(context);top=int(rows[-1][7]);rows[-1][11]='0x73_410';rows[-1][8]='150'
+            extra=self.word('FcbE1_b8b',900,top,150,line=20)
+            with self.subTest(context=context),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+                self.scope['address_selection_target'](context,rows+[extra],self.geometry)
+            rows[-1][6]='1450';rows[-1][8]='150'
+            with self.subTest(context=context),self.assertRaisesRegex(RuntimeError,'clipped|not uniquely visible'):
+                self.scope['address_selection_target'](context,rows,self.geometry)
+        self.events.assert_not_called()
+
     def test_supported_native_shortcuts_release_all_keys_in_reverse_order(self):
         for shortcut,codes in (('Ctrl+C',(37,54)),('Ctrl+Shift+C',(37,50,54)),('Ctrl+Insert',(37,118))):
             with self.subTest(shortcut=shortcut):
