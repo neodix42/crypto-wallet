@@ -16,6 +16,8 @@ NEAR uses FastNear RPC and Base uses PublicNode by default; custom saved endpoin
 
 The main account shows an approximate USDT subtotal from fresh public Bybit/Binance prices, with a spinner during loading. Missing balances or prices are labelled partial/unavailable; totals exclude staking and exchange custody. No API key or wallet address is sent for prices. TON pages show contract state and allow an explicit fee-paying V5R1 deployment after funding an uninitialized address; existing contract IDs/addresses never change. New TON wallets use standard V5 subwallet 42; original subwallet-0 addresses remain available for explicit recovery in Settings → Wallet. [Details, provider sources and verification checklist](docs/RPC_TON_ARBITRUM_VALUATION.md).
 
+TON wallet IDs have separate receive addresses and histories. An older wallet may use the original subwallet-0 profile; open it if listed, or recover it under **Settings → Wallet → TON recovery profiles** using the original account index. The app never moves history between these accounts. [History checks and troubleshooting](docs/TON_HISTORY_REFRESH.md).
+
 ## Download and run on Ubuntu 24.04 / 26.04
 
 Use an **amd64/x86_64 Ubuntu desktop** with an X11 or Wayland session. Install runtime prerequisites on Ubuntu **24.04 LTS** or **26.04 LTS**:

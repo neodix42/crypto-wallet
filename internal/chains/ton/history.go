@@ -28,7 +28,7 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 	if _, e := a.verifyNetwork(ctx, ac.Network); e != nil {
 		return nil, e
 	}
-	txs, e := a.transactions(ctx, ac.Network, ac.Address)
+	txs, _, e := a.historyTransactionsAt(ctx, ac.Network, ac.Address, nil)
 	if e != nil {
 		return nil, e
 	}

@@ -93,7 +93,7 @@ func (a *Adapter) HistoryPage(ctx context.Context, ac model.Account, cursor stri
 	if _, err = a.verifyNetwork(ctx, ac.Network); err != nil {
 		return model.HistoryPage{}, err
 	}
-	txs, err := a.transactionsAt(ctx, ac.Network, ac.Address, position)
+	txs, noActivity, err := a.historyTransactionsAt(ctx, ac.Network, ac.Address, position)
 	if err != nil {
 		return model.HistoryPage{}, err
 	}
@@ -106,6 +106,9 @@ func (a *Adapter) HistoryPage(ctx context.Context, ac model.Account, cursor stri
 		return model.HistoryPage{}, err
 	}
 	page := model.HistoryPage{Entries: entries, Complete: complete, Scope: a.HistoryScope()}
+	if noActivity {
+		page.Scope += noNativeActivityScope
+	}
 	if next != nil {
 		next.Account = positionAccount(ac.Network, ac.Address)
 		raw, _ := json.Marshal(next)

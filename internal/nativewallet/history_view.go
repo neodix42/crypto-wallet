@@ -564,6 +564,9 @@ func (a *App) walletHistoryNodes(account model.Account) []webui.Node {
 			nodes = append(nodes, label("No matching transfers on these pages. More history is available; load older transactions."))
 		case !state.Chain.Complete:
 			nodes = append(nodes, label("Historical activity has not been fully checked. No matching transfers have been loaded."))
+			if account.Family == "ton" {
+				nodes = append(nodes, label("TON history belongs to this receive address. Another wallet ID creates a different address and history from the same recovery phrase. For an earlier wallet, check Settings → Wallet → TON recovery profiles and its original account index."))
+			}
 		default:
 			nodes = append(nodes, label("No matching native or tracked-token transfers were found in the completed provider query."))
 		}

@@ -356,7 +356,7 @@ func (a *Adapter) transactions(ctx context.Context, id, addr string) ([]*tlb.Tra
 	return a.transactionsAt(ctx, id, addr, nil)
 }
 func (a *Adapter) transactionsAt(ctx context.Context, id, addr string, position *transactionPosition) ([]*tlb.Transaction, error) {
-	var entries []struct {
+	var entries *[]struct {
 		Data string `json:"data"`
 	}
 	params := map[string]any{"address": addr, "limit": 100, "archival": true}
@@ -366,7 +366,10 @@ func (a *Adapter) transactionsAt(ctx context.Context, id, addr string, position 
 	if e := a.rpc(ctx, id, "getTransactions", params, &entries); e != nil {
 		return nil, e
 	}
-	if len(entries) > 100 {
+	if entries == nil {
+		return nil, errors.New("TON transaction response is not an array")
+	}
+	if len(*entries) > 100 {
 		return nil, errors.New("TON transaction response exceeds bound")
 	}
 	var out []*tlb.Transaction
@@ -374,7 +377,7 @@ func (a *Adapter) transactionsAt(ctx context.Context, id, addr string, position 
 	if e != nil {
 		return nil, e
 	}
-	for _, v := range entries {
+	for _, v := range *entries {
 		c, e := decodeBOC(v.Data)
 		if e != nil {
 			return nil, e

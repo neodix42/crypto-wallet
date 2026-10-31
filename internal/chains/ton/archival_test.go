@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"localwallet/internal/model"
@@ -70,6 +71,8 @@ func archivalServer(t *testing.T, a *Adapter, p model.Plan, chains map[string][]
 		var result any
 		if q.Method == "getMasterchainInfo" {
 			result = map[string]any{"init": map[string]any{"root_hash": n.root, "file_hash": n.file, "workchain": -1}, "last": map[string]any{"seqno": 123}}
+		} else if q.Method == "getAddressInformation" {
+			result = map[string]any{"state": "uninitialized", "balance": "0", "sync_utime": time.Now().Unix(), "last_transaction_id": map[string]string{"lt": "0", "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}
 		} else {
 			if q.Method != "getTransactions" || q.Params.Limit != 100 || !q.Params.Archival {
 				t.Error("incorrect archival request")

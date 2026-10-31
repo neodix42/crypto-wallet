@@ -93,7 +93,7 @@ func (a *Adapter) usdtHistoryPage(ctx context.Context, ac model.Account, cursor 
 		if e != nil {
 			return model.HistoryPage{}, e
 		}
-		txs, e := a.transactionsAt(ctx, ac.Network, ac.Address, pos)
+		txs, noActivity, e := a.historyTransactionsAt(ctx, ac.Network, ac.Address, pos)
 		if e != nil {
 			return model.HistoryPage{}, e
 		}
@@ -106,6 +106,9 @@ func (a *Adapter) usdtHistoryPage(ctx context.Context, ac model.Account, cursor 
 			return model.HistoryPage{}, e
 		}
 		page.Entries = append(page.Entries, entries...)
+		if noActivity {
+			page.Scope += noNativeActivityScope
+		}
 		c.Native = next
 		c.NativeDone = next == nil
 		c.NativeComplete = complete

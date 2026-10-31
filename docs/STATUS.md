@@ -1,5 +1,17 @@
 # Implementation and release evidence
 
+## TON empty history and distinct wallet IDs — 2026-10-31
+
+Public read-only checks reproduce the reported empty TON result. The supplied address is the same public key's separate subwallet-42 account, currently reported uninitialized with no transaction head; the earlier funded account uses subwallet 0. Their histories must remain separate. The empty page now points to original-profile recovery, and an empty native RPC page is checked against fresh account information, with exact-head retrieval when a head exists. [Diagnosis, behavior and checklist](TON_HISTORY_REFRESH.md).
+
+| State | Evidence |
+|---|---|
+| PASS, diagnosis | Default TON Center identity/state/archival queries, independent TonAPI observations and production-Go public-key/profile comparison. Supplied identifiers stay in ignored reports. `reports/ton-history-refresh/`, `reports/ton-history-refresh-independent/`. |
+| BLOCKED, additional index | TON Center v3 HTTP 403; not counted as an empty result. |
+| PASS, final local implementation | Full TON/core races/vet, checked BOC-to-core pagination, typed GRAM/USDT refresh, same-key profile separation, scoped recovery guidance and actual local native/USDT TVM execution pass. Corrected complete `make test-ci`, portable build and managed installation pass. The first aggregate's diagnostic-source package-discovery failure is preserved separately; the probe now uses a non-package suffix. Detailed logs are linked in the checklist. |
+| NOT_RUN, hosted candidate | Exact-source hosted CI and publication remain pending. |
+| NOT_RUN, external gates | Funded public transfers, independent archival consensus proofs, full physical OS/Wayland matrix and independent security review. No user storage, secrets or public-chain spending are used. |
+
 ## Actual blockchain comments only — 2026-10-31
 
 The reported NEAR staking paragraph was a locally generated description placed in the history Comment cell. Independent signed-Borsh tests prove it is absent from staking transaction data: `deposit_and_stake` uses `{}`, exact deposit/gas and an empty memo. History now uses only decoded chain comments, with no local memo fallback or generated action labels across adapters. Real NEP-141 and TON text remains exact; approval dialogs keep detailed intent. [Behavior and evidence checklist](TRANSACTION_COMMENTS.md).

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -30,6 +31,10 @@ func historyRPC(t *testing.T, a *Adapter, network string, rows []string, mode st
 				root = "wrong"
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "ok": true, "result": map[string]any{"init": map[string]any{"root_hash": root, "file_hash": n.file, "workchain": -1}, "last": map[string]any{"seqno": 123}}})
+			return
+		}
+		if q.Method == "getAddressInformation" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "ok": true, "result": map[string]any{"state": "uninitialized", "balance": "0", "sync_utime": time.Now().Unix(), "last_transaction_id": map[string]string{"lt": "0", "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}})
 			return
 		}
 		if mode == "outage" {
