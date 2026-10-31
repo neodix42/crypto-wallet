@@ -36,7 +36,7 @@ A supported local wallet asset does not guarantee a Bybit deposit/withdrawal net
 3. Select **Connect Bybit**. In the current unlocked, recovery-confirmed session, enter the **API key** and matching **API secret** from a system-generated key created in Bybit, using the masked dialog in the same wallet window. Review the exact service/custody confirmation. Connect alone no longer repeats the storage-password prompt; disconnect and every funds-moving operation retain their own authorizations.
 4. Configure only the Bybit permissions needed for your intended actions: spot trading, internal account transfers and withdrawal. Withdrawals require a master-account key. Use an appropriate API IP restriction and add each exact owned destination address to Bybit's withdrawal whitelist. Read-only or insufficient permissions remain visible and cannot authorize writes.
 
-Connection, region, key changes and Disconnect live in **Settings → Exchange**. Settings is a page in the main window, with **Wallet**, **Exchange**, **Journal** and **Appearance** tabs; it is not a popup. Select the main **Exchange** tab for Deposit, Swap and Withdraw, or select an account/wallet tab to return to it. You can configure the connection directly from Settings without opening the trading page.
+Connection, region, key changes and Disconnect live in **Settings → Exchange**. Settings is a page in the main window, with **Wallet**, **Exchange** and **Appearance** tabs; it is not a popup. Select the main **Exchange** tab for Deposit, Swap and Withdraw, or select an account/wallet tab to return to it. You can configure the connection directly from Settings without opening the trading page.
 
 The API key identifies the account connection; the API secret signs authenticated requests using HMAC. A key alone cannot authorize trading, transfers or withdrawals. “System-generated” names Bybit's key type, which provides both values; this app does not generate a replacement key. Self-generated RSA keys are not supported. Both fields remain masked. See [Bybit's authentication guide](https://bybit-exchange.github.io/docs/v5/guide) for its distinction between HMAC system-generated and RSA self-generated keys.
 
@@ -50,7 +50,7 @@ Choose the source wallet/network and wallet asset, refresh its market, enter an 
 
 The deposit-address API provides a token-contract suffix. That suffix can corroborate the already matched full coin-info contract; it cannot identify the token by itself. A wrong chain, contract, memo or suspended route prevents sending.
 
-Track the original payment in **Settings → Journal**, under **Local payment journal**. Its accepted/confirmed chain result does not prove that Bybit has credited a spendable balance. Wait for a fresh Bybit balance observation. Daily caps, confirmations, AML/Travel Rule checks and account restrictions can delay or prevent credit. No Swap follows a deposit automatically.
+Track the original payment in the depositing wallet’s **Transaction history**. Its local operation row provides **Check status**, or **Review** / **Cancel prepared** before signing. Its accepted/confirmed chain result does not prove that Bybit has credited a spendable balance. Wait for a fresh Bybit balance observation. Daily caps, confirmations, AML/Travel Rule checks and account restrictions can delay or prevent credit. No Swap follows a deposit automatically.
 
 ## Swap
 
