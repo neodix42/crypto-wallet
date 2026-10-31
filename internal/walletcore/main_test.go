@@ -95,7 +95,14 @@ while True:
    if operation['plan']['id']==body['id']:operation['signed']=output;operation['state']='SIGNED_NOT_SUBMITTED'
  elif method=='update':
   for operation in state.get('ops',[]):
-   if operation['plan']['id']==body['id']:operation['state']=body['state'];operation['receipt']=body.get('receipt')
+   if operation['plan']['id']==body['id']:
+    if state.get('strictTransitions',False):
+     receipt=body.get('receipt');signed=operation.get('signed')
+     if receipt is not None:
+      if signed is None or receipt.get('identity')!=signed.get('identity') or receipt.get('state')!=body['state']:error='SYNTHETIC_DENIED'
+     elif body['state']!='SUBMITTING':error='SYNTHETIC_DENIED'
+     if operation['state']!=body['state'] and body['state'] not in state.get('transitionPolicy',{}).get(operation['state'],[]):error='SYNTHETIC_DENIED'
+    if not error:operation['state']=body['state'];operation['receipt']=body.get('receipt')
  else:output={'locked':False}
  with open(statefile,'w') as f:json.dump(state,f)
  response={'version':1,'id':request['id'],'session':request['session'],'method':method,'body':output}
@@ -138,7 +145,7 @@ func (a *publicAdapter) Prepare(_ context.Context, ac model.Account, t model.Tra
 	if a.prepareError {
 		return model.Plan{}, errors.New("synthetic preparation rejected")
 	}
-	return model.Plan{Account: ac, Asset: t.Asset, Recipient: t.Recipient, Amount: t.Amount, MaxFee: "1", Nonce: "42", Expires: time.Now().Unix() + 60}, nil
+	return model.Plan{Account: ac, Asset: t.Asset, Recipient: t.Recipient, Amount: t.Amount, Memo: t.Memo, MaxFee: "1", Nonce: "42", Expires: time.Now().Unix() + 60}, nil
 }
 func (a *publicAdapter) ValidatePlan(model.Plan) error { return nil }
 func (a *publicAdapter) Sign([]byte, model.Plan) (model.Signed, error) {
@@ -378,6 +385,95 @@ func TestTP060PaymentsRejectConflictsAndLostSigner(t *testing.T) {
 	writePublicState(t, path, state)
 	if _, e := c.payment("send", p.ID); e == nil {
 		t.Fatal("missing pending state")
+	}
+}
+
+type strictOriginalRetryAdapter struct {
+	*publicAdapter
+	t         *testing.T
+	path      string
+	original  journal.Operation
+	observed  string
+	queryFail bool
+	trace     []string
+}
+
+func (a *strictOriginalRetryAdapter) assertOriginal(plan model.Plan, signed model.Signed, state string) {
+	a.t.Helper()
+	if !equalTONResumeJSON(plan, a.original.Plan) || signed.Identity != a.original.Signed.Identity || !bytes.Equal(signed.Bytes, a.original.Signed.Bytes) {
+		a.t.Fatal("retry changed original plan, identity or signed bytes")
+	}
+	disk := readPublicState(a.t, a.path)
+	operations := disk["ops"].([]any)
+	if len(operations) != 1 || operations[0].(map[string]any)["state"] != state {
+		a.t.Fatal("retry network stage did not follow the durable ledger transition", state)
+	}
+	for _, call := range disk["calls"].([]any) {
+		if call == "prepare" || call == "sign" || call == "cancelPrepared" {
+			a.t.Fatal("retry re-prepared, re-signed or cancelled the original operation")
+		}
+	}
+}
+
+func (a *strictOriginalRetryAdapter) Reconcile(_ context.Context, plan model.Plan, signed model.Signed) (model.Receipt, error) {
+	a.assertOriginal(plan, signed, "SIGNED_NOT_SUBMITTED")
+	a.trace = append(a.trace, "reconcile")
+	if a.queryFail {
+		return model.Receipt{}, errors.New("public fixture query unavailable")
+	}
+	return model.Receipt{Identity: signed.Identity, State: a.observed}, nil
+}
+
+func (a *strictOriginalRetryAdapter) Submit(_ context.Context, plan model.Plan, signed model.Signed) (model.Receipt, error) {
+	a.assertOriginal(plan, signed, "SUBMITTING")
+	a.trace = append(a.trace, "submit")
+	return model.Receipt{Identity: signed.Identity, State: "SUBMITTED"}, nil
+}
+
+func TestSignedNotSubmittedRetryUsesExactOriginalWithStrictJournalTransitions(t *testing.T) {
+	for _, observed := range []string{"UNKNOWN", "query-unavailable", "SUBMITTED", "CONFIRMED", "FAILED"} {
+		t.Run(observed, func(t *testing.T) {
+			original := journal.Operation{Plan: publicPlan(), State: "SIGNED_NOT_SUBMITTED", Signed: &model.Signed{Identity: "public-original-signed-identity", Bytes: []byte{1, 19, 255}}}
+			original.Digest = journal.Digest(original.Plan)
+			base := &publicAdapter{}
+			c, path := fakeCoordinator(t, base, &original)
+			adapter := &strictOriginalRetryAdapter{publicAdapter: base, t: t, path: path, original: original, observed: observed, queryFail: observed == "query-unavailable"}
+			c.adapters = []model.Adapter{adapter}
+			// Derive the fake's transition policy from the real journal primitive;
+			// it cannot invent permissive test-only state edges.
+			policy := map[string][]string{}
+			states := []string{"PREPARED", "AWAITING_CONFIRMATION", "SIGNED_NOT_SUBMITTED", "SUBMITTING", "UNKNOWN", "SUBMITTED", "CONFIRMED", "FAILED", "REPLACED", "REORGED", "CANCELLED"}
+			for _, from := range states {
+				for _, to := range states {
+					probe := journal.Operation{State: from}
+					if probe.Transition(to) == nil {
+						policy[from] = append(policy[from], to)
+					}
+				}
+			}
+			disk := readPublicState(t, path)
+			disk["strictTransitions"], disk["transitionPolicy"] = true, policy
+			writePublicState(t, path, disk)
+			result, err := c.payment("retry", original.Plan.ID)
+			var persisted journal.Operation
+			raw, _ := json.Marshal(readPublicState(t, path)["ops"].([]any)[0])
+			if json.Unmarshal(raw, &persisted) != nil || !equalTONResumeJSON(persisted.Plan, original.Plan) || persisted.Digest != original.Digest || persisted.Signed == nil || persisted.Signed.Identity != original.Signed.Identity || !bytes.Equal(persisted.Signed.Bytes, original.Signed.Bytes) {
+				t.Fatal("retry lost the exact original durable operation")
+			}
+			if observed == "UNKNOWN" || adapter.queryFail {
+				receipt, ok := result.(model.Receipt)
+				if err != nil || !ok || receipt.State != "SUBMITTED" || persisted.State != "SUBMITTED" || strings.Join(adapter.trace, ",") != "reconcile,submit" {
+					t.Fatal("signed original did not reconcile then legally submit", err, adapter.trace)
+				}
+			} else if err == nil || strings.Join(adapter.trace, ",") != "reconcile" || persisted.State != "SIGNED_NOT_SUBMITTED" || persisted.Receipt != nil {
+				t.Fatal("ineligible direct receipt transition was mistaken for successful recovery or broadcast", err, adapter.trace)
+			}
+			for _, call := range readPublicState(t, path)["calls"].([]any) {
+				if call == "prepare" || call == "sign" || call == "cancelPrepared" {
+					t.Fatal("signed original recovery acquired new signing or cancellation authority")
+				}
+			}
+		})
 	}
 }
 func TestTP043LockInvalidatesRetryBeforeBroadcast(t *testing.T) {

@@ -192,55 +192,87 @@ func TestTabsFormsAssetsAndPagingPreserveWalletContextWithoutImplicitSpends(t *t
 	}
 }
 
-func TestPrepareAndMaximumSpendUseWholeAmountsAndOriginalPlanIdentity(t *testing.T) {
-	for _, kind := range []string{"prepare", "max"} {
-		a, ui, core := fixture(t)
-		account := ethAccount(t, a)
-		asset := a.asset(account)
-		a.active = "wallet/" + account.ID
-		a.fields["recipient/"+account.ID] = "public-recipient"
-		a.fields["amount/"+account.ID] = "1.5"
-		a.fields["memo/"+account.ID] = "public memo"
-		transfer := model.Transfer{AccountID: account.ID, Asset: asset.ID, Recipient: "public-recipient", Amount: "1.5", Memo: "public memo"}
-		plan := model.Plan{ID: "original-public-plan", Account: account, Asset: asset.ID, Recipient: transfer.Recipient, Amount: "1500000000000000000", MaxFee: "21000000000000", FeeAsset: asset.ID, Expires: time.Now().Add(time.Minute).Unix()}
-		routeFixture(t, a, core, kind, transfer, plan)
-		a.walletEvent(kind + "/" + account.ID)
-		ui.apply(t)
-		if a.plan == nil || a.plan.ID != plan.ID {
-			t.Fatal("prepare replaced the original plan")
+func TestPrepareUsesWholeUnitsAndOpensOriginalSignerConfirmationDirectly(t *testing.T) {
+	a, ui, core := fixture(t)
+	account := ethAccount(t, a)
+	asset := a.asset(account)
+	a.active = "wallet/" + account.ID
+	a.sendForms[account.ID] = true
+	recipient := "0x" + strings.Repeat("1", 40)
+	a.fields["recipient/"+account.ID] = recipient
+	a.fields["amount/"+account.ID] = "1.5"
+	a.fields["memo/"+account.ID] = "public memo"
+	plan := model.Plan{ID: "original-public-plan", Account: account, Asset: asset.ID, Recipient: recipient, Amount: "1500000000000000000", MaxFee: "21000000000000", FeeAsset: asset.ID, Memo: "public memo", Expires: time.Now().Add(time.Minute).Unix(), Payload: json.RawMessage(`{}`)}
+	var methods []string
+	core.handler = func(_ uint64, method string, body, out any) error {
+		methods = append(methods, method)
+		switch method {
+		case "prepare":
+			draft, ok := body.(model.Transfer)
+			if !ok || draft.Amount != "1.5" || draft.Recipient != recipient || draft.Memo != "public memo" {
+				t.Error("whole-unit intent changed", body)
+			}
+			return answer(out, plan)
+		case "send":
+			if body.(map[string]string)["id"] != plan.ID {
+				t.Error("original prepared identity replaced", body)
+			}
+			return answer(out, map[string]string{"state": "UNKNOWN", "identity": "original-transaction"})
+		default:
+			return errors.New("unexpected quote or replacement request")
 		}
-		if kind == "max" && a.fields["amount/"+account.ID] != "1.500000000000000000" {
-			t.Fatal("maximum lost exact asset denomination")
-		}
-		a.sendForms[account.ID] = true
-		text := viewText(a.walletPage(account))
-		if !strings.Contains(text, "public-recipient") || !strings.Contains(text, "Maximum fee:") || !strings.Contains(text, "public memo") {
-			t.Fatal("public prepared review omitted spend effects")
-		}
-		routeFixture(t, a, core, "send", map[string]string{"id": plan.ID}, json.RawMessage(`{"state":"UNKNOWN","identity":"public-original-transaction"}`))
-		a.walletEvent("send/" + account.ID)
-		ui.apply(t)
-		if a.plan != nil || a.resultOwner != account.ID || !strings.Contains(a.result, "UNKNOWN") {
-			t.Fatal("send changed owner/original operation state")
-		}
+	}
+	a.walletEvent("prepare/" + account.ID)
+	ui.apply(t)
+	ui.apply(t)
+	if strings.Join(methods, ",") != "prepare,send" || a.plan != nil || a.resultOwner != account.ID || !strings.Contains(a.result, "UNKNOWN") {
+		t.Fatal("Send did not use exactly one original prepared operation", methods, a.result)
+	}
+	if _, found := findNode(a.walletPage(account).Nodes, "send/"+account.ID); found {
+		t.Fatal("inline review authority survived")
 	}
 }
 
-func TestHistoryActionsReuseOriginalIdentityAndNeverReplaceAmbiguousPayment(t *testing.T) {
-	for _, row := range []struct{ event, method string }{{"sendOperation", "send"}, {"retry", "retry"}, {"reconcile", "reconcile"}, {"cancelPrepared", "cancelPrepared"}} {
-		a, ui, core := fixture(t)
-		account := ethAccount(t, a)
-		a.active = "wallet/" + account.ID
-		state := "UNKNOWN"
-		if row.event == "sendOperation" || row.event == "cancelPrepared" {
-			state = "PREPARED"
+func TestMaximumUsesReadOnlyQuoteRepeatedlyWithoutPreparingOrSigning(t *testing.T) {
+	a, ui, core := fixture(t)
+	account := ethAccount(t, a)
+	asset := a.asset(account)
+	a.active = "wallet/" + account.ID
+	a.sendForms[account.ID] = true
+	recipient := "0x" + strings.Repeat("1", 40)
+	a.fields["recipient/"+account.ID] = recipient
+	a.fields["amount/"+account.ID] = "1.5"
+	calls := 0
+	core.handler = func(_ uint64, method string, body, out any) error {
+		calls++
+		request, ok := body.(paymentQuoteRequest)
+		if method != "quotePayment" || !ok || !request.Maximum || request.Recipient != recipient || request.Asset != asset.ID {
+			t.Error("Max acquired preparation/signing authority", method, body)
 		}
-		a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{{Plan: model.Plan{ID: "original-public-id", Account: account, Asset: a.network(account.Network).Assets[0].ID}, State: state}}}}}
-		routeFixture(t, a, core, row.method, map[string]string{"id": "original-public-id"}, json.RawMessage(`{"state":"UNKNOWN"}`))
-		a.walletEvent(row.event + "/original-public-id")
+		return answer(out, model.Plan{ID: "read-only-quote", Account: account, Asset: asset.ID, Recipient: recipient, Amount: "1500000000000000000", MaxFee: "21000000000000", FeeAsset: asset.ID, Expires: time.Now().Add(time.Minute).Unix(), Payload: json.RawMessage(`{}`)})
+	}
+	for i := 0; i < 3; i++ {
+		a.walletEvent("max/" + account.ID)
 		ui.apply(t)
-		if a.resultOwner != account.ID || !strings.Contains(a.result, "UNKNOWN") {
-			t.Fatal("journal action lost original identity/state")
+		if a.plan != nil || a.fields["amount/"+account.ID] != "1.500000000000000000" || a.paymentQuote.Plan == nil || !strings.Contains(viewText(a.paymentFeeNodes(account)), "0.000021 ETH") {
+			t.Fatal("Max persisted authority or lost exact fee/amount", i, a.paymentQuote)
+		}
+	}
+	if calls != 3 {
+		t.Fatal("Max did not remain repeatable", calls)
+	}
+}
+
+func TestRemovedHistoryPaymentRoutesCannotReachOriginalOperation(t *testing.T) {
+	a, _, core := fixture(t)
+	account := ethAccount(t, a)
+	a.active = "wallet/" + account.ID
+	a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{{Plan: model.Plan{ID: "original-public-id", Account: account, Asset: a.asset(account).ID}, State: "UNKNOWN"}}}}}
+	core.handler = func(uint64, string, any, any) error { t.Fatal("removed history action reached backend"); return nil }
+	for _, kind := range []string{"sendOperation", "retry", "reconcile"} {
+		a.walletEvent(kind + "/original-public-id")
+		if a.busy {
+			t.Fatal("removed history action started work", kind)
 		}
 	}
 }

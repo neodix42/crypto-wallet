@@ -310,7 +310,8 @@ func TestNativeControllerPreparePassesWholeUnitsAndInvalidatesEditedPlan(t *test
 	a, ui, core := fixture(t)
 	account := ethAccount(t, a)
 	a.active = "wallet/" + account.ID
-	a.fields["recipient/"+account.ID] = "public-recipient"
+	a.sendForms[account.ID] = true
+	a.fields["recipient/"+account.ID] = "0x" + strings.Repeat("1", 40)
 	a.fields["amount/"+account.ID] = "1"
 	a.fields["memo/"+account.ID] = "public memo"
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -319,16 +320,16 @@ func TestNativeControllerPreparePassesWholeUnitsAndInvalidatesEditedPlan(t *test
 			return errors.New("wrong method")
 		}
 		transfer, ok := body.(model.Transfer)
-		if !ok || transfer.Amount != "1" || transfer.Recipient != "public-recipient" {
+		if !ok || transfer.Amount != "1" || transfer.Recipient != "0x"+strings.Repeat("1", 40) {
 			t.Error("whole-unit UI request changed before Go amount parsing")
 		}
 		close(entered)
 		<-release
-		return answer(out, model.Plan{ID: "prepared-original", Account: account, Asset: transfer.Asset, Recipient: transfer.Recipient, Amount: "1000000000000000000"})
+		return answer(out, model.Plan{ID: "prepared-original", Account: account, Asset: transfer.Asset, Recipient: transfer.Recipient, Amount: "1000000000000000000", FeeAsset: transfer.Asset, MaxFee: "21000", Memo: transfer.Memo, Expires: time.Now().Add(time.Minute).Unix(), Payload: json.RawMessage(`{}`)})
 	}
 	a.walletEvent("prepare/" + account.ID)
 	<-entered
-	a.event(webui.Event{ID: "field/recipient/" + account.ID, Value: "public-edited-recipient"})
+	a.event(webui.Event{ID: "field/recipient/" + account.ID, Value: "0x" + strings.Repeat("2", 40)})
 	close(release)
 	ui.apply(t)
 	if a.plan != nil {

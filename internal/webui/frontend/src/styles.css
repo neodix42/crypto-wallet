@@ -66,9 +66,6 @@
 .transaction-table td:nth-child(6){min-width:200px;max-width:400px;overflow-wrap:anywhere}
 .transaction-table .address,.transaction-table .transaction-id{white-space:nowrap}
 .transaction-table tbody tr:last-child td{border-bottom:0}
-.transaction-status{display:flex;flex-direction:column;gap:6px;max-width:360px}
-.transaction-actions{display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
-.transaction-actions button{padding:5px 9px;font-size:.82em;line-height:1.3;white-space:normal;text-align:left}
 .explorer-link{border:0;background:transparent;color:var(--accent);padding:0;min-height:0;text-decoration:underline;text-underline-offset:3px;line-height:1.6;white-space:nowrap;font-weight:500;user-select:text;-webkit-user-select:text}
 .explorer-link:hover{background:transparent;color:var(--accent-hover)}
 
@@ -76,3 +73,7 @@
 .price-spinner { width: .9em; height: .9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: price-spin .8s linear infinite; }
 @keyframes price-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .price-spinner { animation: none; border-style: dotted; } }
+
+.send-amount-field{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin:13px 0}
+.send-amount-field>.field{min-width:0;margin:0}
+.send-amount-field>button{min-height:45px;align-self:end;white-space:nowrap}

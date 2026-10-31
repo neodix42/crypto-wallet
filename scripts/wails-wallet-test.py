@@ -1635,6 +1635,47 @@ def public_decimal_cell(rows,picture,bounds,row_y,expected):
         if raw.decode().strip()==expected:return True
     return False
 
+def send_amount_geometry(rows,picture,bounds):
+    # Public-only pixel helper. The caller uses public_rows' existing atomic
+    # private-window guard; no DOM, injected script or private capture is used.
+    x,y,w,h=bounds
+    if picture.mode!="RGB" or min(x,y)<0 or w<300 or h<200 or x+w>picture.width or y+h>picture.height:
+        raise RuntimeError("Amount/Max observation exceeds owned public bounds")
+    labels={word:[row for row in rows if row[11]==word and x+15<=int(row[6])<x+w-15 and y+145<int(row[7])<y+h-50] for word in ("Amount","1.25","Max")}
+    if any(len(found)!=1 for found in labels.values()):raise RuntimeError("Amount/Max public labels are not unique")
+    amount,value,maximum=(labels[word][0] for word in ("Amount","1.25","Max"))
+    box=lambda row:tuple(int(row[index]) for index in (6,7,8,9))
+    ax,ay,aw,ah=box(amount);vx,vy,vw,vh=box(value);mx,my,mw,mh=box(maximum)
+    if not (ax<=vx<vx+vw<mx and 12<=vy-(ay+ah)<=40 and abs((vy+vh/2)-(my+mh/2))<=5):
+        raise RuntimeError("Max is not beside the Amount input")
+    colors=(palette()["border"],palette()["primary"])
+    outlined=lambda xx,yy:any(max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),wanted))<=3 for wanted in colors)
+    cy=round((vy+vh/2+my+mh/2)/2)
+    edges=[]
+    for xx in range(max(x+5,ax-4),x+w-10):
+        if all(outlined(xx,cy+dy) for dy in (-2,0,2)):
+            if not edges or xx>edges[-1][-1]+1:edges.append([])
+            edges[-1].append(xx)
+    lines=[span[0] for span in edges if len(span)<=3]
+    left=[xx for xx in lines if abs(xx-ax)<=4]
+    middle=[xx for xx in lines if vx+vw+6<xx<mx-4]
+    right=[xx for xx in lines if mx+mw+5<xx<mx+mw+35]
+    if len(left)!=1 or len(middle)!=2 or len(right)!=1 or not 5<=middle[1]-middle[0]<=20:
+        raise RuntimeError("Amount input and Max button outlines are not independent")
+    def rectangle(left,right,glyph_top,glyph_bottom):
+        samples=[left+8,left+(right-left)//3,left+2*(right-left)//3,right-8]
+        full=lambda yy:all(outlined(xx,yy) for xx in samples)
+        tops=[yy for yy in range(max(y+145,glyph_top-25),glyph_top-1) if full(yy)]
+        bottoms=[yy for yy in range(glyph_bottom+1,min(y+h-32,glyph_bottom+26)) if full(yy)]
+        if len(tops)!=1 or len(bottoms)!=1 or not 36<=bottoms[0]-tops[0]<=65:
+            raise RuntimeError("Amount/Max control outline is incomplete")
+        return [left,tops[0],right,bottoms[0]]
+    field=rectangle(left[0],middle[0],vy,vy+vh)
+    button=rectangle(middle[1],right[0],my,my+mh)
+    if abs(field[3]-button[3])>2 or abs((field[3]-field[1])-(button[3]-button[1]))>4:
+        raise RuntimeError("Max and Amount input bottom edges are not aligned")
+    return {"input":field,"max":button,"bottomDifference":abs(field[3]-button[3]),"sameRow":True}
+
 def public_words_position(words, rows=None):
     wanted=[word.lower() for word in words.split()]
     rows=public_rows() if rows is None else rows
@@ -2185,13 +2226,46 @@ def ethereum_tokens(expected_address=None):
     wait(lambda:bool(re.search(r"Amount.*1 means 1 USDT",text())))
     if desktop.secret_window() or "Prepared payment" in text():
         raise RuntimeError("Token selection or opening Send requested authority or prepared a payment")
+    stage("Verify Max is beside the Amount textbox with aligned bottom edges")
+    amount_position=public_words_position("Amount")
+    if not amount_position:raise RuntimeError("Public Amount label was not observed")
+    desktop.click(amount_position[0],amount_position[1]+40)
+    desktop.type("1.25")
+    # Blurring through the public noninteractive heading removes the caret;
+    # pointer parking alone leaves it adjacent to the final decimal glyph.
+    heading_position=public_words_position("Send USDT")
+    if not heading_position:raise RuntimeError("Public Send USDT heading was not observed before amount inspection")
+    desktop.click(*heading_position)
+    desktop.park_pointer()
+    time.sleep(.2)
+    geometry_errors=[]
+    for contrast in (False,True):
+        amount_rows,amount_picture,amount_bounds=public_rows(contrast=contrast,with_picture=True,with_geometry=True)
+        labels={word:[row for row in amount_rows if row[11]==word] for word in ("Amount","1.25","Max")}
+        report.setdefault("sendAmountGeometryObservations",[]).append({"contrastOCR":contrast,"labels":{word:{"count":len(found),"boxes":[[int(row[index]) for index in (6,7,8,9)] for row in found]} for word,found in labels.items()}})
+        try:
+            report["sendAmountGeometry"]=send_amount_geometry(amount_rows,amount_picture,amount_bounds)
+            break
+        except RuntimeError as error:
+            geometry_errors.append(str(error))
+    else:raise RuntimeError("Amount/Max outlines could not be verified: "+"; ".join(geometry_errors))
+    # Recipient remains empty: typing a public amount cannot request a quote,
+    # approval or mutation. Restore the draft used by the existing Max guard.
+    desktop.click(amount_position[0],amount_position[1]+40)
+    desktop.key("a",ctrl=True);desktop.key("BackSpace")
+    desktop.click(*heading_position)
+    desktop.park_pointer()
+    time.sleep(.15)
+    cleared_rows=public_rows()
+    report["maxAfterClearedAmount"]={"matches":[[int(row[index]) for index in (6,7,8,9)] for row in cleared_rows if row[11]=="Max"],"privateDialog":False}
+    if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Amount alignment inspection requested payment authority")
     stage("Check compact Max requires recipient without opening approval or inventing an amount")
     click("Max")
     # Leave the native explanatory tooltip before the existing private-window
     # guard captures public status pixels. Unknown windows remain forbidden.
     desktop.park_pointer()
     wait(lambda:not desktop.secret_window(),5)
-    wait(lambda:public_status_contains("Enter a recipient first"))
+    wait(lambda:public_status_contains("Enter a valid recipient first"))
     if desktop.secret_window() or "Prepared payment" in text():
         raise RuntimeError("Blank-recipient Max requested authority or prepared a payment")
     report["maxRecipientGuard"]={"asset":"USDT","requiresRecipient":True,"preparedOrSent":False}

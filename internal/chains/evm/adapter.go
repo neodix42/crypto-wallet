@@ -355,7 +355,7 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 		return fail(e)
 	}
 	if pendingNative.Cmp(need) < 0 {
-		return fail(errors.New("insufficient pending spendable gas currency balance"))
+		return fail(ErrInsufficientPendingFunds)
 	}
 	if s.Contract != "" {
 		tok, e := a.balance(ctx, n, ac, s, b.Number)

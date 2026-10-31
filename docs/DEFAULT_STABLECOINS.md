@@ -29,7 +29,7 @@ Previously imported contracts that become defaults keep their original encrypted
 
 ## Max
 
-Every Send form has **Max** beside Amount. Enter the recipient first because activation, contract execution and fees can depend on the destination. Go reads the selected asset's verified spendable balance, estimates the exact transfer and prepares the final amount. Max itself never signs or broadcasts. Review and the current app password remain mandatory.
+Every Send form has **Max** beside Amount. Enter the recipient first because activation, contract execution and fees can depend on the destination. Go reads the selected asset's verified spendable balance and calculates the amount and fee budget without recording a payment. Max itself never signs or broadcasts. Send fetches fresh state and opens the exact payment confirmation/current-password dialog. See [the read-only quote correction](MAX_AND_PAYMENT_DIALOGS.md).
 
 For native currency, Max subtracts the estimated fee and required storage/spendability reserve. For tokens, Max uses the full spendable token balance and checks the separate gas balance; USDT is never subtracted to pay an ETH/GRAM fee. Core order holds are excluded. Base transaction-size and TON Coins-encoding fee increases use a bounded recalculation from the adapter’s checked local native budget quote. Provider errors, rate limits, token gas and malformed quotes cannot trigger that recalculation. Unknown, stale, malformed or duplicate observations fail; an unsuccessful calculation preserves the original journal and reservation.
 

@@ -50,7 +50,7 @@ Choose the source wallet/network and wallet asset, refresh its market, enter an 
 
 The deposit-address API provides a token-contract suffix. That suffix can corroborate the already matched full coin-info contract; it cannot identify the token by itself. A wrong chain, contract, memo or suspended route prevents sending.
 
-Track the original payment in the depositing wallet’s **Transaction history**. Its local operation row provides **Check status**, or **Review** / **Cancel prepared** before signing. Its accepted/confirmed chain result does not prove that Bybit has credited a spendable balance. Wait for a fresh Bybit balance observation. Daily caps, confirmations, AML/Travel Rule checks and account restrictions can delay or prevent credit. No Swap follows a deposit automatically.
+Track the original payment in the depositing wallet’s **Transaction history**. Use **Check pending payment** in that wallet’s Send form to resolve the original operation through a dialog. Its accepted/confirmed chain result does not prove that Bybit has credited a spendable balance. Wait for a fresh Bybit balance observation. Daily caps, confirmations, AML/Travel Rule checks and account restrictions can delay or prevent credit. No Swap follows a deposit automatically.
 
 ## Swap
 

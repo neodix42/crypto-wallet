@@ -1,8 +1,22 @@
 # Implementation and release evidence
 
+## Read-only Max, planned fees and dialog-only approvals — 2026-10-31
+
+Max used final preparation and therefore recorded a PREPARED reservation; a second Max/preparation could fail on that same reservation. It now uses read-only planning. EVM quotes also respect the smaller confirmed/pending spendable balance. Exact ordered public-envelope serialization fixes quoted/reordered transaction payloads that broke TON validation and native plan digests. History has no action controls, and Send/Deploy open approval directly. Pending originals are resolved in dialogs, preserving exact identities and signed bytes. Fee estimates are debounced/cancellable and Max aligns with Amount. One displayed TON wallet ID replaces duplicate standard/encoded numbers without changing the account. [Behavior and evidence](MAX_AND_PAYMENT_DIALOGS.md).
+
+| State | Evidence |
+|---|---|
+| PASS, focused | Backend/core/IPC and supervisor cancellation races/vet, exact ETH/TON RPC adapter quotes, controller all 19 asset/read-only/stale/hostile guards, dialog identity/cancellation and inert table/frontend checks pass. Public TON read-only Max succeeds; no user storage or signing is used. |
+| PASS, final local aggregates | Complete current Go/frontend/helper/stress aggregate, dependency gates and 81 compiling semantic mutants pass with stable security snapshots. Nine real private-geth steps prove repeated Max/fee quotes create no record or signature and cannot authorize a send, then execute/reconcile one separately approved payment. `reports/max-dialog-test-ci-final-v2.log`, `reports/max-dialog-security-final.log`, `reports/max-dialog-deps-final.log`, `reports/portable-send.json`. The 81-mutant/private-node runs preceded the final native signed/unsubmitted dialog guard; complete units and focused native/coordinator/quote-mutant checks pass again after that fix. Existing dependency findings below remain disclosed. |
+| FAIL, retained intermediate attempts | The first aggregate encountered intermediate public-envelope fixture errors, corrected before the complete frozen aggregate passed. The first full desktop run passed 13 steps and stopped at the new Amount/Max locator because public labels were not unique; alignment is not claimed by that failed run. `reports/max-dialog-test-ci-final.log`, `reports/max-dialog-wails-wallet-final.log`. |
+| PASS, final actual token/Max desktop | Five final-binary X11 checks pass with sourceStable=true on `e4d2069e625fe0feec8088f4b4bd6f0c1289078107cb80f24c30fa9898a65cec`. Amount and Max bottom edges match exactly (0 pixels); blank-recipient Max has no authority or payment. Asset precision/hover, owned Receive, address-book validation and actual restart pass. `reports/wails-max-tokens-final.json`. |
+| PASS, final actual TON desktop | Four final-binary X11 checks pass with sourceStable=true, preserving offline/unknown status, denied unfunded deployment, exact recovery profile and no invented approval/prepared operation on status failure. `reports/wails-max-ton-final.json`. |
+| IN_PROGRESS | Complete protocol/race checks and exact-source hosted full desktop/CI/publication. |
+| NOT_RUN | Public funded/user-wallet spending, funded graphical history/pending/send workflow, complete physical OS/Wayland matrix, soak and independent review. |
+
 ## Direct deployment confirmation and removal of the Journal page — 2026-10-31
 
-The reported deployment was an existing unsigned `PREPARED` operation. A second Deploy click attempted a new plan and correctly hit the internal duplicate-send reservation. The fix resumes the exact unsigned original and opens its ordinary confirmation dialog directly. Expired unsigned deployment previews can be cancelled/refreshed only by an explicit Deploy click. Signed/pending records keep their original identities; wallet history owns review, cancellation and status controls. Settings no longer has a Journal page. [Behavior and verification checklist](TON_DEPLOYMENT_CONFIRMATION.md).
+The reported deployment was an existing unsigned `PREPARED` operation. A second Deploy click attempted a new plan and correctly hit the internal duplicate-send reservation. The fix resumes the exact unsigned original and opens its ordinary confirmation dialog directly. Expired unsigned deployment previews can be cancelled/refreshed only by an explicit Deploy click. Signed/pending records keep their original identities. The later owner update above removes the original history controls and uses dialogs; this section records the earlier candidate. Settings no longer has a Journal page. [Behavior and verification checklist](TON_DEPLOYMENT_CONFIRMATION.md).
 
 | State | Evidence |
 |---|---|

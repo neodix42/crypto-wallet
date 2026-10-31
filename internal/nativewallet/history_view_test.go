@@ -3,6 +3,7 @@ package nativewallet
 // These are explicit controller peers, not blockchain acceptance fixtures.
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -19,46 +20,42 @@ func historyOriginal(account model.Account, asset, state string) journal.Operati
 	return journal.Operation{Plan: model.Plan{ID: "original-" + state, Account: account, Asset: asset, Amount: "1000000000000000000", Recipient: "0x" + strings.Repeat("1", 40), Expires: time.Now().Add(time.Minute).Unix()}, State: state}
 }
 
-func TestWalletHistoryExposesOnlyOriginalOperationControlsForItsExactState(t *testing.T) {
-	for _, test := range []struct {
-		state string
-		kinds []string
-	}{
-		{"PREPARED", []string{"sendOperation", "cancelPrepared"}},
-		{"SIGNED_NOT_SUBMITTED", []string{"retry", "reconcile"}},
-		{"UNKNOWN", []string{"retry", "reconcile"}},
-		{"SUBMITTING", []string{"reconcile"}},
-		{"SUBMITTED", []string{"reconcile"}},
-		{"REORGED", []string{"reconcile"}},
-		{"AWAITING_CONFIRMATION", nil}, {"CONFIRMED", nil}, {"FAILED", nil}, {"CANCELLED", nil}, {"REPLACED", nil}, {"OBSERVED", nil},
-	} {
-		t.Run(test.state, func(t *testing.T) {
+func TestWalletHistoryIsInertForEveryOriginalOperationState(t *testing.T) {
+	for _, state := range []string{"PREPARED", "SIGNED_NOT_SUBMITTED", "UNKNOWN", "SUBMITTING", "SUBMITTED", "REORGED", "AWAITING_CONFIRMATION", "CONFIRMED", "FAILED", "CANCELLED", "REPLACED", "OBSERVED"} {
+		t.Run(state, func(t *testing.T) {
 			a, _, core := fixture(t)
 			account := ethAccount(t, a)
 			a.active = "wallet/" + account.ID
-			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, test.state)
+			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, state)
 			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{op}}}}
 			calls := 0
-			core.handler = func(uint64, string, any, any) error { calls++; return errors.New("render must not call a payment API") }
+			core.handler = func(uint64, string, any, any) error {
+				calls++
+				return errors.New("history render must not call any payment API")
+			}
 			nodes := a.walletHistoryNodes(account)
 			for _, kind := range []string{"sendOperation", "cancelPrepared", "retry", "reconcile"} {
-				button, found := findNode(nodes, kind+"/"+op.Plan.ID)
-				want := false
-				for _, allowed := range test.kinds {
-					want = want || allowed == kind
-				}
-				if found != want || found && (button.Kind != "button" || button.Disabled) {
-					t.Fatal("wrong original-operation action set", kind, button, want)
+				if _, found := findNode(nodes, kind+"/"+op.Plan.ID); found {
+					t.Fatal("transaction history exposed an operation action", kind, state)
 				}
 			}
-			if calls != 0 || op.State != test.state || op.Signed != nil {
-				t.Fatal("render changed authority or started payment work")
+			table, ok := findNode(nodes, "walletHistoryTable/"+account.ID)
+			if !ok || len(table.Children) != 1 || len(table.Children[0].Children) != 7 {
+				t.Fatal("original history record lost", table)
+			}
+			for _, cell := range table.Children[0].Children {
+				if len(cell.Children) != 0 || cell.Kind == "button" || cell.Kind == "entry" || cell.Kind == "combo" {
+					t.Fatal("history cell acquired an interactive control", cell)
+				}
+			}
+			if table.Children[0].Children[6].Kind != "label" || table.Children[0].Children[6].Text != state || calls != 0 || op.State != state {
+				t.Fatal("inert history changed original operation or state", table, calls)
 			}
 		})
 	}
 }
 
-func TestWalletHistoryActionsBindOriginalLocalOperationAndIgnoreObservedIdentities(t *testing.T) {
+func TestDialogActionsBindOriginalLocalOperationAndIgnoreObservedIdentities(t *testing.T) {
 	for _, test := range []struct{ state, kind, method string }{
 		{"PREPARED", "sendOperation", "send"}, {"PREPARED", "cancelPrepared", "cancelPrepared"},
 		{"SIGNED_NOT_SUBMITTED", "retry", "retry"}, {"UNKNOWN", "retry", "retry"}, {"UNKNOWN", "reconcile", "reconcile"},
@@ -79,10 +76,10 @@ func TestWalletHistoryActionsBindOriginalLocalOperationAndIgnoreObservedIdentiti
 				}
 				return answer(out, map[string]string{"state": test.state})
 			}
-			if a.historyPaymentAction(test.kind, "observed-only") || calls != 0 {
+			if a.dialogPaymentAction(test.kind, "observed-only") || calls != 0 {
 				t.Fatal("chain observation granted payment authority")
 			}
-			if !a.historyPaymentAction(test.kind, op.Plan.ID) {
+			if !a.dialogPaymentAction(test.kind, op.Plan.ID) {
 				t.Fatal("original operation control refused")
 			}
 			ui.apply(t)
@@ -93,7 +90,7 @@ func TestWalletHistoryActionsBindOriginalLocalOperationAndIgnoreObservedIdentiti
 	}
 }
 
-func TestWalletHistoryRejectsForeignUnavailableStaleAndUnsupportedActions(t *testing.T) {
+func TestDialogActionsRejectForeignUnavailableStaleAndUnsupportedOperations(t *testing.T) {
 	for _, mode := range []string{"locked", "closed", "busy", "pendingRecovery", "inactive", "otherWallet", "notLoaded", "localFailed", "loading", "refresh", "foreignAddress", "foreignKey", "foreignProfile", "foreignNetwork", "foreignParameters", "unknownAsset", "signedArtifact", "duplicate", "terminal", "wrongAction", "missing"} {
 		t.Run(mode, func(t *testing.T) {
 			a, _, core := fixture(t)
@@ -154,7 +151,7 @@ func TestWalletHistoryRejectsForeignUnavailableStaleAndUnsupportedActions(t *tes
 			a.walletHistory = map[string]walletHistoryState{account.ID: state}
 			calls := 0
 			core.handler = func(uint64, string, any, any) error { calls++; return nil }
-			if a.historyPaymentAction(kind, id) || calls != 0 {
+			if a.dialogPaymentAction(kind, id) || calls != 0 {
 				t.Fatal("unavailable or foreign action reached backend", mode)
 			}
 		})
@@ -167,7 +164,7 @@ func TestWalletHistoryObservedAndRetiredRowsNeverOfferPaymentControls(t *testing
 	a.active = "wallet/" + account.ID
 	op := historyOriginal(account, a.network(account.Network).Assets[0].ID, "UNKNOWN")
 	state := walletHistoryState{Loaded: true, Chain: model.HistoryPage{Entries: []model.Receipt{{Identity: "arbitrary-observed", State: "UNKNOWN"}}}}
-	if rows := a.walletHistoryRows(account, state); len(rows) != 1 || rows[0].operation != nil {
+	if rows := a.walletHistoryRows(account, state); len(rows) != 1 || rows[0].transaction != "arbitrary-observed" {
 		t.Fatal("observed-only transaction acquired original authority", rows)
 	}
 	for _, mutate := range []func(*journal.Operation){
@@ -187,7 +184,7 @@ func TestWalletHistoryObservedAndRetiredRowsNeverOfferPaymentControls(t *testing
 	}
 }
 
-func TestWalletHistoryMergedOriginalRetainsControlsWithoutMakingOtherEffectsActionable(t *testing.T) {
+func TestWalletHistoryMergedOriginalRetainsStateWithoutExposingActions(t *testing.T) {
 	a, _, _ := fixture(t)
 	account := ethAccount(t, a)
 	a.active = "wallet/" + account.ID
@@ -203,17 +200,20 @@ func TestWalletHistoryMergedOriginalRetainsControlsWithoutMakingOtherEffectsActi
 	if len(rows) != 2 {
 		t.Fatal("local payment duplicated", rows)
 	}
-	withActions := 0
+	retained := false
 	for _, row := range rows {
-		if row.operation != nil {
-			withActions++
-			if row.operation.Plan.ID != op.Plan.ID || row.state != "UNKNOWN · provider: OBSERVED" {
-				t.Fatal("merged original identity changed", row)
-			}
+		if row.amount == "1 ETH" {
+			retained = row.transaction == tx && row.state == "UNKNOWN · provider: OBSERVED"
 		}
 	}
-	if withActions != 1 {
-		t.Fatal("observed token effect gained payment authority", withActions)
+	if !retained || state.Local.Operations[0].Plan.ID != op.Plan.ID || state.Local.Operations[0].State != "UNKNOWN" {
+		t.Fatal("original operation or provider distinction lost", rows)
+	}
+	a.walletHistory = map[string]walletHistoryState{account.ID: state}
+	for _, kind := range []string{"sendOperation", "cancelPrepared", "retry", "reconcile"} {
+		if _, found := findNode(a.walletHistoryNodes(account), kind+"/"+op.Plan.ID); found {
+			t.Fatal("merged history exposed an action", kind)
+		}
 	}
 }
 
@@ -456,7 +456,7 @@ func TestWalletJournalRefreshSurvivesAnInflightReadAndDoesNotRescanTheChain(t *t
 			page := journalPage{Complete: true, Revision: "1"}
 			if reads > 1 {
 				page.Revision, page.Total = "2", 1
-				page.Operations = []journal.Operation{{Plan: model.Plan{ID: "new-payment", Account: account}, State: "UNKNOWN"}}
+				page.Operations = []journal.Operation{{Plan: model.Plan{ID: "new-payment", Account: account, Payload: json.RawMessage(`{}`)}, State: "UNKNOWN"}}
 			}
 			return answer(out, page)
 		}

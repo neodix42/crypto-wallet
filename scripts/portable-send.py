@@ -110,7 +110,7 @@ class Client:
         self.process.stdin.write(struct.pack('>I', len(raw)) + raw)
         self.process.stdin.flush()
 
-    def call(self, method, body=None, plan=None):
+    def call(self, method, body=None, plan=None, expected_error=None):
         self.counter += 1
         request = dict(version=1, id=str(self.counter), session=self.session, method=method, body=body or {})
         self.write(request)
@@ -123,8 +123,13 @@ class Client:
                 require(message['body'] == {}, 'Wallet activity contained unexpected data')
                 continue
             if message['method'] != 'prompt':
-                require(message['method'] == method and not message.get('error'), 'Wallet rejected the local payment operation')
+                require(message['method'] == method, 'Wallet response changed its requested method')
+                if expected_error is not None:
+                    require(message.get('error') == expected_error, 'Unrecorded payment quote gained spend authority')
+                    return None
+                require(not message.get('error'), 'Wallet rejected the local payment operation')
                 return message['body']
+            require(expected_error is None, 'Unrecorded payment quote unexpectedly opened an authorization prompt')
             prompt = message['body']
             require(isinstance(prompt, dict) and re.fullmatch('[a-f0-9]{32}', prompt.get('id', '')),
                     'Wallet prompt identity was malformed')
@@ -258,6 +263,42 @@ def inside(parent_namespace, directory):
                 int(node.rpc('eth_getTransactionCount', [node_fixture.SOURCE, 'pending']), 16) == 0,
                 'Real node funding/nonce preconditions differ')
         first_block = int(node.rpc('eth_blockNumber', []), 16)
+        report['phase'] = 'read-only-fee-and-maximum-quotes'
+        profile = config / 'cryptowallet/testnet'
+        vault_before = {name: (profile / name).read_bytes()
+                        for name in ('vault.lwv', 'vault.previous.lwv')}
+        prompt_counts_before = dict(client.prompt_counts)
+        quotes = []
+        for maximum in (True, True, False, False):
+            quoted = client.call('quotePayment', dict(accountId=ethereum['id'], asset=asset['id'],
+                recipient=node_fixture.RECIPIENT, amount='' if maximum else DECIMAL, memo='', maximum=maximum))
+            require(quoted['account']['id'] == ethereum['id'] and quoted['asset'] == asset['id'] and
+                    quoted['recipient'] == node_fixture.RECIPIENT and quoted['nonce'] == '0' and
+                    quoted['feeAsset'] == asset['id'] and int(quoted['maxFee']) > 0 and
+                    0 < int(quoted['amount']) and int(quoted['amount']) + int(quoted['maxFee']) <= source_before and
+                    (maximum or quoted['amount'] == str(ATOMIC)),
+                    'Read-only actual-node quote lost exact spend or native fee budget')
+            quotes.append(dict(maximum=maximum, atomicAmount=quoted['amount'], maximumFee=quoted['maxFee']))
+        # A preview ID is deliberately not a signer capability. Rejection must
+        # occur without any authorization/password prompt or network write.
+        client.call('send', {'id': quoted['id']}, expected_error='REQUEST_FAILED_STATE_UNKNOWN')
+        empty_journal = client.call('history', {'accountId': ethereum['id'], 'asset': asset['id']})
+        require(empty_journal['complete'] and empty_journal['operations'] == [] and
+                client.call('pendingPayment', {'accountId': ethereum['id']}) == {'operation': None} and
+                client.prompt_counts == prompt_counts_before,
+                'Repeated estimates created a reservation, operation or approval prompt')
+        require(all((profile / name).read_bytes() == original for name, original in vault_before.items()),
+                'Read-only quotes rewrote encrypted wallet generations')
+        require(int(node.rpc('eth_getBalance', [node_fixture.SOURCE, 'latest']), 16) == source_before and
+                int(node.rpc('eth_getBalance', [node_fixture.RECIPIENT, 'latest']), 16) == recipient_before and
+                int(node.rpc('eth_getTransactionCount', [node_fixture.SOURCE, 'latest']), 16) == 0 and
+                int(node.rpc('eth_getTransactionCount', [node_fixture.SOURCE, 'pending']), 16) == 0,
+                'Read-only estimates changed actual geth balances or nonce')
+        report['readOnlyQuotes'] = dict(quotes=quotes, journalCount=0, pendingOperation=False,
+            promptCount=0, unrecordedQuoteSendDenied=True, balancesUnchanged=True,
+            nonceUnchanged=True, encryptedGenerationsUnchanged=True)
+        passed('Repeated Max and exact fee quotes leave geth balances/nonces and encrypted journal unchanged; preview ID cannot sign')
+        report['phase'] = 'prepare-explicit-payment'
         plan = client.call('prepare', dict(accountId=ethereum['id'], asset=asset['id'],
                                          recipient=node_fixture.RECIPIENT, amount=DECIMAL, memo=''))
         require(plan['amount'] == str(ATOMIC) and plan['recipient'] == node_fixture.RECIPIENT and

@@ -263,6 +263,7 @@ func (a *App) addressBookEvent(kind, id string) bool {
 			a.fields["recipient/"+account.ID], a.fields["memo/"+account.ID] = entry.Address, entry.Memo
 			a.plan, a.planIsStaking = nil, false
 			a.planRevision++
+			a.invalidatePaymentQuote()
 			a.sendForms[account.ID] = true
 			a.walletEvent("open/" + account.ID)
 		case "editBookAddress":

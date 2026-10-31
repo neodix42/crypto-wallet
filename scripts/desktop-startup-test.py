@@ -2219,11 +2219,46 @@ class WailsAddressBookPublicObservation(unittest.TestCase):
                 self.scope[name](*args)
 
 
+class WailsSendAmountGeometry(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('palette','send_amount_geometry')
+        self.scope={'appearance':{'theme':'light','fontSize':18}}
+        exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names],type_ignores=[]),'amount-geometry-fixture','exec'),self.scope)
+        self.bounds=(0,0,1600,1100)
+    def rows(self):
+        def row(word,x,y,w,h):return ['5','1','1','1','1','1',str(x),str(y),str(w),str(h),'99',word]
+        return [row('Amount',100,300,65,18),row('1.25',113,354,36,18),row('Max',1345,354,35,18)]
+    def picture(self,shift=0,focused=False):
+        colors=self.scope['palette']()
+        picture=Image.new('RGB',(1600,1100),colors['surface']);draw=ImageDraw.Draw(picture)
+        draw.rectangle((100,340,1320,385),outline=colors['primary'] if focused else colors['border'],width=1)
+        draw.rectangle((1330,340+shift,1395,385+shift),fill=colors['button'],outline=colors['border'],width=1)
+        return picture
+    def test_actual_input_and_button_outlines_require_equal_bottom_edges(self):
+        for theme in ('light','dark'):
+            self.scope['appearance']['theme']=theme
+            for focused in (False,True):
+                result=self.scope['send_amount_geometry'](self.rows(),self.picture(focused=focused),self.bounds)
+                self.assertEqual(result,{'input':[100,340,1320,385],'max':[1330,340,1395,385],'bottomDifference':0,'sameRow':True})
+    def test_max_below_or_unrelated_label_cannot_pass(self):
+        rows=self.rows();rows[2][7]='405'
+        with self.assertRaisesRegex(RuntimeError,'not beside'):
+            self.scope['send_amount_geometry'](rows,self.picture(shift=51),self.bounds)
+        for words in (self.rows()+[self.rows()[2]],self.rows()[:2]):
+            with self.assertRaisesRegex(RuntimeError,'not unique'):
+                self.scope['send_amount_geometry'](words,self.picture(),self.bounds)
+    def test_clipped_missing_or_misaligned_control_border_is_rejected(self):
+        for picture,bounds in ((self.picture(),(-1,0,1600,1100)),(self.picture().convert('L'),self.bounds),(Image.new('RGB',(1600,1100),'white'),self.bounds),(self.picture(shift=8),self.bounds)):
+            with self.subTest(bounds=bounds,mode=picture.mode),self.assertRaises(RuntimeError):
+                self.scope['send_amount_geometry'](self.rows(),picture,bounds)
+
+
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

@@ -52,36 +52,13 @@ describe('public representation', () => {
     cells[0].Children = []; expect(validView(state)).toBe(true);
     cells[0].Children = [node('button', 'send/forbidden')]; expect(validView(state)).toBe(false);
     cells[0].Children = null;
+    for (const status of [node('button', 'retry/original', 'Broadcast'), node('column', 'history-status', 'UNKNOWN', 'original')]) {
+      status.Children = [node('label', '', 'UNKNOWN'), node('button', 'retry/original', 'Broadcast'), node('button', 'reconcile/original', 'Check status')];
+      row.Children = [...cells.slice(0, 6), status]; expect(validView(state)).toBe(false);
+    }
+    row.Children = cells;
     for (const malformed of [null, 'string', { Kind: 'row', Children: null }, { ...row, Kind: 'button' }, { ...row, Children: cells.slice(1) }, { ...row, Children: [null, ...cells.slice(1)] }, { ...row, Children: [node('entry'), ...cells.slice(1)] }]) {
       table.Children = [malformed] as Node[]; expect(validView(state)).toBe(false);
-    }
-  });
-  it('accepts only exact original-operation action sets in the Status cell and keeps provider cells inert', () => {
-    const state = view(), table = node('transactionTable'), row = node('row', 'owned-history-row');
-    state.Pages![0].Nodes = [table]; table.Children = [row];
-    function status(operationState = 'PREPARED', kinds = ['sendOperation', 'cancelPrepared']): Node {
-      const cell = node('column', 'history-status', operationState, 'original-plan');
-      cell.Children = [node('label', '', operationState), ...kinds.map(kind => node('button', `${kind}/original-plan`, kind))]; return cell;
-    }
-    const inert = [node('label'), node('address'), node('address'), node('label'), node('explorer'), node('label')];
-    for (const [operationState, kinds] of [['PREPARED', ['sendOperation', 'cancelPrepared']], ['SIGNED_NOT_SUBMITTED', ['retry', 'reconcile']], ['UNKNOWN', ['retry', 'reconcile']], ['SUBMITTED', ['reconcile']], ['SUBMITTING', ['reconcile']], ['REORGED', ['reconcile']]] as [string, string[]][]) {
-      row.Children = [...inert, status(operationState, kinds)]; expect(validView(state)).toBe(true);
-    }
-    for (const mutate of [
-      (cell: Node) => { cell.Text = 'CONFIRMED'; }, (cell: Node) => { cell.Text = '__proto__'; }, (cell: Node) => { cell.Text = 'constructor'; },
-      (cell: Node) => { cell.Value = ''; }, (cell: Node) => { cell.Value = 'foreign-operation'; },
-      (cell: Node) => { cell.Children![1].ID = 'sendOperation/replacement'; },
-      (cell: Node) => { cell.Children![1].Kind = 'entry'; }, (cell: Node) => { cell.Children![1].Value = 'replacement'; },
-      (cell: Node) => { cell.Children![1].Children = [node('button', 'send/replacement')]; },
-      (cell: Node) => { cell.Children![1].Options = [{ ID: 'replacement', Text: '' }]; },
-      (cell: Node) => { cell.Children!.push(node('button', 'send/replacement')); },
-      (cell: Node) => { cell.Children = null; }, (cell: Node) => { cell.Children![0].Kind = 'button'; },
-    ]) {
-      const cell = status(); mutate(cell); row.Children = [...inert, cell]; expect(validView(state)).toBe(false);
-    }
-    row.Children = [...inert, status()];
-    for (let index = 0; index < inert.length; index++) {
-      const cells = [...inert, status()]; cells[index] = status(); row.Children = cells; expect(validView(state)).toBe(false);
     }
   });
 });

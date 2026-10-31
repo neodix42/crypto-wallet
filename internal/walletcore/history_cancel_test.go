@@ -16,6 +16,122 @@ type cancellableHistoryAdapter struct {
 	started chan context.Context
 }
 
+type cancellableQuoteAdapter struct {
+	*publicAdapter
+	started chan context.Context
+	maximum bool
+}
+
+func (a *cancellableQuoteAdapter) Balance(ctx context.Context, ac model.Account) ([]model.Balance, error) {
+	if !a.maximum {
+		return a.publicAdapter.Balance(ctx, ac)
+	}
+	a.started <- ctx
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (a *cancellableQuoteAdapter) Prepare(ctx context.Context, _ model.Account, _ model.Transfer) (model.Plan, error) {
+	a.started <- ctx
+	<-ctx.Done()
+	return model.Plan{}, ctx.Err()
+}
+
+func TestPaymentQuoteCancellationStopsOnlyExactReadAndNeverChangesSignerRecords(t *testing.T) {
+	for _, method := range []string{"quotePayment", "max"} {
+		for _, queued := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/queued=%t", method, queued), func(t *testing.T) {
+				adapter := &cancellableQuoteAdapter{publicAdapter: &publicAdapter{}, started: make(chan context.Context, 1), maximum: method == "max"}
+				c, path := fakeCoordinator(t, adapter.publicAdapter, nil)
+				c.adapters = []model.Adapter{adapter}
+				body := map[string]any{"accountId": publicAccount().ID, "asset": "unit-testnet:native", "recipient": "public-recipient", "amount": "1", "memo": ""}
+				if method == "quotePayment" {
+					body["maximum"] = false
+				}
+				request := message(method, body)
+				if queued {
+					if err := c.registerHistoryControl(request, c.epoch); err != nil {
+						t.Fatal(err)
+					}
+					if err := c.cancelHistory(historyControlMessage(request)); err != nil {
+						t.Fatal(err)
+					}
+				}
+				other, stop := c.networkContext(time.Minute)
+				defer stop()
+				generation, last := c.child.Generation(), c.last
+				result := make(chan error, 1)
+				go func() { _, err := c.handle(request); result <- err }()
+				var active context.Context
+				select {
+				case active = <-adapter.started:
+				case <-time.After(5 * time.Second):
+					t.Fatal("read-only quote did not reach its provider context")
+				}
+				if !queued {
+					bad := historyControlMessage(request)
+					bad.ID += "-foreign"
+					if c.cancelHistory(bad) == nil || active.Err() != nil {
+						t.Fatal("foreign identity cancelled a payment quote")
+					}
+					if err := c.cancelHistory(historyControlMessage(request)); err != nil {
+						t.Fatal(err)
+					}
+				} else if active.Err() != context.Canceled {
+					t.Fatal("queued cancellation began uncancelled provider work")
+				}
+				select {
+				case err := <-result:
+					if ipc.PublicErrorCode(err) != "REQUEST_CANCELLED" {
+						t.Fatal("quote cancellation was lost or surfaced as a fee failure", err)
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("quote did not release the coordinator")
+				}
+				if other.Err() != nil || !c.active || c.last != last || c.child.Generation() != generation || c.cancelHistory(historyControlMessage(request)) == nil {
+					t.Fatal("quote cancellation changed session/generation or retained replay authority")
+				}
+				state := readPublicState(t, path)
+				if len(state["ops"].([]any)) != 0 {
+					t.Fatal("cancelled read-only quote changed durable signer operations")
+				}
+				for _, call := range state["calls"].([]any) {
+					if call == "prepare" || call == "sign" || call == "update" || call == "cancelPrepared" {
+						t.Fatal("quote cancellation acquired write authority", call)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestReadonlyCancellationCannotTargetPreparationSigningOrLateDifferentRequest(t *testing.T) {
+	c, _ := fakeCoordinator(t, &publicAdapter{}, nil)
+	for _, method := range []string{"prepare", "send", "retry", "sign", "cancelPrepared", "pendingPayment"} {
+		if c.registerHistoryControl(message(method, struct{}{}), c.epoch) == nil || cancellableReadMethod(method) {
+			t.Fatal("write or unrelated operation acquired read-only cancellation", method)
+		}
+	}
+	request := message("quotePayment", struct{}{})
+	if err := c.registerHistoryControl(request, c.epoch); err != nil {
+		t.Fatal(err)
+	}
+	foreign := request
+	foreign.Method = "max"
+	if c.registerHistoryControl(foreign, c.epoch) == nil || c.finishHistoryControl(foreign, c.epoch) {
+		t.Fatal("another method reused or finished the original read identity")
+	}
+	c.finishHistoryControl(request, c.epoch)
+	sendContext, stop := c.networkContext(time.Minute)
+	defer stop()
+	if err := c.cancelHistory(historyControlMessage(request)); err != nil || sendContext.Err() != nil {
+		t.Fatal("late quote cancellation affected an independent payment context", err)
+	}
+	if c.cancelHistory(historyControlMessage(request)) == nil {
+		t.Fatal("late quote control replay accepted")
+	}
+}
+
 func (a *cancellableHistoryAdapter) HistoryPage(ctx context.Context, _ model.Account, _ string) (model.HistoryPage, error) {
 	a.started <- ctx
 	<-ctx.Done()

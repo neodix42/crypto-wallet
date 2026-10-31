@@ -9,6 +9,7 @@ import (
 
 	"github.com/decred/base58"
 	"localwallet/internal/chains/near"
+	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
 )
@@ -191,16 +192,37 @@ func TestNearTokenStateAndPendingOperationsClearOnLockAndRejectForeignPlans(t *t
 func TestNearTokenNormalSendUsesWholeTokenUnitsNativeFeesAndSharedReceiveAddress(t *testing.T) {
 	a, ui, core := fixture(t)
 	account, token, _ := nearTokenFixture(t, a)
+	a.sendForms[account.ID] = true
 	a.fields["recipient/"+account.ID], a.fields["amount/"+account.ID] = "recipient.near", "1.000001"
 	want := model.Transfer{AccountID: account.ID, Asset: token.ID, Recipient: "recipient.near", Amount: "1.000001"}
-	plan := model.Plan{ID: "public-ft-transfer", Account: account, Asset: token.ID, Recipient: want.Recipient, Amount: "1000001", MaxFee: "100000000000000000000", FeeAsset: account.Network + ":native", Expires: time.Now().Add(time.Minute).Unix()}
-	routeFixture(t, a, core, "prepare", want, plan)
+	plan := model.Plan{ID: "public-ft-transfer", Account: account, Asset: token.ID, Recipient: want.Recipient, Amount: "1000001", MaxFee: "100000000000000000000", FeeAsset: account.Network + ":native", Payload: json.RawMessage(`{}`), Expires: time.Now().Add(time.Minute).Unix()}
+	prepares, reviews := 0, 0
+	core.handler = func(_ uint64, method string, body, out any) error {
+		switch method {
+		case "prepare":
+			prepares++
+			if viewText(body) != viewText(want) {
+				return errors.New("NEAR token recipient, contract or amount changed")
+			}
+			return answer(out, plan)
+		case "send":
+			reviews++
+			if viewText(body) != viewText(map[string]string{"id": plan.ID}) {
+				return errors.New("NEAR token approval replaced the original ID")
+			}
+			return ipc.NewRequestError("REQUEST_CANCELLED")
+		default:
+			return errors.New("unexpected NEAR token send route: " + method)
+		}
+	}
 	a.walletEvent("prepare/" + account.ID)
 	ui.apply(t)
-	a.sendForms[account.ID] = true
-	text := viewText(a.walletPage(account))
-	if a.plan == nil || a.plan.Amount != "1000001" || !strings.Contains(text, "1.000001 USD") || !strings.Contains(text, "Estimated fee reserve: 0.000100000000000000000000 NEAR") {
+	if a.plan == nil || a.plan.Amount != "1000001" || a.plan.Asset != token.ID || a.fields["amount/"+account.ID] != "1.000001" || !strings.Contains(a.paymentFeeText(plan), "0.0001 NEAR") {
 		t.Fatal("token send mixed token units or native fees")
+	}
+	ui.apply(t)
+	if prepares != 1 || reviews != 1 || a.status != "Request cancelled." || a.plan == nil || a.plan.ID != plan.ID {
+		t.Fatal("one token Send click lost its exact approval or ignored cancellation")
 	}
 	routeFixture(t, a, core, "receive", map[string]string{"accountId": account.ID}, json.RawMessage(`{"ok":true}`))
 	a.walletEvent("receive/" + account.ID)

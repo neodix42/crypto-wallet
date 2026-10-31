@@ -1,5 +1,7 @@
 # TON deployment confirmation and wallet history
 
+> Superseded presentation (2026-10-31): history now contains no action controls. Send/Deploy open approval directly; pending resolution uses dialogs from the Send form. Max and fee estimates are read-only. See [the current flow and evidence](MAX_AND_PAYMENT_DIALOGS.md). The source-specific evidence below remains historical.
+
 The Deploy button opens the exact V5R1 approval dialog in the main window. Confirm its owned address, immutable wallet ID/profile, zero outgoing transfers, fee reserve and current app password. The original subwallet-0 profile remains valid; changing to subwallet 42 would create a different address and does not move its existing balance.
 
 `PREPARED` is an unsigned local operation, not an on-chain deployment. Previously, the UI saved that record but kept its Review button in transient state. After the transient preview was lost, clicking Deploy generated a second plan; the signer correctly rejected the duplicate reservation. This is a UI/state-resumption failure, not evidence that 0.2 GRAM is insufficient.

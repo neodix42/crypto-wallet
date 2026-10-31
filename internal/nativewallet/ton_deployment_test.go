@@ -178,8 +178,8 @@ func TestTONDeploymentRechecksSessionAndDescriptorBeforeOpeningApproval(t *testi
 				t.Fatal("stale preparation opened approval or installed a spendable operation")
 			}
 			if mode == "changed-account" || mode == "recovery-unconfirmed" || mode == "expires-in-ui-queue" {
-				if a.busy || !strings.Contains(a.status, "transaction history") {
-					t.Fatal("stale preparation lost safe history guidance", a.status)
+				if a.busy || !strings.Contains(a.status, "Check pending payment") {
+					t.Fatal("stale preparation lost safe original-operation dialog guidance", a.status)
 				}
 			}
 		})
@@ -253,6 +253,28 @@ func TestTONWalletStatusFundingAndDeploymentButton(t *testing.T) {
 		})
 	}
 }
+
+func TestTONStatusShowsOneWalletIdentifierWithoutChangingRecordedContract(t *testing.T) {
+	for _, profile := range []string{ton.Profile, ton.ProfileSubwallet42} {
+		for _, network := range []string{"ton-mainnet", "ton-testnet"} {
+			t.Run(profile+"/"+network, func(t *testing.T) {
+				a, _, _, _ := tonFixture(t)
+				account, err := ton.New().DeriveProfile(bytes.Repeat([]byte{0x56}, 64), 0, network, profile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				before := viewText(account)
+				state := tonStateFixture(t, account, "active", "200000000", false)
+				a.tonStates = map[string]tonObservation{account.ID: {State: state}}
+				status, ok := findNode(a.tonNodes(account), "tonContractStatus/"+account.ID)
+				if !ok || status.Text != "Contract status: active · Wallet V5R1 · wallet ID "+state.Subwallet || strings.Contains(status.Text, state.WalletID) || !strings.Contains(status.Tooltip, "encoded on-chain identifier") || viewText(account) != before || !validTONState(state, account) {
+					t.Fatal("status duplicates identifiers or changes immutable contract metadata", status)
+				}
+			})
+		}
+	}
+}
+
 func TestTONStateRejectsForeignDescriptorAndUnsafeFundingClaims(t *testing.T) {
 	_, _, _, account := tonFixture(t)
 	good := tonStateFixture(t, account, "uninit", "100000000", true)

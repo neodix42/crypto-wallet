@@ -18,18 +18,25 @@ func TestTONDeploymentSafeCodesReachFixedStatusWithoutRawProviderMessages(t *tes
 	for _, r := range []struct{ code, want string }{
 		{"TON_RPC_RATE_LIMITED", "rate-limited"},
 		{"TON_DEPLOYMENT_UNAVAILABLE", "No deployment was sent"},
-		{"TON_DEPLOYMENT_RECORD_FAILED", "transaction history"},
-		{"TON_DEPLOYMENT_PENDING", "Check status"},
+		{"TON_DEPLOYMENT_RECORD_FAILED", "Check pending payment"},
+		{"TON_DEPLOYMENT_PENDING", "original pending payment"},
 		{"TON_DEPLOYMENT_INVALID_PLAN", "recorded contract"},
 	} {
 		t.Run(r.code, func(t *testing.T) {
 			a, ui, core, account := tonFixture(t)
+			a.active = "wallet/" + account.ID
 			a.tonStates = map[string]tonObservation{account.ID: {State: tonStateFixture(t, account, "uninit", "200000000", true)}}
 			previous := &model.Plan{ID: "preserve-unrelated-prepared-operation"}
 			a.plan = previous
 			var calls atomic.Int32
 			core.handler = func(_ uint64, method string, body, out any) error {
 				calls.Add(1)
+				if r.code == "TON_DEPLOYMENT_PENDING" && method == "pendingPayment" {
+					if viewText(body) != `{"accountId":"`+account.ID+`"}` {
+						t.Error("pending lookup changed the owned account")
+					}
+					return fmt.Errorf(raw+": %w", ipc.NewRequestError("PAYMENT_PENDING_UNAVAILABLE"))
+				}
 				if method != "prepareTonDeployment" || viewText(body) != `{"accountId":"`+account.ID+`"}` {
 					t.Errorf("failed deployment changed typed route %s", method)
 				}
@@ -39,10 +46,15 @@ func TestTONDeploymentSafeCodesReachFixedStatusWithoutRawProviderMessages(t *tes
 			}
 			a.tonEvent("tonDeploy", account.ID)
 			ui.apply(t)
+			wantCalls := int32(1)
+			if r.code == "TON_DEPLOYMENT_PENDING" {
+				ui.apply(t) // The follow-up reads the original record, never sends it.
+				wantCalls = 2
+			}
 			if !strings.Contains(a.status, r.want) || strings.Contains(a.status, raw) || strings.Contains(viewText(a.walletPage(account)), raw) {
 				t.Fatal("provider response escaped fixed status", a.status)
 			}
-			if len(a.tonPending) != 0 || a.plan != previous || calls.Load() != 1 || ui.cancels.Load() == 0 || a.busy {
+			if len(a.tonPending) != 0 || a.plan != previous || calls.Load() != wantCalls || ui.cancels.Load() == 0 || a.busy {
 				t.Fatal("failed preparation installed a preview, changed unrelated plan or sent funds")
 			}
 		})

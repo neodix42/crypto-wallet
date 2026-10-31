@@ -10,9 +10,35 @@ import (
 	"testing"
 	"time"
 
+	"localwallet/internal/chains"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
 )
+
+// Public synthetic derivation gives recipient validation a real chain address;
+// these controller fixtures never sign or submit a transaction.
+func defaultTokenOwnedAccount(t *testing.T, a *App, networkID string) model.Account {
+	t.Helper()
+	for _, adapter := range chains.All() {
+		for _, network := range adapter.Networks() {
+			if network.ID != networkID {
+				continue
+			}
+			account, err := adapter.Derive(make([]byte, 64), 0, networkID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := range a.state.Accounts {
+				if a.state.Accounts[i].Network == networkID {
+					a.state.Accounts[i] = account
+					return account
+				}
+			}
+		}
+	}
+	t.Fatal("network missing from public controller fixture", networkID)
+	return model.Account{}
+}
 
 func TestStablecoinDefaultsAllNineteenAssetsHavePreciseRowsAndOwnedReceive(t *testing.T) {
 	a, _, _ := fixture(t)
@@ -87,12 +113,7 @@ func TestStablecoinDefaultsAllNineteenAssetsHavePreciseRowsAndOwnedReceive(t *te
 func TestStablecoinDefaultMaxUsesTypedSelectedAssetAndRegularOwnedReceiveWithoutSpending(t *testing.T) {
 	for _, networkID := range []string{"ethereum-mainnet", "arbitrum-mainnet", "base-mainnet", "hyperevm-mainnet", "hypercore-mainnet", "ton-mainnet"} {
 		a, ui, core := fixture(t)
-		var account model.Account
-		for _, candidate := range a.state.Accounts {
-			if candidate.Network == networkID {
-				account = candidate
-			}
-		}
+		account := defaultTokenOwnedAccount(t, a, networkID)
 		for _, asset := range a.network(networkID).Assets {
 			if asset.Symbol != "USDC" && asset.Symbol != "USDT" && asset.Symbol != "USDT0" {
 				continue
@@ -100,29 +121,30 @@ func TestStablecoinDefaultMaxUsesTypedSelectedAssetAndRegularOwnedReceiveWithout
 			t.Run(asset.ID, func(t *testing.T) {
 				a.selectWalletAsset(account.ID + "/" + asset.ID)
 				a.active = "wallet/" + account.ID
-				a.fields["recipient/"+account.ID] = "public-recipient-for-" + networkID
+				a.sendForms[account.ID] = true
+				a.fields["recipient/"+account.ID] = account.Address
 				a.fields["amount/"+account.ID] = "2.5"
-				request := model.Transfer{AccountID: account.ID, Asset: asset.ID, Recipient: a.fields["recipient/"+account.ID], Amount: "2.5"}
+				request := paymentQuoteRequest{AccountID: account.ID, Asset: asset.ID, Recipient: account.Address, Amount: "2.5", Maximum: true}
 				atomic := "1" + strings.Repeat("0", int(asset.Decimals)-1) + "1"
-				plan := model.Plan{ID: "public-exact-default-" + asset.ID, Account: account, Asset: asset.ID, Amount: atomic, Recipient: request.Recipient, FeeAsset: a.network(networkID).Assets[0].ID, MaxFee: "1", Expires: time.Now().Add(time.Minute).Unix()}
-				routeFixture(t, a, core, "max", request, plan)
+				plan := model.Plan{ID: "public-exact-default-" + asset.ID, Account: account, Asset: asset.ID, Amount: atomic, Recipient: request.Recipient, FeeAsset: a.network(networkID).Assets[0].ID, MaxFee: "1", Payload: json.RawMessage(`{}`), Expires: time.Now().Add(time.Minute).Unix()}
+				routeFixture(t, a, core, "quotePayment", request, plan)
 				a.event(webui.Event{ID: "max/" + account.ID})
 				ui.apply(t)
 				want := "1." + strings.Repeat("0", int(asset.Decimals)-1) + "1"
-				if a.plan == nil || a.plan.ID != plan.ID || a.plan.Asset != asset.ID || a.fields["amount/"+account.ID] != want {
-					t.Fatal("default Max mixed atomic and whole units", a.plan, a.fields)
+				if a.plan != nil || a.paymentQuote.Plan == nil || a.paymentQuote.Plan.ID != plan.ID || a.paymentQuote.Plan.Asset != asset.ID || a.fields["amount/"+account.ID] != want || !a.paymentQuote.Complete {
+					t.Fatal("default read-only Max mixed units or installed payment authority", a.plan, a.fields)
 				}
 				routeFixture(t, a, core, "receive", map[string]string{"accountId": account.ID}, json.RawMessage(`{"ok":true}`))
 				a.event(webui.Event{ID: "receive/" + account.ID})
 				ui.apply(t)
-				if a.plan == nil || a.plan.ID != plan.ID || a.asset(account).ID != asset.ID || !strings.Contains(viewText(a.walletPage(account)), account.Address) {
+				if a.plan != nil || a.paymentQuote.Plan == nil || a.paymentQuote.Plan.ID != plan.ID || a.asset(account).ID != asset.ID || !strings.Contains(viewText(a.walletPage(account)), account.Address) {
 					t.Fatal("receive changed token intent or used contract as owned address")
 				}
 				// Editing the selected currency invalidates old authorization; it does not
 				// invoke send, signing or any automatic replacement of the prepared bytes.
 				native := a.network(networkID).Assets[0]
 				a.selectWalletAsset(account.ID + "/" + native.ID)
-				if a.plan != nil || a.fields["amount/"+account.ID] != "" {
+				if a.plan != nil || a.paymentQuote.Plan != nil || a.fields["amount/"+account.ID] != "" {
 					t.Fatal("currency switch retained old payment")
 				}
 			})
@@ -131,29 +153,30 @@ func TestStablecoinDefaultMaxUsesTypedSelectedAssetAndRegularOwnedReceiveWithout
 }
 func TestStablecoinDefaultMaxRequiresRecipientAndCancellationNeverSends(t *testing.T) {
 	a, ui, core := fixture(t)
-	account := ethAccount(t, a)
+	account := defaultTokenOwnedAccount(t, a, "ethereum-mainnet")
 	asset := a.network(account.Network).Assets[2]
 	a.selectWalletAsset(account.ID + "/" + asset.ID)
+	a.active = "wallet/" + account.ID
+	a.sendForms[account.ID] = true
 	core.handler = func(_ uint64, method string, body, out any) error {
 		t.Errorf("recipient-less Max called backend %s", method)
 		return nil
 	}
 	a.event(webui.Event{ID: "max/" + account.ID})
-	if a.busy || a.plan != nil || !strings.Contains(a.status, "Enter a recipient first") {
+	if a.busy || a.plan != nil || !strings.Contains(a.status, "Enter a valid recipient first") {
 		t.Fatal("Max estimated without a recipient")
 	}
-	a.fields["recipient/"+account.ID] = "public-recipient"
-	routeFixture(t, a, core, "max", model.Transfer{AccountID: account.ID, Asset: asset.ID, Recipient: "public-recipient"}, model.Plan{ID: "public-cancelled-default", Account: account, Asset: asset.ID, Amount: "1000000"})
+	a.fields["recipient/"+account.ID] = account.Address
 	// A failed/cancelled operation must not install its returned placeholder plan.
 	core.handler = func(_ uint64, method string, body, out any) error {
-		if method != "max" {
+		if method != "quotePayment" || viewText(body) != viewText(paymentQuoteRequest{AccountID: account.ID, Asset: asset.ID, Recipient: account.Address, Maximum: true}) {
 			t.Errorf("cancelled Max made unrelated request %s", method)
 		}
 		return errors.New("synthetic user cancelled estimate")
 	}
 	a.event(webui.Event{ID: "max/" + account.ID})
 	ui.apply(t)
-	if a.plan != nil || a.fields["amount/"+account.ID] != "" {
+	if a.plan != nil || a.paymentQuote.Plan != nil || a.fields["amount/"+account.ID] != "" {
 		t.Fatal("cancelled Max installed a spendable plan")
 	}
 }

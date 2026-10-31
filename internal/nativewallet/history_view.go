@@ -283,12 +283,11 @@ func historyText(value string, maximum int) bool {
 type walletHistoryRow struct {
 	id, transaction, source, destination, amount, comment, state, explorer string
 	timestamp                                                              int64
-	operation                                                              *journal.Operation
 }
 
-// A network observation never grants payment authority. Controls refer only to
-// an original local operation for this exact wallet and a currently supported
-// asset. Hidden is presentation metadata and may change after preparation.
+// Pending-operation dialogs use original local operations for this exact wallet
+// and a currently supported asset. Hidden is presentation metadata and may change
+// after preparation. Transaction-history rows never grant payment authority.
 func (a *App) walletHistoryOperation(account model.Account, operation journal.Operation) bool {
 	if operation.Signed != nil || operation.Plan.ID == "" || !historyText(operation.Plan.ID, 128) || chains.IsRetiredNetwork(account.Network) {
 		return false
@@ -325,10 +324,10 @@ func historyOperationKinds(state string) []string {
 	}
 }
 
-// Recheck the currently selected wallet and saved operation when a history
-// control is clicked. The signer independently reloads and validates its
-// original durable record; no transaction identity or bytes come from a row.
-func (a *App) historyPaymentAction(kind, id string) bool {
+// After explicit dialog consent, recheck the selected wallet and original saved
+// operation. The signer independently reloads and validates its durable record.
+// No transaction identity or bytes come from an observed history row.
+func (a *App) dialogPaymentAction(kind, id string) bool {
 	if a.state.Locked || a.closed || a.busy {
 		return false
 	}
@@ -402,7 +401,7 @@ func (a *App) cancelPreparedAction(id string) bool {
 		}
 	}
 	if prepared == nil {
-		return a.historyPaymentAction("cancelPrepared", id)
+		return a.dialogPaymentAction("cancelPrepared", id)
 	}
 	account, owned := a.account(prepared.Account.ID)
 	if !owned || a.active != "wallet/"+account.ID || !a.walletHistoryOperation(account, journal.Operation{Plan: *prepared}) {
@@ -446,9 +445,6 @@ func (a *App) walletHistoryRows(account model.Account, state walletHistoryState)
 					if entry.comment == "" {
 						entry.comment = operation.Plan.Memo
 					}
-					if a.walletHistoryOperation(account, operation) && historyPeerEqual(account.Family, account.Address, transfer.Source) {
-						entry.operation = &state.Local.Operations[i]
-					}
 				}
 			}
 			rows = append(rows, entry)
@@ -471,9 +467,6 @@ func (a *App) walletHistoryRows(account model.Account, state walletHistoryState)
 			}
 		}
 		entry := walletHistoryRow{id: "local/" + plan.ID, source: plan.Account.Address, destination: plan.Recipient, amount: value, comment: plan.Memo, state: operation.State, timestamp: operation.CreatedAt}
-		if a.walletHistoryOperation(account, operation) {
-			entry.operation = &state.Local.Operations[i]
-		}
 		if operation.Receipt != nil {
 			entry.transaction = operation.Receipt.Identity
 			entry.explorer = chainutil.TransactionExplorer(account.Network, entry.transaction)
@@ -559,22 +552,7 @@ func (a *App) walletHistoryNodes(account model.Account) []webui.Node {
 			}
 			return s
 		}
-		status := label(unknown(entry.state))
-		if entry.operation != nil {
-			operation := *entry.operation
-			kinds := historyOperationKinds(operation.State)
-			if len(kinds) > 0 {
-				status = node("column", "walletHistoryStatus/"+hex.EncodeToString(identity[:]), operation.State, operation.Plan.ID)
-				status.Children = []webui.Node{label(unknown(entry.state))}
-				for _, kind := range kinds {
-					text := map[string]string{"sendOperation": "Review", "cancelPrepared": "Cancel prepared", "retry": "Broadcast original signed operation", "reconcile": "Check status"}[kind]
-					button := a.button(kind+"/"+operation.Plan.ID, text, !a.state.RecoveryConfirmed && (kind == "sendOperation" || kind == "retry") || !state.Loaded || state.LocalFailed || state.Loading || state.Request != "")
-					button.Tooltip = map[string]string{"sendOperation": "Review the original prepared operation before signing", "cancelPrepared": "Cancel only this original unsigned prepared operation", "retry": "Broadcast the original already-approved signed operation; never create a replacement payment or signature", "reconcile": "Check the original operation identity without creating or signing a new payment"}[kind]
-					status.Children = append(status.Children, button)
-				}
-			}
-		}
-		table.Children = append(table.Children, webui.Node{Kind: "row", ID: "walletHistoryRow/" + account.ID + "/" + hex.EncodeToString(identity[:]), Children: []webui.Node{label(stamp), node("address", "", "", unknown(entry.source)), node("address", "", "", unknown(entry.destination)), label(unknown(entry.amount)), node("explorer", "", unknown(entry.transaction), entry.explorer), label(unknown(entry.comment)), status}})
+		table.Children = append(table.Children, webui.Node{Kind: "row", ID: "walletHistoryRow/" + account.ID + "/" + hex.EncodeToString(identity[:]), Children: []webui.Node{label(stamp), node("address", "", "", unknown(entry.source)), node("address", "", "", unknown(entry.destination)), label(unknown(entry.amount)), node("explorer", "", unknown(entry.transaction), entry.explorer), label(unknown(entry.comment)), label(unknown(entry.state))}})
 	}
 	nodes = append(nodes, table)
 	if len(rows) > 128 {

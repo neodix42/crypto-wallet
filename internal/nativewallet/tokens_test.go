@@ -5,6 +5,7 @@ package nativewallet
 import (
 	"encoding/json"
 	"errors"
+	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
 	"strconv"
@@ -283,20 +284,42 @@ func TestImportedERC20WalletAssetsCannotBeOfferedAsReviewedBybitRoutes(t *testin
 func TestEverySelectedTokenUsesNormalExactSendAndTheOwnedReceiveAddress(t *testing.T) {
 	a, ui, core := fixture(t)
 	account, usdc, _ := tokenFixture(t, a)
+	a.active = "wallet/" + account.ID
+	a.sendForms[account.ID] = true
 	a.walletEvent("asset/" + account.ID + "/" + usdc.ID)
 	a.fields["recipient/"+account.ID], a.fields["amount/"+account.ID] = "0x2222222222222222222222222222222222222222", "1.000001"
 	want := model.Transfer{AccountID: account.ID, Asset: usdc.ID, Recipient: a.fields["recipient/"+account.ID], Amount: "1.000001"}
-	plan := model.Plan{ID: "public-token-plan", Account: account, Asset: usdc.ID, Amount: "1000001", Recipient: want.Recipient, FeeAsset: account.Network + ":native", MaxFee: "21000000000000", Expires: time.Now().Add(time.Minute).Unix()}
-	routeFixture(t, a, core, "prepare", want, plan)
+	plan := model.Plan{ID: "public-token-plan", Account: account, Asset: usdc.ID, Amount: "1000001", Recipient: want.Recipient, FeeAsset: account.Network + ":native", MaxFee: "21000000000000", Payload: json.RawMessage(`{}`), Expires: time.Now().Add(time.Minute).Unix()}
+	prepares, reviews := 0, 0
+	core.handler = func(_ uint64, method string, body, out any) error {
+		switch method {
+		case "prepare":
+			prepares++
+			if viewText(body) != viewText(want) {
+				return errors.New("token recipient, contract or whole-unit intent changed")
+			}
+			return answer(out, plan)
+		case "send":
+			reviews++
+			if viewText(body) != viewText(map[string]string{"id": plan.ID}) {
+				return errors.New("token approval replaced the original operation ID")
+			}
+			return ipc.NewRequestError("REQUEST_CANCELLED")
+		default:
+			return errors.New("unexpected token send route: " + method)
+		}
+	}
 	a.event(webui.Event{ID: "prepare/" + account.ID})
 	ui.apply(t)
 	if a.plan == nil || a.plan.Asset != usdc.ID || a.plan.Amount != "1000001" || a.plan.Recipient != want.Recipient {
 		t.Fatal("selected token did not enter exact normal prepare pipeline")
 	}
-	a.sendForms[account.ID] = true
-	text := viewText(a.walletPage(account))
-	if !strings.Contains(text, "1.000001 USDC") || !strings.Contains(text, "0.000021000000000000 ETH") {
-		t.Fatal("token whole units or separate native fee currency were hidden")
+	if a.paymentQuote.Plan == nil || a.paymentQuote.Plan.Asset != usdc.ID || a.paymentQuote.Plan.Amount != "1000001" || a.fields["amount/"+account.ID] != "1.000001" || !strings.Contains(a.paymentFeeText(plan), "0.000021 ETH") {
+		t.Fatal("exact token amount or separate native fee currency was lost")
+	}
+	ui.apply(t) // The same click opened exact approval; the fixture cancels it.
+	if prepares != 1 || reviews != 1 || a.status != "Request cancelled." || a.plan == nil || a.plan.ID != plan.ID {
+		t.Fatal("one Send click did not preserve its exact cancelled approval")
 	}
 	routeFixture(t, a, core, "receive", map[string]string{"accountId": account.ID}, json.RawMessage(`{"ok":true}`))
 	a.walletEvent("receive/" + account.ID)

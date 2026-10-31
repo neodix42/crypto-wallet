@@ -388,7 +388,7 @@ func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t 
 			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{{Plan: plan, State: "UNKNOWN", Receipt: &model.Receipt{Identity: "original-near-chain-identity", State: "UNKNOWN", Detail: "Execution has not been established"}}}}}}
 			nodes := a.walletHistoryNodes(account)
 			text := viewText(nodes)
-			for _, required := range []string{plan.ID, "UNKNOWN", "Method: " + method, "Staking pool contract: " + pool, "Account: " + account.Address, "Gas: 100000000000000 gas units", "original-near-chain-identity"} {
+			for _, required := range []string{"UNKNOWN", "Method: " + method, "Staking pool contract: " + pool, "Account: " + account.Address, "Gas: 100000000000000 gas units", "original-near-chain-identity"} {
 				if !strings.Contains(text, required) {
 					t.Fatal("staking journal omitted original state/intent:", required)
 				}
@@ -411,9 +411,16 @@ func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t 
 			if method == "withdraw_all" && (!strings.Contains(text, "return all available unstaked funds from the pool to this wallet") || !strings.Contains(text, "Withdrawal destination: "+account.Address)) {
 				t.Fatal("withdrawal journal omitted the actual return direction/destination")
 			}
-			for _, id := range []string{"reconcile/" + plan.ID, "retry/" + plan.ID} {
-				if button, found := findNode(nodes, id); !found || button.Disabled {
-					t.Fatal("UNKNOWN staking journal lost its explicit original-identity recovery control")
+			if strings.Contains(text, plan.ID) || a.walletHistory[account.ID].Local.Operations[0].Plan.ID != plan.ID {
+				t.Fatal("read-only history exposed an action identity or altered the original record")
+			}
+			table, found := findNode(nodes, "walletHistoryTable/"+account.ID)
+			if !found || len(table.Children) != 1 || len(table.Children[0].Children) != 7 || table.Children[0].Children[6].Kind != "label" {
+				t.Fatal("staking history status is not a plain inert table cell")
+			}
+			for _, id := range []string{"reconcile/" + plan.ID, "retry/" + plan.ID, "sendOperation/" + plan.ID, "cancelPrepared/" + plan.ID} {
+				if _, found := findNode(nodes, id); found {
+					t.Fatal("read-only staking history exposed a payment action")
 				}
 			}
 		})

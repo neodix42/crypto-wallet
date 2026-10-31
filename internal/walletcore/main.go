@@ -384,7 +384,7 @@ func run(portable bool) {
 			c.mu.Lock()
 			epoch := c.epoch
 			c.mu.Unlock()
-			if m.Method == "chainHistory" {
+			if cancellableReadMethod(m.Method) {
 				if c.registerHistoryControl(m, epoch) != nil {
 					_ = ch.Write(ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: []byte(`null`), Error: "BUSY"})
 					continue
@@ -393,7 +393,7 @@ func run(portable bool) {
 			select {
 			case work <- queuedRequest{m, epoch}:
 			default:
-				if m.Method == "chainHistory" {
+				if cancellableReadMethod(m.Method) {
 					c.finishHistoryControl(m, epoch)
 				}
 				_ = ch.Write(ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: []byte(`null`), Error: "BUSY"})
@@ -451,7 +451,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			out, err = nil, errors.New("wallet session changed")
 		}
 	}()
-	if m.Method == "chainHistory" {
+	if cancellableReadMethod(m.Method) {
 		if err := c.registerHistoryControl(m, epoch); err != nil {
 			return nil, err
 		}
@@ -473,6 +473,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			return nil, errors.New("invalid fields")
 		}
 		return c.marketPricesAt(epoch)
+	case "pendingPayment":
+		return c.pendingPaymentAt(m, epoch)
 	case "tonWalletState", "prepareTonDeployment":
 		return c.tonDeploymentAt(m, epoch)
 	case "addressBook", "saveAddress", "removeAddress":
@@ -615,18 +617,37 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			return nil, e
 		}
 		return c.publicJournalAt(epoch, m.Session, string(b.AccountID), string(b.Asset), string(b.Cursor))
-	case "prepare", "max":
+	case "prepare", "max", "quotePayment":
 		var t model.Transfer
-		if e := strictjson.Decode(m.Body, &t); e != nil {
+		maximum, readOnly := m.Method == "max", m.Method != "prepare"
+		if m.Method == "quotePayment" {
+			var request paymentQuoteRequest
+			if strictjson.Decode(m.Body, &request) != nil || request.Maximum == nil {
+				return nil, ipc.NewRequestError("PAYMENT_QUOTE_INVALID_INPUT")
+			}
+			t, maximum = request.transfer(), *request.Maximum
+		} else if e := strictjson.Decode(m.Body, &t); e != nil {
 			return nil, e
+		}
+		if readOnly && !validPaymentQuoteInput(t, maximum) {
+			return nil, ipc.NewRequestError("PAYMENT_QUOTE_INVALID_INPUT")
 		}
 		a, e := c.account(t.AccountID)
 		if e != nil {
+			if readOnly {
+				return nil, ipc.NewRequestError("PAYMENT_QUOTE_INVALID_INPUT")
+			}
 			return nil, e
 		}
 		adapter, e := c.adapter(a.Network)
 		if e != nil {
+			if readOnly {
+				return nil, ipc.NewRequestError("PAYMENT_QUOTE_UNAVAILABLE")
+			}
 			return nil, e
+		}
+		if readOnly && adapter.ValidateAddress(a.Network, t.Recipient) != nil {
+			return nil, ipc.NewRequestError("PAYMENT_QUOTE_INVALID_INPUT")
 		}
 		found := false
 		for _, n := range adapter.Networks() {
@@ -636,24 +657,43 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			for _, asset := range n.Assets {
 				if asset.ID == t.Asset {
 					found = true
-					if m.Method != "max" {
+					if !maximum {
 						t.Amount, e = amount.Parse(t.Amount, asset.Decimals)
 					}
 				}
 			}
 		}
 		if !found || e != nil {
+			if readOnly {
+				return nil, ipc.NewRequestError("PAYMENT_QUOTE_INVALID_INPUT")
+			}
 			return nil, errors.New("invalid asset or precision")
 		}
+		if !readOnly {
+			pending, err := c.accountPaymentReservationAt(epoch, a)
+			if err != nil {
+				return nil, ipc.NewRequestError("PAYMENT_PENDING_UNAVAILABLE")
+			}
+			if pending != nil {
+				return nil, ipc.NewRequestError("PAYMENT_PENDING")
+			}
+		}
 		ctx, cancel := c.networkContextAt(45*time.Second, epoch)
+		if readOnly {
+			cancel()
+			ctx, cancel = c.historyContextAt(45*time.Second, epoch, m.Session)
+		}
 		defer cancel()
 		var p model.Plan
-		if m.Method == "max" {
+		if maximum {
 			p, e = maxPlan(ctx, adapter, a, t)
 		} else {
 			p, e = adapter.Prepare(ctx, a, t)
 		}
 		if e != nil {
+			if readOnly {
+				return nil, paymentQuoteError(e)
+			}
 			return nil, e
 		}
 		var id [16]byte
@@ -665,6 +705,14 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		}
 		if p.Expires == 0 {
 			p.Expires = time.Now().Add(5 * time.Minute).Unix()
+		}
+		if readOnly {
+			if !validPaymentQuotePlan(adapter, a, t, p, maximum) {
+				return nil, ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN")
+			}
+			// A quote is not a durable operation or authorization capability.
+			// Explicit Prepare must observe state and fees again before recording.
+			return p, nil
 		}
 		if e = c.childCallAt(epoch, "prepare", p, nil); e != nil {
 			return nil, e
@@ -936,25 +984,25 @@ func maximumBalance(balances []model.Balance, asset string) (*big.Int, error) {
 			continue
 		}
 		if value != nil {
-			return nil, errors.New("duplicate spendable balance")
+			return nil, errQuoteBalance
 		}
 		state := strings.ToLower(strings.TrimSpace(b.State))
 		if state == "" || strings.TrimSpace(b.At) == "" {
-			return nil, errors.New("spendable observation missing")
+			return nil, errQuoteBalance
 		}
 		for _, invalid := range []string{"unknown", "unavailable", "synchroniz", "stale", "pending", "error", "failed", "incomplete"} {
 			if strings.Contains(state, invalid) {
-				return nil, errors.New("spendable state unknown")
+				return nil, errQuoteBalance
 			}
 		}
 		var err error
 		value, err = amount.Atomic(b.Atomic)
 		if err != nil {
-			return nil, err
+			return nil, errQuoteBalance
 		}
 	}
 	if value == nil {
-		return nil, errors.New("balance unknown or unavailable")
+		return nil, errQuoteBalance
 	}
 	return value, nil
 }
@@ -1070,7 +1118,7 @@ func maxPlan(ctx context.Context, a model.Adapter, ac model.Account, t model.Tra
 		balance = available
 	}
 	if balance.Sign() <= 0 {
-		return model.Plan{}, errors.New("no spendable balance")
+		return model.Plan{}, errQuoteInsufficient
 	}
 	// A half-balance probe can fail even when a small payment can afford gas.
 	// Probe one atomic unit, then prepare the actual candidate again; never reuse
@@ -1145,61 +1193,112 @@ func maxPlan(ctx context.Context, a model.Adapter, ac model.Account, t model.Tra
 		} else {
 			gas, err := maximumBalance(balances, p.FeeAsset)
 			if err != nil || gas.Cmp(required) < 0 {
-				return model.Plan{}, errors.New("insufficient or unknown native balance for gas, attachments and storage")
+				if err != nil {
+					return model.Plan{}, errQuoteBalance
+				}
+				return model.Plan{}, errQuoteInsufficient
 			}
 		}
 		if next.Sign() <= 0 {
-			return model.Plan{}, errors.New("insufficient gas and storage reserve")
+			return model.Plan{}, errQuoteInsufficient
 		}
 		if next.Cmp(target) == 0 {
 			return p, nil
 		}
 		target = next
 	}
-	return model.Plan{}, errors.New("maximum amount could not stabilize; enter an exact amount")
+	return model.Plan{}, errQuoteUnstable
 }
 
-// Keep protocol-native uint64s in the internal Go payload. Electron gets text
-// for those diagnostic bytes and uses the explicit decimal Plan.Nonce field.
+// Keep payload JSON as opaque diagnostic text on the public wire. Re-decoding
+// numbers into interface{} or re-marshalling object maps would alter integer
+// precision or signed payload/account-parameter field order.
 func publicJSON(value any) ([]byte, error) {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
 	}
-	var obj any
-	d := json.NewDecoder(strings.NewReader(string(raw)))
-	d.UseNumber()
-	if err = d.Decode(&obj); err != nil {
-		return nil, err
+	return publicJSONValue(raw, 0)
+}
+
+func publicJSONValue(raw json.RawMessage, depth int) ([]byte, error) {
+	if depth > 64 {
+		return nil, errors.New("public JSON nesting exceeds bound")
 	}
-	var walk func(any)
-	walk = func(v any) {
-		switch x := v.(type) {
-		case map[string]any:
-			for key, item := range x {
-				if key == "payload" {
-					b, _ := json.Marshal(item)
-					x[key] = string(b)
-				} else if key == "rpc" {
-					if s, ok := item.(string); ok {
-						// API providers may embed credentials in path segments as
-						// well as userinfo or query fields. Public UI receives only
-						// the origin; the exact endpoint stays inside Go settings.
-						x[key] = ""
-						if u, e := url.Parse(s); e == nil && u.Host != "" && (u.Scheme == "https" || u.Scheme == "http") {
-							x[key] = (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
-						}
-					}
-				} else {
-					walk(item)
-				}
-			}
-		case []any:
-			for _, item := range x {
-				walk(item)
-			}
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return nil, errors.New("invalid public JSON value")
+	}
+	switch trimmed[0] {
+	case '{':
+		decoder := json.NewDecoder(bytes.NewReader(trimmed))
+		if _, err := decoder.Token(); err != nil {
+			return nil, err
 		}
+		var out bytes.Buffer
+		out.WriteByte('{')
+		first := true
+		for decoder.More() {
+			token, err := decoder.Token()
+			if err != nil {
+				return nil, err
+			}
+			key, ok := token.(string)
+			if !ok {
+				return nil, errors.New("invalid public JSON object key")
+			}
+			var item json.RawMessage
+			if err := decoder.Decode(&item); err != nil {
+				return nil, err
+			}
+			var rewritten []byte
+			if key == "payload" {
+				// RawMessage retains order and every literal uint64 digit.
+				rewritten, err = json.Marshal(string(item))
+			} else if key == "rpc" && len(item) > 0 && item[0] == '"' {
+				var endpoint string
+				if err = json.Unmarshal(item, &endpoint); err != nil {
+					return nil, err
+				}
+				origin := ""
+				if parsed, failure := url.Parse(endpoint); failure == nil && parsed.Host != "" && (parsed.Scheme == "https" || parsed.Scheme == "http") {
+					origin = (&url.URL{Scheme: parsed.Scheme, Host: parsed.Host}).String()
+				}
+				rewritten, err = json.Marshal(origin)
+			} else {
+				rewritten, err = publicJSONValue(item, depth+1)
+			}
+			if err != nil {
+				return nil, err
+			}
+			if !first {
+				out.WriteByte(',')
+			}
+			first = false
+			encodedKey, _ := json.Marshal(key)
+			out.Write(encodedKey)
+			out.WriteByte(':')
+			out.Write(rewritten)
+		}
+		if _, err := decoder.Token(); err != nil {
+			return nil, err
+		}
+		out.WriteByte('}')
+		return out.Bytes(), nil
+	case '[':
+		var items []json.RawMessage
+		if err := json.Unmarshal(trimmed, &items); err != nil {
+			return nil, err
+		}
+		for index, item := range items {
+			rewritten, err := publicJSONValue(item, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			items[index] = rewritten
+		}
+		return json.Marshal(items)
+	default:
+		return append([]byte(nil), trimmed...), nil
 	}
-	walk(obj)
-	return json.Marshal(obj)
 }

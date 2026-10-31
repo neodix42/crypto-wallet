@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"localwallet/internal/ipc"
 	"localwallet/internal/uiprompt"
@@ -48,7 +49,26 @@ func TestMain(m *testing.M) {
 			if channel.Accept(message) != nil {
 				return
 			}
-			if message.Method == "chainHistory" {
+			if message.Method == "send" {
+				var request struct{ Ready, Release string }
+				if json.Unmarshal(message.Body, &request) != nil {
+					return
+				}
+				if request.Release != "" {
+					if request.Ready == "" || os.WriteFile(request.Ready, []byte("public blocked-send fixture"), 0600) != nil {
+						return
+					}
+					for {
+						if _, err := os.Stat(request.Release); err == nil {
+							break
+						} else if !os.IsNotExist(err) {
+							return
+						}
+						time.Sleep(time.Millisecond)
+					}
+				}
+			}
+			if cancellableReadMethod(message.Method) {
 				historyRequests[message.Session+"\x00"+message.ID] = true
 				var request struct {
 					Block bool

@@ -5,12 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"time"
 
 	"localwallet/internal/chains/ton"
 	"localwallet/internal/ipc"
-	"localwallet/internal/journal"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
 )
@@ -81,62 +79,14 @@ func (c *core) tonDeploymentAt(message ipc.Message, epoch uint64) (any, error) {
 }
 
 func (c *core) preparedTONDeploymentAt(epoch uint64, account model.Account, adapter model.Adapter) (*model.Plan, error) {
-	cursor, revision := "", ""
-	seen := map[string]bool{}
-	var reservation *journal.Operation
-	for pages := 0; ; pages++ {
-		if pages >= 10000 {
-			return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-		}
-		var page journalPage
-		if err := c.childCallAt(epoch, "journalPage", struct {
-			AccountID string `json:"accountId"`
-			Asset     string `json:"asset"`
-			Cursor    string `json:"cursor"`
-		}{account.ID, "", cursor}, &page); err != nil {
-			return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-		}
-		if len(page.Operations) > 128 || page.Total < 0 || page.Total > 10000 || page.Total < len(page.Operations) || page.Revision == "" || revision != "" && revision != page.Revision || page.Complete != (page.NextCursor == "") || !page.Complete && (len(page.Operations) == 0 || page.NextCursor == cursor) {
-			return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-		}
-		revision = page.Revision
-		for _, operation := range page.Operations {
-			if operation.Plan.ID == "" || seen[operation.Plan.ID] || operation.Plan.Account.ID != account.ID || operation.Signed != nil || len(seen) >= 10000 {
-				return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-			}
-			seen[operation.Plan.ID] = true
-			if !journal.Terminal(operation.State) {
-				if reservation != nil {
-					return nil, ipc.NewRequestError("TON_DEPLOYMENT_PENDING")
-				}
-				original := operation
-				reservation = &original
-			}
-		}
-		if page.Complete {
-			if len(seen) != page.Total {
-				return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-			}
-			break
-		}
-		cursor = page.NextCursor
+	reservation, err := c.accountPaymentReservationAt(epoch, account)
+	if err != nil {
+		return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
 	}
 	if reservation == nil {
 		return nil, nil
 	}
-	// Journal pages omit signed bytes; consult the original private record so
-	// inconsistent PREPARED-with-signature data cannot release a reservation.
-	var original journal.Operation
-	if err := c.childCallAt(epoch, "operation", struct {
-		ID string `json:"id"`
-	}{reservation.Plan.ID}, &original); err != nil {
-		return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-	}
-	unsignedView := original
-	unsignedView.Signed = nil
-	if !reflect.DeepEqual(unsignedView, *reservation) || !reflect.DeepEqual(original.Plan.Account, account) || original.Digest != journal.Digest(original.Plan) {
-		return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
-	}
+	original := *reservation
 	if original.State != "PREPARED" || original.Signed != nil || !ton.IsDeploymentPlan(original.Plan) {
 		return nil, ipc.NewRequestError("TON_DEPLOYMENT_PENDING")
 	}

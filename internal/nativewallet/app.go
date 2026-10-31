@@ -95,6 +95,9 @@ type App struct {
 	plan                                  *model.Plan
 	planIsStaking                         bool
 	planRevision                          uint64
+	paymentQuote                          paymentQuoteState
+	paymentQuoteCancel                    context.CancelFunc
+	paymentQuoteSerial                    uint64
 	staking                               map[string]near.StakingState
 	stakingErrors                         map[string]bool
 	stakingPending                        map[string]model.Plan
@@ -272,6 +275,7 @@ func (a *App) privatePrompt(raw json.RawMessage) error {
 	return nil
 }
 func (a *App) close() {
+	a.stopPaymentQuote()
 	if a.closed {
 		return
 	}
@@ -285,6 +289,8 @@ func (a *App) close() {
 	a.ui.Close()
 }
 func (a *App) lock() {
+	a.stopPaymentQuote()
+	a.paymentQuote = paymentQuoteState{}
 	a.tonRevision++
 	a.tonStates = nil
 	a.tonPending = nil
@@ -350,6 +356,9 @@ func (a *App) tick() {
 	if a.busy || a.background {
 		return
 	}
+	if a.nextPaymentQuote() {
+		return
+	}
 	if a.nextWalletHistory() {
 		return
 	}
@@ -379,16 +388,32 @@ func safeError(err error) string {
 		return "An input exceeds 4,096 UTF-8 bytes."
 	case "REQUEST_CANCELLED":
 		return "Request cancelled."
+	case "PAYMENT_QUOTE_INVALID_INPUT":
+		return "Enter a valid recipient and a positive amount using the selected asset’s decimal precision."
+	case "PAYMENT_QUOTE_BALANCE_UNAVAILABLE":
+		return "Max needs a verified spendable balance. Refresh the wallet or check its RPC connection. No payment was prepared."
+	case "PAYMENT_QUOTE_INSUFFICIENT_FUNDS":
+		return "There is not enough spendable balance for this amount, estimated fees and required reserves."
+	case "PAYMENT_QUOTE_UNAVAILABLE":
+		return "The transaction fee could not be estimated from the configured network provider. No payment was prepared or sent."
+	case "PAYMENT_QUOTE_INVALID_PLAN":
+		return "The fee estimate did not match this wallet, asset or recipient. No payment was prepared or sent."
+	case "PAYMENT_QUOTE_UNSTABLE":
+		return "The balance or fee changed during estimation. Request a fresh estimate before sending."
+	case "PAYMENT_PENDING":
+		return "An earlier payment needs to be resolved before a new payment can be prepared."
+	case "PAYMENT_PENDING_UNAVAILABLE":
+		return "The original pending payment could not be verified. No new payment was prepared or sent."
 	case "TON_RPC_RATE_LIMITED":
-		return "The TON provider has rate-limited this request. Wait briefly and refresh, or configure a trusted RPC/API key. Check any already submitted operation in this wallet’s transaction history before another send."
+		return "The TON provider has rate-limited this request. Wait briefly and refresh, or configure a trusted RPC/API key. Use Check pending payment in the Send form for any already submitted operation."
 	case "TON_DEPLOYMENT_UNAVAILABLE":
 		return "TON deployment could not be prepared from verified contract state and fees. Refresh contract status and check the configured TON provider. No deployment was sent."
 	case "TON_DEPLOYMENT_RECORD_FAILED":
-		return "The deployment could not be recorded for approval. Use Review or Check status on an existing operation in this wallet’s transaction history before trying again. No new deployment was sent."
+		return "The deployment could not be recorded for approval. Open Send and choose Check pending payment before trying again. No new deployment was sent."
 	case "TON_DEPLOYMENT_PENDING":
-		return "This wallet already has an unresolved operation. Use Check status in its transaction history. No replacement deployment was sent."
+		return "This wallet already has an unresolved operation. Open Send and choose Check pending payment. No replacement deployment was sent."
 	case "TON_DEPLOYMENT_INVALID_PLAN":
-		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state or cancel the unsigned original in this wallet’s transaction history. No deployment was sent."
+		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state or use Check pending payment in the Send form. No deployment was sent."
 	}
 	return "Request failed or is unavailable. Balance remains unknown until verified; reconcile pending operations before retrying."
 }
@@ -402,6 +427,7 @@ func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), fe
 	if a.busy || a.closed {
 		return
 	}
+	a.stopPaymentQuote()
 	if a.historyCancel != nil {
 		a.historyCancel()
 	}
@@ -452,7 +478,21 @@ func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), fe
 	}()
 }
 func (a *App) callAt(g uint64, method string, body any, out any) error {
-	return a.core.CallAt(g, method, body, out)
+	if err := a.core.CallAt(g, method, body, out); err != nil {
+		return err
+	}
+	if err := normalizePublicPlans(out); err != nil {
+		switch method {
+		case "max", "quotePayment", "prepare":
+			return ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN")
+		case "pendingPayment":
+			return ipc.NewRequestError("PAYMENT_PENDING_UNAVAILABLE")
+		case "prepareTonDeployment":
+			return ipc.NewRequestError("TON_DEPLOYMENT_INVALID_PLAN")
+		}
+		return err
+	}
+	return nil
 }
 func readAccounts(core backend, g uint64) (snapshot, error) {
 	var first snapshot
@@ -501,6 +541,8 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	return first, nil
 }
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
+	a.stopPaymentQuote()
+	a.paymentQuote = paymentQuoteState{}
 	activeAccounts := make([]model.Account, 0, len(state.Accounts))
 	for _, account := range state.Accounts {
 		if !chains.IsRetiredNetwork(account.Network) {
@@ -841,6 +883,7 @@ func (a *App) event(e webui.Event) {
 		return
 	}
 	if e.ID == "tab" {
+		a.invalidatePaymentQuote()
 		a.active = e.Value
 		if strings.HasPrefix(e.Value, "wallet/") {
 			a.queueWalletHistory(strings.TrimPrefix(e.Value, "wallet/"), "initial")
@@ -855,6 +898,7 @@ func (a *App) event(e webui.Event) {
 		return
 	}
 	if e.ID == "closeTab" {
+		a.invalidatePaymentQuote()
 		if strings.HasPrefix(e.Value, "wallet/") {
 			id := strings.TrimPrefix(e.Value, "wallet/")
 			for i, v := range a.tabs {
@@ -903,6 +947,7 @@ func (a *App) event(e webui.Event) {
 			hadPlan := a.plan != nil
 			a.plan = nil
 			a.planRevision++
+			a.invalidatePaymentQuote()
 			if hadPlan {
 				a.render()
 			}
@@ -1053,6 +1098,7 @@ func (a *App) walletEvent(action string) {
 		return
 	}
 	if kind == "open" {
+		a.invalidatePaymentQuote()
 		if _, ok := a.account(id); !ok {
 			return
 		}
@@ -1087,8 +1133,10 @@ func (a *App) walletEvent(action string) {
 		a.render()
 		return
 	}
-	if kind == "sendOperation" || kind == "retry" || kind == "reconcile" {
-		a.historyPaymentAction(kind, id)
+	if removedHistoryAction(kind) {
+		return
+	}
+	if a.pendingPaymentEvent(kind, id) {
 		return
 	}
 	if kind == "asset" {
@@ -1110,6 +1158,7 @@ func (a *App) walletEvent(action string) {
 	switch kind {
 	case "sendForm":
 		a.sendForms[id] = !a.sendForms[id]
+		a.invalidatePaymentQuote()
 		a.render()
 	case "receive", "copyReceive", "saveQR":
 		a.mutation(kind, map[string]string{"accountId": id})
@@ -1146,33 +1195,10 @@ func (a *App) walletEvent(action string) {
 			return
 		}
 		a.mutation(kind, map[string]any{"accountId": id, "birthday": birthday, "gap": gap, "limit": limit, "blockBudget": budget})
-	case "prepare", "max":
-		if kind == "max" && strings.TrimSpace(a.fields["recipient/"+id]) == "" {
-			a.notice("Enter a recipient first so Max can estimate the transaction fee.")
-			a.render()
-			return
-		}
-		asset := a.asset(account)
-		revision := a.planRevision
-		transfer := model.Transfer{AccountID: id, Asset: asset.ID, Recipient: a.fields["recipient/"+id], Amount: a.fields["amount/"+id], Memo: a.fields["memo/"+id]}
-		a.work("Preparing exact wallet payment…", func(g uint64) (func(), error) {
-			var plan model.Plan
-			err := a.callAt(g, kind, transfer, &plan)
-			return func() {
-				if a.planRevision != revision {
-					return
-				}
-				a.plan = &plan
-				a.planIsStaking = false
-				a.refreshWalletLocalHistory(id)
-				if kind == "max" {
-					value, e := amount.Format(plan.Amount, asset.Decimals)
-					if e == nil {
-						a.fields["amount/"+id] = value
-					}
-				}
-			}, err
-		})
+	case "prepare":
+		a.preparePayment(account)
+	case "max":
+		a.maximumPayment(account)
 	case "send":
 		if a.plan != nil && !a.planIsStaking && a.plan.Account.ID == id {
 			a.paymentAction("send", a.plan.ID)
@@ -1624,29 +1650,13 @@ func (a *App) walletPage(account model.Account) webui.Page {
 		recipient.ID = "recipientField/" + account.ID
 		maximum := a.button("max/"+account.ID, "Max", !a.state.RecoveryConfirmed)
 		maximum.Tooltip = "Use the full spendable balance after estimated fees and required storage reserves. Token fees use the network's native gas balance. Fee changes or refunds can leave a remainder. Enter the recipient first."
-		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), recipient, row(a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), maximum), a.entry("memo/"+account.ID, "Memo / tag (when required)"), a.button("prepare/"+account.ID, "Prepare payment", !a.state.RecoveryConfirmed))
-		if a.plan != nil && !a.planIsStaking && a.plan.Account.ID == account.ID {
-			amountText, _ := amount.Format(a.plan.Amount, asset.Decimals)
-			fee := a.plan.MaxFee
-			symbol := a.plan.FeeAsset
-			for _, item := range network.Assets {
-				if item.ID == a.plan.FeeAsset {
-					fee, _ = amount.Format(a.plan.MaxFee, item.Decimals)
-					symbol = item.Symbol
-				}
-			}
-			feeLabel := "Maximum fee: "
-			if account.Family == "near" || account.Family == "ton" {
-				feeLabel = "Estimated fee reserve: "
-			}
-			preview := "Prepared payment\nNetwork: " + account.Network + "\nFrom: " + account.Address + "\nTo: " + a.plan.Recipient + "\nAmount: " + amountText + " " + asset.Symbol + "\n" + feeLabel + fee + " " + symbol + "\nMemo: " + a.plan.Memo + "\nExpires: " + time.Unix(a.plan.Expires, 0).UTC().Format(time.RFC3339)
-			if effects, ok := near.TokenEffects(*a.plan); ok {
-				preview += "\n" + effects
-			}
-			if ton.IsJettonPlan(*a.plan) {
-				preview += "\n" + ton.JettonEffects(*a.plan)
-			}
-			page.Nodes = append(page.Nodes, label(preview), a.button("send/"+account.ID, "Review and send", false), a.button("cancelPrepared/"+a.plan.ID, "Cancel prepared payment", false))
+		amountRow := row(a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), maximum)
+		amountRow.ID = "sendAmount/" + account.ID
+		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), recipient, amountRow, a.entry("memo/"+account.ID, "Memo / tag (when required)"))
+		page.Nodes = append(page.Nodes, a.paymentFeeNodes(account)...)
+		page.Nodes = append(page.Nodes, a.button("prepare/"+account.ID, "Send payment", !a.state.RecoveryConfirmed))
+		if a.hasPendingPayment(account) {
+			page.Nodes = append(page.Nodes, a.button("pendingPayment/"+account.ID, "Check pending payment", !a.state.RecoveryConfirmed))
 		}
 	}
 	if account.Family == "evm" || account.Family == "near" || len(network.Assets) > 1 {

@@ -29,7 +29,7 @@ func DeploymentEffects(p model.Plan) string {
 	if err != nil || !IsDeploymentPlan(p) {
 		return "Unsupported TON deployment"
 	}
-	return fmt.Sprintf("Deploy Wallet V5R1 at the exact owned address %s. Workchain: %d; subwallet: %d; on-chain wallet ID: %d; code hash: %s. The signed external message includes this account's exact StateInit, seqno 0 and no outgoing transfers or extensions. Attached transfer: 0 GRAM. Network/storage fees are deducted from this funded address. The displayed fee reserve is an estimate, not a protocol-enforced signed ceiling.", p.Account.Address, meta.Workchain, meta.Subwallet, meta.WalletID, meta.CodeHash)
+	return fmt.Sprintf("Deploy Wallet V5R1 at the exact owned address %s. Workchain: %d; wallet ID %d (using its recorded network-bound encoding); code hash: %s. The signed external message includes this account's exact StateInit, seqno 0 and no outgoing transfers or extensions. Attached transfer: 0 GRAM. Network/storage fees are deducted from this funded address. The displayed fee reserve is an estimate, not a protocol-enforced signed ceiling.", p.Account.Address, meta.Workchain, meta.Subwallet, meta.CodeHash)
 }
 
 func (a *Adapter) WalletState(ctx context.Context, ac model.Account) (model.TONWalletState, error) {

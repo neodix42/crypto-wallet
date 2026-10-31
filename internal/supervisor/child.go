@@ -222,6 +222,19 @@ func (c *Child) CallHistoryAt(ctx context.Context, generation uint64, body, out 
 	return c.callContext(&generation, "chainHistory", body, out, ctx)
 }
 
+// CallPaymentQuoteAt interrupts only this read-only fee/Max request. It never
+// grants cancellation authority over preparation, payment approval or signing.
+func (c *Child) CallPaymentQuoteAt(ctx context.Context, generation uint64, body, out any) error {
+	if ctx == nil || c.SelfRole != "--internal-core" {
+		return errors.New("wallet payment quotes require a core context")
+	}
+	return c.callContext(&generation, "quotePayment", body, out, ctx)
+}
+
+func cancellableReadMethod(method string) bool {
+	return method == "chainHistory" || method == "quotePayment" || method == "max"
+}
+
 func (c *Child) call(expected *uint64, method string, body any, out any) error {
 	return c.callContext(expected, method, body, out, nil)
 }
@@ -229,6 +242,9 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 func (c *Child) callContext(expected *uint64, method string, body any, out any, historyContext context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if historyContext != nil && (c.SelfRole != "--internal-core" || !cancellableReadMethod(method)) {
+		return errors.New("only wallet provider reads support request cancellation")
+	}
 	if historyContext != nil && historyContext.Err() != nil {
 		return historyContext.Err()
 	}
@@ -248,7 +264,7 @@ func (c *Child) callContext(expected *uint64, method string, body any, out any, 
 	c.counter++
 	id := hex.EncodeToString([]byte{byte(c.counter >> 56), byte(c.counter >> 48), byte(c.counter >> 40), byte(c.counter >> 32), byte(c.counter >> 24), byte(c.counter >> 16), byte(c.counter >> 8), byte(c.counter)})
 	generation := c.generation
-	if method == "chainHistory" && c.SelfRole == "--internal-core" {
+	if cancellableReadMethod(method) && c.SelfRole == "--internal-core" {
 		c.historyID, c.historySession, c.historyGeneration, c.historyCancelled = id, session, generation, false
 		c.historyReady = false
 	}
@@ -285,7 +301,7 @@ func (c *Child) callContext(expected *uint64, method string, body any, out any, 
 				_ = c.cancelHistoryAt(generation, id, session)
 			}
 		}()
-	} else if method == "chainHistory" {
+	} else if cancellableReadMethod(method) {
 		c.life.Lock()
 		if c.historyID == id && c.historySession == session && c.historyGeneration == generation {
 			c.historyReady = true

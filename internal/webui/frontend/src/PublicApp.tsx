@@ -63,11 +63,12 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'heading': return <h2 className="node-heading" title={node.Tooltip}>{node.Text}</h2>;
     case 'label': if (node.ID === 'portfolioValuation') return <span className="portfolio-valuation" title={node.Tooltip} role="status">{node.Value === 'loading' && <span className="price-spinner" aria-label="Fetching USDT value"/>}{node.Text}</span>; return node.Text ? <p className="node-label" title={node.Tooltip}>{node.Text}</p> : null;
     case 'separator': return <hr/>;
-    case 'transactionTable': return <TransactionTable node={node} emit={emit}/>;
+    case 'transactionTable': return <TransactionTable node={node}/>;
     case 'explorer': return <ExplorerLink node={node}/>;
     case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
+      if (node.ID.startsWith('sendAmount/')) return <div className="send-amount-field">{children()}</div>;
       if (node.ID.startsWith('recipientField/')) return <div className="recipient-field">{children()}</div>;
       return <div className="node-row" title={node.Tooltip}>{children()}</div>;
     }

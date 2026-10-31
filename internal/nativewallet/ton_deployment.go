@@ -120,11 +120,15 @@ func (a *App) tonEvent(kind, id string) bool {
 			ready = true
 		}, err
 	}, func(err error) {
+		if ipc.PublicErrorCode(err) == "TON_DEPLOYMENT_PENDING" {
+			a.resolvePendingPayment(account, nil, a.planRevision)
+			return
+		}
 		if err != nil {
 			return
 		}
 		if !ready {
-			a.notice("This deployment preview expired or its wallet changed. Review its original operation in this wallet’s transaction history before trying again.")
+			a.notice("This deployment preview expired or its wallet changed. Use Check pending payment in the Send form before trying again.")
 			return
 		}
 		// The coordinator resumes an existing unsigned operation, or prepares a
@@ -148,11 +152,14 @@ func (a *App) tonNodes(account model.Account) []webui.Node {
 				text = "Contract status: unavailable — TON provider rate limit; wait briefly or configure a trusted RPC/API key"
 			}
 		default:
-			text = "Contract status: " + observed.State.Status + " · Wallet " + observed.State.Version + " · subwallet " + observed.State.Subwallet + " · on-chain wallet ID " + observed.State.WalletID
+			text = "Contract status: " + observed.State.Status + " · Wallet " + observed.State.Version + " · wallet ID " + observed.State.Subwallet
 		}
 	}
 	status := label(text)
 	status.ID = "tonContractStatus/" + account.ID
+	if ok && !observed.Loading && !observed.Failed {
+		status.Tooltip = "Wallet ID is this V5 wallet's subwallet number. TON combines it with the network and workchain in the encoded on-chain identifier. Both describe the same recorded contract; its receiving address is unchanged."
+	}
 	nodes := []webui.Node{status, a.button("tonState/"+account.ID, "Refresh contract status", observed.Loading)}
 	if ok && !observed.Loading && !observed.Failed && observed.State.Status == "uninit" {
 		nodes = append(nodes, label(observed.State.Reason), a.button("tonDeploy/"+account.ID, "Deploy Wallet V5R1 contract", !a.state.RecoveryConfirmed || !observed.State.CanDeploy))

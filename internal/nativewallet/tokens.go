@@ -140,6 +140,7 @@ func (a *App) selectWalletAsset(id string) {
 		a.plan = nil
 		a.planIsStaking = false
 		a.planRevision++
+		a.invalidatePaymentQuote()
 		a.render()
 		if nearTokenNetwork(account) && asset.Contract != "" {
 			a.readNearTokenStorage(account, asset)

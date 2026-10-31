@@ -1,6 +1,7 @@
 package ton
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -140,6 +141,60 @@ func TestDeploymentStateAndExactNoTransferPlan(t *testing.T) {
 	before := rpc.sendCount
 	if receipt, err := adapter.Reconcile(context.Background(), plan, signed); err != nil || receipt.State != "UNKNOWN" || rpc.sendCount != before {
 		t.Fatal("absent deployment history triggered replacement or success", receipt, err)
+	}
+}
+
+func TestDeploymentEffectsShowsOneStandardWalletIDAndPreservesNetworkAuthority(t *testing.T) {
+	_, seed := fixtures(t)
+	for _, profile := range []string{Profile, ProfileSubwallet42} {
+		for _, network := range []string{"ton-mainnet", "ton-testnet"} {
+			t.Run(profile+"/"+network, func(t *testing.T) {
+				a := New()
+				account, err := a.DeriveProfile(seed, 0, network, profile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				rpc := &deploymentRPC{state: "uninitialized", balance: "200000000", fee: 1000000}
+				rpc.configure(t, a, network)
+				plan, err := a.PrepareDeployment(context.Background(), account)
+				if err != nil {
+					t.Fatal(err)
+				}
+				meta, _, err := descriptor(account)
+				if err != nil {
+					t.Fatal(err)
+				}
+				before, _ := json.Marshal(plan)
+				signed, err := a.Sign(seed, plan)
+				if err != nil {
+					t.Fatal(err)
+				}
+				effects := DeploymentEffects(plan)
+				after, _ := json.Marshal(plan)
+				if !strings.Contains(effects, "wallet ID "+strconv.FormatUint(uint64(meta.Subwallet), 10)+" (using its recorded network-bound encoding)") || strings.Contains(effects, strconv.FormatUint(uint64(meta.WalletID), 10)) || strings.Contains(effects, "subwallet:") || !bytes.Equal(before, after) {
+					t.Fatal("display duplicated wallet IDs or changed the recorded contract", effects)
+				}
+				for _, changed := range []string{"encoded-ID", "network"} {
+					bad := plan
+					if changed == "encoded-ID" {
+						wrong := meta
+						wrong.WalletID ^= 1
+						bad.Account.Parameters, _ = json.Marshal(wrong)
+					} else if network == "ton-mainnet" {
+						bad.Account.Network = "ton-testnet"
+					} else {
+						bad.Account.Network = "ton-mainnet"
+					}
+					bad.ID = planID(bad)
+					if a.ValidatePlan(bad) == nil {
+						t.Fatal("simplified display weakened exact contract/network checks", changed)
+					}
+					if _, _, err := a.validateSigned(bad, signed); err == nil {
+						t.Fatal("original signature accepted changed contract/network", changed)
+					}
+				}
+			})
+		}
 	}
 }
 

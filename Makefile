@@ -45,6 +45,7 @@ test:
 	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
 	python3 scripts/near-token-mutation-test.py
+	python3 scripts/payment-quote-mutation-test.py
 	python3 internal/exchange/test-native-mutations-test.py
 	python3 scripts/ci-desktop-test.py
 	python3 scripts/desktop-startup-test.py
@@ -69,6 +70,7 @@ test-ci:
 	python3 scripts/surface-check-test.py
 	python3 scripts/mutation-test.py
 	python3 scripts/near-token-mutation-test.py
+	python3 scripts/payment-quote-mutation-test.py
 	python3 internal/exchange/test-native-mutations-test.py
 	python3 scripts/ci-desktop-test.py
 	python3 scripts/desktop-startup-test.py --current-ui
@@ -122,6 +124,7 @@ test-security:
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	$(GO_TOOLS) python3 internal/exchange/test-native-mutations.py
 	$(GO_TOOLS) python3 scripts/near-token-mutation.py
+	$(GO_TOOLS) python3 scripts/payment-quote-mutations.py
 	$(TOOLS) python3 scripts/surface-check.py
 test-security-ci:
 	$(GO_TOOLS) go test ./internal/vault ./internal/signer ./internal/ipc ./internal/isolation ./internal/strictjson ./internal/amount ./internal/qr ./internal/uiprompt ./internal/journal ./internal/supervisor ./internal/walletcore ./internal/walletsigner ./internal/webui
@@ -130,6 +133,7 @@ test-security-ci:
 	$(GO_TOOLS) python3 scripts/exchange-mutation.py
 	$(GO_TOOLS) python3 internal/exchange/test-native-mutations.py
 	$(GO_TOOLS) python3 scripts/near-token-mutation.py
+	$(GO_TOOLS) python3 scripts/payment-quote-mutations.py
 	$(GO_TOOLS) python3 tests/oracles/evm/arbitrum-mutation.py
 	$(TOOLS) python3 tests/oracles/ton/deployment-mutations.py
 	$(GO_TOOLS) python3 tests/oracles/evm/stablecoin-mutation.py
