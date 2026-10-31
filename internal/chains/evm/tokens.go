@@ -48,11 +48,11 @@ func tokenSymbol(symbol string) bool {
 	return true
 }
 
-// ValidateTokenPolicy does not vouch for an issuer. Contract + network are its
+// ValidateStoredTokenPolicy does not vouch for an issuer. Contract + network are its
 // identity; the untrusted symbol is only bounded display metadata.
-func ValidateTokenPolicy(token model.ERC20Token) error {
+func ValidateStoredTokenPolicy(token model.ERC20Token) error {
 	s := token.Asset
-	if !SupportsTokenImport(token.Network) ||
+	if (!SupportsTokenImport(token.Network) && !IsPromotedDefault(token)) ||
 		len(s.Contract) != 42 || !common.IsHexAddress(s.Contract) ||
 		common.HexToAddress(s.Contract) == (common.Address{}) || common.HexToAddress(s.Contract).Hex() != s.Contract ||
 		s.ID != token.Network+":erc20:"+s.Contract || s.Decimals > 77 || !tokenSymbol(s.Symbol) ||
@@ -61,10 +61,23 @@ func ValidateTokenPolicy(token model.ERC20Token) error {
 	}
 	for _, n := range registry() {
 		for _, pinned := range n.Assets {
-			if n.ID == token.Network && strings.EqualFold(pinned.Contract, s.Contract) {
+			if n.ID == token.Network && strings.EqualFold(pinned.Contract, s.Contract) && !IsPromotedDefault(token) {
 				return errors.New("token is already pinned by the wallet")
 			}
 		}
+	}
+	return nil
+}
+
+// ValidateTokenPolicy approves new imports only; registry defaults cannot be
+// imported again. ValidateStoredTokenPolicy separately preserves inert historical
+// approvals when an exact contract is promoted into the default registry.
+func ValidateTokenPolicy(token model.ERC20Token) error {
+	if err := ValidateStoredTokenPolicy(token); err != nil {
+		return err
+	}
+	if IsPromotedDefault(token) {
+		return errors.New("token is already pinned by the wallet")
 	}
 	return nil
 }
@@ -77,7 +90,7 @@ func (a *Adapter) WithTokens(tokens []model.ERC20Token) (*Adapter, error) {
 	}
 	seen := map[string]bool{}
 	for _, token := range tokens {
-		if ValidateTokenPolicy(token) != nil || seen[token.Asset.ID] {
+		if ValidateStoredTokenPolicy(token) != nil || seen[token.Asset.ID] {
 			return nil, errors.New("invalid or duplicate imported ERC-20 token")
 		}
 		seen[token.Asset.ID] = true
@@ -87,7 +100,11 @@ func (a *Adapter) WithTokens(tokens []model.ERC20Token) (*Adapter, error) {
 		return nil, err
 	}
 	out.HTTPClient = a.HTTPClient
-	out.tokens = append([]model.ERC20Token(nil), tokens...)
+	for _, token := range tokens {
+		if !IsPromotedDefault(token) {
+			out.tokens = append(out.tokens, token)
+		}
+	}
 	return out, nil
 }
 

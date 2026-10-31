@@ -10,6 +10,7 @@ import (
 
 	"localwallet/internal/amount"
 	"localwallet/internal/chains/ton"
+	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
 	"localwallet/internal/webui"
@@ -18,6 +19,7 @@ import (
 type tonObservation struct {
 	State           model.TONWalletState
 	Loading, Failed bool
+	FailureCode     string
 }
 
 func validTONState(state model.TONWalletState, account model.Account) bool {
@@ -74,7 +76,7 @@ func (a *App) readTONState(account model.Account) {
 				return
 			}
 			if err != nil {
-				a.tonStates[account.ID] = tonObservation{Failed: true}
+				a.tonStates[account.ID] = tonObservation{Failed: true, FailureCode: ipc.PublicErrorCode(err)}
 			} else {
 				a.tonStates[account.ID] = tonObservation{State: state}
 			}
@@ -119,7 +121,7 @@ func (a *App) tonEvent(kind, id string) bool {
 		var plan model.Plan
 		err := a.callAt(g, "prepareTonDeployment", map[string]string{"accountId": id}, &plan)
 		if err == nil && (!reflect.DeepEqual(plan.Account, account) || !ton.IsDeploymentPlan(plan) || ton.New().ValidatePlan(plan) != nil || plan.Expires <= time.Now().Unix()) {
-			err = errors.New("invalid TON deployment binding")
+			err = ipc.NewRequestError("TON_DEPLOYMENT_INVALID_PLAN")
 		}
 		return func() {
 			if a.tonPending == nil {
@@ -140,6 +142,9 @@ func (a *App) tonNodes(account model.Account) []webui.Node {
 			text = "Contract status: checking…"
 		case observed.Failed:
 			text = "Contract status: unavailable — RPC query failed"
+			if observed.FailureCode == "TON_RPC_RATE_LIMITED" {
+				text = "Contract status: unavailable — TON provider rate limit; wait briefly or configure a trusted RPC/API key"
+			}
 		default:
 			text = "Contract status: " + observed.State.Status + " · Wallet " + observed.State.Version + " · subwallet " + observed.State.Subwallet + " · on-chain wallet ID " + observed.State.WalletID
 		}

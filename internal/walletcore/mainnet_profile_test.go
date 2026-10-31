@@ -14,7 +14,7 @@ func TestPublicNetworkRegistrySeparatesCompleteMainnetAndTestProfiles(t *testing
 	for _, test := range []struct {
 		environment      string
 		networks, assets int
-	}{{"mainnet", 8, 11}, {"testnet", 10, 11}} {
+	}{{"mainnet", 8, 19}, {"testnet", 10, 11}} {
 		t.Run(test.environment, func(t *testing.T) {
 			c := &core{child: &supervisor.Child{Environment: test.environment}, adapters: chains.All()}
 			out, err := c.handle(message("networks", struct{}{}))

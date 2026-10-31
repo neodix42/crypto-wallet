@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
 	"localwallet/internal/amount"
 	"localwallet/internal/buildinfo"
 	"localwallet/internal/chains"
@@ -338,7 +339,7 @@ func run(portable bool) {
 			r := ipc.Message{Version: 1, ID: m.ID, Session: m.Session, Method: m.Method, Body: b}
 			if e != nil {
 				r.Body = []byte(`null`)
-				r.Error = ipc.PublicErrorCode(e)
+				r.Error = publicRequestErrorCode(e)
 			}
 			_ = ch.Write(r)
 		}
@@ -913,67 +914,242 @@ func (c *core) networkContextAt(d time.Duration, epoch uint64) (context.Context,
 	return context.WithTimeout(c.sessionCtx, d)
 }
 
+// Only fixed categories cross the public IPC boundary, including failures
+// discovered during a post-approval network recheck or broadcast.
+func publicRequestErrorCode(err error) string {
+	if errors.Is(err, ton.ErrRateLimited) {
+		return "TON_RPC_RATE_LIMITED"
+	}
+	return ipc.PublicErrorCode(err)
+}
+
+// maximumSpendable is a trusted-adapter read-only capability. Core spot totals
+// include order holds, which are visible holdings but cannot be sent.
+type maximumSpendable interface {
+	SpendableBalance(context.Context, model.Account, string) (string, error)
+}
+
+func maximumBalance(balances []model.Balance, asset string) (*big.Int, error) {
+	var value *big.Int
+	for _, b := range balances {
+		if b.Asset != asset {
+			continue
+		}
+		if value != nil {
+			return nil, errors.New("duplicate spendable balance")
+		}
+		state := strings.ToLower(strings.TrimSpace(b.State))
+		if state == "" || strings.TrimSpace(b.At) == "" {
+			return nil, errors.New("spendable observation missing")
+		}
+		for _, invalid := range []string{"unknown", "unavailable", "synchroniz", "stale", "pending", "error", "failed", "incomplete"} {
+			if strings.Contains(state, invalid) {
+				return nil, errors.New("spendable state unknown")
+			}
+		}
+		var err error
+		value, err = amount.Atomic(b.Atomic)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if value == nil {
+		return nil, errors.New("balance unknown or unavailable")
+	}
+	return value, nil
+}
+
+// maximumNativeReserve keeps protocol-required account storage and token-call
+// attachments in their native currency. TON jetton attachment is already part
+// of MaxFee; NEP-141's exact yoctoNEAR deposit is separate from its gas reserve.
+func maximumNativeReserve(p model.Plan) (*big.Int, error) {
+	reserve, deposit := "0", "0"
+	switch p.Account.Family {
+	case "near":
+		var x near.Payload
+		if strictjson.Decode(p.Payload, &x) != nil {
+			return nil, errors.New("invalid NEAR max reserve")
+		}
+		reserve = x.StorageReserve
+		if x.Token != nil {
+			deposit = x.Token.Deposit
+		}
+	case "ton":
+		var x ton.Payload
+		if strictjson.Decode(p.Payload, &x) != nil {
+			return nil, errors.New("invalid TON max reserve")
+		}
+		reserve = x.StorageReserve
+	}
+	r, err := amount.Atomic(reserve)
+	if err != nil {
+		return nil, err
+	}
+	d, err := amount.Atomic(deposit)
+	if err != nil {
+		return nil, err
+	}
+	return r.Add(r, d), nil
+}
+
+// maximumRecipientEqual permits only the address normalization already used by
+// the selected adapter. It never trims or substitutes a user's destination.
+func maximumRecipientEqual(a model.Adapter, ac model.Account, requested, prepared string) bool {
+	if requested == "" || requested != strings.TrimSpace(requested) || prepared != strings.TrimSpace(prepared) || a.ValidateAddress(ac.Network, requested) != nil || a.ValidateAddress(ac.Network, prepared) != nil {
+		return false
+	}
+	switch ac.Family {
+	case "evm", "hypercore":
+		return strings.EqualFold(requested, prepared)
+	case "aptos":
+		canonical := func(s string) (*big.Int, bool) {
+			if len(s) < 3 || len(s) > 66 || !strings.HasPrefix(s, "0x") {
+				return nil, false
+			}
+			for _, digit := range s[2:] {
+				if !(digit >= '0' && digit <= '9' || digit >= 'a' && digit <= 'f' || digit >= 'A' && digit <= 'F') {
+					return nil, false
+				}
+			}
+			return new(big.Int).SetString(s[2:], 16)
+		}
+		original, ok := canonical(requested)
+		normalized, valid := canonical(prepared)
+		return ok && valid && original.Cmp(normalized) == 0
+	case "ton":
+		parse := func(s string) (*address.Address, error) {
+			if strings.Contains(s, ":") {
+				return address.ParseRawAddr(s)
+			}
+			return address.ParseAddr(s)
+		}
+		original, err := parse(requested)
+		normalized, failure := parse(prepared)
+		return err == nil && failure == nil && original.Equals(normalized)
+	default:
+		return requested == prepared
+	}
+}
+
 func maxPlan(ctx context.Context, a model.Adapter, ac model.Account, t model.Transfer) (model.Plan, error) {
+	if t.AccountID != ac.ID || t.Asset == "" {
+		return model.Plan{}, errors.New("invalid maximum account or asset")
+	}
+	assets := map[string]bool{}
+	for _, network := range a.Networks() {
+		if network.ID != ac.Network {
+			continue
+		}
+		for _, asset := range network.Assets {
+			if assets[asset.ID] {
+				return model.Plan{}, errors.New("ambiguous maximum asset registry")
+			}
+			assets[asset.ID] = true
+		}
+	}
+	if !assets[t.Asset] {
+		return model.Plan{}, errors.New("unsupported maximum asset")
+	}
 	balances, err := a.Balance(ctx, ac)
 	if err != nil {
 		return model.Plan{}, err
 	}
-	var balance *big.Int
-	for _, b := range balances {
-		if b.Asset == t.Asset {
-			state := strings.ToUpper(b.State)
-			if strings.Contains(state, "UNKNOWN") || strings.Contains(state, "ERROR") || strings.Contains(state, "SYNCHRONIZING") {
-				return model.Plan{}, errors.New("spendable state unknown")
-			}
-			balance, err = amount.Atomic(b.Atomic)
-			if err != nil {
-				return model.Plan{}, err
-			}
-		}
+	balance, err := maximumBalance(balances, t.Asset)
+	if err != nil {
+		return model.Plan{}, err
 	}
-	if balance == nil || balance.Sign() == 0 {
-		return model.Plan{}, errors.New("balance unknown or unavailable")
-	}
-	target := new(big.Int).Div(new(big.Int).Set(balance), big.NewInt(2))
-	if target.Sign() == 0 {
-		target.SetInt64(1)
-	}
-	for i := 0; i < 4; i++ {
-		t.Amount = target.String()
-		p, err := a.Prepare(ctx, ac, t)
+	if spendable, ok := a.(maximumSpendable); ok {
+		value, err := spendable.SpendableBalance(ctx, ac, t.Asset)
 		if err != nil {
 			return model.Plan{}, err
 		}
+		available, err := amount.Atomic(value)
+		if err != nil || available.Cmp(balance) > 0 {
+			return model.Plan{}, errors.New("invalid or changed spendable balance; refresh before retrying")
+		}
+		balance = available
+	}
+	if balance.Sign() <= 0 {
+		return model.Plan{}, errors.New("no spendable balance")
+	}
+	// A half-balance probe can fail even when a small payment can afford gas.
+	// Probe one atomic unit, then prepare the actual candidate again; never reuse
+	// that probe's bytes or assume its estimate applies to the final amount.
+	target := big.NewInt(1)
+	reserveCap := new(big.Int)
+	for i := 0; i < 4; i++ {
+		if err := ctx.Err(); err != nil {
+			return model.Plan{}, err
+		}
+		t.Amount = target.String()
+		p, err := a.Prepare(ctx, ac, t)
+		if err != nil {
+			// Native encoded-value size can increase a Base/TON fee after
+			// the small probe. Only an exact locally computed budget quote
+			// permits another estimate; RPC/metadata failures never do.
+			quotedFee, quotedStorage := "", "0"
+			var evmQuote *evm.InsufficientFeeBalanceError
+			var tonQuote *ton.InsufficientNativeFeeBalanceError
+			switch {
+			case ac.Family == "evm" && errors.As(err, &evmQuote) && evmQuote != nil && evmQuote.FeeAsset == t.Asset:
+				quotedFee = evmQuote.MaxFee
+			case ac.Family == "ton" && t.Asset == ac.Network+":TON" && errors.As(err, &tonQuote) && tonQuote != nil && tonQuote.StorageReserve == "10000000":
+				quotedFee, quotedStorage = tonQuote.MaxFee, tonQuote.StorageReserve
+			default:
+				return model.Plan{}, err
+			}
+			fee, invalid := amount.Atomic(quotedFee)
+			storage, badStorage := amount.Atomic(quotedStorage)
+			if invalid != nil || badStorage != nil || fee.Sign() <= 0 {
+				return model.Plan{}, err
+			}
+			fee.Add(fee, storage)
+			if fee.Cmp(reserveCap) > 0 {
+				reserveCap.Set(fee)
+			}
+			smaller := new(big.Int).Sub(new(big.Int).Set(balance), reserveCap)
+			if smaller.Sign() <= 0 || smaller.Cmp(target) >= 0 {
+				return model.Plan{}, err
+			}
+			target = smaller
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return model.Plan{}, err
+		}
+		accountJSON, _ := json.Marshal(ac)
+		planAccountJSON, _ := json.Marshal(p.Account)
+		if !bytes.Equal(accountJSON, planAccountJSON) || p.Asset != t.Asset || p.Amount != t.Amount || p.Memo != t.Memo || !maximumRecipientEqual(a, ac, t.Recipient, p.Recipient) || !assets[p.FeeAsset] {
+			return model.Plan{}, errors.New("maximum plan changed account, asset, recipient, amount, comment or fee domain")
+		}
+		if err := a.ValidatePlan(p); err != nil {
+			return model.Plan{}, err
+		}
+		fee, err := amount.Atomic(p.MaxFee)
+		if err != nil {
+			return model.Plan{}, err
+		}
+		reserve, err := maximumNativeReserve(p)
+		if err != nil {
+			return model.Plan{}, err
+		}
+		required := new(big.Int).Add(fee, reserve)
 		next := new(big.Int).Set(balance)
 		if p.FeeAsset == t.Asset {
-			fee, err := amount.Atomic(p.MaxFee)
-			if err != nil {
-				return model.Plan{}, err
+			// Keep the largest observed estimate when amount encoding changes produce
+			// small fee oscillations. The returned plan still binds its actual estimate.
+			if required.Cmp(reserveCap) > 0 {
+				reserveCap.Set(required)
 			}
-			next.Sub(next, fee)
-			reserve := "0"
-			switch ac.Family {
-			case "near":
-				var x near.Payload
-				if strictjson.Decode(p.Payload, &x) != nil {
-					return model.Plan{}, errors.New("invalid NEAR max reserve")
-				}
-				reserve = x.StorageReserve
-			case "ton":
-				var x ton.Payload
-				if strictjson.Decode(p.Payload, &x) != nil {
-					return model.Plan{}, errors.New("invalid TON max reserve")
-				}
-				reserve = x.StorageReserve
+			next.Sub(next, reserveCap)
+		} else {
+			gas, err := maximumBalance(balances, p.FeeAsset)
+			if err != nil || gas.Cmp(required) < 0 {
+				return model.Plan{}, errors.New("insufficient or unknown native balance for gas, attachments and storage")
 			}
-			r, err := amount.Atomic(reserve)
-			if err != nil {
-				return model.Plan{}, err
-			}
-			next.Sub(next, r)
 		}
 		if next.Sign() <= 0 {
-			return model.Plan{}, errors.New("insufficient gas reserve")
+			return model.Plan{}, errors.New("insufficient gas and storage reserve")
 		}
 		if next.Cmp(target) == 0 {
 			return p, nil

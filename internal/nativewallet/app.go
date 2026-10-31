@@ -384,6 +384,14 @@ func safeError(err error) string {
 		return "An input exceeds 4,096 UTF-8 bytes."
 	case "REQUEST_CANCELLED":
 		return "Request cancelled."
+	case "TON_RPC_RATE_LIMITED":
+		return "The TON provider has rate-limited this request. Wait briefly and refresh, or configure a trusted RPC/API key. Reconcile any already submitted operation in Journal before another send."
+	case "TON_DEPLOYMENT_UNAVAILABLE":
+		return "TON deployment could not be prepared from verified contract state and fees. Refresh contract status and check the configured TON provider. No deployment was sent."
+	case "TON_DEPLOYMENT_RECORD_FAILED":
+		return "The deployment could not be recorded for approval. Check Journal for an existing prepared or pending operation before trying again. No new deployment was sent."
+	case "TON_DEPLOYMENT_INVALID_PLAN":
+		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state before reviewing another deployment. No deployment was sent."
 	}
 	return "Request failed or is unavailable. Balance remains unknown until verified; reconcile pending operations before retrying."
 }
@@ -1159,6 +1167,11 @@ func (a *App) walletEvent(action string) {
 		}
 		a.mutation(kind, map[string]any{"accountId": id, "birthday": birthday, "gap": gap, "limit": limit, "blockBudget": budget})
 	case "prepare", "max":
+		if kind == "max" && strings.TrimSpace(a.fields["recipient/"+id]) == "" {
+			a.notice("Enter a recipient first so Max can estimate the transaction fee.")
+			a.render()
+			return
+		}
 		asset := a.asset(account)
 		revision := a.planRevision
 		transfer := model.Transfer{AccountID: id, Asset: asset.ID, Recipient: a.fields["recipient/"+id], Amount: a.fields["amount/"+id], Memo: a.fields["memo/"+id]}
@@ -1649,7 +1662,9 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	if a.sendForms[account.ID] {
 		recipient := row(a.entry("recipient/"+account.ID, "Recipient address"), a.button("addressBookLoad/"+account.ID, "Load from address book", !a.state.RecoveryConfirmed), a.button("addressBookSave/"+account.ID, "Save address to address book", !a.state.RecoveryConfirmed))
 		recipient.ID = "recipientField/" + account.ID
-		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), recipient, a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), a.entry("memo/"+account.ID, "Memo / tag (when required)"), row(a.button("prepare/"+account.ID, "Prepare payment", !a.state.RecoveryConfirmed), a.button("max/"+account.ID, "Maximum spend", !a.state.RecoveryConfirmed)))
+		maximum := a.button("max/"+account.ID, "Max", !a.state.RecoveryConfirmed)
+		maximum.Tooltip = "Use the full spendable balance after estimated fees and required storage reserves. Token fees use the network's native gas balance. Fee changes or refunds can leave a remainder. Enter the recipient first."
+		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), recipient, row(a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), maximum), a.entry("memo/"+account.ID, "Memo / tag (when required)"), a.button("prepare/"+account.ID, "Prepare payment", !a.state.RecoveryConfirmed))
 		if a.plan != nil && !a.planIsStaking && a.plan.Account.ID == account.ID {
 			amountText, _ := amount.Format(a.plan.Amount, asset.Decimals)
 			fee := a.plan.MaxFee
@@ -1661,17 +1676,20 @@ func (a *App) walletPage(account model.Account) webui.Page {
 				}
 			}
 			feeLabel := "Maximum fee: "
-			if account.Family == "near" {
+			if account.Family == "near" || account.Family == "ton" {
 				feeLabel = "Estimated fee reserve: "
 			}
 			preview := "Prepared payment\nNetwork: " + account.Network + "\nFrom: " + account.Address + "\nTo: " + a.plan.Recipient + "\nAmount: " + amountText + " " + asset.Symbol + "\n" + feeLabel + fee + " " + symbol + "\nMemo: " + a.plan.Memo + "\nExpires: " + time.Unix(a.plan.Expires, 0).UTC().Format(time.RFC3339)
 			if effects, ok := near.TokenEffects(*a.plan); ok {
 				preview += "\n" + effects
 			}
+			if ton.IsJettonPlan(*a.plan) {
+				preview += "\n" + ton.JettonEffects(*a.plan)
+			}
 			page.Nodes = append(page.Nodes, label(preview), a.button("send/"+account.ID, "Review and send", false), a.button("cancelPrepared/"+a.plan.ID, "Cancel prepared payment", false))
 		}
 	}
-	if account.Family == "evm" || account.Family == "near" {
+	if account.Family == "evm" || account.Family == "near" || len(network.Assets) > 1 {
 		page.Nodes = append(page.Nodes, a.walletAssets(account, asset)...)
 	}
 	if account.Family == "near" {

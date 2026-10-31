@@ -249,7 +249,7 @@ func TestTP050USDTPrepareBalancesSubmitPendingAndFinality(t *testing.T) {
 		t.Fatal("USDT transfer does not call exact token")
 	}
 	balances, e := f.a.Balance(ctx, p.Account)
-	if e != nil || len(balances) != 2 || balances[0].Asset != "ethereum-mainnet:native" || balances[1].Asset != USDTAsset || balances[1].Atomic != "1000000000000000000000000" {
+	if e != nil || len(balances) != 3 || balances[0].Asset != "ethereum-mainnet:native" || balances[1].Asset != USDTAsset || balances[1].Atomic != "1000000000000000000000000" {
 		t.Fatalf("exact USDT+gas balance missing: %v", e)
 	}
 	s, e := f.a.Sign(syntheticSeed(), p)
@@ -300,7 +300,7 @@ func TestTP052USDTRuntimeDecimalsIssuerStateAndNoReturnPolicy(t *testing.T) {
 					t.Fatal("unsupported USDT issuer state prepared")
 				}
 				ac, _ := f.a.Derive(syntheticSeed(), 0, "ethereum-mainnet")
-				if balances, e := f.a.Balance(ctx, ac); e != nil || len(balances) != 2 || balances[0].State != "provider-observed" || balances[1].Asset != USDTAsset || balances[1].State != "unavailable" || balances[1].Atomic != "" {
+				if balances, e := f.a.Balance(ctx, ac); e != nil || len(balances) != 3 || balances[0].State != "provider-observed" || balances[1].Asset != USDTAsset || balances[1].State != "unavailable" || balances[1].Atomic != "" {
 					t.Fatal("unsupported USDT issuer state invented a token balance or hid verified ETH")
 				}
 			})

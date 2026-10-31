@@ -30,6 +30,33 @@ type accountState struct {
 	SyncUTime int64 `json:"sync_utime"`
 	Suspended bool  `json:"suspended"`
 }
+
+// Compatible TON Center proxies encode balance as either a decimal string or
+// an integer JSON token. Never accept float/exponent/null or lossy float64 data.
+func (st *accountState) UnmarshalJSON(raw []byte) error {
+	type stateAlias accountState
+	var decoded stateAlias
+	value := struct {
+		*stateAlias
+		Balance json.RawMessage `json:"balance"`
+	}{stateAlias: &decoded}
+	if e := json.Unmarshal(raw, &value); e != nil {
+		return errors.New("invalid TON account state")
+	}
+	text := string(value.Balance)
+	if len(text) > 0 && text[0] == '"' {
+		if e := json.Unmarshal(value.Balance, &text); e != nil {
+			return errors.New("invalid TON balance encoding")
+		}
+	}
+	if _, e := chainutil.Big(text, 120); e != nil {
+		return errors.New("invalid TON integer balance")
+	}
+	decoded.Balance = text
+	*st = accountState(decoded)
+	return nil
+}
+
 type authority struct {
 	Seqno    uint32
 	Deploy   bool
@@ -152,7 +179,21 @@ func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balanc
 	if e != nil {
 		return nil, e
 	}
-	return []model.Balance{{Asset: ac.Network + ":TON", Atomic: st.Balance, State: st.State + " (trusted RPC)", At: strconv.FormatUint(uint64(seq), 10)}}, nil
+	balances := []model.Balance{{Asset: ac.Network + ":TON", Atomic: st.Balance, State: st.State + " (trusted RPC)", At: strconv.FormatUint(uint64(seq), 10)}}
+	if ac.Network == "ton-mainnet" {
+		token := model.Balance{Asset: usdtAsset().ID, State: "UNKNOWN", At: strconv.FormatUint(uint64(seq), 10)}
+		if err := a.verifyUSDT(ctx, ac.Network); err == nil {
+			if observed, err := a.jettonState(ctx, ac.Network, ac.Address); err == nil {
+				token.Atomic = observed.Balance
+				token.State = "verified canonical USDT owner/master/code (trusted RPC)"
+				if observed.Status != 0 {
+					token.State += "; issuer-locked"
+				}
+			}
+		}
+		balances = append(balances, token)
+	}
+	return balances, nil
 }
 func (a *Adapter) estimate(ctx context.Context, p model.Plan, x Payload, body *cell.Cell, ignoreSignature bool) (uint64, error) {
 	args := map[string]any{"address": p.Account.Address, "body": base64.StdEncoding.EncodeToString(body.ToBOC()), "ignore_chksig": ignoreSignature, "init_code": "", "init_data": ""}
@@ -193,6 +234,9 @@ func (a *Adapter) estimate(ctx context.Context, p model.Plan, x Payload, body *c
 	return total, nil
 }
 func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfer) (model.Plan, error) {
+	if t.Asset == usdtAsset().ID {
+		return a.prepareJetton(ctx, ac, t)
+	}
 	if t.AccountID != ac.ID || t.Asset != ac.Network+":TON" {
 		return model.Plan{}, errors.New("unsupported TON transfer")
 	}
@@ -233,6 +277,17 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 	}
 	x.EstimatedFee = strconv.FormatUint(fee, 10)
 	p.MaxFee = strconv.FormatUint(fee*2+1_000_000, 10)
+	// A larger native Coins encoding can increase the fee after Max's small
+	// probe. Return only this checked local budget quote; ValidatePlan remains
+	// mandatory for every successful plan and retains all other invariants.
+	// message already validated the positive 120-bit amount; authority's
+	// fresh state validated the source balance before returning auth.
+	value, _ := chainutil.Big(p.Amount, 120)
+	balance, _ := chainutil.Big(auth.Balance, 120)
+	needed := new(big.Int).Add(value, new(big.Int).SetUint64(fee*2+1_000_000+10_000_000))
+	if balance.Cmp(needed) < 0 {
+		return model.Plan{}, &InsufficientNativeFeeBalanceError{MaxFee: p.MaxFee, StorageReserve: x.StorageReserve}
+	}
 	p.Payload, _ = json.Marshal(x)
 	p.ID = planID(p)
 	if e = a.ValidatePlan(p); e != nil {
@@ -256,7 +311,11 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	if auth.Seqno != x.Seqno || auth.Deploy != x.Deploy || auth.DataHash != x.SourceDataHash {
 		return model.Receipt{}, errors.New("TON authority or seqno changed since approval")
 	}
-	if x.Kind != "deployment" {
+	if x.Kind == "jetton_transfer" {
+		if e = a.recheckJetton(ctx, p, x); e != nil {
+			return model.Receipt{}, e
+		}
+	} else if x.Kind != "deployment" {
 		dst, e := a.state(ctx, p.Account.Network, p.Recipient)
 		if e != nil {
 			return model.Receipt{}, e
@@ -270,12 +329,14 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 		return model.Receipt{}, e
 	}
 	ceiling, _ := chainutil.Uint(p.MaxFee, 64)
+	if x.Kind == "jetton_transfer" {
+		fee += jettonAttached
+	}
 	if fee > ceiling {
 		return model.Receipt{}, errors.New("TON current fee exceeds approved ceiling")
 	}
 	balance, _ := chainutil.Big(auth.Balance, 120)
-	amount, _ := chainutil.Big(p.Amount, 120)
-	cost := new(big.Int).Add(amount, new(big.Int).SetUint64(ceiling+10_000_000))
+	cost := new(big.Int).Add(nativeSpend(p, x), new(big.Int).SetUint64(ceiling+10_000_000))
 	if balance.Cmp(cost) < 0 {
 		return model.Receipt{}, errors.New("TON balance no longer covers payment and reserves")
 	}
@@ -417,6 +478,9 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 		}
 		if x.Kind == "deployment" {
 			return a.reconcileDeployment(ctx, p, s, tx)
+		}
+		if x.Kind == "jetton_transfer" {
+			return a.reconcileJetton(ctx, p, s, tx)
 		}
 		description := tx.Description.(tlb.TransactionDescriptionOrdinary)
 		if description.ActionPhase == nil {

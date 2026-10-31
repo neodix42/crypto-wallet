@@ -1,4 +1,4 @@
-// Package hypercore implements only owner-signed spot HYPE peer transfers.
+// Package hypercore implements only owner-signed pinned spot-asset peer transfers.
 // HyperCore and HyperEVM intentionally have distinct network and asset identities.
 package hypercore
 
@@ -29,6 +29,12 @@ const Profile = "evm-bip39-bip32-v1"
 const mainToken = "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec"
 const testToken = "HYPE:0x7317beb7cceed72ef0b346074cc8e7ab"
 
+// Official spotMeta index 0, weiDecimals 8:
+// https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/spot
+// This is the Core spot ledger,
+// not an ERC-20 contract, a perpetual balance or an implicit bridge route.
+const mainUSDCToken = "USDC:0x6d1e7cde53ba9467b783cb7c530ce054"
+
 type Adapter struct {
 	endpoints  map[string]string
 	HTTPClient *http.Client
@@ -52,7 +58,7 @@ func NewWithEndpoints(endpoints map[string]string) (*Adapter, error) {
 }
 func networks() []model.Network {
 	return []model.Network{
-		{ID: "hypercore-mainnet", Family: "hypercore", Name: "HyperCore Mainnet spot", ChainID: "HyperCore Mainnet", RPC: "https://api.hyperliquid.xyz", Assets: []model.Asset{{ID: "hypercore-mainnet:" + mainToken, Symbol: "HYPE", Decimals: 8, Contract: mainToken}}, Trust: "official TLS API and explorer; HYPE token identity checked; not a consensus proof"},
+		{ID: "hypercore-mainnet", Family: "hypercore", Name: "HyperCore Mainnet spot", ChainID: "HyperCore Mainnet", RPC: "https://api.hyperliquid.xyz", Assets: []model.Asset{{ID: "hypercore-mainnet:" + mainToken, Symbol: "HYPE", Decimals: 8, Contract: mainToken}, {ID: "hypercore-mainnet:" + mainUSDCToken, Symbol: "USDC", Decimals: 8, Contract: mainUSDCToken}}, Trust: "official TLS API and explorer; pinned spot token identities checked; not a consensus proof"},
 		{ID: "hypercore-testnet", Family: "hypercore", Name: "HyperCore Testnet spot", ChainID: "HyperCore Testnet", RPC: "https://api.hyperliquid-testnet.xyz", Testnet: true, Assets: []model.Asset{{ID: "hypercore-testnet:" + testToken, Symbol: "HYPE", Decimals: 8, Contract: testToken}}, Trust: "official TLS API and explorer; HYPE token identity checked; not a consensus proof"},
 	}
 }
@@ -172,80 +178,124 @@ func (a *Adapter) request(ctx context.Context, n model.Network, path string, bod
 
 type meta struct {
 	Tokens []struct {
-		Name        string `json:"name"`
-		WeiDecimals uint8  `json:"weiDecimals"`
-		Index       uint32 `json:"index"`
-		TokenID     string `json:"tokenId"`
+		Name        string  `json:"name"`
+		WeiDecimals uint8   `json:"weiDecimals"`
+		Index       *uint32 `json:"index"`
+		TokenID     string  `json:"tokenId"`
+		IsCanonical bool    `json:"isCanonical"`
 	} `json:"tokens"`
 }
 
-func (a *Adapter) identity(ctx context.Context, n model.Network) (uint32, uint64, error) {
-	var m meta
-	if e := a.request(ctx, n, "/info", map[string]any{"type": "spotMeta"}, &m); e != nil {
-		return 0, 0, e
+// assetByID never accepts a symbol, arbitrary token ID or another ledger's asset.
+func assetByID(n model.Network, id string) (model.Asset, error) {
+	for _, asset := range n.Assets {
+		if asset.ID == id {
+			return asset, nil
+		}
 	}
-	want := strings.TrimPrefix(n.Assets[0].Contract, "HYPE:")
-	idx := uint32(150)
-	if n.Testnet {
-		idx = 1105
+	return model.Asset{}, errors.New("unsupported Core spot asset")
+}
+func registryIndex(n model.Network, asset model.Asset) (uint32, error) {
+	pinned, err := assetByID(n, asset.ID)
+	if err != nil || pinned != asset {
+		return 0, errors.New("Core asset identity mismatch")
 	}
+	if asset.Contract == mainUSDCToken && n.ID == "hypercore-mainnet" {
+		return 0, nil
+	}
+	if asset.Contract == mainToken && n.ID == "hypercore-mainnet" {
+		return 150, nil
+	}
+	if asset.Contract == testToken && n.ID == "hypercore-testnet" {
+		return 1105, nil
+	}
+	return 0, errors.New("unsupported Core token registry")
+}
+func metadataIndex(n model.Network, asset model.Asset, m meta) (uint32, error) {
+	idx, err := registryIndex(n, asset)
+	if err != nil {
+		return 0, err
+	}
+	want := strings.SplitN(asset.Contract, ":", 2)[1]
 	found := 0
-	for _, t := range m.Tokens {
-		if t.TokenID == want {
-			if t.Name != "HYPE" || t.WeiDecimals != 8 || t.Index != idx {
-				return 0, 0, errors.New("Core HYPE registry metadata mismatch")
+	for _, token := range m.Tokens {
+		// A conflicting index or ticker is ambiguous. History may use the ticker
+		// only after its uniqueness against the pinned token has been established.
+		if token.TokenID == want || token.Index != nil && *token.Index == idx || token.Name == asset.Symbol {
+			if token.TokenID != want || token.Name != asset.Symbol || token.WeiDecimals != asset.Decimals || token.Index == nil || *token.Index != idx || asset.Contract == mainUSDCToken && !token.IsCanonical {
+				return 0, errors.New("Core pinned token registry metadata mismatch")
 			}
 			found++
 		}
 	}
 	if found != 1 {
-		return 0, 0, errors.New("Core ledger/token identity mismatch")
+		return 0, errors.New("Core ledger/token identity mismatch")
+	}
+	return idx, nil
+}
+func (a *Adapter) identityState(ctx context.Context, n model.Network) (meta, uint64, error) {
+	var m meta
+	if err := a.request(ctx, n, "/info", map[string]any{"type": "spotMeta"}, &m); err != nil {
+		return m, 0, err
 	}
 	var status struct {
 		Time uint64 `json:"time"`
 	}
-	if e := a.request(ctx, n, "/info", map[string]any{"type": "exchangeStatus"}, &status); e != nil {
-		return 0, 0, e
+	if err := a.request(ctx, n, "/info", map[string]any{"type": "exchangeStatus"}, &status); err != nil {
+		return m, 0, err
 	}
 	now := uint64(time.Now().UnixMilli())
 	if status.Time+30_000 < now || status.Time > now+30_000 {
-		return 0, 0, errors.New("Core server time is stale or invalid")
+		return m, 0, errors.New("Core server time is stale or invalid")
 	}
-	return idx, status.Time, nil
+	return m, status.Time, nil
+}
+func (a *Adapter) assetIdentity(ctx context.Context, n model.Network, asset model.Asset) (uint32, uint64, error) {
+	m, at, err := a.identityState(ctx, n)
+	if err != nil {
+		return 0, 0, err
+	}
+	index, err := metadataIndex(n, asset, m)
+	return index, at, err
+}
+
+// identity retains the original HYPE-only check for historical callers/plans.
+func (a *Adapter) identity(ctx context.Context, n model.Network) (uint32, uint64, error) {
+	return a.assetIdentity(ctx, n, n.Assets[0])
 }
 func atomic(s string) (*big.Int, error) {
 	if len(s) == 0 || len(s) > 78 || (len(s) > 1 && s[0] == '0') {
-		return nil, errors.New("invalid atomic HYPE integer")
+		return nil, errors.New("invalid atomic Core spot integer")
 	}
 	for _, c := range s {
 		if c < '0' || c > '9' {
-			return nil, errors.New("invalid atomic HYPE integer")
+			return nil, errors.New("invalid atomic Core spot integer")
 		}
 	}
 	v, ok := new(big.Int).SetString(s, 10)
 	if !ok || v.BitLen() > 256 {
-		return nil, errors.New("HYPE amount overflow")
+		return nil, errors.New("Core spot amount overflow")
 	}
 	return v, nil
 }
 func parseUnits(s string) (*big.Int, error) {
 	if len(s) == 0 || len(s) > 88 {
-		return nil, errors.New("invalid decimal HYPE amount")
+		return nil, errors.New("invalid decimal Core spot amount")
 	}
 	parts := strings.Split(s, ".")
 	if len(parts) > 2 {
-		return nil, errors.New("invalid HYPE precision")
+		return nil, errors.New("invalid Core spot precision")
 	}
 	whole := parts[0]
 	frac := ""
 	if len(parts) == 2 {
 		frac = parts[1]
 		if len(frac) == 0 || len(frac) > 8 {
-			return nil, errors.New("excess HYPE precision")
+			return nil, errors.New("excess Core spot precision")
 		}
 	}
 	if whole == "" || (len(whole) > 1 && whole[0] == '0') {
-		return nil, errors.New("noncanonical HYPE amount")
+		return nil, errors.New("noncanonical Core spot amount")
 	}
 	digits := strings.TrimLeft(whole+frac+strings.Repeat("0", 8-len(frac)), "0")
 	if digits == "" {
@@ -274,17 +324,33 @@ func (a *Adapter) role(ctx context.Context, n model.Network, addr string) (strin
 	}
 	return "", errors.New("unknown Core account role")
 }
+
+type spotState struct {
+	Balances []struct {
+		Coin  string  `json:"coin"`
+		Token *uint32 `json:"token"`
+		Total string  `json:"total"`
+		Hold  string  `json:"hold"`
+	} `json:"balances"`
+}
+
 func (a *Adapter) funds(ctx context.Context, n model.Network, addr string, index uint32) (*big.Int, *big.Int, error) {
-	var state struct {
-		Balances []struct {
-			Coin  string `json:"coin"`
-			Token uint32 `json:"token"`
-			Total string `json:"total"`
-			Hold  string `json:"hold"`
-		} `json:"balances"`
-	}
+	var state spotState
 	if e := a.request(ctx, n, "/info", map[string]any{"type": "spotClearinghouseState", "user": addr}, &state); e != nil {
 		return nil, nil, e
+	}
+	return parseFunds(n, state, index)
+}
+func parseFunds(n model.Network, state spotState, index uint32) (*big.Int, *big.Int, error) {
+	var selected model.Asset
+	for _, asset := range n.Assets {
+		known, err := registryIndex(n, asset)
+		if err == nil && known == index {
+			selected = asset
+		}
+	}
+	if selected.ID == "" {
+		return nil, nil, errors.New("unsupported Core token index")
 	}
 	if state.Balances == nil {
 		return nil, nil, errors.New("Core balance state is missing")
@@ -293,8 +359,11 @@ func (a *Adapter) funds(ctx context.Context, n model.Network, addr string, index
 	available := new(big.Int)
 	found := false
 	for _, b := range state.Balances {
-		if b.Token == index {
-			if found || b.Coin != "HYPE" {
+		if b.Coin == selected.Symbol && (b.Token == nil || *b.Token != index) {
+			return nil, nil, errors.New("Core selected balance lacks its exact token index")
+		}
+		if b.Token != nil && *b.Token == index {
+			if found || b.Coin != selected.Symbol {
 				return nil, nil, errors.New("ambiguous Core token balance")
 			}
 			found = true
@@ -315,20 +384,63 @@ func (a *Adapter) funds(ctx context.Context, n model.Network, addr string, index
 	}
 	return total, available, nil
 }
+
+// SpendableBalance is used only by maximum-amount planning. Displayed holdings
+// remain total balances; ordinary Prepare independently rechecks current holds.
+func (a *Adapter) SpendableBalance(ctx context.Context, ac model.Account, assetID string) (string, error) {
+	n, err := a.validateAccount(ac)
+	if err != nil {
+		return "", err
+	}
+	asset, err := assetByID(n, assetID)
+	if err != nil {
+		return "", err
+	}
+	index, _, err := a.assetIdentity(ctx, n, asset)
+	if err != nil {
+		return "", err
+	}
+	_, available, err := a.funds(ctx, n, ac.Address, index)
+	if err != nil {
+		return "", err
+	}
+	return available.String(), nil
+}
+
 func (a *Adapter) Balance(ctx context.Context, ac model.Account) ([]model.Balance, error) {
 	n, e := a.validateAccount(ac)
 	if e != nil {
 		return nil, e
 	}
-	index, at, e := a.identity(ctx, n)
+	m, at, e := a.identityState(ctx, n)
 	if e != nil {
 		return nil, e
 	}
-	total, _, e := a.funds(ctx, n, ac.Address, index)
-	if e != nil {
-		return nil, e
+	var state spotState
+	if err := a.request(ctx, n, "/info", map[string]any{"type": "spotClearinghouseState", "user": ac.Address}, &state); err != nil {
+		return nil, err
 	}
-	return []model.Balance{{Asset: n.Assets[0].ID, Atomic: total.String(), State: "provider-observed", At: strconv.FormatUint(at, 10)}}, nil
+	out := make([]model.Balance, 0, len(n.Assets))
+	var failures []error
+	valid := 0
+	for _, asset := range n.Assets {
+		index, err := metadataIndex(n, asset, m)
+		var total *big.Int
+		if err == nil {
+			total, _, err = parseFunds(n, state, index)
+		}
+		if err != nil {
+			failures = append(failures, err)
+			out = append(out, model.Balance{Asset: asset.ID, State: "unavailable"})
+			continue
+		}
+		valid++
+		out = append(out, model.Balance{Asset: asset.ID, Atomic: total.String(), State: "provider-observed", At: strconv.FormatUint(at, 10)})
+	}
+	if valid == 0 {
+		return nil, errors.Join(failures...)
+	}
+	return out, nil
 }
 
 // Action is the only action schema accepted by this adapter, never arbitrary typed data.
@@ -361,7 +473,8 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 	if e != nil {
 		return fail(e)
 	}
-	if t.AccountID != ac.ID || t.Asset != n.Assets[0].ID || t.Memo != "" {
+	asset, assetErr := assetByID(n, t.Asset)
+	if t.AccountID != ac.ID || assetErr != nil || t.Memo != "" {
 		return fail(errors.New("unsupported Core asset, account or memo"))
 	}
 	if e = a.ValidateAddress(n.ID, t.Recipient); e != nil {
@@ -372,7 +485,7 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 	if e != nil || value.Sign() == 0 {
 		return fail(errors.New("Core amount must be a positive eight-decimal atomic integer"))
 	}
-	index, at, e := a.identity(ctx, n)
+	index, at, e := a.assetIdentity(ctx, n, asset)
 	if e != nil {
 		return fail(e)
 	}
@@ -405,7 +518,7 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 		return fail(e)
 	}
 	if available.Cmp(value) < 0 {
-		return fail(errors.New("insufficient available Core HYPE"))
+		return fail(fmt.Errorf("insufficient available Core %s", asset.Symbol))
 	}
 	a.mu.Lock()
 	nonce := at
@@ -421,9 +534,9 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 	if n.Testnet {
 		env = "Testnet"
 	}
-	x := planPayload{Action: action{"spotSend", "0x66eee", env, recipient, n.Assets[0].Contract, formatUnits(value), nonce}, RecipientRole: recipientRole, SourceRole: sourceRole, SourceAbstraction: abstraction, StateTime: at}
+	x := planPayload{Action: action{"spotSend", "0x66eee", env, recipient, asset.Contract, formatUnits(value), nonce}, RecipientRole: recipientRole, SourceRole: sourceRole, SourceAbstraction: abstraction, StateTime: at}
 	raw, _ := json.Marshal(x)
-	p := model.Plan{Account: ac, Asset: n.Assets[0].ID, Recipient: recipient, Amount: value.String(), MaxFee: "0", FeeAsset: n.Assets[0].ID, Nonce: strconv.FormatUint(nonce, 10), Expires: time.Now().Add(60 * time.Second).Unix(), Payload: raw}
+	p := model.Plan{Account: ac, Asset: asset.ID, Recipient: recipient, Amount: value.String(), MaxFee: "0", FeeAsset: asset.ID, Nonce: strconv.FormatUint(nonce, 10), Expires: time.Now().Add(60 * time.Second).Unix(), Payload: raw}
 	p.ID = planID(p)
 	if e = a.ValidatePlan(p); e != nil {
 		return fail(e)
@@ -438,7 +551,8 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	if e = a.ValidateAddress(n.ID, p.Recipient); e != nil {
 		return e
 	}
-	if p.Recipient != strings.ToLower(p.Recipient) || p.Asset != n.Assets[0].ID || p.MaxFee != "0" || p.FeeAsset != p.Asset || p.Memo != "" || p.ID != planID(p) || p.Expires <= 0 {
+	asset, assetErr := assetByID(n, p.Asset)
+	if p.Recipient != strings.ToLower(p.Recipient) || assetErr != nil || p.MaxFee != "0" || p.FeeAsset != p.Asset || p.Memo != "" || p.ID != planID(p) || p.Expires <= 0 {
 		return errors.New("Core plan identity/effects mismatch")
 	}
 	value, e := atomic(p.Amount)
@@ -457,7 +571,7 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	if n.Testnet {
 		env = "Testnet"
 	}
-	want := action{"spotSend", "0x66eee", env, p.Recipient, n.Assets[0].Contract, formatUnits(value), nonce}
+	want := action{"spotSend", "0x66eee", env, p.Recipient, asset.Contract, formatUnits(value), nonce}
 	if x.Action != want || x.SourceRole != "user" || x.RecipientRole != "user" || x.SourceAbstraction != "default" || x.StateTime == 0 || nonce < x.StateTime || nonce > x.StateTime+10_000 {
 		return errors.New("Core action/domain/prerequisite mismatch")
 	}
@@ -591,7 +705,8 @@ func (a *Adapter) Submit(ctx context.Context, p model.Plan, s model.Signed) (mod
 	}
 	r := model.Receipt{Identity: s.Identity, State: "UNKNOWN"}
 	n, _ := network(p.Account.Network)
-	if _, _, e = a.identity(ctx, n); e != nil {
+	asset, _ := assetByID(n, p.Asset)
+	if _, _, e = a.assetIdentity(ctx, n, asset); e != nil {
 		return r, e
 	}
 	if p.Expires < time.Now().Unix() {
@@ -682,7 +797,8 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 	}
 	r := model.Receipt{Identity: s.Identity, State: "UNKNOWN"}
 	n, _ := network(p.Account.Network)
-	_, at, e := a.identity(ctx, n)
+	asset, _ := assetByID(n, p.Asset)
+	_, at, e := a.assetIdentity(ctx, n, asset)
 	if e != nil {
 		return r, e
 	}
@@ -745,7 +861,7 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 			if u.Hash != tx.Hash {
 				continue
 			}
-			if d.Type == "spotTransfer" && (d.Token == env.Action.Token || d.Token == "HYPE") && strings.EqualFold(d.User, p.Account.Address) && strings.EqualFold(d.Destination, p.Recipient) {
+			if d.Type == "spotTransfer" && (d.Token == env.Action.Token || d.Token == asset.Symbol) && strings.EqualFold(d.User, p.Account.Address) && strings.EqualFold(d.Destination, p.Recipient) {
 				v, e := decimalJSON(d.Amount)
 				if e != nil {
 					return r, e
@@ -762,7 +878,7 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 					}
 				}
 				if v.String() != p.Amount || fee.Sign() != 0 || native.Sign() != 0 {
-					r.Detail = "same-hash ledger effects differ from the approved zero-fee HYPE transfer"
+					r.Detail = "same-hash ledger effects differ from the approved zero-fee spot transfer"
 					return r, nil
 				}
 				found++
@@ -777,7 +893,7 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 		}
 	}
 	r.State = "CONFIRMED"
-	r.Detail = "exact owner action/nonce included and same-hash zero-fee HYPE transfer observed in sender and recipient ledgers"
+	r.Detail = "exact owner action/nonce included and same-hash zero-fee spot transfer observed in sender and recipient ledgers"
 	return r, nil
 }
 

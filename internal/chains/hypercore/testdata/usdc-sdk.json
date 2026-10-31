@@ -1,0 +1,64 @@
+{
+  "oracle": "hyperliquid-python-sdk 0.24.0",
+  "commit": "2fdb18f9517675ea03695a0962bd19eece9c83f0",
+  "seed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+  "fixtures": [
+    {
+      "index": 0,
+      "address": "0x255482b10cea431d6aF9ea4fcD9E4de262E8c341",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "USDC:0x6d1e7cde53ba9467b783cb7c530ce054",
+        "amount": "0.12345678",
+        "time": 1793404800000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Mainnet"
+      },
+      "hash": "0x9b59b9b80615da7fa4cdc16c6868cc443d2449ff7ee0256c05c67147d108c61f",
+      "signature": {
+        "r": "0xf43a2025c0e3cfd47064a4ff1986cefdb5436889cc693f12145077402a45378a",
+        "s": "0x6be0c59a87f694452327a3130b05dc93391effd39c8aa75f4d3252ecd0788895",
+        "v": 27
+      }
+    },
+    {
+      "index": 1,
+      "address": "0xf39f0372c01aD568076B748B74B96ef4225BDCa5",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "USDC:0x6d1e7cde53ba9467b783cb7c530ce054",
+        "amount": "0.12345678",
+        "time": 1793404800000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Mainnet"
+      },
+      "hash": "0x9b59b9b80615da7fa4cdc16c6868cc443d2449ff7ee0256c05c67147d108c61f",
+      "signature": {
+        "r": "0xf0dcf1e0b99bafd6667a36a55212075fcdc101df62dd0d6e79adf24b31a550c4",
+        "s": "0x5d753717b7ef8ccccb33f195702b111d7d12abd508f6bf4796c71c8ec42cad80",
+        "v": 28
+      }
+    },
+    {
+      "index": 127,
+      "address": "0x59fb421A70e40d883C239006c3aB088C9fc86D43",
+      "action": {
+        "type": "spotSend",
+        "destination": "0x1111111111111111111111111111111111111111",
+        "token": "USDC:0x6d1e7cde53ba9467b783cb7c530ce054",
+        "amount": "0.12345678",
+        "time": 1793404800000,
+        "signatureChainId": "0x66eee",
+        "hyperliquidChain": "Mainnet"
+      },
+      "hash": "0x9b59b9b80615da7fa4cdc16c6868cc443d2449ff7ee0256c05c67147d108c61f",
+      "signature": {
+        "r": "0xe754db002148cbdd25c14d28232811506e0f18c09db074dc89fb6690bbd98d7b",
+        "s": "0x291ebc0b0ed724f602a74cd25ee3b1d0f042400be889df55efa6afe9181e04b0",
+        "v": 27
+      }
+    }
+  ]
+}

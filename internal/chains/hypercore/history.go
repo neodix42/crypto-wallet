@@ -20,7 +20,7 @@ const historyPageSize = 128
 const historyPageBudget = 128
 
 func (*Adapter) HistoryScope() string {
-	return "Provider-observed spot HYPE transfers in a fixed window covering the latest 30 days, with bounded inclusive timestamp pagination. Completion describes that provider window only; it does not establish complete historical recovery or the outcome of an unresolved signed action. A saturated single timestamp cannot be skipped safely."
+	return "Provider-observed configured pinned spot-asset transfers in a fixed window covering the latest 30 days, with bounded inclusive timestamp pagination. Completion describes that provider window only; it does not establish complete historical recovery or the outcome of an unresolved signed action. A saturated single timestamp cannot be skipped safely."
 }
 
 type historyCursor struct {
@@ -71,9 +71,14 @@ func (a *Adapter) HistoryPage(ctx context.Context, ac model.Account, cursor stri
 	if e != nil {
 		return model.HistoryPage{}, e
 	}
-	_, at, e := a.identity(ctx, n)
+	m, at, e := a.identityState(ctx, n)
 	if e != nil {
 		return model.HistoryPage{}, e
+	}
+	for _, asset := range n.Assets {
+		if _, err := metadataIndex(n, asset, m); err != nil {
+			return model.HistoryPage{}, err
+		}
 	}
 	c := historyCursor{Version: 1, Account: accountCommitment(ac), End: at, Next: historyStart(at)}
 	if cursor != "" {
@@ -134,7 +139,8 @@ func (a *Adapter) HistoryPage(ctx context.Context, ac model.Account, cursor stri
 
 func historyReceipt(n model.Network, ac model.Account, u ledger, start, end uint64) (model.Receipt, bool, error) {
 	d := u.Delta
-	if d.Type != "spotTransfer" || d.Token != "HYPE" && d.Token != n.Assets[0].Contract {
+	asset, known := ledgerAsset(n, d.Token)
+	if d.Type != "spotTransfer" || !known {
 		return model.Receipt{}, false, nil
 	}
 	if !strings.EqualFold(d.User, ac.Address) && !strings.EqualFold(d.Destination, ac.Address) {
@@ -166,8 +172,8 @@ func historyReceipt(n model.Network, ac model.Account, u ledger, start, end uint
 	if strings.EqualFold(d.User, ac.Address) {
 		direction, peer = "sent", d.Destination
 	}
-	detail := fmt.Sprintf("provider-observed %s %s atomic %s; peer %s; provider fee %s (fee asset not established), native HYPE fee %s atomic; bounded times %d..%d", direction, value.String(), n.Assets[0].ID, peer, formatUnits(fee), nativeFee, start, end)
-	return model.Receipt{Identity: u.Hash, State: "OBSERVED", Detail: detail, Timestamp: int64(u.Time / 1000), Explorer: chainutil.TransactionExplorer(ac.Network, u.Hash), Transfers: []model.HistoryTransfer{{ID: "spotTransfer", Source: d.User, Destination: d.Destination, Asset: n.Assets[0], Atomic: value.String()}}}, true, nil
+	detail := fmt.Sprintf("provider-observed %s %s atomic %s; peer %s; provider fee %s (fee asset not established), native HYPE fee %s atomic; bounded times %d..%d", direction, value.String(), asset.ID, peer, formatUnits(fee), nativeFee, start, end)
+	return model.Receipt{Identity: u.Hash, State: "OBSERVED", Detail: detail, Timestamp: int64(u.Time / 1000), Explorer: chainutil.TransactionExplorer(ac.Network, u.Hash), Transfers: []model.HistoryTransfer{{ID: "spotTransfer", Source: d.User, Destination: d.Destination, Asset: asset, Atomic: value.String()}}}, true, nil
 }
 
 // History preserves the legacy bounded snapshot API for nonpaged callers. The
@@ -190,3 +196,14 @@ func (a *Adapter) History(ctx context.Context, ac model.Account) ([]model.Receip
 }
 
 var _ model.HistoryPager = (*Adapter)(nil)
+
+// Only the reviewed registry identifies a ticker-only ledger record. Signing
+// reconciliation additionally binds the exact full token in the explorer action.
+func ledgerAsset(n model.Network, token string) (model.Asset, bool) {
+	for _, asset := range n.Assets {
+		if token == asset.Symbol || token == asset.Contract {
+			return asset, true
+		}
+	}
+	return model.Asset{}, false
+}

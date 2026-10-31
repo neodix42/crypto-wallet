@@ -16,7 +16,7 @@ import (
 )
 
 func (*Adapter) HistoryScope() string {
-	return "Trusted archival RPC, at most 100 account transaction BOCs per page; explicit older-history continuation; native GRAM on TON message/credit observations only, not recipient-payment confirmation or independent finality. At most 256 messages per transaction and 1000 per scan; jettons and other currencies require separate interpretation. Complete means the locally linked account chain reached its beginning within the selected provider; it is not a consensus proof. An empty window is not proof of no historical funds."
+	return "Trusted archival RPC, at most 100 account transaction BOCs per page; explicit older-history continuation. Native GRAM message/credit observations and canonical mainnet USDT jettons have separate checked account chains; other jettons are not interpreted. History is not recipient-payment confirmation or independent finality. At most 256 messages per transaction and 1000 per scan. Complete means both selected linked chains reached their beginning within this provider; it is not a consensus proof. An empty window is not proof of no historical funds."
 }
 
 // History deliberately returns OBSERVED. Reconcile separately binds a journaled

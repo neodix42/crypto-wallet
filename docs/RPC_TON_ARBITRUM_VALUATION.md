@@ -1,5 +1,7 @@
 # RPC providers, Arbitrum, TON activation and USDT totals
 
+> 2026-10-31 correction: keyless TON Center now uses single-use TLS connections and a completion-based per-host quota lease shared across adapter instances. Exact 0.2-GRAM V5R1 deployments pass the actual TVM; three complete production-Go read-only deployment/USDT probes pass. Funded public deployment is still NOT_RUN. [Default stablecoins, Max, diagnosis and current evidence](DEFAULT_STABLECOINS.md).
+
 The 2026-10-30 owner update adds Arbitrum and retires active Decred support. Historical Decred records remain authenticated and encrypted; they cannot select an active network, RPC or signing operation. Existing EVM addresses and TON contract identities are preserved. Existing account indices acquire their deterministic Arbitrum descriptor on authenticated unlock, with one durable additive migration.
 
 ## Providers

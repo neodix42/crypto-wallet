@@ -716,7 +716,11 @@ func TestTP052MaxExactIntegerAndFeeReserve(t *testing.T) {
 			base := &publicAdapter{balanceError: tc.balanceError, prepareError: tc.prepareError}
 			a := &maxAdapter{publicAdapter: base, feeAsset: tc.feeAsset, fee: tc.fee}
 			if tc.balance != "" {
-				a.balances = []model.Balance{{Asset: "unit-testnet:native", Atomic: tc.balance}}
+				a.balances = []model.Balance{{Asset: "unit-testnet:native", Atomic: tc.balance, State: "provider-observed", At: "checked-position"}}
+			}
+			if tc.feeAsset == "gas-asset" {
+				base.networks = []model.Network{{ID: "unit-testnet", Family: "unit", Assets: []model.Asset{{ID: "unit-testnet:native"}, {ID: "gas-asset"}}}}
+				a.balances = append(a.balances, model.Balance{Asset: "gas-asset", Atomic: "1000", State: "provider-observed", At: "checked-position"})
 			}
 			p, e := maxPlan(context.Background(), a, publicAccount(), model.Transfer{AccountID: publicAccount().ID, Asset: "unit-testnet:native", Recipient: "public"})
 			if tc.want != "" {
@@ -729,7 +733,7 @@ func TestTP052MaxExactIntegerAndFeeReserve(t *testing.T) {
 		})
 	}
 	base := &publicAdapter{}
-	a := &maxAdapter{publicAdapter: base, balances: []model.Balance{{Asset: "unit-testnet:native", Atomic: "1000"}}, feeAsset: "unit-testnet:native", fee: func(int) string { return "1" }}
+	a := &maxAdapter{publicAdapter: base, balances: []model.Balance{{Asset: "unit-testnet:native", Atomic: "1000", State: "provider-observed", At: "checked-position"}}, feeAsset: "unit-testnet:native", fee: func(int) string { return "1" }}
 	c, _ := fakeCoordinator(t, base, nil)
 	c.adapters = []model.Adapter{a}
 	out, e := c.handle(message("max", model.Transfer{AccountID: publicAccount().ID, Asset: "unit-testnet:native", Recipient: "public"}))
@@ -921,8 +925,12 @@ func TestTP052NativeMaxIncludesStorageReserve(t *testing.T) {
 				if mode == "malformed" {
 					payload = []byte(`{`)
 				}
-				a := &maxAdapter{publicAdapter: &publicAdapter{}, balances: []model.Balance{{Asset: "unit-testnet:native", Atomic: "1000"}}, feeAsset: "unit-testnet:native", fee: func(int) string { return "10" }, payload: payload}
-				p, e := maxPlan(context.Background(), a, ac, model.Transfer{AccountID: ac.ID, Asset: "unit-testnet:native", Recipient: "public"})
+				a := &maxAdapter{publicAdapter: &publicAdapter{}, balances: []model.Balance{{Asset: "unit-testnet:native", Atomic: "1000", State: "provider-observed", At: "checked-position"}}, feeAsset: "unit-testnet:native", fee: func(int) string { return "10" }, payload: payload}
+				recipient := "public"
+				if family == "ton" {
+					recipient = "0:" + strings.Repeat("1", 64)
+				}
+				p, e := maxPlan(context.Background(), a, ac, model.Transfer{AccountID: ac.ID, Asset: "unit-testnet:native", Recipient: recipient})
 				if mode == "valid" {
 					if e != nil || p.Amount != "970" {
 						t.Fatalf("maximum %s error %v", p.Amount, e)

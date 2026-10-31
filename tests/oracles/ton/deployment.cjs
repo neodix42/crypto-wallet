@@ -33,10 +33,11 @@ async function main() {
   chain.now = request.expires - 30;
   chain.verbosity = {print: false, blockchainLogs: false, vmLogs: 'none', debugLogs: false};
   const treasury = await chain.treasury('deployment-only-public-fixture');
-  await treasury.send({to: wallet.address, value: toNano('1'), bounce: false});
+  await treasury.send({to: wallet.address, value: toNano('0.2'), bounce: false});
   assert.equal((await chain.getContract(wallet.address)).accountState.type, 'uninit');
   const funded = chain.snapshot();
   const before = (await chain.getContract(wallet.address)).balance;
+  assert.equal(before, toNano('0.2'), 'reported 0.2 GRAM funding fixture differs');
   const execution = await chain.sendMessage(signed);
   const transaction = execution.transactions.find(tx => tx.inMessage?.info.type === 'external-in');
   assert(transaction, 'deployment execution absent');
@@ -67,6 +68,13 @@ async function main() {
   try { await chain.sendMessage(signed); } catch { expiredRejected = true; }
   assert(expiredRejected, 'expired deployment was accepted');
 
+  await chain.loadFrom(funded); chain.now = request.expires - 30;
+  (await chain.getContract(wallet.address)).balance = 1n;
+  let insufficientFundingRejected = false;
+  try { await chain.sendMessage(signed); } catch { insufficientFundingRejected = true; }
+  assert(insufficientFundingRejected, 'one nanogram unexpectedly paid deployment gas');
+  assert.notEqual((await chain.getContract(wallet.address)).accountState.type, 'active', 'insufficiently funded deployment activated');
+
   // Read the successful state from the saved post-deployment transaction's
   // independently executed snapshot, rather than the expiry-rejection state.
   await chain.loadFrom(funded); chain.now = request.expires - 30;
@@ -75,11 +83,11 @@ async function main() {
   const report = {
     status: 'PASS', oracle: '@ton/ton 16.3.0; @ton/sandbox 0.45.0',
     independentBytesAndSignature: true, deployed: true, outgoingMessages: 0,
-    replayRejected, expiredRejected, wrongWalletIdRejected, balanceBefore: before.toString(), balanceAfter: after.toString(),
+    replayRejected, expiredRejected, wrongWalletIdRejected, insufficientFundingRejected, balanceBefore: before.toString(), balanceAfter: after.toString(),
     code: active.state.code.toBoc().toString('base64'), data: active.state.data.toBoc().toString('base64'),
     transactions: execution.transactions.map(tx => ({data: beginCell().store(storeTransaction(tx)).endCell().toBoc().toString('base64')})),
   };
   fs.writeFileSync(process.argv[3], JSON.stringify(report, null, 2) + '\n');
-  console.log('PASS: independent V5R1 deployment-only BOC/signature, funded uninit→active, zero outgoing messages, fee-only debit, foreign-wallet-ID, replay and expiry rejection');
+  console.log('PASS: independent V5R1 deployment-only BOC/signature, 0.2 GRAM funded uninit→active, zero outgoing messages, fee-only debit, insufficient funding/foreign-wallet-ID/replay/expiry rejection');
 }
 main().catch(error => { console.error(error); process.exit(1); });

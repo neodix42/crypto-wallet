@@ -147,6 +147,9 @@ func (a *Adapter) tokenIdentity(ctx context.Context, n model.Network, s model.As
 		return errors.New("invalid contract code")
 	}
 	expected := tokenCodeHashes[n.ID]
+	if policy, ok := stablecoinPolicies[s.ID]; ok {
+		expected = policy.codeHash
+	}
 	for _, token := range a.tokens {
 		if token.Network == n.ID && token.Asset.ID == s.ID {
 			expected = token.CodeHash
@@ -154,6 +157,11 @@ func (a *Adapter) tokenIdentity(ctx context.Context, n model.Network, s model.As
 	}
 	if crypto.Keccak256Hash(codeBytes).Hex() != expected {
 		return errors.New("registered token runtime code hash mismatch")
+	}
+	if policy, ok := stablecoinPolicies[s.ID]; ok {
+		if err := a.stablecoinIdentity(ctx, n, s, at, policy); err != nil {
+			return err
+		}
 	}
 	if s.ID == ARBAsset {
 		// Pin the canonical governance-token proxy and its observed EIP-1967
@@ -340,7 +348,7 @@ func (a *Adapter) Prepare(ctx context.Context, ac model.Account, t model.Transfe
 	}
 	need := new(big.Int).Add(max, native)
 	if bal.Cmp(need) < 0 {
-		return fail(errors.New("insufficient gas currency balance"))
+		return fail(&InsufficientFeeBalanceError{FeeAsset: p.FeeAsset, MaxFee: p.MaxFee})
 	}
 	pendingNative, e := a.balance(ctx, n, ac, n.Assets[0], "pending")
 	if e != nil {

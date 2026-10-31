@@ -22,6 +22,7 @@ TARGETS = [('uiprompt', 'FuzzPromptProtocol'), ('vault', 'FuzzTP012Envelope'),
     ('chains/near', 'FuzzNEARHistoricalNativeActions'), ('chains/aptos', 'FuzzAddress'),
     ('chains/aptos', 'FuzzAPTNativeHistoryInterpretation'),
     ('chains/decred', 'FuzzAddressesScriptsOutpoints'), ('chains/ton', 'FuzzAddressAndBOC'),
+    ('chains/ton', 'FuzzUSDTTransferCreditBOC'), ('chains/hypercore', 'FuzzTP012CoreHistoryCursor'),
     ('exchange/bybit', 'FuzzBybitAuthRequest'), ('exchange/bybit', 'FuzzBybitExecutionExtraFees')]
 
 

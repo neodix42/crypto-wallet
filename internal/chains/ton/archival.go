@@ -21,7 +21,7 @@ import (
 type transactionPosition struct {
 	LT      string `json:"lt"`
 	Hash    string `json:"hash"`
-	Account string `json:"account"`
+	Account string `json:"account,omitempty"`
 }
 
 func positionAccount(network, address string) string {
@@ -82,6 +82,9 @@ func linkedTransactions(txs []*tlb.Transaction, position *transactionPosition) (
 func (a *Adapter) HistoryPage(ctx context.Context, ac model.Account, cursor string) (model.HistoryPage, error) {
 	if _, _, err := descriptor(ac); err != nil {
 		return model.HistoryPage{}, err
+	}
+	if ac.Network == "ton-mainnet" {
+		return a.usdtHistoryPage(ctx, ac, cursor)
 	}
 	position, err := decodePosition(cursor, ac.Network, ac.Address)
 	if err != nil {

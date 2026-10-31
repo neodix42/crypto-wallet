@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"localwallet/internal/chains/ton"
 	"localwallet/internal/ipc"
 	"localwallet/internal/signer"
 	"localwallet/internal/uiprompt"
@@ -25,6 +26,7 @@ func TestNativeFailureGuidanceAndPublicFramesContainNoInputOrPath(t *testing.T) 
 		code string
 	}{
 		{signer.ErrPasswordPolicy, "PASSWORD_POLICY"}, {uiprompt.ErrInputTooLong, "INPUT_TOO_LONG"},
+		{ton.ErrRateLimited, "TON_RPC_RATE_LIMITED"}, {errors.New("TON_RPC_RATE_LIMITED"), "REQUEST_DENIED"},
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"}, {signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},
 		{uiprompt.ErrCancelled, "REQUEST_CANCELLED"}, {signer.ErrDenied, "REQUEST_DENIED"}, {errors.New("PASSWORD_POLICY"), "REQUEST_DENIED"},
 		{signer.ErrAddressBookInvalidInput, "ADDRESS_BOOK_INVALID_INPUT"},

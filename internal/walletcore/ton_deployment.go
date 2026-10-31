@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"localwallet/internal/chains/ton"
 	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
@@ -38,6 +39,9 @@ func (c *core) tonDeploymentAt(message ipc.Message, epoch uint64) (any, error) {
 	if message.Method == "tonWalletState" {
 		state, err := deployer.WalletState(ctx, account)
 		if err != nil {
+			if errors.Is(err, ton.ErrRateLimited) {
+				return nil, ipc.NewRequestError("TON_RPC_RATE_LIMITED")
+			}
 			return nil, err
 		}
 		c.mu.Lock()
@@ -50,12 +54,15 @@ func (c *core) tonDeploymentAt(message ipc.Message, epoch uint64) (any, error) {
 	}
 	plan, err := deployer.PrepareDeployment(ctx, account)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, ton.ErrRateLimited) {
+			return nil, ipc.NewRequestError("TON_RPC_RATE_LIMITED")
+		}
+		return nil, ipc.NewRequestError("TON_DEPLOYMENT_UNAVAILABLE")
 	}
 	// TON signs a canonical digest as its Plan.ID. Keep it unchanged; the
 	// signer independently validates that digest and records it before consent.
 	if err := c.childCallAt(epoch, "prepare", plan, nil); err != nil {
-		return nil, err
+		return nil, ipc.NewRequestError("TON_DEPLOYMENT_RECORD_FAILED")
 	}
 	return plan, nil
 }

@@ -1765,6 +1765,17 @@ class WailsEVMAssetSelector(unittest.TestCase):
     def test_exact_symbol_in_bounded_button_left_of_balance_is_selected(self):
         self.assertEqual(self.locate(),(77,121))
 
+    def test_new_default_usdc_uses_the_same_strict_button_geometry(self):
+        for row in self.rows:
+            if row[11]=='USDT':row[11]='USDC'
+        self.assertEqual(self.target('USDC',self.rows,self.picture,self.bounds,80,True),(77,121))
+        self.rows=self.rows[1:]
+        self.assertIsNone(self.target('USDC',self.rows,self.picture,self.bounds,80,True))
+
+    def test_unreviewed_selector_target_is_not_admitted(self):
+        with self.assertRaises(RuntimeError):
+            self.target('ARB',self.rows,self.picture,self.bounds,80,True)
+
     def test_value_only_balance_cell_does_not_repeat_the_token_symbol(self):
         self.rows=self.rows[:2]
         self.assertEqual(self.locate(),(77,121))

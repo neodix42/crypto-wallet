@@ -13,7 +13,9 @@ import (
 	"time"
 )
 
-const publicUSDCContract = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+// A synthetic, unapproved contract sharing USDC's ticker. The canonical issuer
+// contract is now a default and cannot serve as an import-authority fixture.
+const publicUSDCContract = "0x1111111111111111111111111111111111111111"
 const publicDAIContract = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
 
 func tokenFixture(t *testing.T, a *App) (model.Account, model.Asset, model.Asset) {
@@ -255,8 +257,8 @@ func TestImportedERC20WalletAssetsCannotBeOfferedAsReviewedBybitRoutes(t *testin
 	a.exchange = json.RawMessage(`{"connected":true}`)
 	page := a.exchangePage()
 	selector, ok := findNode(page, "field/exchangeAsset")
-	if !ok || len(selector.Options) != 2 {
-		t.Fatal("pinned Ethereum ETH and USDT routes changed")
+	if !ok || len(selector.Options) != 3 {
+		t.Fatal("default Ethereum ETH, USDT and canonical USDC routes changed")
 	}
 	for _, option := range selector.Options {
 		if option.ID == usdc.ID || option.ID == dai.ID {

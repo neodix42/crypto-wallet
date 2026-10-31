@@ -45,6 +45,7 @@ func registry() []model.Network {
 		if contract != "" {
 			assets = append(assets, model.Asset{ID: id + ":erc20:" + contract, Symbol: "ZEN", Decimals: 18, Contract: contract})
 		}
+		assets = append(assets, defaultStablecoins(id)...)
 		return model.Network{ID: id, Family: "evm", Name: name, ChainID: chain, RPC: rpc, Testnet: test, Assets: assets, Trust: "TLS RPC provider; chain ID checked, not a consensus proof"}
 	}
 	return []model.Network{

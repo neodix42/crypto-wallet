@@ -1052,6 +1052,9 @@ func nativeEffects(p model.Plan) string {
 	if ton.IsDeploymentPlan(p) {
 		return ton.DeploymentEffects(p)
 	}
+	if ton.IsJettonPlan(p) {
+		return ton.JettonEffects(p)
+	}
 	if near.IsTokenPlan(p) || near.IsTokenRegistrationPlan(p) {
 		if effects, valid := near.TokenEffects(p); valid {
 			return effects

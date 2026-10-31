@@ -32,6 +32,9 @@ func TestReviewedIdentityMappingDoesNotTrustSymbols(t *testing.T) {
 		{"ethereum-mainnet", "evm", "1", "0xB50721BCf8d664c30412Cfbc6cf7a15145234ad1", "ARBUSDT", "erc20", 18},
 		{"base-mainnet", "evm", "8453", "0xf43eB8De897Fbc7F2502483B2Bef7Bb9EA179229", "ZENUSDT", "erc20", 18},
 		{"base-mainnet", "evm", "8453", "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "USDCUSDT", "erc20", 6},
+		{"base-mainnet", "evm", "8453", "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", "USDT", "erc20", 6},
+		{"hyperevm-mainnet", "evm", "999", "0xb88339CB7199b77E23DB6E890353E22632Ba630f", "USDCUSDT", "erc20", 6},
+		{"arbitrum-mainnet", "evm", "42161", "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", "USDT", "erc20", 6},
 		{"arbitrum-mainnet", "evm", "42161", "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "USDCUSDT", "erc20", 6},
 		{"arbitrum-mainnet", "evm", "42161", "0x912CE59144191C1204E64559FE8253a0e49E6548", "ARBUSDT", "erc20", 18},
 		{"near-mainnet", "near", "mainnet", "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", "USDCUSDT", "nep141", 6},
@@ -42,6 +45,21 @@ func TestReviewedIdentityMappingDoesNotTrustSymbols(t *testing.T) {
 			pair    string
 		}{model.Network{ID: row.network, Family: row.family, ChainID: row.chain}, model.Asset{ID: row.network + ":" + row.kind + ":" + row.contract, Contract: row.contract, Decimals: row.decimals, Symbol: "untrusted-label"}, row.pair})
 	}
+	cases = append(cases, struct {
+		network model.Network
+		asset   model.Asset
+		pair    string
+	}{
+		model.Network{ID: "hypercore-mainnet", Family: "hypercore", ChainID: "HyperCore Mainnet"},
+		model.Asset{ID: "hypercore-mainnet:USDC:0x6d1e7cde53ba9467b783cb7c530ce054", Contract: "USDC:0x6d1e7cde53ba9467b783cb7c530ce054", Decimals: 8, Symbol: "untrusted-label"}, "USDCUSDT",
+	}, struct {
+		network model.Network
+		asset   model.Asset
+		pair    string
+	}{
+		model.Network{ID: "ton-mainnet", Family: "ton", ChainID: "-239"},
+		model.Asset{ID: "ton-mainnet:USDT", Contract: "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe", Decimals: 6, Symbol: "untrusted-label"}, "USDT",
+	})
 	for _, row := range cases {
 		t.Run(row.asset.ID, func(t *testing.T) {
 			pair, ok := IdentityPair(row.network, row.asset)
@@ -75,5 +93,23 @@ func TestUnknownAndRetiredIdentitiesCannotBecomeFiatValues(t *testing.T) {
 	pairs[0] = "spoof"
 	if SupportedPairs()[0] == "spoof" {
 		t.Fatal("mutable pair allowlist")
+	}
+}
+
+func TestStablecoinLedgerPrecisionAndIdentityCannotBeSubstituted(t *testing.T) {
+	core := model.Network{ID: "hypercore-mainnet", Family: "hypercore", ChainID: "HyperCore Mainnet"}
+	evm := model.Network{ID: "hyperevm-mainnet", Family: "evm", ChainID: "999"}
+	for _, row := range []struct {
+		n model.Network
+		a model.Asset
+	}{
+		{core, model.Asset{ID: "hypercore-mainnet:USDC:0x6d1e7cde53ba9467b783cb7c530ce054", Contract: "USDC:0x6d1e7cde53ba9467b783cb7c530ce054", Decimals: 6, Symbol: "USDC"}},
+		{core, model.Asset{ID: "hypercore-mainnet:USDC:0xeb62eee3685fc4c43992febcd9e75443", Contract: "USDC:0xeb62eee3685fc4c43992febcd9e75443", Decimals: 8, Symbol: "USDC"}},
+		{evm, model.Asset{ID: "hyperevm-mainnet:erc20:0x6b9e773128f453f5c2c60935ee2de2cbc5390a24", Contract: "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24", Decimals: 6, Symbol: "USDC"}},
+		{model.Network{ID: "base-mainnet", Family: "evm", ChainID: "8453"}, model.Asset{ID: "base-mainnet:erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", Contract: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", Decimals: 6, Symbol: "USDT0"}},
+	} {
+		if _, ok := IdentityPair(row.n, row.a); ok {
+			t.Fatal("foreign stablecoin identity or precision valued", row.a)
+		}
 	}
 }

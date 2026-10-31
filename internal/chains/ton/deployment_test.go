@@ -248,9 +248,20 @@ func deploymentOnlyActualEmulator(t *testing.T, profile string) {
 	if os.Getenv("WALLET_TON_EMULATOR") != "1" {
 		t.Skip("NOT_RUN: set WALLET_TON_EMULATOR=1 with pinned TON oracle dependencies")
 	}
+	for _, network := range []string{"ton-mainnet", "ton-testnet"} {
+		t.Run(network, func(t *testing.T) { deploymentOnlyActualNetwork(t, profile, network) })
+	}
+}
+
+func deploymentOnlyActualNetwork(t *testing.T, profile, network string) {
+	t.Helper()
 	adapter, seed, plan, rpc := deploymentPlan(t)
-	if profile != plan.Account.Profile {
-		account, err := adapter.DeriveProfile(seed, plan.Account.Index, plan.Account.Network, profile)
+	rpc.balance = "200000000"
+	if network != plan.Account.Network {
+		rpc.configure(t, adapter, network)
+	}
+	{
+		account, err := adapter.DeriveProfile(seed, plan.Account.Index, network, profile)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"fmt"
 
+	"localwallet/internal/amount"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/model"
 )
@@ -67,6 +68,25 @@ func (e *Engine) ImportToken(accountID string, token model.ERC20Token) error {
 }
 
 func (e *Engine) tokenApproval(plan model.Plan) string {
+	// Promoting an old watch policy to a wallet default preserves its encrypted
+	// historical metadata, but only the current reviewed registry describes a
+	// new spend. Never display its superseded precision/hash as current authority.
+	if adapter, err := e.adapter(plan.Account.Network); err == nil {
+		for _, network := range adapter.Networks() {
+			if network.ID != plan.Account.Network {
+				continue
+			}
+			for _, asset := range network.Assets {
+				if asset.ID == plan.Asset && asset.Contract != "" && evm.IsPinnedAsset(network.ID, asset.ID) {
+					whole, err := amount.Format(plan.Amount, asset.Decimals)
+					if err != nil {
+						return "\nInvalid default token amount."
+					}
+					return fmt.Sprintf("\nWallet default ERC-20 contract: %s\nToken: %s\nToken decimals: %d\nWhole-token amount: %s %s\nOnly this exact transfer is authorized; native gas is separate. Issuer and proxy upgrade controls remain external trust assumptions.", asset.Contract, asset.Symbol, asset.Decimals, whole, asset.Symbol)
+				}
+			}
+		}
+	}
 	for _, token := range e.TokenPolicies() {
 		if token.Network == plan.Account.Network && token.Asset.ID == plan.Asset {
 			return fmt.Sprintf("\nImported ERC-20 contract: %s\nToken symbol (untrusted): %s\nToken decimals: %d\nApproved runtime code hash: %s\nIssuer/proxy behavior is not independently verified; only the exact standard token transfer shown above is authorized.", token.Asset.Contract, token.Asset.Symbol, token.Asset.Decimals, token.CodeHash)

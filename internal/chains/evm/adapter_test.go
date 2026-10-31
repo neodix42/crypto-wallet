@@ -402,6 +402,7 @@ func fakeNode(t *testing.T, net string) *nodeFixture {
 	f := &nodeFixture{override: map[string]any{}, calls: map[string]int{}}
 	n, _ := network(net)
 	tokenCode := deployedCode(t, net)
+	stablecoinRecords := stablecoinRuntimes(t)
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ID     int               `json:"id"`
@@ -426,6 +427,8 @@ func fakeNode(t *testing.T, net string) *nodeFixture {
 		if handled {
 		} else if v, ok := f.override[req.Method]; ok {
 			result = v
+		} else if value, ok := stablecoinFixtureRPC(stablecoinRecords, net, req.Method, req.Params); ok {
+			result = value
 		} else {
 			switch req.Method {
 			case "eth_chainId":

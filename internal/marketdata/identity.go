@@ -12,6 +12,9 @@ import (
 // https://tether.to/en/supported-protocols/
 // https://developers.circle.com/stablecoins/usdc-contract-addresses
 // https://docs.arbitrum.foundation/deployment-addresses
+// https://docs.usdt0.to/technical-documentation/deployments
+// https://docs.base.org/base-chain/network-information/base-contracts
+// https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/spot
 // TON/GRAM 1:1 market rename, without changing the on-chain identity:
 // https://ton.org/media
 // https://announcements.bybit.com/en/article/bybit-toncoin-ton-gram-gram--blt617f4bf48950ab77/
@@ -52,6 +55,9 @@ func IdentityPair(network model.Network, asset model.Asset) (string, bool) {
 			return tokenPair(network, asset, "erc20", "ZENUSDT", 18)
 		case "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913":
 			return tokenPair(network, asset, "erc20", "USDCUSDT", 6)
+		case "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2":
+			// Canonical Base bridge USDT, distinct from native USDC/USDT0.
+			return tokenPair(network, asset, "erc20", "USDT", 6)
 		}
 	case "arbitrum-mainnet":
 		if asset.Contract == "" {
@@ -61,16 +67,30 @@ func IdentityPair(network model.Network, asset model.Asset) (string, bool) {
 			return "", false
 		}
 		switch strings.ToLower(asset.Contract) {
+		case "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9":
+			return tokenPair(network, asset, "erc20", "USDT", 6)
 		case "0xaf88d065e77c8cc2239327c5edb3a432268e5831":
 			return tokenPair(network, asset, "erc20", "USDCUSDT", 6)
 		case "0x912ce59144191c1204e64559fe8253a0e49e6548":
 			return tokenPair(network, asset, "erc20", "ARBUSDT", 18)
 		}
 	case "hyperevm-mainnet":
-		return native("evm", "999", "HYPEUSDT", 18)
+		if asset.Contract == "" {
+			return native("evm", "999", "HYPEUSDT", 18)
+		}
+		if network.Family == "evm" && network.ChainID == "999" && strings.EqualFold(asset.Contract, "0xb88339CB7199b77E23DB6E890353E22632Ba630f") {
+			return tokenPair(network, asset, "erc20", "USDCUSDT", 6)
+		}
 	case "hypercore-mainnet":
-		const token = "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec"
-		return "HYPEUSDT", network.Family == "hypercore" && network.ChainID == "HyperCore Mainnet" && asset.ID == network.ID+":"+token && asset.Contract == token && asset.Decimals == 8
+		if network.Family != "hypercore" || network.ChainID != "HyperCore Mainnet" || asset.ID != network.ID+":"+asset.Contract || asset.Decimals != 8 {
+			return "", false
+		}
+		switch asset.Contract {
+		case "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec":
+			return "HYPEUSDT", true
+		case "USDC:0x6d1e7cde53ba9467b783cb7c530ce054":
+			return "USDCUSDT", true
+		}
 	case "near-mainnet":
 		if asset.Contract == "" {
 			return native("near", "mainnet", "NEARUSDT", 24)
@@ -81,6 +101,9 @@ func IdentityPair(network model.Network, asset model.Asset) (string, bool) {
 	case "aptos-mainnet":
 		return native("aptos", "1", "APTUSDT", 8)
 	case "ton-mainnet":
+		if network.Family == "ton" && network.ChainID == "-239" && asset.ID == "ton-mainnet:USDT" && asset.Contract == "0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe" && asset.Decimals == 6 {
+			return "USDT", true
+		}
 		return "GRAMUSDT", network.Family == "ton" && network.ChainID == "-239" && asset.ID == network.ID+":TON" && asset.Contract == "" && asset.Decimals == 9
 	}
 	return "", false

@@ -42,7 +42,7 @@ func TestCandidateSelectorsCannotAuthorizeForeignOrRetiredSnapshotEntries(t *tes
 		t.Fatalf("stale or foreign candidate reached backend: %s", method)
 		return nil
 	}
-	for _, selector := range []string{other.ID + "/" + publicUSDCContract, account.ID + "/0x1111111111111111111111111111111111111111", "missing/" + publicUSDCContract, account.ID + "/" + publicUSDCContract + "/extra"} {
+	for _, selector := range []string{other.ID + "/" + publicUSDCContract, account.ID + "/0x2222222222222222222222222222222222222222", "missing/" + publicUSDCContract, account.ID + "/" + publicUSDCContract + "/extra"} {
 		if !a.tokenEvent("importDiscoveredToken", selector) {
 			t.Fatal("invalid selector was not consumed")
 		}

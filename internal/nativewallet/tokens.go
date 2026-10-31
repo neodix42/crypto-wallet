@@ -21,6 +21,10 @@ func (a *App) walletAssets(account model.Account, selected model.Asset) []webui.
 		identity := "ERC-20 contract · " + account.Network + " · " + asset.Contract
 		if account.Family == "near" {
 			identity = "NEP-141 contract · " + account.Network + " · " + asset.Contract
+		} else if account.Family == "ton" {
+			identity = "Jetton master · " + account.Network + " · " + asset.Contract
+		} else if account.Family == "hypercore" {
+			identity = "HyperCore spot token · " + account.Network + " · " + asset.Contract
 		}
 		if asset.Contract == "" {
 			identity = "Native currency · " + account.Network
@@ -52,6 +56,14 @@ func nearTokenNetwork(account model.Account) bool {
 func exchangeAssetAllowed(account model.Account, asset model.Asset) bool {
 	if account.Family == "near" {
 		return asset.ID == account.Network+":native" && asset.Contract == ""
+	}
+	// New wallet defaults do not add an exchange's jetton or Core spot route.
+	// Those ledgers need separately reviewed provider metadata and fee policies.
+	if account.Family == "ton" {
+		return asset.ID == account.Network+":TON" && asset.Contract == ""
+	}
+	if account.Family == "hypercore" {
+		return strings.HasPrefix(asset.ID, account.Network+":HYPE:") && asset.Symbol == "HYPE"
 	}
 	return account.Family != "evm" || evm.IsPinnedAsset(account.Network, asset.ID)
 }

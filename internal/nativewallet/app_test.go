@@ -131,7 +131,7 @@ func TestNativeControllerAllNetworksPublicBalancesAndWholeAssetUnits(t *testing.
 	for _, n := range a.networks {
 		assetCount += len(n.Assets)
 	}
-	if assetCount != 11 {
+	if assetCount != 19 {
 		t.Fatal("native controller narrowed supported assets")
 	}
 	account := ethAccount(t, a)

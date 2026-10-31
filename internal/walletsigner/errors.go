@@ -2,6 +2,7 @@ package walletsigner
 
 import (
 	"errors"
+	"localwallet/internal/chains/ton"
 	"localwallet/internal/signer"
 	"localwallet/internal/uiprompt"
 )
@@ -14,6 +15,7 @@ func requestErrorCode(err error) string {
 		code string
 	}{
 		{signer.ErrPasswordPolicy, "PASSWORD_POLICY"},
+		{ton.ErrRateLimited, "TON_RPC_RATE_LIMITED"},
 		{uiprompt.ErrInputTooLong, "INPUT_TOO_LONG"},
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"},
 		{signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},

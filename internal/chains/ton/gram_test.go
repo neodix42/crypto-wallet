@@ -5,7 +5,7 @@ import "testing"
 func TestGRAMCurrencyRenameKeepsTONNetworkAndPersistedNativePaymentIdentity(t *testing.T) {
 	adapter, seed, archivedNativePlan := testPlan(t)
 	for _, network := range adapter.Networks() {
-		if len(network.Assets) != 1 || network.Assets[0].Symbol != "GRAM" || network.Assets[0].ID != network.ID+":TON" || network.Assets[0].Decimals != 9 {
+		if len(network.Assets) == 0 || network.Assets[0].Symbol != "GRAM" || network.Assets[0].ID != network.ID+":TON" || network.Assets[0].Decimals != 9 {
 			t.Fatal("currency rename changed the immutable native asset or atomic precision", network)
 		}
 		if network.Name != "TON Mainnet" && network.Name != "TON Testnet" {

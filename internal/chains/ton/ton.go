@@ -34,6 +34,10 @@ import (
 const Profile = "ton-bip39-slip10-v5r1-v1"
 const CodeHash = "20834b7b72b112147e1b2fb457b84e74d1a30f04f737d4f62a668e9552d2b72f"
 
+// ErrRateLimited is an allowlisted provider condition, never raw RPC text.
+// Callers must retain the original signed identity if a broadcast is uncertain.
+var ErrRateLimited = errors.New("TON RPC rate limited")
+
 // Contract artifact from ton-blockchain/wallet-contract-v5 commit
 // ff2a9cdb5abe3efdba1e773e4d03a53dea1550b1/build/wallet_v5.compiled.json.
 //
@@ -54,10 +58,9 @@ type Endpoint struct {
 	Client      *http.Client
 }
 type Adapter struct {
-	mu                sync.RWMutex
-	endpoints         map[string]Endpoint
-	publicPermit      chan struct{}
-	lastPublicRequest time.Time
+	mu              sync.RWMutex
+	endpoints       map[string]Endpoint
+	publicScheduler *publicRateScheduler // private fixture override; nil uses the shared host quota
 }
 type network struct {
 	global          int32
@@ -75,10 +78,10 @@ func netInfo(id string) (network, error) {
 	return network{}, errors.New("unsupported TON network")
 }
 func New() *Adapter {
-	a := &Adapter{endpoints: map[string]Endpoint{}, publicPermit: make(chan struct{}, 1)}
+	a := &Adapter{endpoints: map[string]Endpoint{}}
 	for _, id := range []string{"ton-mainnet", "ton-testnet"} {
 		n, _ := netInfo(id)
-		a.endpoints[id] = Endpoint{URL: n.url, Client: defaultHTTP()}
+		a.endpoints[id] = Endpoint{URL: n.url, Client: officialPublicHTTP(n.url, "", defaultHTTP())}
 	}
 	return a
 }
@@ -95,7 +98,11 @@ func (a *Adapter) Networks() []model.Network {
 		if id == "ton-testnet" {
 			name = "TON Testnet"
 		}
-		out = append(out, model.Network{ID: id, Family: "ton", Name: name, Testnet: id == "ton-testnet", ChainID: strconv.FormatInt(int64(n.global), 10), RPC: a.endpoints[id].URL, Assets: []model.Asset{{ID: id + ":TON", Symbol: "GRAM", Decimals: 9}}, Trust: "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"})
+		assets := []model.Asset{{ID: id + ":TON", Symbol: "GRAM", Decimals: 9}}
+		if id == "ton-mainnet" {
+			assets = append(assets, usdtAsset())
+		}
+		out = append(out, model.Network{ID: id, Family: "ton", Name: name, Testnet: id == "ton-testnet", ChainID: strconv.FormatInt(int64(n.global), 10), RPC: a.endpoints[id].URL, Assets: assets, Trust: "Trusted TON Center-compatible RPC; zerostate identity checked; transaction BOCs locally interpreted; no consensus-proof claim"})
 	}
 	return out
 }
@@ -109,6 +116,7 @@ func (a *Adapter) Configure(id string, e Endpoint) error {
 	if e.Client == nil {
 		e.Client = defaultHTTP()
 	}
+	e.Client = officialPublicHTTP(e.URL, e.APIKey, e.Client)
 	client := *e.Client
 	client.CheckRedirect = defaultHTTP().CheckRedirect
 	if client.Timeout <= 0 || client.Timeout > 30*time.Second {
@@ -136,17 +144,27 @@ func (a *Adapter) rpc(ctx context.Context, id, method string, args any, out any)
 		return errors.New("TON RPC request invalid")
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// RPC identity/state/fee responses must never be supplied from a shared
+	// intermediary's stale or incorrectly keyed cache. Identity checks remain
+	// mandatory even when the intermediary ignores these request directives.
+	req.Header.Set("Cache-Control", "no-cache, no-store")
+	req.Header.Set("Pragma", "no-cache")
 	if e.APIKey != "" {
 		req.Header.Set("X-API-Key", e.APIKey)
 	}
-	if er := a.pacePublic(ctx, e); er != nil {
+	release, er := a.beginPublic(ctx, e)
+	if er != nil {
 		return er
 	}
+	defer release()
 	res, er := e.Client.Do(req)
 	if er != nil {
 		return errors.New("TON RPC unavailable")
 	}
 	defer res.Body.Close()
+	if res.StatusCode == http.StatusTooManyRequests {
+		return ErrRateLimited
+	}
 	if res.StatusCode != 200 {
 		return errors.New("TON RPC HTTP failure")
 	}
@@ -158,9 +176,20 @@ func (a *Adapter) rpc(ctx context.Context, id, method string, args any, out any)
 		OK     bool            `json:"ok"`
 		Result json.RawMessage `json:"result"`
 		Error  json.RawMessage `json:"error"`
-		ID     *int            `json:"id"`
+		ID     json.RawMessage `json:"id"`
+		Code   int             `json:"code"`
 	}
-	if json.Unmarshal(raw, &env) != nil || !env.OK || (env.ID != nil && *env.ID != 1) || len(env.Result) == 0 || (len(env.Error) > 0 && string(env.Error) != "null") {
+	if json.Unmarshal(raw, &env) != nil {
+		return errors.New("TON RPC rejected request")
+	}
+	var remoteError struct {
+		Code int `json:"code"`
+	}
+	_ = json.Unmarshal(env.Error, &remoteError)
+	if env.Code == 429 || remoteError.Code == 429 {
+		return ErrRateLimited
+	}
+	if !env.OK || (len(env.ID) > 0 && string(env.ID) != "1" && string(env.ID) != `"1"`) || len(env.Result) == 0 || (len(env.Error) > 0 && string(env.Error) != "null") {
 		return errors.New("TON RPC rejected request")
 	}
 	if json.Unmarshal(env.Result, out) != nil {
@@ -307,15 +336,16 @@ func planID(p model.Plan) string {
 }
 
 type Payload struct {
-	Kind           string `json:"kind,omitempty"`
-	Seqno          uint32 `json:"seqno"`
-	Deploy         bool   `json:"deploy"`
-	Bounce         bool   `json:"bounce"`
-	SourceBalance  string `json:"sourceBalance"`
-	EstimatedFee   string `json:"estimatedFee"`
-	StorageReserve string `json:"storageReserve"`
-	SourceDataHash string `json:"sourceDataHash"`
-	MasterSeqno    uint32 `json:"masterSeqno"`
+	Kind           string         `json:"kind,omitempty"`
+	Seqno          uint32         `json:"seqno"`
+	Deploy         bool           `json:"deploy"`
+	Bounce         bool           `json:"bounce"`
+	SourceBalance  string         `json:"sourceBalance"`
+	EstimatedFee   string         `json:"estimatedFee"`
+	StorageReserve string         `json:"storageReserve"`
+	SourceDataHash string         `json:"sourceDataHash"`
+	MasterSeqno    uint32         `json:"masterSeqno"`
+	Jetton         *JettonPayload `json:"jetton,omitempty"`
 }
 
 func payload(p model.Plan) (Payload, error) {
@@ -349,6 +379,17 @@ func message(p model.Plan, x Payload) (*cell.Cell, *tlb.InternalMessage, error) 
 		body.MustStoreUInt(0, 32).MustStoreSlice([]byte(p.Memo), uint(len(p.Memo)*8))
 	}
 	internal := &tlb.InternalMessage{IHRDisabled: true, Bounce: x.Bounce, DstAddr: ad, Amount: tlb.FromNanoTON(amount), Body: body.EndCell()}
+	if x.Kind == "jetton_transfer" {
+		if err := validateJetton(p, x); err != nil {
+			return nil, nil, err
+		}
+		wallet, _ := parseAddress(p.Account.Network, x.Jetton.Wallet)
+		transfer, err := jettonBody(p, x)
+		if err != nil {
+			return nil, nil, err
+		}
+		internal = &tlb.InternalMessage{IHRDisabled: true, Bounce: true, DstAddr: wallet, Amount: tlb.FromNanoTONU(jettonAttached), Body: transfer}
+	}
 	out, e := tlb.ToCell(internal)
 	if e != nil {
 		return nil, nil, e
@@ -384,15 +425,23 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 	if e != nil {
 		return e
 	}
-	if p.ID != planID(p) || p.Asset != p.Account.Network+":TON" || p.FeeAsset != p.Asset || p.Nonce != strconv.FormatUint(uint64(x.Seqno), 10) || p.Expires <= time.Now().Unix() || p.Expires > time.Now().Add(10*time.Minute).Unix() || p.Expires > 0xffffffff || !utf8.ValidString(p.Memo) || len(p.Memo) > 120 {
+	jetton := x.Kind == "jetton_transfer"
+	if p.ID != planID(p) || (!jetton && p.Asset != p.Account.Network+":TON") || p.FeeAsset != p.Account.Network+":TON" || p.Nonce != strconv.FormatUint(uint64(x.Seqno), 10) || p.Expires <= time.Now().Unix() || p.Expires > time.Now().Add(10*time.Minute).Unix() || p.Expires > 0xffffffff || !utf8.ValidString(p.Memo) || len(p.Memo) > 120 {
 		return errors.New("TON plan metadata mismatch or expiry")
 	}
 	if e = a.ValidateAddress(p.Account.Network, p.Recipient); e != nil {
 		return e
 	}
 	deployment := x.Kind == "deployment"
-	if x.Kind != "" && !deployment {
+	if x.Kind != "" && !deployment && !jetton {
 		return errors.New("unsupported TON operation")
+	}
+	if jetton {
+		if e = validateJetton(p, x); e != nil {
+			return e
+		}
+	} else if x.Jetton != nil {
+		return errors.New("unexpected jetton payload in native operation")
 	}
 	if deployment && (!x.Deploy || x.Seqno != 0 || x.Bounce || x.SourceDataHash != "" || p.Recipient != p.Account.Address || p.Memo != "" || p.Amount != "0") {
 		return errors.New("TON deployment must initialize only its exact owned contract without outgoing actions")
@@ -406,14 +455,18 @@ func (a *Adapter) ValidatePlan(p model.Plan) error {
 		return errors.New("TON fee exceeds policy")
 	}
 	estimate, e := chainutil.Uint(x.EstimatedFee, 64)
-	if e != nil || estimate > 249_500_000 || fee != estimate*2+1_000_000 || x.StorageReserve != "10000000" {
+	attached := uint64(0)
+	if jetton {
+		attached = jettonAttached
+	}
+	if e != nil || estimate > 249_500_000 || fee != estimate*2+1_000_000+attached || x.StorageReserve != "10000000" {
 		return errors.New("TON fee or storage reserve mismatch")
 	}
 	balance, e := chainutil.Big(x.SourceBalance, 120)
 	if e != nil {
 		return e
 	}
-	cost := new(big.Int).Add(amount, new(big.Int).SetUint64(fee+10_000_000))
+	cost := new(big.Int).Add(nativeSpend(p, x), new(big.Int).SetUint64(fee+10_000_000))
 	if balance.Cmp(cost) < 0 {
 		return errors.New("insufficient GRAM for payment, fees and storage reserve")
 	}

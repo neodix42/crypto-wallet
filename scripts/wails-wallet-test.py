@@ -32,7 +32,7 @@ parser.add_argument("--instrumented", action="store_true")
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument("--quick-import", action="store_true", help="Targeted public fixture import/restart check; omits generated-root address comparison")
 mode.add_argument("--staking-only", action="store_true", help="Targeted actual NEAR Staking page check after disposable public-fixture import; no RPC server or transaction approval")
-mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
+mode.add_argument("--tokens-only", action="store_true", help="Targeted actual Ethereum ETH/USDT/USDC presentation and selection after disposable public-fixture import; no RPC mock, import or payment")
 mode.add_argument("--near-tokens-only", action="store_true", help="Actual offline NEAR native-asset table and token-contract import guards on a disposable public-fixture profile; no invented token balance or transaction")
 mode.add_argument("--ton-only", action="store_true", help="Actual offline TON contract-status and deployment funding guards on a disposable public-fixture profile; no invented funding or deployment")
 mode.add_argument("--history-layout-only", action="store_true", help="Actual offline transaction-table headers, rightmost Settings and acknowledged Bybit/Binance/KuCoin selection on a disposable public profile; no credentials or funds")
@@ -53,7 +53,7 @@ if args.staking_only:
     report["scope"]="Actual uninstrumented NEAR Wallet/Staking navigation after importing a public disposable BIP39 fixture into a fresh isolated profile. Full AstroStakers contract, whole-NEAR units, unknown observed state, real offline RPC failure and disabled Withdraw are checked through X11 pixels/OCR/input. No RPC response is mocked and no transaction is prepared, approved or sent."
     report["notRun"].extend(["Generated-root setup, backup and exact eight-wallet address comparison (staking-only mode)", "Funded stake/unstake/withdraw execution and public testnet acceptance"])
 if args.tokens_only:
-    report["scope"]="Targeted actual Ethereum ETH/USDT wallet presentation on an isolated display after importing the public disposable BIP39 fixture. Public pixels verify separate unknown balances, the complete USDT contract, decimals, explicit selection, whole-USDT Send units, the unchanged owned receive address, encrypted address-book save/retry/validation feedback and recipient persistence after actual restart. No RPC response is mocked and no token is imported, transaction prepared, approved or sent. This partial mode is not full wallet/recovery acceptance."
+    report["scope"]="Targeted actual Ethereum ETH/USDT/USDC wallet presentation on an isolated display after importing the public disposable BIP39 fixture. Public pixels verify separate unknown balances, the complete USDT contract, decimals, explicit selection, whole-USDT Send units, the compact Max recipient guard, the unchanged owned receive address, encrypted address-book save/retry/validation feedback and recipient persistence after actual restart. No RPC response is mocked and no token is imported, transaction prepared, approved or sent. This partial mode is not full wallet/recovery acceptance."
     report["notRun"].extend(["Generated-root setup, backup, fresh-copy restore and all-eight-wallet comparison (tokens-only mode)", "Custom token metadata import and funded token execution (offline graphical mode)"])
 if args.near_tokens_only:
     report["scope"]="Actual uninstrumented offline X11 NEAR wallet on a fresh public abandon/about fixture: native NEAR/24-decimal asset table, exact owned address/copy, NEP-141 contract input, URL rejection without approval, real offline metadata-query failure without installing a token, whole-NEAR Send units and unchanged native staking. No RPC response, token balance, import success, registration or transaction is fabricated."
@@ -1448,7 +1448,7 @@ def evm_asset_button_target(symbol,rows,picture,bounds,heading_y,require_enabled
     # An exact glyph alone is insufficient: the balance repeats the symbol.
     # Require an independently observed value-only Unknown balance and its bounded filled
     # button to the left. Never substitute balance text or repair OCR glyphs.
-    if symbol not in ("ETH","USDT"):raise RuntimeError("Unexpected asset selector target")
+    if symbol not in ("ETH","USDT","USDC"):raise RuntimeError("Unexpected asset selector target")
     x,y,w,h=bounds
     if x<0 or y<0 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Asset selector capture exceeds owned bounds")
     balances=[r for r in rows if r[11]=="Unknown" and int(r[7])>heading_y]
@@ -2130,7 +2130,7 @@ def ethereum_tokens(expected_address=None):
     wait(lambda:"Assets on Ethereum" in text())
     rows=public_rows(contrast=True)
     visible=" ".join(row[11] for row in rows)
-    report["ethereumAssetPublicOCR"]=[{"word":row[11],"line":row[1:5],"box":[int(row[index]) for index in (6,7,8,9)]} for row in rows if row[11].strip("·.,:") in ("Token","Balance","ETH","USDT","Unknown","Decimals","18","6")]
+    report["ethereumAssetPublicOCR"]=[{"word":row[11],"line":row[1:5],"box":[int(row[index]) for index in (6,7,8,9)]} for row in rows if row[11].strip("·.,:") in ("Token","Balance","ETH","USDT","USDC","Unknown","Decimals","18","6")]
     asset_heading=public_words_position("Assets on Ethereum",rows)
     if not asset_heading:raise RuntimeError("Ethereum asset list heading was not visible")
     def asset_button(symbol,require_enabled=False):
@@ -2148,7 +2148,7 @@ def ethereum_tokens(expected_address=None):
         report.setdefault("ethereumAssetButtonTargets",[]).append({"symbol":symbol,"center":list(point),"requireEnabled":require_enabled,"contrastOCR":contrast})
         return point
     if not all(public_words_position(title,rows) for title in ("Token","Balance","Decimals")):raise RuntimeError("Ethereum assets did not have Token, Balance and Decimals table headers")
-    for symbol,decimals in (("ETH","18"),("USDT","6")):
+    for symbol,decimals in (("ETH","18"),("USDT","6"),("USDC","6")):
         _,button_y=asset_button(symbol)
         words=[row[11] for row in rows if abs(int(row[7])+int(row[9])//2-button_y)<20]
         cell_rows,cell_picture,cell_bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
@@ -2169,7 +2169,7 @@ def ethereum_tokens(expected_address=None):
     after_raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","11"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=15)
     if after_crop.tobytes()==crop.tobytes() or exact_evm_contract_text(after_raw,contract):raise RuntimeError("Token contract tooltip remained visible after the pointer left")
     report["ethereumAssetHover"]={"exactContract":True,"contractHiddenBeforeHover":True,"dismissedAfterPointerLeave":True,"tokenTableColumns":["Token","Balance","Decimals"]}
-    passed("Actual Ethereum table shows separate ETH/USDT balances and 18/6 decimals, with the exact token contract visible only on hover")
+    passed("Actual Ethereum table shows separate ETH/USDT/USDC balances and 18/6/6 decimals, with the exact token contract visible only on hover")
     stage("Select USDT and inspect its ordinary Send presentation")
     desktop.click(*asset_button("USDT",require_enabled=True))
     time.sleep(.3)
@@ -2181,6 +2181,16 @@ def ethereum_tokens(expected_address=None):
     wait(lambda:bool(re.search(r"Amount.*1 means 1 USDT",text())))
     if desktop.secret_window() or "Prepared payment" in text():
         raise RuntimeError("Token selection or opening Send requested authority or prepared a payment")
+    stage("Check compact Max requires recipient without opening approval or inventing an amount")
+    click("Max")
+    # Leave the native explanatory tooltip before the existing private-window
+    # guard captures public status pixels. Unknown windows remain forbidden.
+    desktop.park_pointer()
+    wait(lambda:not desktop.secret_window(),5)
+    wait(lambda:public_status_contains("Enter a recipient first"))
+    if desktop.secret_window() or "Prepared payment" in text():
+        raise RuntimeError("Blank-recipient Max requested authority or prepared a payment")
+    report["maxRecipientGuard"]={"asset":"USDT","requiresRecipient":True,"preparedOrSent":False}
     if request_receive_copy()!=expected_address:
         raise RuntimeError("USDT selection replaced the owned Ethereum receive address")
     click("Send")
@@ -2195,8 +2205,8 @@ def ethereum_tokens(expected_address=None):
     scroll_public(4,35)
     if desktop.secret_window() or "Prepared payment" in text() or "Recipient address" in text():
         raise RuntimeError("Returning to ETH retained token-send authority or an open form")
-    report["ethereumTokenPresentation"]={"network":"ethereum-mainnet","assets":["ETH","USDT"],"decimals":[18,6],"tokenContract":contract,"receiveAddressSHA256":hashlib.sha256(expected_address.encode()).hexdigest(),"balanceObservation":"Unknown: no RPC service in owned network namespace","preparedOrSent":False}
-    passed("Explicit USDT selection uses whole-token Send units and the same verified owned receive address, then closes Send and returns to ETH without preparing or approving a payment")
+    report["ethereumTokenPresentation"]={"network":"ethereum-mainnet","assets":["ETH","USDT","USDC"],"decimals":[18,6,6],"tokenContract":contract,"receiveAddressSHA256":hashlib.sha256(expected_address.encode()).hexdigest(),"balanceObservation":"Unknown: no RPC service in owned network namespace","preparedOrSent":False}
+    passed("Explicit USDT selection uses whole-token Send units, compact Max requires a recipient without approval, and the same owned receive address remains unchanged")
     address_book_campaign()
 
 def public_status_contains(message):
@@ -2457,7 +2467,7 @@ try:
     with tempfile.TemporaryDirectory(prefix="cryptowallet-native-acceptance-") as temporary, tempfile.TemporaryFile() as display_log:
         folder = pathlib.Path(temporary)
         hosts_fixture=folder/"hosts"
-        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz base-rpc.publicnode.com base-sepolia-rpc.publicnode.com arb1.arbitrum.io sepolia-rollup.arbitrum.io api.hyperliquid.xyz rpc.mainnet.fastnear.com rpc.testnet.fastnear.com archival-rpc.mainnet.fastnear.com archival-rpc.testnet.fastnear.com api.mainnet.aptoslabs.com toncenter.com\n")
+        hosts_fixture.write_text("127.0.0.1 localhost\n::1 localhost\n127.0.0.1 ethereum-rpc.publicnode.com rpc.hyperliquid.xyz base-rpc.publicnode.com base-sepolia-rpc.publicnode.com arb1.arbitrum.io sepolia-rollup.arbitrum.io api.hyperliquid.xyz rpc.mainnet.fastnear.com rpc.testnet.fastnear.com archival-rpc.mainnet.fastnear.com archival-rpc.testnet.fastnear.com api.mainnet.aptoslabs.com toncenter.com ton.access.orbs.network\n")
         hosts_fixture.chmod(0o600)
         report["networkIsolation"]="Owned user/mount/network namespace; pinned public RPC hostnames resolve to the unreachable test-only loopback; no RPC service, mocked response or host /etc modification; namespace capabilities dropped before wallet exec."
         installations = [folder / "machine-a/app", folder / "machine-b/app"]

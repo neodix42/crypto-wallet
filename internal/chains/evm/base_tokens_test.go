@@ -78,7 +78,7 @@ func TestBaseMultipleTokenContractsKeepIndependentBalancesAndSignedNetworkDomain
 				t.Fatal(err)
 			}
 			balances, err := tracked.Balance(ctx, account)
-			if err != nil || len(balances) != 4 {
+			if err != nil || len(balances) != len(defaultStablecoins(networkID))+4 {
 				t.Fatal("Base ETH, pinned ZEN and both tracked tokens were not observed independently", err)
 			}
 			byAsset := map[string]model.Balance{}
@@ -183,7 +183,7 @@ func TestBaseTokenFailuresKeepOtherAssetsVisibleAndRequireNativeETH(t *testing.T
 						t.Fatal("foreign RPC chain became a Base balance observation")
 					}
 				} else {
-					if err != nil || len(balances) != 4 {
+					if err != nil || len(balances) != len(defaultStablecoins(networkID))+4 {
 						t.Fatal("one failed token discarded Base assets", err)
 					}
 					byAsset := map[string]model.Balance{}
@@ -262,7 +262,7 @@ func TestBaseERC20ImportInspectsBalancesAndKeepsExactNetworkPolicy(t *testing.T)
 				t.Fatal(err)
 			}
 			balances, err := with.Balance(context.Background(), account)
-			if err != nil || len(balances) != 3 || balances[2].Asset != token.Asset.ID || balances[2].Atomic != "1234567" {
+			if err != nil || len(balances) != len(defaultStablecoins(network))+3 || balances[len(balances)-1].Asset != token.Asset.ID || balances[len(balances)-1].Atomic != "1234567" {
 				t.Fatal("Base token balance missing or decimal precision guessed", err)
 			}
 			for _, n := range with.Networks() {
