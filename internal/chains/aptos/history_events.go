@@ -110,11 +110,9 @@ func nativeHistoryEvents(ac model.Account, tx historyTransaction) ([]model.Histo
 		effect := model.HistoryTransfer{ID: fmt.Sprintf("event:%d", index), Asset: model.Asset{ID: asset(ac.Network), Symbol: "APT", Decimals: 8}, Atomic: amount}
 		if deposit {
 			effect.Destination = owner
-			effect.Comment = "Native APT deposit event; source is not established by this event"
 		}
 		if withdraw {
 			effect.Source = owner
-			effect.Comment = "Native APT withdrawal event; destination is not established by this event"
 		}
 		out = append(out, effect)
 	}

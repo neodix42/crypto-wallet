@@ -522,7 +522,7 @@ func TestWalletHistoryMergesNativeTokensWithoutInventingFinalityOrDuplicatePayme
 			token = entry
 		}
 	}
-	if native.state != "UNKNOWN · provider: OBSERVED" || native.comment != "local comment" || native.explorer != chainutil.TransactionExplorer(account.Network, tx) {
+	if native.state != "UNKNOWN · provider: OBSERVED" || native.comment != "" || native.explorer != chainutil.TransactionExplorer(account.Network, tx) {
 		t.Fatal("pending identity or native units changed", native)
 	}
 	if token.comment != "<script>plain comment</script>" || token.source != dest || token.destination != account.Address {
@@ -538,6 +538,60 @@ func TestWalletHistoryMergesNativeTokensWithoutInventingFinalityOrDuplicatePayme
 	}
 	if local.State != "UNKNOWN" || local.Plan.ID != "original-operation" {
 		t.Fatal("read-only history changed durable payment")
+	}
+}
+
+func TestWalletHistoryCommentsComeOnlyFromChainEffectsForEveryAsset(t *testing.T) {
+	a, _, _ := fixture(t)
+	checked := 0
+	for _, account := range a.state.Accounts {
+		for _, asset := range a.network(account.Network).Assets {
+			for _, chainComment := range []string{"", "Actual memo\nПривет <script>", "Planned effect: this is actual on-chain text"} {
+				t.Run(asset.ID+"/"+chainComment, func(t *testing.T) {
+					a.active = "wallet/" + account.ID
+					localMemo := "Local draft or approval description; never a chain observation"
+					destination := quoteRecipient(account)
+					matched := journal.Operation{Plan: model.Plan{ID: "matched", Account: account, Asset: asset.ID, Recipient: destination, Amount: "1", Memo: localMemo}, State: "UNKNOWN", Receipt: &model.Receipt{Identity: "observed-identity"}}
+					localOnly := journal.Operation{Plan: matched.Plan, State: "PREPARED"}
+					localOnly.Plan.ID = "unobserved"
+					state := walletHistoryState{Loaded: true, Local: journalPage{Operations: []journal.Operation{matched, localOnly}}, Chain: model.HistoryPage{Entries: []model.Receipt{{Identity: "observed-identity", State: "OBSERVED", Transfers: []model.HistoryTransfer{{ID: "effect", Source: account.Address, Destination: destination, Asset: asset, Atomic: "1", Comment: chainComment}}}}}}
+					rows := a.walletHistoryRows(account, state)
+					if len(rows) != 2 {
+						t.Fatal("comment filtering changed transaction merging", rows)
+					}
+					for _, row := range rows {
+						expected := chainComment
+						if strings.HasPrefix(row.id, "local/") {
+							expected = ""
+						}
+						if row.comment != expected {
+							t.Fatal("history invented, changed or suppressed an actual chain memo", row)
+						}
+					}
+					a.walletHistory = map[string]walletHistoryState{account.ID: state}
+					table, found := findNode(a.walletHistoryNodes(account), "walletHistoryTable/"+account.ID)
+					if !found || len(table.Children) != 2 || strings.Contains(viewText(table), localMemo) {
+						t.Fatal("local text leaked into the public history table", table)
+					}
+					for i, row := range rows {
+						expected := row.comment
+						if expected == "" {
+							expected = "—"
+						}
+						if table.Children[i].Children[5].Text != expected {
+							t.Fatal("comment cell does not preserve the decoded chain memo")
+						}
+					}
+					if state.Local.Operations[0].Plan.Memo != localMemo || state.Local.Operations[1].Plan.Memo != localMemo {
+						t.Fatal("presentation erased the saved payment intent")
+					}
+				})
+			}
+			checked++
+		}
+	}
+	if checked != 19 {
+		t.Fatal("comment provenance coverage lost a supported asset", checked)
 	}
 }
 

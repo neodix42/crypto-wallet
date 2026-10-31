@@ -203,8 +203,8 @@ func TestNEARTokenHistoryReadsOwnedCanonicalMintAndBurnWithoutGuessingPeers(t *t
 				if effect.Atomic != "123" || effect.Asset != tokenPolicy("token.testnet", 6).Asset {
 					t.Fatal("mint/burn quantity/identity changed", effect)
 				}
-				if event == "ft_mint" && (effect.Source != "" || effect.Destination != owned.Address || effect.Comment != "Mint: wrapped funds") || event == "ft_burn" && (effect.Source != owned.Address || effect.Destination != "" || effect.Comment != "Burn: wrapped funds") {
-					t.Fatal("mint/burn peer guessed or event type lost", effect)
+				if event == "ft_mint" && (effect.Source != "" || effect.Destination != owned.Address) || event == "ft_burn" && (effect.Source != owned.Address || effect.Destination != "") || effect.Comment != "wrapped funds" {
+					t.Fatal("mint/burn peer guessed or actual on-chain memo changed", effect)
 				}
 			})
 		}

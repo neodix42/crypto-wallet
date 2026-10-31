@@ -824,7 +824,7 @@ func TestNEARHistoricalPublicArchiveReadOnly(t *testing.T) {
 		t.Fatal("public 2022 historical execution did not pass production interpretation", observed.Row, err)
 	}
 	for _, effect := range observed.Row.Transfers {
-		if effect.Source == signer && effect.Destination == "wrap.near" && effect.Atomic == "1" && effect.Comment == "Attached deposit: ft_transfer_call" {
+		if effect.Source == signer && effect.Destination == "wrap.near" && effect.Atomic == "1" && effect.Comment == "" {
 			t.Logf("checked public archive transaction %s, timestamp %d, %d complete receipt payloads", hash, observed.Row.Timestamp, len(observed.Receipts))
 			return
 		}

@@ -53,11 +53,7 @@ func historyOutputs(network string, tx *wire.MsgTx, tree int8, scripts map[strin
 		if len(addresses) == 1 {
 			destination = addresses[0].String()
 		}
-		comment := ""
-		if coinbase(tx) {
-			comment = "Coinbase"
-		}
-		transfers = append(transfers, model.HistoryTransfer{ID: "output/" + strconv.Itoa(int(tree)) + "/" + strconv.Itoa(index), Source: source, Destination: destination, Asset: asset, Atomic: strconv.FormatInt(output.Value, 10), Comment: comment})
+		transfers = append(transfers, model.HistoryTransfer{ID: "output/" + strconv.Itoa(int(tree)) + "/" + strconv.Itoa(index), Source: source, Destination: destination, Asset: asset, Atomic: strconv.FormatInt(output.Value, 10)})
 	}
 	return transfers, limited
 }

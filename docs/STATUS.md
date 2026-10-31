@@ -1,5 +1,16 @@
 # Implementation and release evidence
 
+## Actual blockchain comments only — 2026-10-31
+
+The reported NEAR staking paragraph was a locally generated description placed in the history Comment cell. Independent signed-Borsh tests prove it is absent from staking transaction data: `deposit_and_stake` uses `{}`, exact deposit/gas and an empty memo. History now uses only decoded chain comments, with no local memo fallback or generated action labels across adapters. Real NEP-141 and TON text remains exact; approval dialogs keep detailed intent. [Behavior and evidence checklist](TRANSACTION_COMMENTS.md).
+
+| State | Evidence |
+|---|---|
+| PASS, focused | Native/model/webui and full adapter races/vet, all four staking action encodings and twelve SDK vectors, all nineteen asset comment-provenance checks, NEP-141 memo/bounds regressions and actual TON native/USDT execution pass. Source-specific logs are linked in the checklist. |
+| PASS, complete local aggregate/build | Complete current units/frontend/helpers/stress, portable build and managed installation pass. `reports/history-comments-test-ci.log`, `reports/history-comments-build.log`. |
+| IN_PROGRESS | Exact-source hosted tests/publication. |
+| NOT_RUN | The user's specific transaction was not inspected without a hash. No user secrets/profile or public funds are used; public funded and independent review gates remain separate. |
+
 ## Read-only Max, planned fees and dialog-only approvals — 2026-10-31
 
 Max used final preparation and therefore recorded a PREPARED reservation; a second Max/preparation could fail on that same reservation. It now uses read-only planning. EVM quotes also respect the smaller confirmed/pending spendable balance. Exact ordered public-envelope serialization fixes quoted/reordered transaction payloads that broke TON validation and native plan digests. History has no action controls, and Send/Deploy open approval directly. Pending originals are resolved in dialogs, preserving exact identities and signed bytes. Fee estimates are debounced/cancellable and Max aligns with Amount. One displayed TON wallet ID replaces duplicate standard/encoded numbers without changing the account. [Behavior and evidence](MAX_AND_PAYMENT_DIALOGS.md).

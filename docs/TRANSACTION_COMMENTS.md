@@ -1,0 +1,16 @@
+# Blockchain transaction comments
+
+The NEAR staking text headed Network / Account / Staking pool contract / Method / Attached NEAR / Gas / Planned effect is generated for local dialogs. It was incorrectly reused as the Comment cell of a local history row. The signer never serialized that prose: `deposit_and_stake` signs literal `{}` arguments, the exact attached deposit and fixed gas, with the normal NEAR transaction fields and signature. Contract, method, amount and gas are public chain data, but this formatted explanation is not a transaction memo. No user transaction hash was supplied, so this is a verified encoding result rather than inspection of that specific transaction.
+
+The history Comment column now comes only from decoded chain transfer effects. Missing comments and local-only operations display **—**. A saved draft memo cannot fill an empty observed memo. This presentation change does not erase saved intent, alter signed bytes, change reconciliation or add a new transaction. Detailed staking operation summaries remain in approval and pending-operation dialogs.
+
+The same rule removes generated NEAR attached-deposit method labels, NEP-141 mint/burn prefixes, Aptos missing-peer explanations and the retired Decred coinbase label. Real NEP-141 event memo fields and TON native/jetton plaintext comments are preserved exactly, including whitespace, Unicode and text that resembles a UI label. Unknown counterparties remain unknown; amounts, directions, statuses and supported assets are retained.
+
+| State | Evidence |
+|---|---|
+| PASS, signed NEAR encoding | Independent Borsh decode of all four staking methods checks one FunctionCall, exact arguments/gas/deposit, full envelope consumption, SHA-256 and Ed25519 signature; local summary bytes are absent. Injecting a summary as memo or arguments is rejected by validation and signing. Actual preparation leaves Memo empty. All twelve pinned official SDK vectors and focused staking races pass. `reports/near-staking-comment-wire-race.log`. |
+| PASS, table provenance | All nineteen assets retain exact observed comments, including UI-looking text; local-only rows and absent chain comments stay blank. Four staking methods retain dialog details without leaking them into history. Native/model/webui race checks pass. `reports/history-comments-native-race.log`. |
+| PASS, adapter interpretation | Twenty-four NEP-141 event/memo cases preserve real text and bounds; generated NEAR/Aptos/retired-DCR labels are absent. All adapter race/vet checks and actual TON native/USDT execution preserve real comments. `reports/history-comments-adapters-race.log`, `reports/history-comments-adapters-vet.log`, `reports/history-comments-ton-actual.log`. |
+| PASS, complete local aggregate/build | `make test-ci`, the portable Go build and managed local installation pass. `reports/history-comments-test-ci.log`, `reports/history-comments-build.log`. |
+| IN_PROGRESS | Exact-source hosted tests/publication. |
+| NOT_RUN | Inspection of the user's specific transaction (no hash supplied), funded public transactions, funded graphical workflows and independent external review. No user storage, user secrets or public-chain spending are used. |

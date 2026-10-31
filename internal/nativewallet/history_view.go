@@ -442,9 +442,6 @@ func (a *App) walletHistoryRows(account model.Account, state walletHistoryState)
 					if operation.State != transaction.State {
 						entry.state = operation.State + " · provider: " + transaction.State
 					}
-					if entry.comment == "" {
-						entry.comment = operation.Plan.Memo
-					}
 				}
 			}
 			rows = append(rows, entry)
@@ -466,16 +463,15 @@ func (a *App) walletHistoryRows(account model.Account, state walletHistoryState)
 				value = trimDecimal(formatted) + " " + asset.Symbol
 			}
 		}
-		entry := walletHistoryRow{id: "local/" + plan.ID, source: plan.Account.Address, destination: plan.Recipient, amount: value, comment: plan.Memo, state: operation.State, timestamp: operation.CreatedAt}
+		// A local plan describes intent, not an observed blockchain memo.
+		// Comment is populated only from decoded chain transfer effects above.
+		entry := walletHistoryRow{id: "local/" + plan.ID, source: plan.Account.Address, destination: plan.Recipient, amount: value, state: operation.State, timestamp: operation.CreatedAt}
 		if operation.Receipt != nil {
 			entry.transaction = operation.Receipt.Identity
 			entry.explorer = chainutil.TransactionExplorer(account.Network, entry.transaction)
 			if operation.Receipt.Timestamp > 0 {
 				entry.timestamp = operation.Receipt.Timestamp
 			}
-		}
-		if description, ok := stakingJournalDescription(plan); ok {
-			entry.comment = description
 		}
 		rows = append(rows, entry)
 	}

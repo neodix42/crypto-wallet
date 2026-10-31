@@ -377,7 +377,7 @@ func TestNearStakingOriginalReservationRemainsVisibleUntilExplicitCancellation(t
 	}
 }
 
-func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t *testing.T) {
+func TestNearStakingHistoryKeepsCommentsEmptyAndDetailsInDialogs(t *testing.T) {
 	for _, method := range []string{"deposit_and_stake", "unstake", "unstake_all", "withdraw_all"} {
 		t.Run(method, func(t *testing.T) {
 			a, _, _ := fixture(t)
@@ -387,8 +387,20 @@ func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t 
 			a.active = "wallet/" + account.ID
 			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{{Plan: plan, State: "UNKNOWN", Receipt: &model.Receipt{Identity: "original-near-chain-identity", State: "UNKNOWN", Detail: "Execution has not been established"}}}}}}
 			nodes := a.walletHistoryNodes(account)
-			text := viewText(nodes)
-			for _, required := range []string{"UNKNOWN", "Method: " + method, "Staking pool contract: " + pool, "Account: " + account.Address, "Gas: 100000000000000 gas units", "original-near-chain-identity"} {
+			historyText := viewText(nodes)
+			if !strings.Contains(historyText, "UNKNOWN") || !strings.Contains(historyText, "original-near-chain-identity") {
+				t.Fatal("history lost the original pending operation identity or state")
+			}
+			text, recognized := stakingDialogDescription(plan)
+			if !recognized {
+				t.Fatal("staking dialog lost its exact operation description")
+			}
+			for _, forbidden := range []string{"Method:", "Staking pool contract:", "Gas:", "Planned effect:"} {
+				if strings.Contains(historyText, forbidden) {
+					t.Fatal("UI description was presented as an on-chain history comment", forbidden)
+				}
+			}
+			for _, required := range []string{"Method: " + method, "Staking pool contract: " + pool, "Account: " + account.Address, "Gas: 100000000000000 gas units"} {
 				if !strings.Contains(text, required) {
 					t.Fatal("staking journal omitted original state/intent:", required)
 				}
@@ -411,11 +423,11 @@ func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t 
 			if method == "withdraw_all" && (!strings.Contains(text, "return all available unstaked funds from the pool to this wallet") || !strings.Contains(text, "Withdrawal destination: "+account.Address)) {
 				t.Fatal("withdrawal journal omitted the actual return direction/destination")
 			}
-			if strings.Contains(text, plan.ID) || a.walletHistory[account.ID].Local.Operations[0].Plan.ID != plan.ID {
+			if strings.Contains(historyText, plan.ID) || a.walletHistory[account.ID].Local.Operations[0].Plan.ID != plan.ID {
 				t.Fatal("read-only history exposed an action identity or altered the original record")
 			}
 			table, found := findNode(nodes, "walletHistoryTable/"+account.ID)
-			if !found || len(table.Children) != 1 || len(table.Children[0].Children) != 7 || table.Children[0].Children[6].Kind != "label" {
+			if !found || len(table.Children) != 1 || len(table.Children[0].Children) != 7 || table.Children[0].Children[5].Text != "—" || table.Children[0].Children[6].Kind != "label" {
 				t.Fatal("staking history status is not a plain inert table cell")
 			}
 			for _, id := range []string{"reconcile/" + plan.ID, "retry/" + plan.ID, "sendOperation/" + plan.ID, "cancelPrepared/" + plan.ID} {
@@ -427,16 +439,16 @@ func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t 
 	}
 }
 
-func TestNearStakingJournalDoesNotMislabelOrdinaryOrUnknownContractCalls(t *testing.T) {
+func TestNearStakingDialogDoesNotMislabelOrdinaryOrUnknownContractCalls(t *testing.T) {
 	a, _, _ := fixture(t)
 	account := nearAccount(t, a)
 	plan := stakingPlan(account, a.stakingPool(account), "unknown_method")
-	text, recognized := stakingJournalDescription(plan)
+	text, recognized := stakingDialogDescription(plan)
 	if !recognized || !strings.Contains(text, "Unsupported staking method") || strings.Contains(text, "→") || strings.Contains(text, "Planned effect:") {
 		t.Fatal("unknown staking contract call acquired an invented transfer effect")
 	}
 	for _, ordinary := range []model.Plan{{Account: ethAccount(t, a), Payload: plan.Payload}, {Account: account, Payload: json.RawMessage(`{}`)}, {Account: account, Payload: json.RawMessage(`invalid-json`)}} {
-		if _, recognized := stakingJournalDescription(ordinary); recognized {
+		if _, recognized := stakingDialogDescription(ordinary); recognized {
 			t.Fatal("ordinary or unreadable plan was classified as known staking")
 		}
 	}

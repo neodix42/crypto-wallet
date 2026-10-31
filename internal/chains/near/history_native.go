@@ -300,7 +300,7 @@ func (a *Adapter) historicalNativeActions(ac model.Account, source, destination 
 		if chainutil.DecodeStrict(raw, &tags) != nil || len(tags) != 1 {
 			return nil, errInvalid
 		}
-		deposit, comment := "", ""
+		deposit := ""
 		if value, ok := tags["Transfer"]; ok {
 			var transfer struct {
 				Deposit string `json:"deposit"`
@@ -325,7 +325,7 @@ func (a *Adapter) historicalNativeActions(ac model.Account, source, destination 
 				return nil, errInvalid
 			}
 			if includeDeposit {
-				deposit, comment = call.Deposit, "Attached deposit: "+call.Method
+				deposit = call.Deposit
 			} else {
 				if _, err := chainutil.Big(call.Deposit, 128); err != nil {
 					return nil, err
@@ -346,7 +346,7 @@ func (a *Adapter) historicalNativeActions(ac model.Account, source, destination 
 		if value.Sign() == 0 || source != ac.Address && destination != ac.Address {
 			continue
 		}
-		effects = append(effects, model.HistoryTransfer{ID: identity + ":" + strconv.Itoa(index), Source: source, Destination: destination, Asset: model.Asset{ID: asset(ac.Network), Symbol: "NEAR", Decimals: 24}, Atomic: deposit, Comment: comment})
+		effects = append(effects, model.HistoryTransfer{ID: identity + ":" + strconv.Itoa(index), Source: source, Destination: destination, Asset: model.Asset{ID: asset(ac.Network), Symbol: "NEAR", Decimals: 24}, Atomic: deposit})
 	}
 	if len(effects) > 1000 {
 		return nil, fmt.Errorf("NEAR native history effect count exceeds bound")

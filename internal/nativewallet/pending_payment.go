@@ -75,7 +75,7 @@ func (a *App) pendingSummary(operation journal.Operation) string {
 	if effects, ok := near.TokenEffects(plan); ok {
 		text += "\n" + effects
 	}
-	if effects, ok := stakingJournalDescription(plan); ok {
+	if effects, ok := stakingDialogDescription(plan); ok {
 		text += "\n" + effects
 	}
 	return text

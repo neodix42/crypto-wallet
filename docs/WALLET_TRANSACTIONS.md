@@ -1,5 +1,7 @@
 # Wallet transaction history
 
+The **Comment** column shows only actual on-chain memo/comment fields decoded from checked transactions, messages or token events. Local-only rows show **—**, and a missing chain memo stays **—** even if a local draft has text. Staking summaries, attached-deposit method labels, mint/burn prefixes, event explanations and coinbase labels are not comments. Actual text is preserved exactly, even when it resembles a UI description. Approval dialogs retain exact operation details. See [comment provenance and evidence](TRANSACTION_COMMENTS.md).
+
 Current approval flow (2026-10-31): history is an inert seven-column table with no review, confirm, cancellation or broadcast controls. Send and Deploy open exact approval dialogs directly. Check pending payment in the Send form resolves original local operations through explicit dialogs; chain observations stay read-only. Max and fee estimates do not record operations. [Current behavior](MAX_AND_PAYMENT_DIALOGS.md).
 
 Each selected wallet has a transaction table with date/time, source, destination, amount, explorer link, comment and status. It combines that owned account's local outgoing journal across native currency and all token assets with bounded chain observations. Switching the Send asset does not narrow the wallet table. One transaction may contain several effect rows, retaining the exact token identity and precision of each effect. Unknown peers, dates or comments remain unknown; the UI does not extract them from provider prose.

@@ -51,8 +51,8 @@ func TestCommittedAPTEventsPreserveOwnedSideWithoutGuessingCounterparties(t *tes
 		t.Fatal("native framework events lost", row, relevant, err)
 	}
 	for i, effect := range row.Transfers {
-		if effect.ID == "" || effect.Asset != (model.Asset{ID: asset(ac.Network), Symbol: "APT", Decimals: 8}) || effect.Comment == "" {
-			t.Fatal("event identity, native precision or uncertainty lost", effect)
+		if effect.ID == "" || effect.Asset != (model.Asset{ID: asset(ac.Network), Symbol: "APT", Decimals: 8}) || effect.Comment != "" {
+			t.Fatal("event identity/native precision changed or synthetic comment introduced", effect)
 		}
 		if i%2 == 0 && (effect.Source != "" || effect.Destination != ac.Address) || i%2 == 1 && (effect.Source != ac.Address || effect.Destination != "") {
 			t.Fatal("guessed unestablished counterparty", effect)

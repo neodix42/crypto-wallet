@@ -1,6 +1,8 @@
 # NEAR staking — implementation and evidence
 
-Owner extension recorded 2026-10-28. This adds native Go staking-pool support to the existing NEAR account; it changes no recovery root, derivation path, vault format or other network. The Wails portfolio has **NEAR Wallet → Staking**, with AstroStakers `astro-stakers.poolv1.near` as the mainnet default. The private approval/password path remains separate from the public portfolio. No seed phrase enters a third-party wallet or staking website.
+Owner extension recorded 2026-10-28. This adds native Go staking-pool support to the existing NEAR account; it changes no recovery root, derivation path, vault format or other network. The Wails portfolio has **NEAR Wallet → Staking**, with AstroStakers `astro-stakers.poolv1.near` as the mainnet default. Exact operation approval and current-password entry use dialogs in the existing trusted Wails window. No seed phrase enters a third-party wallet or staking website.
+
+The multiline staking description is local display text. For `deposit_and_stake`, the signed action contains the method, literal `{}` argument bytes, approved deposit and gas, together with the normal transaction envelope/signature. `Plan.Memo` must be empty. The description is never appended to the action or sent as a comment; its contract/method/deposit/gas values are ordinary public transaction fields. History displays only decoded blockchain comments, not this summary. [Encoding and comment regression evidence](TRANSACTION_COMMENTS.md).
 
 ## Operations and exact units
 

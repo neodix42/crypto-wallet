@@ -209,7 +209,7 @@ func (a *Adapter) tokenHistoryExecution(ctx context.Context, ac model.Account, h
 				verified[policy.Asset.Contract] = true
 			}
 			for di, raw := range event.Data {
-				var source, destination, atomic, label string
+				var source, destination, atomic string
 				var memo *string
 				if event.Event == "ft_transfer" {
 					var effect struct {
@@ -233,9 +233,9 @@ func (a *Adapter) tokenHistoryExecution(ctx context.Context, ac model.Account, h
 					}
 					atomic, memo = effect.Amount, effect.Memo
 					if event.Event == "ft_mint" {
-						destination, label = effect.Owner, "Mint"
+						destination = effect.Owner
 					} else {
-						source, label = effect.Owner, "Burn"
+						source = effect.Owner
 					}
 				}
 				if _, err := chainutil.Big(atomic, 128); err != nil {
@@ -244,13 +244,6 @@ func (a *Adapter) tokenHistoryExecution(ctx context.Context, ac model.Account, h
 				comment := ""
 				if memo != nil {
 					comment = *memo
-				}
-				if label != "" {
-					if comment == "" {
-						comment = label
-					} else {
-						comment = label + ": " + comment
-					}
 				}
 				if len(comment) > 4096 || !utf8.ValidString(comment) || strings.ContainsRune(comment, 0) {
 					return nil, errInvalid

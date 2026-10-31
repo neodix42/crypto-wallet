@@ -9,5 +9,7 @@ type HistoryTransfer struct {
 	Destination string `json:"destination,omitempty"`
 	Asset       Asset  `json:"asset"`
 	Atomic      string `json:"atomic"`
-	Comment     string `json:"comment,omitempty"`
+	// Comment is a decoded on-chain memo/comment, never a generated action
+	// description, provider explanation or local draft annotation.
+	Comment string `json:"comment,omitempty"`
 }

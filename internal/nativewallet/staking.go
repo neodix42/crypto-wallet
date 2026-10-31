@@ -58,7 +58,7 @@ func (a *App) pendingStaking(accountID string) (model.Plan, bool) {
 // Staking plans describe effects inside the pool, not ordinary transfers to its
 // contract. In particular, a withdrawal returns funds to the account, and ALL
 // amounts are observations at preparation rather than fixed signed quantities.
-func stakingJournalDescription(plan model.Plan) (string, bool) {
+func stakingDialogDescription(plan model.Plan) (string, bool) {
 	if plan.Account.Family != "near" {
 		return "", false
 	}

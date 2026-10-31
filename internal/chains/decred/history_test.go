@@ -27,7 +27,7 @@ func TestDecredHistoryInterpretsAuthenticatedIncomingBlocksWithoutGuessingExtern
 		t.Fatal("history lost original block/transaction/time/effect", entry)
 	}
 	effect := entry.Transfers[0]
-	if effect.Source != "" || effect.Destination != h.account.Address || effect.Atomic != "100000000" || effect.Asset.ID != h.account.Network+":DCR" || effect.Asset.Decimals != 8 || effect.ID != "output/0/0" {
+	if effect.Source != "" || effect.Destination != h.account.Address || effect.Atomic != "100000000" || effect.Asset.ID != h.account.Network+":DCR" || effect.Asset.Decimals != 8 || effect.ID != "output/0/0" || effect.Comment != "" {
 		t.Fatal("incoming transfer guessed a peer or changed exact atoms", effect)
 	}
 	if entry.Explorer != chainutil.TransactionExplorer(h.account.Network, entry.Identity) || !strings.Contains(h.a.HistoryScope(), "unknown") {
@@ -58,9 +58,18 @@ func TestDecredHistoryOutgoingEffectsPreserveChangeAndBoundAllocation(t *testing
 		t.Fatal("outgoing or change effects changed", rows, limited)
 	}
 	for _, row := range rows {
-		if a.ValidateAddress(plan.Account.Network, row.Destination) != nil {
-			t.Fatal("wrong-network destination")
+		if a.ValidateAddress(plan.Account.Network, row.Destination) != nil || row.Comment != "" {
+			t.Fatal("wrong-network destination or synthetic output comment")
 		}
+	}
+	coinbaseTx := tx.Copy()
+	coinbaseTx.AddTxIn(&wire.TxIn{PreviousOutPoint: wire.OutPoint{Index: ^uint32(0)}})
+	if !coinbase(coinbaseTx) {
+		t.Fatal("fixture did not exercise an actual coinbase input")
+	}
+	coinbaseRows, coinbaseLimited := historyOutputs(plan.Account.Network, coinbaseTx, wire.TxTreeRegular, scripts, true, nil, false, 16384)
+	if coinbaseLimited || len(coinbaseRows) != 2 || coinbaseRows[0].Comment != "" || coinbaseRows[1].Comment != "" || coinbaseRows[0].Atomic != "12345678" || coinbaseRows[1].Atomic != "222" {
+		t.Fatal("coinbase classification became a comment or changed output amounts")
 	}
 	unknown, _ := historyOutputs(plan.Account.Network, tx, wire.TxTreeRegular, scripts, true, []string{plan.Account.Address}, false, 16384)
 	if unknown[0].Source != "" {

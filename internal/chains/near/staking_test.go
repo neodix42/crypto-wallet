@@ -322,6 +322,9 @@ func TestStakingReadAndPrepareAgainstHostileRPC(t *testing.T) {
 				if err != nil || p.Nonce != "42" || p.Expires <= time.Now().Unix() {
 					t.Fatalf("prepare%s: %+v %v", action, p, err)
 				}
+				if p.Memo != "" {
+					t.Fatal("staking preparation added an on-chain memo")
+				}
 				var d Payload
 				_ = json.Unmarshal(p.Payload, &d)
 				if d.Staking.Gas != StakingGas {
