@@ -2254,11 +2254,98 @@ class WailsSendAmountGeometry(unittest.TestCase):
                 self.scope['send_amount_geometry'](self.rows(),picture,bounds)
 
 
+class WailsExactPhraseObservation(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('exact_phrase_cell','numbered_phrase','valid_mnemonic','record_phrase')
+        words=(ROOT/'tests/oracles/bip39/english.txt').read_bytes().splitlines()
+        self.scope={'appearance':{'theme':'light'},'word_indices':{word:i for i,word in enumerate(words)},'wordlist_path':ROOT/'tests/oracles/bip39/english.txt','Image':Image,'ImageOps':ImageOps,'io':io,'subprocess':subprocess,'re':re,'hashlib':hashlib,'time':time,'report':{}}
+        exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names],type_ignores=[]),'exact-public-phrase-fixtures','exec'),self.scope)
+        self.public_phrase=b' '.join([b'abandon']*11+[b'about'])
+        self.cell=(0,0,220,30)
+    def glyph(self,word='ill'):
+        from PIL import ImageFont
+        font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',18)
+        image=Image.new('RGB',(220,30),(233,238,245));ImageDraw.Draw(image).text((35,3),word,font=font,fill=(29,41,56))
+        return image
+    def test_public_narrow_word_glyph_is_read_exactly_without_fuzzy_correction(self):
+        self.assertTrue(self.scope['exact_phrase_cell'](self.glyph(),self.cell,b'ill'))
+        self.assertFalse(self.scope['exact_phrase_cell'](self.glyph(),self.cell,b'all'))
+    def test_ambiguous_missing_single_observation_and_cross_word_cannot_pass(self):
+        for observations in ([b'ill']*4,[b'ill',b'ill',b'all',b'ill'],[b'bl']*4,[b'ill',b'bl',b'bl',b'bl'],[b'all']*4):
+            decoder=mock.Mock(side_effect=observations)
+            self.scope['subprocess']=SimpleNamespace(check_output=decoder,DEVNULL=subprocess.DEVNULL)
+            self.assertEqual(self.scope['exact_phrase_cell'](self.glyph(),self.cell,b'ill'),observations==[b'ill']*4)
+            for call in decoder.call_args_list:
+                command=call.args[0]
+                self.assertIn(str(ROOT/'tests/oracles/bip39/english.txt'),command)
+                self.assertNotIn('ill',command)
+                self.assertEqual(call.kwargs['timeout'],10)
+                self.assertTrue(call.kwargs['input'].startswith(b'\x89PNG'))
+    def test_unknown_word_clipped_cell_and_blank_pixels_never_request_ocr(self):
+        decoder=mock.Mock();self.scope['subprocess']=SimpleNamespace(check_output=decoder,DEVNULL=subprocess.DEVNULL)
+        for picture,cell,word in ((self.glyph(),self.cell,b'notabip39word'),(self.glyph(),(-1,0,220,30),b'ill'),(Image.new('RGB',(220,30),'white'),self.cell,b'ill')):
+            self.assertFalse(self.scope['exact_phrase_cell'](picture,cell,word))
+        decoder.assert_not_called()
+    def test_exact_copied_words_still_require_every_displayed_ordinal(self):
+        rows=[]
+        for i,word in enumerate(self.public_phrase.split(),1):rows.append(['5','1','1','1','1','1','0','0','10','10','99',str(i)]);rows.append(['5','1','1','1','1','1','0','0','10','10','99',word.decode()])
+        self.scope['private_rows']=lambda prefix:rows
+        self.assertEqual(self.scope['numbered_phrase'](expected=self.public_phrase),self.public_phrase)
+        rows[1][-1]='ability'
+        picture=Image.new('RGB',(920,980),'white')
+        self.scope['desktop']=SimpleNamespace(wait=lambda *a:(1,'owned'),prompt_geometry=lambda *a:(0,0,920,980),image=lambda:picture)
+        self.scope['private_phrase_grid']=lambda p,c:[(i*10,0,i*10+60,30) for i in range(c)]
+        observed=[]
+        def exact(p,cell,expected):observed.append(expected);return False
+        self.scope['exact_phrase_cell']=exact
+        with self.assertRaisesRegex(RuntimeError,'no words or pixels retained'):
+            self.scope['numbered_phrase'](expected=self.public_phrase)
+        self.assertEqual(observed,[b'abandon'])
+        self.assertEqual(self.scope['report'],{})
+        self.scope['exact_phrase_cell']=lambda p,c,e:True
+        self.assertEqual(self.scope['numbered_phrase'](expected=self.public_phrase),self.public_phrase)
+        self.assertNotIn('abandon',json.dumps(self.scope['report']))
+        self.assertNotIn('about',json.dumps(self.scope['report']))
+    def test_invalid_copy_checksum_or_wrong_count_is_rejected_before_pixels(self):
+        self.scope['private_rows']=mock.Mock(side_effect=AssertionError('must not inspect pixels for unchecked expected bytes'))
+        for value in (None,b' '.join([b'abandon']*12),b'abandon about'):
+            with self.assertRaisesRegex(RuntimeError,'independently checked'):
+                self.scope['numbered_phrase'](expected=value)
+    def test_missing_or_cross_cell_valid_words_cannot_match_the_recorded_phrase(self):
+        picture=Image.new('RGB',(920,980),'white')
+        self.scope['private_rows']=lambda prefix:[]
+        self.scope['desktop']=SimpleNamespace(wait=lambda *a:(1,'owned'),prompt_geometry=lambda *a:(0,0,920,980),image=lambda:picture)
+        cells=[(i*60,0,i*60+60,30) for i in range(12)]
+        self.scope['private_phrase_grid']=lambda p,c:cells[:-1]
+        self.scope['exact_phrase_cell']=lambda p,c,e:True
+        with self.assertRaisesRegex(RuntimeError,'11 matched cells'):
+            self.scope['numbered_phrase'](expected=self.public_phrase)
+        self.scope['private_phrase_grid']=lambda p,c:cells
+        displayed=[b'about']+[b'abandon']*11
+        self.scope['exact_phrase_cell']=lambda p,c,e:displayed[cells.index(c)]==e
+        with self.assertRaisesRegex(RuntimeError,'10 matched cells') as failure:
+            self.scope['numbered_phrase'](expected=self.public_phrase)
+        for word in ('abandon','about'):
+            self.assertNotIn(word,str(failure.exception));self.assertNotIn(word,json.dumps(self.scope['report']))
+    def test_setup_uses_fresh_copy_before_independent_visual_check_and_go_challenge(self):
+        order=[]
+        self.scope['desktop']=SimpleNamespace(dialog_title=lambda title:True,accept=lambda title:order.append('accept'),wait=lambda *a:None,inputs=lambda *a:order.append('challenge'))
+        self.scope['reset_public_clipboard']=lambda:order.append('sentinel') or 'fresh-public-sentinel'
+        self.scope['private_click']=lambda *a:order.append('copy')
+        self.scope['clipboard']=lambda:order.append('clipboard') or self.public_phrase.decode()
+        self.scope['wait']=lambda predicate:predicate()
+        self.scope['numbered_phrase']=lambda **kw:order.append('visible') or kw['expected']
+        self.assertEqual(self.scope['record_phrase'](),self.public_phrase)
+        self.assertEqual(order[:4],['sentinel','copy','clipboard','visible'])
+        self.assertEqual(order[4:],['accept','challenge','accept'])
+
+
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsExactPhraseObservation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

@@ -572,35 +572,58 @@ def private_phrase_grid(picture,count):
     if max(map(len,groups))-min(map(len,groups))>2 or max(steps)-min(steps)>2:return []
     return [(left,center-15,right+1,center+15) for center,group in zip(centers,groups) for left,right in group[len(group)//2][1]]
 
-def numbered_phrase(prefix="Record recovery phrase", count=12):
+def exact_phrase_cell(picture,cell,expected):
+    # Expected words are compared in RAM only, never sent to OCR. Its optional
+    # dictionary contains the complete pinned PUBLIC BIP39 list, not a phrase.
+    if expected not in word_indices:return False
+    left,top,right,bottom=cell
+    if picture.mode!="RGB" or min(left,top)<0 or right>picture.width or bottom>picture.height or right-left<50 or bottom-top!=30:return False
+    crop=picture.crop((left+34,top,right-7,bottom)).convert("L")
+    if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
+    ink=crop.point(lambda value:255 if value<160 else 0).getbbox()
+    if ink is None or ink[2]-ink[0]<5 or ink[3]-ink[1]<7:return False
+    # Full-width, unpadded PSM7 can merge narrow glyphs (public fixture `ill`
+    # becomes `bl`). Remove only empty margins, then decode independent modes.
+    tight=crop.crop(ink)
+    observations=[]
+    for scale,threshold,psm in ((4,False,7),(3,True,7),(4,True,8),(4,False,13)):
+        image=tight.point(lambda value:0 if value<160 else 255) if threshold else tight
+        image=ImageOps.expand(image.resize((image.width*scale,image.height*scale),Image.Resampling.LANCZOS),border=20,fill=255)
+        data=io.BytesIO();image.save(data,format="PNG")
+        value=subprocess.check_output(["tesseract","stdin","stdout","--psm",str(psm),"--user-words",str(wordlist_path),"-c","load_system_dawg=0","-c","load_freq_dawg=0","-c","tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz"],input=data.getvalue(),stderr=subprocess.DEVNULL,timeout=10).strip()
+        if value in word_indices:observations.append(value)
+    # At least two independent observations must match; any competing valid
+    # dictionary word is ambiguous and cannot be repaired using the checksum.
+    return len(observations)>=2 and all(value==expected for value in observations)
+
+def numbered_phrase(prefix="Record recovery phrase", count=12, expected=None):
     # Phrase pixels and OCR remain exclusively in RAM on the owned display.
     # Only ordinals and a word count may enter a failure report.
     if prefix not in ("Record recovery phrase","Back up recovery phrase") or count not in (12,24):
         raise RuntimeError("Unexpected private phrase view")
-    for _ in range(8):
+    if expected is None or len(expected.split())!=count or not valid_mnemonic(expected):
+        raise RuntimeError("Disposable phrase requires independently checked copy or recorded words")
+    wanted=expected.split()
+    found={}
+    for _ in range(2):
         rows=private_rows(prefix)
         raw=" ".join(r[11] for r in rows).encode()
-        found={int(i):word for i,word in re.findall(rb"\b(\d{1,2})[.),:]?\s+([a-z]+)\b",raw)}
-        if set(found)==set(range(1,count+1)):
-            phrase=b" ".join(found[i] for i in range(1,count+1))
-            if valid_mnemonic(phrase):return phrase
+        matches=re.findall(rb"\b(\d{1,2})[.),:]?\s+([a-z]+)\b",raw)
+        indices=[int(i) for i,_ in matches]
+        found={int(i):word for i,word in matches} if len(indices)==len(set(indices)) else {}
+        if set(found)==set(range(1,count+1)) and all(found[i]==wanted[i-1] for i in range(1,count+1)):return expected
         time.sleep(.2)
     window,_=desktop.wait(prefix,30)
     x,y,w,h=desktop.prompt_geometry(prefix)
     picture=desktop.image().crop((x,y,x+w,y+h)).convert("RGB")
-    from PIL import ImageOps
     cells=private_phrase_grid(picture,count)
-    parsed={}
+    matched=0
     for index,(left,top,right,bottom) in enumerate(cells,1):
-        crop=picture.crop((left+34,top,right-7,bottom)).convert("L")
-        if appearance["theme"]=="dark":crop=ImageOps.invert(crop)
-        data=io.BytesIO();crop.resize((crop.width*4,crop.height*4),Image.Resampling.LANCZOS).save(data,format="PNG")
-        value=subprocess.check_output(["tesseract","stdin","stdout","--psm","7","-c","tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz"],input=data.getvalue(),stderr=subprocess.DEVNULL).strip().lower()
-        if re.fullmatch(rb"[a-z]+",value):parsed[index]=value
-    if len(parsed)==count:
-        phrase=b" ".join(parsed[i] for i in range(1,count+1))
-        if valid_mnemonic(phrase):return phrase
-    raise RuntimeError("Disposable private phrase OCR incomplete: "+str(len(found))+" ordinals; "+str(len(cells)//(4 if w>=760 else 3))+" grid rows; no words or pixels retained")
+        if found.get(index)==wanted[index-1] or exact_phrase_cell(picture,(left,top,right,bottom),wanted[index-1]):matched+=1
+    if len(cells)==count and matched==count:
+        report.setdefault("privatePhraseObservation",[]).append({"count":count,"matchedCells":matched,"copyOrRecordedWordsMatchDisplay":True,"privateWordsOrPixelsRetained":False})
+        return expected
+    raise RuntimeError("Disposable private phrase OCR incomplete: "+str(len(found))+" ordinals; "+str(len(cells)//(4 if w>=760 else 3))+" grid rows; "+str(matched)+" matched cells; no words or pixels retained")
 
 def record_phrase():
     deadline=time.monotonic()+30
@@ -613,9 +636,14 @@ def record_phrase():
                     report["creationPublicResultCategory"]=marker
                     raise RuntimeError("Creation did not reach generated phrase; fixed public error category recorded")
         time.sleep(.1)
-    phrase=numbered_phrase()
+    sentinel=reset_public_clipboard()
     private_click("Record recovery phrase","Copy phrase")
-    wait(lambda:clipboard().encode()==phrase)
+    def copied_phrase():
+        value=clipboard()
+        raw=value.encode()
+        return raw if value!=sentinel and len(raw.split())==12 and valid_mnemonic(raw) else None
+    copied=wait(copied_phrase)
+    phrase=numbered_phrase(expected=copied)
     desktop.accept("Record recovery phrase")
     desktop.wait("Confirm recovery phrase",30)
     words=phrase.split()
@@ -1301,7 +1329,7 @@ def clipboard_campaign(expected_address,secret):
     serve_owned_clipboard()
     desktop.key("Return")
     desktop.wait("Back up recovery phrase",30)
-    if recorded is None or numbered_phrase("Back up recovery phrase",len(recorded.split()))!=recorded:
+    if recorded is None or numbered_phrase("Back up recovery phrase",len(recorded.split()),expected=recorded)!=recorded:
         raise RuntimeError("Password paste failed to authenticate the unchanged recovery phrase")
     desktop.accept("Back up recovery phrase")
     wait(lambda:not desktop.secret_window())
@@ -1421,7 +1449,7 @@ def backup_phrase(expected,secret):
     desktop.inputs("Confirm app password",[secret])
     desktop.accept("Confirm app password")
     words=len(expected.split())
-    if numbered_phrase("Back up recovery phrase",words)!=expected:raise RuntimeError("Authenticated backup changed the recovery phrase")
+    if numbered_phrase("Back up recovery phrase",words,expected=expected)!=expected:raise RuntimeError("Authenticated backup changed the recovery phrase")
     rows=private_rows("Back up recovery phrase")
     if not any([r[11].lower() for r in rows[i:i+2]]==["copy","phrase"] and rows[i][1:5]==rows[i+1][1:5] for i in range(len(rows)-1)):raise RuntimeError("Initial backup view does not show Copy phrase without scrolling")
     window,_=desktop.wait("Back up recovery phrase");x,y,w,h=desktop.prompt_geometry("Back up recovery phrase")
