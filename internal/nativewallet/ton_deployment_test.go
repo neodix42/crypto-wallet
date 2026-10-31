@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"localwallet/internal/chains/ton"
+	"localwallet/internal/ipc"
 	"localwallet/internal/model"
 )
 
@@ -49,78 +50,183 @@ func nativeTONDeploymentPlan(account model.Account) model.Plan {
 	return plan
 }
 
-func TestTONDeploymentControllerPreparesWithoutSendingAndKeepsExactOperationForReviewCancel(t *testing.T) {
-	for _, action := range []string{"tonDeploySend", "cancelPrepared"} {
-		t.Run(action, func(t *testing.T) {
+func TestTONDeploymentClickOpensExactApprovalAndCancelledReviewKeepsOriginal(t *testing.T) {
+	for _, profile := range []string{ton.Profile, ton.ProfileSubwallet42} {
+		for _, restart := range []bool{false, true} {
+			name := profile + "/same-session"
+			if restart {
+				name = profile + "/after-restart"
+			}
+			t.Run(name, func(t *testing.T) {
+				a, ui, core, account := tonFixture(t)
+				account, err := ton.New().DeriveProfile(bytes.Repeat([]byte{0x56}, 64), 0, account.Network, profile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for i := range a.state.Accounts {
+					if a.state.Accounts[i].Family == "ton" {
+						a.state.Accounts[i] = account
+					}
+				}
+				a.active = "wallet/" + account.ID
+				a.tonStates = map[string]tonObservation{account.ID: {State: tonStateFixture(t, account, "uninit", "1000000000", true)}}
+				plan := nativeTONDeploymentPlan(account)
+				if !restart {
+					a.tonPending = map[string]model.Plan{account.ID: plan}
+				}
+				started, dismiss := make(chan struct{}), make(chan struct{})
+				var prepareCalls, reviewCalls atomic.Int32
+				core.handler = func(_ uint64, actual string, body, out any) error {
+					switch actual {
+					case "prepareTonDeployment":
+						prepareCalls.Add(1)
+						if viewText(body) != `{"accountId":"`+account.ID+`"}` {
+							return errors.New("deployment account changed")
+						}
+						// The durable backend returns this original operation even when
+						// transient UI state disappeared after restart.
+						return answer(out, plan)
+					case "send":
+						reviewCalls.Add(1)
+						if viewText(body) != `{"id":"`+plan.ID+`"}` {
+							return errors.New("original TON deployment identity changed")
+						}
+						close(started)
+						<-dismiss // Existing backend approval dialog remains open.
+						return ipc.NewRequestError("REQUEST_CANCELLED")
+					default:
+						return errors.New("unexpected deployment route: " + actual)
+					}
+				}
+				a.tonEvent("tonDeploy", account.ID)
+				ui.apply(t)
+				select {
+				case <-started:
+				case <-time.After(3 * time.Second):
+					t.Fatal("one Deploy click did not open the existing exact approval")
+				}
+				if pending, ok := a.tonPending[account.ID]; !ok || !reflect.DeepEqual(pending, plan) || !a.busy || !strings.Contains(a.status, "exact payment review") {
+					t.Fatal("direct approval lost the immutable operation or review feedback")
+				}
+				page := viewText(a.tonNodes(account))
+				if strings.Contains(page, "Review and deploy") || strings.Contains(page, "Prepared TON deployment") || strings.Contains(page, "tonDeploySend/") {
+					t.Fatal("deployment still requires a second inline review step")
+				}
+				// Neither a repeated click nor a delayed confirmation starts another
+				// preparation, approval, cancellation or broadcast.
+				a.tonEvent("tonDeploy", account.ID)
+				close(dismiss)
+				ui.apply(t)
+				if prepareCalls.Load() != 1 || reviewCalls.Load() != 1 || !reflect.DeepEqual(a.tonPending[account.ID], plan) || a.busy || a.result != "" || a.status != "Request cancelled." {
+					t.Fatal("cancelled approval discarded, replaced or sent the original operation")
+				}
+				if history := a.walletHistory[account.ID]; history.Request != "initial" {
+					t.Fatal("cancelled review did not queue the wallet’s durable history")
+				}
+			})
+		}
+	}
+}
+
+func TestTONDeploymentRechecksSessionAndDescriptorBeforeOpeningApproval(t *testing.T) {
+	for _, mode := range []string{"lock", "generation", "changed-account", "recovery-unconfirmed", "expires-in-ui-queue"} {
+		t.Run(mode, func(t *testing.T) {
 			a, ui, core, account := tonFixture(t)
-			a.active = "wallet/" + account.ID
-			a.tonStates = map[string]tonObservation{account.ID: {State: tonStateFixture(t, account, "uninit", "1000000000", true)}}
+			a.tonStates = map[string]tonObservation{account.ID: {State: tonStateFixture(t, account, "uninit", "200000000", true)}}
 			plan := nativeTONDeploymentPlan(account)
-			routeFixture(t, a, core, "prepareTonDeployment", map[string]string{"accountId": account.ID}, plan)
+			if mode == "expires-in-ui-queue" {
+				plan.Expires = time.Now().Add(2 * time.Second).Unix()
+				plan.ID = ""
+				raw, _ := json.Marshal(plan)
+				hash := sha256.Sum256(raw)
+				plan.ID = hex.EncodeToString(hash[:])
+			}
+			var reviewCalls atomic.Int32
+			core.handler = func(_ uint64, method string, body, out any) error {
+				if method != "prepareTonDeployment" {
+					reviewCalls.Add(1)
+					return errors.New("stale deployment reached signing")
+				}
+				return answer(out, plan)
+			}
 			a.tonEvent("tonDeploy", account.ID)
-			ui.apply(t)
-			if pending, ok := a.tonPending[account.ID]; !ok || !reflect.DeepEqual(pending, plan) {
-				t.Fatal("prepared deployment lost immutable original operation")
+			var apply func()
+			select {
+			case apply = <-ui.queue:
+			case <-time.After(3 * time.Second):
+				t.Fatal("preparation did not reach the UI lifecycle queue")
 			}
-			page := a.tonNodes(account)
-			for _, exact := range []string{"no outgoing transfers", account.Address, "0.003 GRAM", "not a signed fee cap"} {
-				if !strings.Contains(viewText(page), exact) {
-					t.Fatal("deployment preview omitted exact effect", exact)
+			switch mode {
+			case "lock":
+				a.lock()
+			case "generation":
+				core.generation.Add(1)
+			case "changed-account":
+				for i := range a.state.Accounts {
+					if a.state.Accounts[i].ID == account.ID {
+						a.state.Accounts[i].Address = "changed-contract"
+					}
 				}
+			case "recovery-unconfirmed":
+				a.state.RecoveryConfirmed = false
+			case "expires-in-ui-queue":
+				deadline := time.NewTimer(time.Until(time.Unix(plan.Expires, 0)))
+				<-deadline.C
 			}
-			method := "send"
-			if action == "cancelPrepared" {
-				method = action
+			apply()
+			if reviewCalls.Load() != 0 || len(a.tonPending) != 0 {
+				t.Fatal("stale preparation opened approval or installed a spendable operation")
 			}
-			var calls atomic.Int32
-			core.handler = func(_ uint64, actual string, body, out any) error {
-				if actual == "tonWalletState" {
-					return errors.New("synthetic offline post-operation status")
+			if mode == "changed-account" || mode == "recovery-unconfirmed" || mode == "expires-in-ui-queue" {
+				if a.busy || !strings.Contains(a.status, "transaction history") {
+					t.Fatal("stale preparation lost safe history guidance", a.status)
 				}
-				calls.Add(1)
-				if actual != method || viewText(body) != `{"id":"`+plan.ID+`"}` {
-					return errors.New("original TON deployment identity changed")
-				}
-				return answer(out, json.RawMessage(`{"state":"UNKNOWN"}`))
-			}
-			if action == "tonDeploySend" {
-				a.tonEvent(action, account.ID)
-			} else {
-				a.walletEvent("cancelPrepared/" + plan.ID)
-			}
-			ui.apply(t)
-			ui.apply(t) // Post-operation contract refresh has its own callback.
-			if calls.Load() != 1 || len(a.tonPending) != 0 || a.resultOwner != account.ID || !a.tonStates[account.ID].Failed {
-				t.Fatal("explicit deployment review/cancel bypassed original operation")
 			}
 		})
 	}
 }
 
-func TestTONDeploymentExpiredOrChangedPreviewKeepsCancellationWithoutSigning(t *testing.T) {
-	for _, mode := range []string{"expired", "changed-account"} {
-		t.Run(mode, func(t *testing.T) {
-			a, _, core, account := tonFixture(t)
-			plan := nativeTONDeploymentPlan(account)
-			if mode == "expired" {
-				plan.Expires = time.Now().Add(-time.Second).Unix()
-			} else {
-				plan.Account.Address = "another-contract"
+func TestTONDeploymentExpiredTransientPreviewUsesBackendRefreshBeforeApproval(t *testing.T) {
+	a, ui, core, account := tonFixture(t)
+	a.active = "wallet/" + account.ID
+	a.tonStates = map[string]tonObservation{account.ID: {State: tonStateFixture(t, account, "uninit", "200000000", true)}}
+	original := nativeTONDeploymentPlan(account)
+	original.Expires = time.Now().Add(-time.Minute).Unix()
+	original.ID = ""
+	raw, _ := json.Marshal(original)
+	hash := sha256.Sum256(raw)
+	original.ID = hex.EncodeToString(hash[:])
+	a.tonPending = map[string]model.Plan{account.ID: original}
+	fresh := nativeTONDeploymentPlan(account)
+	var prepares, reviews atomic.Int32
+	core.handler = func(_ uint64, method string, body, out any) error {
+		switch method {
+		case "prepareTonDeployment":
+			prepares.Add(1)
+			if viewText(body) != `{"accountId":"`+account.ID+`"}` {
+				return errors.New("expired preview changed its owned account")
 			}
-			a.tonPending = map[string]model.Plan{account.ID: plan}
-			core.handler = func(_ uint64, method string, body, out any) error {
-				t.Error("invalid deployment preview reached signing", method)
-				return nil
+			// Only the coordinator may refresh a durably proven unsigned expired
+			// deployment. The UI never cancels it or substitutes its own preview.
+			return answer(out, fresh)
+		case "send":
+			reviews.Add(1)
+			if viewText(body) != `{"id":"`+fresh.ID+`"}` || fresh.ID == original.ID {
+				return errors.New("expired preview reached approval")
 			}
-			a.tonEvent("tonDeploySend", account.ID)
-			button, _ := findNode(a.tonNodes(account), "tonDeploySend/"+account.ID)
-			cancel, exists := findNode(a.tonNodes(account), "cancelPrepared/"+plan.ID)
-			if !button.Disabled || !exists || cancel.Disabled || len(a.tonPending) != 1 {
-				t.Fatal("invalid deployment discarded original cancellation or allowed signing")
-			}
-		})
+			return ipc.NewRequestError("REQUEST_CANCELLED")
+		default:
+			return errors.New("UI tried to cancel or replace an operation itself")
+		}
+	}
+	a.tonEvent("tonDeploy", account.ID)
+	ui.apply(t)
+	ui.apply(t)
+	if prepares.Load() != 1 || reviews.Load() != 1 || !reflect.DeepEqual(a.tonPending[account.ID], fresh) || a.busy || a.status != "Request cancelled." {
+		t.Fatal("explicit Deploy did not refresh through backend then open exact approval")
 	}
 }
+
 func TestTONWalletStatusFundingAndDeploymentButton(t *testing.T) {
 	for _, row := range []struct {
 		status, balance string

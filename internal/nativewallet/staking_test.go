@@ -37,7 +37,7 @@ func stakingPlan(account model.Account, pool, method string) model.Plan {
 		args = `{"amount":"1250000000000000000000000"}`
 	}
 	payload, _ := json.Marshal(near.Payload{Staking: &near.StakingCall{Method: method, Args: args, Deposit: deposit, Gas: near.StakingGas}})
-	return model.Plan{ID: "public-staking-plan", Account: account, Recipient: pool, Amount: "1250000000000000000000000", MaxFee: "1000000000000000000000", Payload: payload, Expires: time.Now().Add(time.Minute).Unix()}
+	return model.Plan{ID: "public-staking-plan", Account: account, Asset: account.Network + ":native", FeeAsset: account.Network + ":native", Recipient: pool, Amount: "1250000000000000000000000", MaxFee: "1000000000000000000000", Payload: payload, Expires: time.Now().Add(time.Minute).Unix()}
 }
 
 func TestNearStakingIsOnlyInNearWalletAndNeverGuessesTestnetValidator(t *testing.T) {
@@ -340,6 +340,7 @@ func TestNearStakingSelectionGuardsAndPendingSetupHaveNoSigningAuthority(t *test
 func TestNearStakingOriginalReservationRemainsVisibleUntilExplicitCancellation(t *testing.T) {
 	a, ui, core := fixture(t)
 	account := nearAccount(t, a)
+	a.active = "wallet/" + account.ID
 	pool := a.stakingPool(account)
 	a.fields["stakingAmount/"+account.ID] = "1.25"
 	plan := stakingPlan(account, pool, "deposit_and_stake")
@@ -376,16 +377,16 @@ func TestNearStakingOriginalReservationRemainsVisibleUntilExplicitCancellation(t
 	}
 }
 
-func TestNearStakingJournalShowsMethodDepositEffectAndOriginalUnknownIdentity(t *testing.T) {
+func TestNearStakingHistoryShowsMethodDepositEffectAndOriginalUnknownIdentity(t *testing.T) {
 	for _, method := range []string{"deposit_and_stake", "unstake", "unstake_all", "withdraw_all"} {
 		t.Run(method, func(t *testing.T) {
 			a, _, _ := fixture(t)
 			account := nearAccount(t, a)
 			pool := a.stakingPool(account)
 			plan := stakingPlan(account, pool, method)
-			a.fields["settings"] = "Journal"
-			a.journal = []journal.Operation{{Plan: plan, State: "UNKNOWN", Receipt: &model.Receipt{Identity: "original-near-chain-identity", State: "UNKNOWN", Detail: "Execution has not been established"}}}
-			nodes := a.settingsPage()
+			a.active = "wallet/" + account.ID
+			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{{Plan: plan, State: "UNKNOWN", Receipt: &model.Receipt{Identity: "original-near-chain-identity", State: "UNKNOWN", Detail: "Execution has not been established"}}}}}}
+			nodes := a.walletHistoryNodes(account)
 			text := viewText(nodes)
 			for _, required := range []string{plan.ID, "UNKNOWN", "Method: " + method, "Staking pool contract: " + pool, "Account: " + account.Address, "Gas: 100000000000000 gas units", "original-near-chain-identity"} {
 				if !strings.Contains(text, required) {

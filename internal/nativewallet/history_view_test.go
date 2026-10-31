@@ -15,6 +15,282 @@ import (
 	"localwallet/internal/model"
 )
 
+func historyOriginal(account model.Account, asset, state string) journal.Operation {
+	return journal.Operation{Plan: model.Plan{ID: "original-" + state, Account: account, Asset: asset, Amount: "1000000000000000000", Recipient: "0x" + strings.Repeat("1", 40), Expires: time.Now().Add(time.Minute).Unix()}, State: state}
+}
+
+func TestWalletHistoryExposesOnlyOriginalOperationControlsForItsExactState(t *testing.T) {
+	for _, test := range []struct {
+		state string
+		kinds []string
+	}{
+		{"PREPARED", []string{"sendOperation", "cancelPrepared"}},
+		{"SIGNED_NOT_SUBMITTED", []string{"retry", "reconcile"}},
+		{"UNKNOWN", []string{"retry", "reconcile"}},
+		{"SUBMITTING", []string{"reconcile"}},
+		{"SUBMITTED", []string{"reconcile"}},
+		{"REORGED", []string{"reconcile"}},
+		{"AWAITING_CONFIRMATION", nil}, {"CONFIRMED", nil}, {"FAILED", nil}, {"CANCELLED", nil}, {"REPLACED", nil}, {"OBSERVED", nil},
+	} {
+		t.Run(test.state, func(t *testing.T) {
+			a, _, core := fixture(t)
+			account := ethAccount(t, a)
+			a.active = "wallet/" + account.ID
+			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, test.state)
+			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{op}}}}
+			calls := 0
+			core.handler = func(uint64, string, any, any) error { calls++; return errors.New("render must not call a payment API") }
+			nodes := a.walletHistoryNodes(account)
+			for _, kind := range []string{"sendOperation", "cancelPrepared", "retry", "reconcile"} {
+				button, found := findNode(nodes, kind+"/"+op.Plan.ID)
+				want := false
+				for _, allowed := range test.kinds {
+					want = want || allowed == kind
+				}
+				if found != want || found && (button.Kind != "button" || button.Disabled) {
+					t.Fatal("wrong original-operation action set", kind, button, want)
+				}
+			}
+			if calls != 0 || op.State != test.state || op.Signed != nil {
+				t.Fatal("render changed authority or started payment work")
+			}
+		})
+	}
+}
+
+func TestWalletHistoryActionsBindOriginalLocalOperationAndIgnoreObservedIdentities(t *testing.T) {
+	for _, test := range []struct{ state, kind, method string }{
+		{"PREPARED", "sendOperation", "send"}, {"PREPARED", "cancelPrepared", "cancelPrepared"},
+		{"SIGNED_NOT_SUBMITTED", "retry", "retry"}, {"UNKNOWN", "retry", "retry"}, {"UNKNOWN", "reconcile", "reconcile"},
+		{"SUBMITTED", "reconcile", "reconcile"}, {"SUBMITTING", "reconcile", "reconcile"}, {"REORGED", "reconcile", "reconcile"},
+	} {
+		t.Run(test.state+"/"+test.kind, func(t *testing.T) {
+			a, ui, core := fixture(t)
+			account := ethAccount(t, a)
+			a.active = "wallet/" + account.ID
+			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, test.state)
+			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{op}}, Chain: model.HistoryPage{Entries: []model.Receipt{{Identity: "observed-only", State: "UNKNOWN"}}}}}
+			calls := 0
+			core.handler = func(_ uint64, method string, body, out any) error {
+				calls++
+				request, ok := body.(map[string]string)
+				if method != test.method || !ok || len(request) != 1 || request["id"] != op.Plan.ID {
+					t.Error("operation replaced or reconstructed by the UI", method, body)
+				}
+				return answer(out, map[string]string{"state": test.state})
+			}
+			if a.historyPaymentAction(test.kind, "observed-only") || calls != 0 {
+				t.Fatal("chain observation granted payment authority")
+			}
+			if !a.historyPaymentAction(test.kind, op.Plan.ID) {
+				t.Fatal("original operation control refused")
+			}
+			ui.apply(t)
+			if calls != 1 || a.resultOwner != account.ID || a.walletHistory[account.ID].Request != "localRefresh" || op.State != test.state {
+				t.Fatal("action changed identity, repeated work or missed authoritative refresh", calls)
+			}
+		})
+	}
+}
+
+func TestWalletHistoryRejectsForeignUnavailableStaleAndUnsupportedActions(t *testing.T) {
+	for _, mode := range []string{"locked", "closed", "busy", "pendingRecovery", "inactive", "otherWallet", "notLoaded", "localFailed", "loading", "refresh", "foreignAddress", "foreignKey", "foreignProfile", "foreignNetwork", "foreignParameters", "unknownAsset", "signedArtifact", "duplicate", "terminal", "wrongAction", "missing"} {
+		t.Run(mode, func(t *testing.T) {
+			a, _, core := fixture(t)
+			account := ethAccount(t, a)
+			a.active = "wallet/" + account.ID
+			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, "PREPARED")
+			state := walletHistoryState{Loaded: true, Local: journalPage{Operations: []journal.Operation{op}}}
+			kind, id := "sendOperation", op.Plan.ID
+			switch mode {
+			case "locked":
+				a.state.Locked = true
+			case "closed":
+				a.closed = true
+			case "busy":
+				a.busy = true
+			case "pendingRecovery":
+				a.state.RecoveryConfirmed = false
+			case "inactive":
+				a.active = "settings"
+			case "otherWallet":
+				for _, other := range a.state.Accounts {
+					if other.ID != account.ID {
+						a.active = "wallet/" + other.ID
+						break
+					}
+				}
+			case "notLoaded":
+				state.Loaded = false
+			case "localFailed":
+				state.LocalFailed = true
+			case "loading":
+				state.Loading = true
+			case "refresh":
+				state.Request = "localRefresh"
+			case "foreignAddress":
+				state.Local.Operations[0].Plan.Account.Address += "different"
+			case "foreignKey":
+				state.Local.Operations[0].Plan.Account.PublicKey = "different"
+			case "foreignProfile":
+				state.Local.Operations[0].Plan.Account.Profile = "different"
+			case "foreignNetwork":
+				state.Local.Operations[0].Plan.Account.Network = "base-mainnet"
+			case "foreignParameters":
+				state.Local.Operations[0].Plan.Account.Parameters = []byte(`{"different":true}`)
+			case "unknownAsset":
+				state.Local.Operations[0].Plan.Asset += ":untracked"
+			case "signedArtifact":
+				state.Local.Operations[0].Signed = &model.Signed{Bytes: []byte("never accepted in public history")}
+			case "duplicate":
+				state.Local.Operations = append(state.Local.Operations, op)
+			case "terminal":
+				state.Local.Operations[0].State = "CONFIRMED"
+			case "wrongAction":
+				kind = "retry"
+			case "missing":
+				id = "not-an-original-operation"
+			}
+			a.walletHistory = map[string]walletHistoryState{account.ID: state}
+			calls := 0
+			core.handler = func(uint64, string, any, any) error { calls++; return nil }
+			if a.historyPaymentAction(kind, id) || calls != 0 {
+				t.Fatal("unavailable or foreign action reached backend", mode)
+			}
+		})
+	}
+}
+
+func TestWalletHistoryObservedAndRetiredRowsNeverOfferPaymentControls(t *testing.T) {
+	a, _, _ := fixture(t)
+	account := ethAccount(t, a)
+	a.active = "wallet/" + account.ID
+	op := historyOriginal(account, a.network(account.Network).Assets[0].ID, "UNKNOWN")
+	state := walletHistoryState{Loaded: true, Chain: model.HistoryPage{Entries: []model.Receipt{{Identity: "arbitrary-observed", State: "UNKNOWN"}}}}
+	if rows := a.walletHistoryRows(account, state); len(rows) != 1 || rows[0].operation != nil {
+		t.Fatal("observed-only transaction acquired original authority", rows)
+	}
+	for _, mutate := range []func(*journal.Operation){
+		func(o *journal.Operation) { o.Plan.Account.Address += "foreign" },
+		func(o *journal.Operation) { o.Plan.Asset = "untracked" },
+		func(o *journal.Operation) { o.Plan.Account.Network, o.Plan.Account.Family = "decred-mainnet", "decred" },
+	} {
+		invalid := op
+		mutate(&invalid)
+		state.Local.Operations = []journal.Operation{invalid}
+		a.walletHistory = map[string]walletHistoryState{account.ID: state}
+		for _, kind := range []string{"sendOperation", "cancelPrepared", "retry", "reconcile"} {
+			if _, found := findNode(a.walletHistoryNodes(account), kind+"/"+op.Plan.ID); found {
+				t.Fatal("unsupported local row exposed a payment control", kind)
+			}
+		}
+	}
+}
+
+func TestWalletHistoryMergedOriginalRetainsControlsWithoutMakingOtherEffectsActionable(t *testing.T) {
+	a, _, _ := fixture(t)
+	account := ethAccount(t, a)
+	a.active = "wallet/" + account.ID
+	assets := a.network(account.Network).Assets
+	op := historyOriginal(account, assets[0].ID, "UNKNOWN")
+	tx := "0x" + strings.Repeat("b", 64)
+	op.Receipt = &model.Receipt{Identity: tx}
+	state := walletHistoryState{Loaded: true, Local: journalPage{Operations: []journal.Operation{op}}, Chain: model.HistoryPage{Entries: []model.Receipt{{Identity: tx, State: "OBSERVED", Transfers: []model.HistoryTransfer{
+		{ID: "owned-outgoing", Source: account.Address, Destination: op.Plan.Recipient, Asset: assets[0], Atomic: op.Plan.Amount},
+		{ID: "other-token", Source: op.Plan.Recipient, Destination: account.Address, Asset: assets[1], Atomic: "1000000"},
+	}}}}}
+	rows := a.walletHistoryRows(account, state)
+	if len(rows) != 2 {
+		t.Fatal("local payment duplicated", rows)
+	}
+	withActions := 0
+	for _, row := range rows {
+		if row.operation != nil {
+			withActions++
+			if row.operation.Plan.ID != op.Plan.ID || row.state != "UNKNOWN · provider: OBSERVED" {
+				t.Fatal("merged original identity changed", row)
+			}
+		}
+	}
+	if withActions != 1 {
+		t.Fatal("observed token effect gained payment authority", withActions)
+	}
+}
+
+func TestCancelPreparedPreviewUsesExactOwnedPlanBeforeHistoryAndAfterExpiry(t *testing.T) {
+	for _, source := range []string{"send", "ton", "staking", "nearToken", "history"} {
+		t.Run(source, func(t *testing.T) {
+			a, ui, core := fixture(t)
+			account := ethAccount(t, a)
+			a.active = "wallet/" + account.ID
+			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, "PREPARED")
+			op.Plan.Expires = time.Now().Add(-time.Hour).Unix()
+			a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, LocalFailed: source != "history", Local: journalPage{Operations: []journal.Operation{op}}}}
+			switch source {
+			case "send":
+				a.plan = &op.Plan
+			case "ton":
+				a.tonPending = map[string]model.Plan{account.ID: op.Plan}
+			case "staking":
+				a.stakingPending = map[string]model.Plan{account.ID: op.Plan}
+			case "nearToken":
+				a.nearTokenPending = map[string]model.Plan{account.ID: op.Plan}
+			}
+			calls := 0
+			core.handler = func(_ uint64, method string, body, out any) error {
+				calls++
+				if method != "cancelPrepared" || body.(map[string]string)["id"] != op.Plan.ID {
+					t.Error("cancel changed original identity", method, body)
+				}
+				return answer(out, map[string]string{"state": "CANCELLED"})
+			}
+			if !a.cancelPreparedAction(op.Plan.ID) {
+				t.Fatal("expired unsigned original could not be cancelled", source)
+			}
+			ui.apply(t)
+			if calls != 1 {
+				t.Fatal("cancellation repeated", calls)
+			}
+		})
+	}
+}
+
+func TestCancelPreparedPreviewCannotCrossWalletDescriptorOrPendingOwner(t *testing.T) {
+	for _, mode := range []string{"locked", "busy", "inactive", "changedAddress", "mapOwner", "conflictingPointers", "unknown"} {
+		t.Run(mode, func(t *testing.T) {
+			a, _, core := fixture(t)
+			account := ethAccount(t, a)
+			a.active = "wallet/" + account.ID
+			op := historyOriginal(account, a.network(account.Network).Assets[0].ID, "PREPARED")
+			a.plan = &op.Plan
+			switch mode {
+			case "locked":
+				a.state.Locked = true
+			case "busy":
+				a.busy = true
+			case "inactive":
+				a.active = "settings"
+			case "changedAddress":
+				a.plan.Account.Address += "foreign"
+			case "mapOwner":
+				a.plan = nil
+				a.tonPending = map[string]model.Plan{"foreign-owner": op.Plan}
+			case "conflictingPointers":
+				other := op.Plan
+				other.Amount = "2"
+				a.tonPending = map[string]model.Plan{account.ID: other}
+			case "unknown":
+				a.plan = nil
+			}
+			calls := 0
+			core.handler = func(uint64, string, any, any) error { calls++; return nil }
+			if a.cancelPreparedAction(op.Plan.ID) || calls != 0 {
+				t.Fatal("foreign preview cancellation reached backend", mode)
+			}
+		})
+	}
+}
+
 func TestEveryWalletAndStakingPageHasBottomHistoryAndSettingsIsRightmost(t *testing.T) {
 	a, _, _ := fixture(t)
 	for _, account := range a.state.Accounts {

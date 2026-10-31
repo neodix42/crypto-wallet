@@ -18,7 +18,8 @@ func TestTONDeploymentSafeCodesReachFixedStatusWithoutRawProviderMessages(t *tes
 	for _, r := range []struct{ code, want string }{
 		{"TON_RPC_RATE_LIMITED", "rate-limited"},
 		{"TON_DEPLOYMENT_UNAVAILABLE", "No deployment was sent"},
-		{"TON_DEPLOYMENT_RECORD_FAILED", "Check Journal"},
+		{"TON_DEPLOYMENT_RECORD_FAILED", "transaction history"},
+		{"TON_DEPLOYMENT_PENDING", "Check status"},
 		{"TON_DEPLOYMENT_INVALID_PLAN", "recorded contract"},
 	} {
 		t.Run(r.code, func(t *testing.T) {

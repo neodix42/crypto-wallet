@@ -86,7 +86,7 @@ func (a *App) readTONState(account model.Account) {
 }
 
 func (a *App) tonEvent(kind, id string) bool {
-	if kind != "tonState" && kind != "tonDeploy" && kind != "tonDeploySend" {
+	if kind != "tonState" && kind != "tonDeploy" {
 		return false
 	}
 	account, ok := a.account(id)
@@ -97,38 +97,40 @@ func (a *App) tonEvent(kind, id string) bool {
 		a.readTONState(account)
 		return true
 	}
-	if kind == "tonDeploySend" {
-		if pending, ok := a.tonPending[id]; ok {
-			if !validTONPending(pending, account) {
-				a.notice("This deployment preview expired or its account changed. Cancel it or review the original operation in Journal.")
-				a.render()
-				return true
-			}
-			a.paymentAction("send", pending.ID)
-		}
-		return true
-	}
-	if _, pending := a.tonPending[id]; pending {
-		a.notice("Review or cancel the prepared deployment first.")
-		a.render()
-		return true
-	}
 	observed, ok := a.tonStates[id]
 	if !ok || observed.Loading || observed.Failed || !validTONState(observed.State, account) || !observed.State.CanDeploy {
 		return true
 	}
-	a.work("Preparing exact TON deployment…", func(g uint64) (func(), error) {
+	ready := false
+	a.workWithFeedback("Preparing exact TON deployment…", func(g uint64) (func(), error) {
 		var plan model.Plan
 		err := a.callAt(g, "prepareTonDeployment", map[string]string{"accountId": id}, &plan)
-		if err == nil && (!reflect.DeepEqual(plan.Account, account) || !ton.IsDeploymentPlan(plan) || ton.New().ValidatePlan(plan) != nil || plan.Expires <= time.Now().Unix()) {
+		if err == nil && !validTONPending(plan, account) {
 			err = ipc.NewRequestError("TON_DEPLOYMENT_INVALID_PLAN")
 		}
 		return func() {
+			current, ok := a.account(id)
+			if !ok || a.state.Locked || !a.state.RecoveryConfirmed || !reflect.DeepEqual(current, account) || !validTONPending(plan, current) {
+				return
+			}
 			if a.tonPending == nil {
 				a.tonPending = map[string]model.Plan{}
 			}
 			a.tonPending[id] = plan
+			ready = true
 		}, err
+	}, func(err error) {
+		if err != nil {
+			return
+		}
+		if !ready {
+			a.notice("This deployment preview expired or its wallet changed. Review its original operation in this wallet’s transaction history before trying again.")
+			return
+		}
+		// The coordinator resumes an existing unsigned operation, or prepares a
+		// new one when allowed. Send opens the existing exact approval/password
+		// dialog; preparing a deployment is never consent to sign or broadcast.
+		a.paymentAction("send", a.tonPending[id].ID)
 	})
 	return true
 }
@@ -154,13 +156,6 @@ func (a *App) tonNodes(account model.Account) []webui.Node {
 	nodes := []webui.Node{status, a.button("tonState/"+account.ID, "Refresh contract status", observed.Loading)}
 	if ok && !observed.Loading && !observed.Failed && observed.State.Status == "uninit" {
 		nodes = append(nodes, label(observed.State.Reason), a.button("tonDeploy/"+account.ID, "Deploy Wallet V5R1 contract", !a.state.RecoveryConfirmed || !observed.State.CanDeploy))
-	}
-	if pending, ok := a.tonPending[account.ID]; ok {
-		fee, err := amount.Format(pending.MaxFee, 9)
-		if err != nil {
-			fee = "Unknown"
-		}
-		nodes = append(nodes, heading("Prepared TON deployment"), label(ton.DeploymentEffects(pending)), label("Estimated fee reserve: "+trimDecimal(fee)+" GRAM (not a signed fee cap)"), row(a.button("tonDeploySend/"+account.ID, "Review and deploy", !a.state.RecoveryConfirmed || !validTONPending(pending, account)), a.button("cancelPrepared/"+pending.ID, "Cancel deployment", false)))
 	}
 	return nodes
 }

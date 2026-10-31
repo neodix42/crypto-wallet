@@ -226,12 +226,16 @@ func TestPrepareAndMaximumSpendUseWholeAmountsAndOriginalPlanIdentity(t *testing
 	}
 }
 
-func TestJournalActionsReuseOriginalIdentityAndNeverReplaceAmbiguousPayment(t *testing.T) {
+func TestHistoryActionsReuseOriginalIdentityAndNeverReplaceAmbiguousPayment(t *testing.T) {
 	for _, row := range []struct{ event, method string }{{"sendOperation", "send"}, {"retry", "retry"}, {"reconcile", "reconcile"}, {"cancelPrepared", "cancelPrepared"}} {
 		a, ui, core := fixture(t)
 		account := ethAccount(t, a)
-		a.active = "settings"
-		a.journal = []journal.Operation{{Plan: model.Plan{ID: "original-public-id", Account: account}, State: "UNKNOWN"}}
+		a.active = "wallet/" + account.ID
+		state := "UNKNOWN"
+		if row.event == "sendOperation" || row.event == "cancelPrepared" {
+			state = "PREPARED"
+		}
+		a.walletHistory = map[string]walletHistoryState{account.ID: {Loaded: true, Local: journalPage{Operations: []journal.Operation{{Plan: model.Plan{ID: "original-public-id", Account: account, Asset: a.network(account.Network).Assets[0].ID}, State: state}}}}}
 		routeFixture(t, a, core, row.method, map[string]string{"id": "original-public-id"}, json.RawMessage(`{"state":"UNKNOWN"}`))
 		a.walletEvent(row.event + "/original-public-id")
 		ui.apply(t)
@@ -384,11 +388,11 @@ func TestRefreshMutationsAndFailuresDoNotInventWalletState(t *testing.T) {
 	}
 }
 
-func TestSettingsExchangeAndJournalNavigationRouteCurrentSelection(t *testing.T) {
+func TestSettingsExchangeNavigationRoutesCurrentSelection(t *testing.T) {
 	for _, row := range []struct {
 		event, method    string
 		expected, result any
-	}{{"settingsExchange", "exchangeStatus", struct{}{}, json.RawMessage(`{"connected":false}`)}, {"settingsJournal", "history", map[string]string{"cursor": ""}, journalPage{Operations: []journal.Operation{}, Complete: true}}, {"exchangeConnect", "exchangeConnect", map[string]string{"provider": "bybit", "endpoint": "https://api.bybit.com"}, json.RawMessage(`{"connected":true}`)}, {"exchangeDisconnect", "exchangeDisconnect", struct{}{}, json.RawMessage(`{"connected":false}`)}} {
+	}{{"settingsExchange", "exchangeStatus", struct{}{}, json.RawMessage(`{"connected":false}`)}, {"exchangeConnect", "exchangeConnect", map[string]string{"provider": "bybit", "endpoint": "https://api.bybit.com"}, json.RawMessage(`{"connected":true}`)}, {"exchangeDisconnect", "exchangeDisconnect", struct{}{}, json.RawMessage(`{"connected":false}`)}} {
 		a, ui, core := fixture(t)
 		a.fields["region"] = "https://api.bybit.com"
 		routeFixture(t, a, core, row.method, row.expected, row.result)
@@ -489,7 +493,7 @@ func TestChainHistoryPagingBindsWalletAndRetainsBoundedReceipts(t *testing.T) {
 	}
 }
 
-func TestLargeGroupsHiddenWalletsAndJournalStatesStayAccessibleAndBounded(t *testing.T) {
+func TestLargeGroupsAndHiddenWalletsStayAccessibleAndBounded(t *testing.T) {
 	a, _, _ := fixture(t)
 	base := a.state.Accounts[0]
 	for i := 1; i < 112; i++ {
@@ -523,20 +527,7 @@ func TestLargeGroupsHiddenWalletsAndJournalStatesStayAccessibleAndBounded(t *tes
 	if !strings.Contains(viewText(a.view()), "wallet/"+base.ID) {
 		t.Fatal("hidden wallet could not be recovered")
 	}
-	a.fields["settings"] = "Journal"
-	for _, state := range []string{"PREPARED", "SIGNED_NOT_SUBMITTED", "UNKNOWN", "SUBMITTED", "SUBMITTING", "REORGED", "CONFIRMED"} {
-		a.journal = append(a.journal, journal.Operation{Plan: model.Plan{ID: "public-" + state, Account: base, Amount: "1", Asset: a.network(base.Network).Assets[0].ID}, State: state, Receipt: &model.Receipt{Identity: "public-receipt", State: state}})
-	}
-	text = viewText(a.settingsPage())
-	for _, required := range []string{"Review original payment", "Cancel prepared payment", "Broadcast original signed payment", "Reconcile original payment", "public-receipt"} {
-		if !strings.Contains(text, required) {
-			t.Fatal("journal recovery action missing")
-		}
-	}
-	a.resultOwner, a.result = "public-wallet", "public-wallet-result"
-	if !strings.Contains(viewText(a.settingsPage()), a.result) {
-		t.Fatal("journal result omitted")
-	}
+
 }
 
 func TestPublicErrorCodesAreFixedAndBusyClosedViewsDoNotAuthorizeWork(t *testing.T) {
@@ -681,28 +672,7 @@ func TestAccountPaginationRejectsMissingIdsDuplicatesInitialPageAndReadErrors(t 
 	}
 }
 
-func TestJournalAndHistoryFailuresCannotReplacePreviousResults(t *testing.T) {
-	for _, mode := range []string{"provider-error", "oversized-page", "revision-change"} {
-		a, ui, core := fixture(t)
-		a.journal = []journal.Operation{{Plan: model.Plan{ID: "original-public-payment"}}}
-		a.journalRevision = "old"
-		a.journalCursor = "next"
-		core.handler = func(g uint64, m string, body, out any) error {
-			if mode == "provider-error" {
-				return errors.New("private-canary")
-			}
-			page := journalPage{Revision: "changed"}
-			if mode == "oversized-page" {
-				page.Operations = make([]journal.Operation, 129)
-			}
-			return answer(out, page)
-		}
-		a.loadJournal(true)
-		ui.apply(t)
-		if len(a.journal) != 1 || a.journal[0].Plan.ID != "original-public-payment" || strings.Contains(a.status, "canary") {
-			t.Fatal("failed journal append changed original payment")
-		}
-	}
+func TestHistoryFailureCannotReplacePreviousResults(t *testing.T) {
 	a, ui, core := fixture(t)
 	id := a.state.Accounts[0].ID
 	a.chain = model.HistoryPage{Entries: []model.Receipt{{Identity: "public-old-receipt"}}}
@@ -713,15 +683,7 @@ func TestJournalAndHistoryFailuresCannotReplacePreviousResults(t *testing.T) {
 	if len(a.chain.Entries) != 1 || a.chain.Entries[0].Identity != "public-old-receipt" {
 		t.Fatal("failed history refresh replaced earlier evidence")
 	}
-	a, ui, core = fixture(t)
-	routeFixture(t, a, core, "history", map[string]string{"cursor": ""}, journalPage{Operations: []journal.Operation{}})
-	a.event(webui.Event{ID: "journalRefresh"})
-	ui.apply(t)
-	a.event(webui.Event{ID: "journalPrevious"})
-	a.event(webui.Event{ID: "journalNext"})
-	if a.journalOffset != 0 {
-		t.Fatal("empty journal paging exceeded bounds")
-	}
+
 }
 
 func TestAllWalletFamiliesAndExchangeRecoveryStatesStayVisible(t *testing.T) {

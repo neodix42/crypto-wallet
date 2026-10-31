@@ -80,7 +80,7 @@ func TestStorageLocationUsesHomeFallbackAndRejectsUnavailableConfiguration(t *te
 
 func TestStorageLocationAppearsOnlyInWalletSettings(t *testing.T) {
 	a, _, _ := fixture(t)
-	for _, selected := range []string{"Appearance", "Exchange", "Journal"} {
+	for _, selected := range []string{"Appearance", "Exchange"} {
 		a.fields["settings"] = selected
 		if _, ok := findNode(a.settingsPage(), "storageLocation"); ok {
 			t.Fatal("wallet storage location appeared in another settings section", selected)

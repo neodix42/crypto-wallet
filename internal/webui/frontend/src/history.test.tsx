@@ -16,6 +16,11 @@ function history(): Node {
   row.Children = [node('label', '', '2026-10-30 10:01:02 UTC'), node('address', '', '', '0x' + '1'.repeat(40)), node('address', '', '', 'recipient-with-a-complete-97-character-address-' + 'x'.repeat(97)), node('label', '', '123456789.000000000000000001 ETH'), node('explorer', '', txid, url), node('label', '', '<img src=x onerror=alert(1)>\nsecond line'), node('label', '', 'OBSERVED')];
   const table = node('transactionTable', 'walletHistory/owned', 'Transaction history'); table.Children = [row]; return table;
 }
+function originalHistory(state: string, kinds: string[]): Node {
+  const table = history(), status = node('column', 'original-status', state, 'original-plan');
+  status.Children = [node('label', '', state + ' · provider: OBSERVED'), ...kinds.map(kind => node('button', `${kind}/original-plan`, kind === 'retry' ? 'Broadcast original signed operation' : kind === 'reconcile' ? 'Check status' : kind === 'sendOperation' ? 'Review' : 'Cancel prepared'))];
+  table.Children![0].Children![6] = status; return table;
+}
 async function mount(element: React.ReactNode) { await act(async () => { root = createRoot(host); root.render(element); }); }
 async function rerender(element: React.ReactNode) { await act(async () => { root!.render(element); }); }
 async function click(element: Element) { await act(async () => { element.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); }
@@ -27,6 +32,47 @@ beforeEach(() => {
 afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); root = undefined; window.getSelection()?.removeAllRanges(); });
 
 describe('transaction table and expanded main pages', () => {
+  it('offers compact original-operation controls only after an explicit click, preserving the original ID', async () => {
+    const emit = vi.fn();
+    for (const [state, kinds] of [['PREPARED', ['sendOperation', 'cancelPrepared']], ['SIGNED_NOT_SUBMITTED', ['retry', 'reconcile']], ['UNKNOWN', ['retry', 'reconcile']], ['SUBMITTED', ['reconcile']], ['SUBMITTING', ['reconcile']], ['REORGED', ['reconcile']]] as [string, string[]][]) {
+      const table = originalHistory(state, kinds);
+      if (!root) await mount(<PublicNode node={table} emit={emit}/>); else await rerender(<PublicNode node={table} emit={emit}/>);
+      expect(host.querySelectorAll('tbody td')).toHaveLength(7);
+      expect(host.querySelectorAll('.transaction-actions')).toHaveLength(1);
+      expect(host.querySelector('.transaction-status > span')!.textContent).toBe(state + ' · provider: OBSERVED');
+      const before = emit.mock.calls.length;
+      expect(host.querySelectorAll('.transaction-actions button')).toHaveLength(kinds.length);
+      for (const kind of kinds) await click(host.querySelector(`[data-action="${kind}/original-plan"]`)!);
+      expect(emit.mock.calls.slice(before)).toEqual(kinds.map(kind => [`${kind}/original-plan`]));
+      expect(window.runtime!.BrowserOpenURL).not.toHaveBeenCalled();
+    }
+    const before = emit.mock.calls.length;
+    await rerender(<PublicNode node={history()} emit={emit}/>);
+    expect(host.querySelector('.transaction-actions')).toBeNull();
+    expect(host.textContent).toContain('OBSERVED');
+    expect(emit.mock.calls).toHaveLength(before);
+  });
+  it('respects every disabled ancestor and replaced snapshot without treating status text as an action', async () => {
+    const emit = vi.fn();
+    for (const disabled of ['table', 'row', 'status', 'button']) {
+      const table = originalHistory('UNKNOWN', ['retry', 'reconcile']);
+      const row = table.Children![0], status = row.Children![6];
+      if (disabled === 'table') table.Disabled = true;
+      if (disabled === 'row') row.Disabled = true;
+      if (disabled === 'status') status.Disabled = true;
+      if (disabled === 'button') status.Children![1].Disabled = true;
+      if (!root) await mount(<PublicNode node={table} emit={emit}/>); else await rerender(<PublicNode node={table} emit={emit}/>);
+      const retry = host.querySelector<HTMLButtonElement>('[data-action="retry/original-plan"]')!;
+      expect(retry.disabled).toBe(true); await click(retry);
+      await click(host.querySelector('.transaction-status > span')!);
+      expect(emit).not.toHaveBeenCalled();
+    }
+    const observed = history(); observed.Children![0].Children![6].Text = '<button data-action="retry/replacement">UNKNOWN</button>';
+    await rerender(<PublicNode node={observed} emit={emit}/>);
+    expect(host.querySelector('[data-action]')).toBeNull();
+    expect(host.textContent).toContain('<button data-action="retry/replacement">UNKNOWN</button>');
+    expect(emit).not.toHaveBeenCalled();
+  });
   it('renders every transfer field exactly as inert text with complete selectable addresses', async () => {
     const table = history(), emit = vi.fn();
     await mount(<PublicNode node={table} emit={emit}/>);

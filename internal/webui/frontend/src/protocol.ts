@@ -1,7 +1,7 @@
 import type { Appearance, Node, Prompt, View } from './types';
 
 const kinds = new Set(['label', 'heading', 'separator', 'row', 'column', 'button', 'entry', 'combo', 'check', 'address', 'transactionTable', 'explorer']);
-const transactionCells = ['label', 'address', 'address', 'label', 'explorer', 'label', 'label'];
+const transactionCells = ['label', 'address', 'address', 'label', 'explorer', 'label'];
 const encoder = new TextEncoder();
 export function boundedText(value: unknown, max: number, empty = true): value is string {
   return typeof value === 'string' && (empty || value.length > 0) && !value.includes('\0') && encoder.encode(value).length <= max;
@@ -36,7 +36,18 @@ export function validView(value: unknown): value is View {
   });
 }
 function validTransactionRows(rows: Node[] | null): boolean {
-  return (rows || []).every(row => object(row) && row.Kind === 'row' && Array.isArray(row.Children) && row.Children.length === transactionCells.length && row.Children.every((cell, index) => object(cell) && cell.Kind === transactionCells[index] && (cell.Children === null || Array.isArray(cell.Children) && cell.Children.length === 0)));
+  return (rows || []).every(row => object(row) && row.Kind === 'row' && Array.isArray(row.Children) && row.Children.length === transactionCells.length + 1 && row.Children.slice(0, transactionCells.length).every((cell, index) => object(cell) && cell.Kind === transactionCells[index] && emptyChildren(cell)) && validTransactionStatus(row.Children[transactionCells.length]));
+}
+function emptyChildren(node: Record<string, unknown>): boolean { return node.Children === null || Array.isArray(node.Children) && node.Children.length === 0; }
+function validTransactionStatus(status: unknown): boolean {
+  if (!object(status)) return false;
+  if (status.Kind === 'label') return emptyChildren(status);
+  if (status.Kind !== 'column' || !boundedText(status.Value, 128, false)) return false;
+  const actions: Record<string, string[]> = { PREPARED: ['sendOperation', 'cancelPrepared'], SIGNED_NOT_SUBMITTED: ['retry', 'reconcile'], UNKNOWN: ['retry', 'reconcile'], SUBMITTED: ['reconcile'], SUBMITTING: ['reconcile'], REORGED: ['reconcile'] };
+  const kinds = Object.hasOwn(actions, String(status.Text)) ? actions[String(status.Text)] : undefined;
+  if (!kinds || !Array.isArray(status.Children) || status.Children.length !== kinds.length + 1 || !object(status.Children[0]) || status.Children[0].Kind !== 'label' || !emptyChildren(status.Children[0])) return false;
+  const children = status.Children;
+  return kinds.every((kind, index) => { const button: unknown = children[index + 1]; return object(button) && button.Kind === 'button' && button.ID === `${kind}/${status.Value}` && button.Value === '' && emptyChildren(button) && (button.Options === null || Array.isArray(button.Options) && button.Options.length === 0); });
 }
 export function isWalletRow(node: Node): boolean {
   return node.Kind === 'row' && node.ID.startsWith('open/') && (node.Children || []).length === 4 && node.Children?.[2]?.Kind === 'address';

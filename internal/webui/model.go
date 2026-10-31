@@ -108,15 +108,50 @@ func validateView(v View) bool {
 }
 
 func validTransactionRows(rows []Node) bool {
-	kinds := [...]string{"label", "address", "address", "label", "explorer", "label", "label"}
+	kinds := [...]string{"label", "address", "address", "label", "explorer", "label"}
 	for _, row := range rows {
-		if row.Kind != "row" || len(row.Children) != len(kinds) {
+		if row.Kind != "row" || len(row.Children) != len(kinds)+1 {
 			return false
 		}
-		for i, cell := range row.Children {
+		for i, cell := range row.Children[:len(kinds)] {
 			if cell.Kind != kinds[i] || len(cell.Children) != 0 {
 				return false
 			}
+		}
+		if !validTransactionStatus(row.Children[len(kinds)]) {
+			return false
+		}
+	}
+	return true
+}
+
+// Only an exact original-operation action set may appear in the Status cell.
+// The six provider-data cells remain inert, including transaction identities.
+func validTransactionStatus(status Node) bool {
+	if status.Kind == "label" {
+		return len(status.Children) == 0
+	}
+	if status.Kind != "column" || status.Value == "" || !plain(status.Value, 128) {
+		return false
+	}
+	var kinds []string
+	switch status.Text {
+	case "PREPARED":
+		kinds = []string{"sendOperation", "cancelPrepared"}
+	case "SIGNED_NOT_SUBMITTED", "UNKNOWN":
+		kinds = []string{"retry", "reconcile"}
+	case "SUBMITTED", "SUBMITTING", "REORGED":
+		kinds = []string{"reconcile"}
+	default:
+		return false
+	}
+	if len(status.Children) != len(kinds)+1 || status.Children[0].Kind != "label" || len(status.Children[0].Children) != 0 {
+		return false
+	}
+	for i, kind := range kinds {
+		button := status.Children[i+1]
+		if button.Kind != "button" || button.ID != kind+"/"+status.Value || button.Value != "" || len(button.Children) != 0 || len(button.Options) != 0 {
+			return false
 		}
 	}
 	return true

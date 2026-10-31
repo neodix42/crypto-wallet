@@ -341,43 +341,23 @@ func TestNativeControllerPreparePassesWholeUnitsAndInvalidatesEditedPlan(t *test
 	}
 }
 
-func TestNativeControllerJournalPaginationRemainsBoundedAndNavigable(t *testing.T) {
-	a, ui, core := fixture(t)
-	a.fields["settings"] = "Journal"
-	a.journalRevision = "revision-one"
-	for i := 0; i < 128; i++ {
-		a.journal = append(a.journal, journal.Operation{Plan: model.Plan{ID: fmt.Sprintf("old-operation-%03d", i)}, State: "CONFIRMED"})
-	}
-	a.journalCursor = "next-page"
-	core.handler = func(g uint64, m string, body, out any) error {
-		if m != "history" || viewText(body) != `{"cursor":"next-page"}` {
-			t.Fatal("journal continuation lost its cursor")
+func TestRemovedJournalNavigationDoesNotRequestOrRevealOperationRecords(t *testing.T) {
+	a, _, core := fixture(t)
+	core.handler = func(uint64, string, any, any) error { t.Fatal("removed Journal route reached backend"); return nil }
+	for _, id := range []string{"settingsJournal", "journalRefresh", "journalMore", "journalPrevious", "journalNext"} {
+		a.event(webui.Event{ID: id})
+		if a.busy || a.fields["settings"] == "Journal" {
+			t.Fatal("removed Journal route still active")
 		}
-		return answer(out, journalPage{Revision: "revision-one", Operations: []journal.Operation{{Plan: model.Plan{ID: "new-operation-128"}, State: "CONFIRMED"}}})
 	}
-	a.loadJournal(true)
-	ui.apply(t)
-	if len(a.journal) != 129 || a.journalOffset != 128 {
-		t.Fatal("new journal page not retained/accessed")
-	}
-	text := viewText(a.settingsPage())
-	if !strings.Contains(text, "new-operation-128") || strings.Contains(text, "old-operation-000") {
-		t.Fatal("journal visible window not bounded")
-	}
-	a.event(webui.Event{ID: "journalPrevious"})
-	text = viewText(a.settingsPage())
-	if !strings.Contains(text, "old-operation-000") || strings.Contains(text, "new-operation-128") {
-		t.Fatal("prior loaded journal page inaccessible")
-	}
-	before := len(a.journal)
-	a.journalCursor = "next-page"
-	core.handler = func(g uint64, m string, body, out any) error {
-		return answer(out, journalPage{Revision: "changed", Operations: []journal.Operation{{Plan: model.Plan{ID: "must-not-append"}}}})
-	}
-	a.loadJournal(true)
-	ui.apply(t)
-	if len(a.journal) != before {
-		t.Fatal("mixed journal revisions appended")
+	for _, selected := range []string{"Wallet", "Appearance", "Exchange", "Journal"} {
+		a.fields["settings"] = selected
+		if strings.Contains(viewText(a.settingsPage()), "Local payment journal") {
+			t.Fatal("removed Journal page rendered")
+		}
+		if _, found := findNode(a.settingsPage(), "settingsJournal"); found {
+			t.Fatal("removed Journal tab rendered")
+		}
 	}
 }
 
@@ -399,15 +379,14 @@ func TestNativeControllerLockClearsTransientPublicStateAndCancelsSecrets(t *test
 	a.chainOwner = "old-owner"
 	a.result = "old-result"
 	a.resultOwner = "old-owner"
-	a.journalCursor = "old-journal"
-	a.journalRevision = "old-revision"
+	a.walletHistory = map[string]walletHistoryState{"old-owner": {Local: journalPage{NextCursor: "old-cursor", Revision: "old-revision"}}}
 	a.sendForms["old-owner"] = true
 	a.fields["recipient/old-owner"] = "old-recipient"
 	a.plan = &model.Plan{ID: "old-plan"}
 	a.exchange = json.RawMessage(`{"connected":true}`)
 	a.quote = json.RawMessage(`{"lastPrice":"3"}`)
 	a.lock()
-	if !a.state.Locked || a.plan != nil || len(a.state.Accounts) != 0 || len(a.chain.Entries) != 0 || a.chainOwner != "" || a.resultOwner != "" || a.journalCursor != "" || a.journalRevision != "" || len(a.sendForms) != 0 || a.exchange != nil || a.quote != nil {
+	if !a.state.Locked || a.plan != nil || len(a.state.Accounts) != 0 || len(a.chain.Entries) != 0 || a.chainOwner != "" || a.resultOwner != "" || len(a.walletHistory) != 0 || len(a.sendForms) != 0 || a.exchange != nil || a.quote != nil {
 		t.Fatal("lock retained session state or authority")
 	}
 	if ui.cancels.Load() != 1 || core.killed.Load() != 1 {
@@ -565,13 +544,13 @@ func TestNativeControllerBackendFailureCancelsPromptThroughPriorityQueue(t *test
 	}
 }
 
-func TestNativeControllerPaymentJournalActionsKeepOriginalIdentity(t *testing.T) {
+func TestNativeControllerWalletHistoryActionsKeepOriginalIdentity(t *testing.T) {
 	for _, method := range []string{"send", "retry", "reconcile", "cancelPrepared"} {
 		t.Run(method, func(t *testing.T) {
 			a, ui, core := fixture(t)
 			account := ethAccount(t, a)
 			a.active = "settings"
-			a.journal = []journal.Operation{{Plan: model.Plan{ID: "original-payment-id", Account: account}}}
+			a.walletHistory = map[string]walletHistoryState{account.ID: {Local: journalPage{Operations: []journal.Operation{{Plan: model.Plan{ID: "original-payment-id", Account: account}}}}}}
 			called := false
 			core.handler = func(g uint64, m string, body, out any) error {
 				called = true
@@ -581,6 +560,10 @@ func TestNativeControllerPaymentJournalActionsKeepOriginalIdentity(t *testing.T)
 				return answer(out, json.RawMessage(`{"identity":"original-transaction-hash","state":"UNKNOWN"}`))
 			}
 			a.paymentAction(method, "original-payment-id")
+			want := map[string]string{"send": "Waiting for exact payment review", "retry": "Broadcasting original signed operation", "reconcile": "Checking original operation status", "cancelPrepared": "Cancelling unsigned prepared operation"}[method]
+			if !strings.Contains(a.status, want) {
+				t.Fatal("operation progress implied the wrong authorization", a.status)
+			}
 			ui.apply(t)
 			if !called || a.resultOwner != account.ID || !strings.Contains(a.result, "UNKNOWN") {
 				t.Fatal("journal result lost wallet scope or ambiguity")

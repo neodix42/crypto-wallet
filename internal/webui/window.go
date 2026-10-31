@@ -292,7 +292,18 @@ func validEvent(v View, e Event, modal bool) bool {
 	var match func([]Node) bool
 	match = func(nodes []Node) bool {
 		for _, n := range nodes {
-			if n.Disabled || n.Kind == "transactionTable" || n.Kind == "explorer" {
+			if n.Disabled || n.Kind == "explorer" {
+				continue
+			}
+			if n.Kind == "transactionTable" {
+				if validTransactionRows(n.Children) {
+					for _, row := range n.Children {
+						status := row.Children[6]
+						if !row.Disabled && !status.Disabled && status.Kind == "column" && match(status.Children[1:]) {
+							return true
+						}
+					}
+				}
 				continue
 			}
 			if n.ID == e.ID {

@@ -63,7 +63,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'heading': return <h2 className="node-heading" title={node.Tooltip}>{node.Text}</h2>;
     case 'label': if (node.ID === 'portfolioValuation') return <span className="portfolio-valuation" title={node.Tooltip} role="status">{node.Value === 'loading' && <span className="price-spinner" aria-label="Fetching USDT value"/>}{node.Text}</span>; return node.Text ? <p className="node-label" title={node.Tooltip}>{node.Text}</p> : null;
     case 'separator': return <hr/>;
-    case 'transactionTable': return <TransactionTable node={node}/>;
+    case 'transactionTable': return <TransactionTable node={node} emit={emit}/>;
     case 'explorer': return <ExplorerLink node={node}/>;
     case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {

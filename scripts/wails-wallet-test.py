@@ -1816,7 +1816,9 @@ def history_layout_campaign():
     click("Appearance")
     wait(lambda:"Font size" in text())
     assert_selected_subtab("Appearance","Wallet")
-    passed("Settings Wallet and Appearance remain accessible with an explicit selected tab")
+    if "Journal" in [item[11] for item in public_rows()]:
+        raise RuntimeError("Removed Journal settings tab is still visible")
+    passed("Settings Wallet and Appearance remain accessible with an explicit selected tab and no Journal page")
     stage("Open expanded Address book page")
     click("Address book",top=True)
     wait(lambda:"Save address" in text() and public_words_position("Name"))
@@ -2058,6 +2060,8 @@ def appearance_campaign(installation, home, secret):
     if not re.search(r"\bLight\b",text()) or not re.search(r"\b18\s+px\b",text()):
         raise RuntimeError("Fresh Appearance controls did not default to Light and 18 px")
     assert_selected_subtab("Appearance","Wallet")
+    if "Journal" in [item[11] for item in public_rows()]:
+        raise RuntimeError("Removed Journal settings tab is still visible")
     stage("Change actual public font to 24 px and theme to Dark")
     choose_public_option("Font size",5)
     appearance={"theme":"light","fontSize":24}

@@ -9,7 +9,7 @@ import (
 
 func TestTONDeploymentSafeFailureCodesRejectProviderText(t *testing.T) {
 	const raw = "CANARY-public-provider-body API-key-path /private/wallet"
-	for _, code := range []string{"TON_RPC_RATE_LIMITED", "TON_DEPLOYMENT_UNAVAILABLE", "TON_DEPLOYMENT_RECORD_FAILED", "TON_DEPLOYMENT_INVALID_PLAN"} {
+	for _, code := range []string{"TON_RPC_RATE_LIMITED", "TON_DEPLOYMENT_UNAVAILABLE", "TON_DEPLOYMENT_RECORD_FAILED", "TON_DEPLOYMENT_INVALID_PLAN", "TON_DEPLOYMENT_PENDING"} {
 		if SafeErrorCode(code) != code || NewRequestError(code).Error() != code || PublicErrorCode(fmt.Errorf(raw+": %w", NewRequestError(code))) != code {
 			t.Fatal("safe TON classification lost", code)
 		}

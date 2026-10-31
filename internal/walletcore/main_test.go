@@ -31,7 +31,7 @@ import (
 // This public-only fake child tests coordinator IPC and scheduling. It is never
 // built into the wallet; protocol/native-node acceptance has separate tests.
 const publicChild = `#!/usr/bin/python3
-import sys,struct,json,os,time
+import sys,struct,json,os,time,hashlib
 folder=sys.argv[sys.argv.index('--data')+1]
 statefile=os.path.join(folder,'public-state.json')
 while True:
@@ -80,7 +80,14 @@ while True:
  elif method=='tokenPolicies':output=state.get('tokenPolicies',[])
  elif method=='nearTokenPolicies':output=state.get('nearTokenPolicies',[])
  elif method=='prepare':
-  state.setdefault('ops',[]).append({'plan':body,'state':'PREPARED','digest':'public-test'})
+  digest=hashlib.sha256(json.dumps(body,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+  state.setdefault('ops',[]).append({'plan':body,'state':'PREPARED','digest':digest})
+  output={}
+ elif method=='cancelPrepared':
+  for operation in state.get('ops',[]):
+   if operation['plan']['id']==body['id']:
+    if operation['state']!='PREPARED' or operation.get('signed') is not None:error='SYNTHETIC_DENIED'
+    else:operation['state']='CANCELLED'
   output={}
  elif method=='sign':
   output={'identity':'synthetic-identity','bytes':'AQ=='}

@@ -244,7 +244,7 @@ func (a *App) stakingNodes(account model.Account) []webui.Node {
 	value.Disabled = value.Disabled || hasPending
 	nodes = append(nodes, value, row(a.button("stakingPrepare/"+account.ID+"/stake", "Stake", disabled), a.button("stakingPrepare/"+account.ID+"/unstake", "Unstake amount", disabled || !observed || state.Staked == "0"), a.button("stakingPrepare/"+account.ID+"/unstake_all", "Unstake all", disabled || !observed || state.Staked == "0"), a.button("stakingPrepare/"+account.ID+"/withdraw_all", "Withdraw all", disabled || !observed || state.Unstaked == "0" || !state.CanWithdraw)))
 	if hasPending {
-		nodes = append(nodes, heading("Original prepared staking operation"), label("Operation ID: "+pending.ID+"\nReserved contract: "+pending.Recipient+"\nReview or cancel this original operation before changing its form. Unresolved signed operations require reconciliation in Settings → Journal."))
+		nodes = append(nodes, heading("Original prepared staking operation"), label("Operation ID: "+pending.ID+"\nReserved contract: "+pending.Recipient+"\nReview or cancel this original operation before changing its form. Use Check status in this wallet’s transaction history for unresolved signed operations."))
 		var payload struct {
 			Staking struct {
 				Method  string `json:"method"`

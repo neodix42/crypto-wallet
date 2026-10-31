@@ -100,9 +100,6 @@ type App struct {
 	stakingPending                        map[string]model.Plan
 	stakingReading                        string
 	stakingRevision                       uint64
-	journal                               []journal.Operation
-	journalCursor, journalRevision        string
-	journalOffset                         int
 	chain                                 model.HistoryPage
 	walletHistory                         map[string]walletHistoryState
 	walletHistoryRevision                 uint64
@@ -315,8 +312,6 @@ func (a *App) lock() {
 	a.exchange = nil
 	a.clearAddressBook()
 	a.quote = nil
-	a.journal = nil
-	a.journalCursor, a.journalRevision, a.journalOffset = "", "", 0
 	a.chain = model.HistoryPage{}
 	a.clearWalletHistory()
 	a.chainOwner, a.resultOwner = "", ""
@@ -385,13 +380,15 @@ func safeError(err error) string {
 	case "REQUEST_CANCELLED":
 		return "Request cancelled."
 	case "TON_RPC_RATE_LIMITED":
-		return "The TON provider has rate-limited this request. Wait briefly and refresh, or configure a trusted RPC/API key. Reconcile any already submitted operation in Journal before another send."
+		return "The TON provider has rate-limited this request. Wait briefly and refresh, or configure a trusted RPC/API key. Check any already submitted operation in this wallet’s transaction history before another send."
 	case "TON_DEPLOYMENT_UNAVAILABLE":
 		return "TON deployment could not be prepared from verified contract state and fees. Refresh contract status and check the configured TON provider. No deployment was sent."
 	case "TON_DEPLOYMENT_RECORD_FAILED":
-		return "The deployment could not be recorded for approval. Check Journal for an existing prepared or pending operation before trying again. No new deployment was sent."
+		return "The deployment could not be recorded for approval. Use Review or Check status on an existing operation in this wallet’s transaction history before trying again. No new deployment was sent."
+	case "TON_DEPLOYMENT_PENDING":
+		return "This wallet already has an unresolved operation. Use Check status in its transaction history. No replacement deployment was sent."
 	case "TON_DEPLOYMENT_INVALID_PLAN":
-		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state before reviewing another deployment. No deployment was sent."
+		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state or cancel the unsigned original in this wallet’s transaction history. No deployment was sent."
 	}
 	return "Request failed or is unavailable. Balance remains unknown until verified; reconcile pending operations before retrying."
 }
@@ -543,7 +540,6 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 		a.clearMarketPrices()
 		a.stakingPending = nil
 		a.tabs = nil
-		a.journal = nil
 		a.exchange = nil
 		a.active = "group/0"
 		return
@@ -1002,28 +998,12 @@ func (a *App) event(e webui.Event) {
 	case "showHidden":
 		a.fields["showHidden"] = e.Value
 		a.render()
-	case "settingsWallet", "settingsExchange", "settingsJournal", "settingsAppearance":
+	case "settingsWallet", "settingsExchange", "settingsAppearance":
 		a.fields["settings"] = strings.TrimPrefix(e.ID, "settings")
-		if e.ID == "settingsJournal" {
-			a.loadJournal(false)
-		} else if e.ID == "settingsExchange" {
+		if e.ID == "settingsExchange" {
 			a.exchangeAction("exchangeStatus", struct{}{})
 		} else {
 			a.render()
-		}
-	case "journalRefresh":
-		a.loadJournal(false)
-	case "journalMore":
-		a.loadJournal(true)
-	case "journalPrevious":
-		a.journalOffset = max(0, a.journalOffset-128)
-		a.render()
-	case "journalNext":
-		if a.journalOffset+128 < len(a.journal) {
-			a.journalOffset += 128
-			a.render()
-		} else if a.journalCursor != "" {
-			a.loadJournal(true)
 		}
 	case "exchangeStatus":
 		a.exchangeAction("exchangeStatus", struct{}{})
@@ -1107,16 +1087,16 @@ func (a *App) walletEvent(action string) {
 		a.render()
 		return
 	}
-	if kind == "sendOperation" {
-		a.paymentAction("send", id)
+	if kind == "sendOperation" || kind == "retry" || kind == "reconcile" {
+		a.historyPaymentAction(kind, id)
 		return
 	}
 	if kind == "asset" {
 		a.selectWalletAsset(id)
 		return
 	}
-	if kind == "retry" || kind == "reconcile" || kind == "cancelPrepared" {
-		a.paymentAction(kind, id)
+	if kind == "cancelPrepared" {
+		a.cancelPreparedAction(id)
 		return
 	}
 	if kind == "exchangeReconcile" {
@@ -1219,13 +1199,24 @@ func (a *App) paymentAction(method, id string) {
 			break
 		}
 	}
-	for _, operation := range a.journal {
-		if operation.Plan.ID == id {
-			owner = operation.Plan.Account.ID
-			break
+	for _, history := range a.walletHistory {
+		for _, operation := range history.Local.Operations {
+			if operation.Plan.ID == id {
+				owner = operation.Plan.Account.ID
+				break
+			}
 		}
 	}
-	a.workWithFeedback("Waiting for exact payment review…", func(g uint64) (func(), error) {
+	title := "Waiting for exact payment review…"
+	switch method {
+	case "retry":
+		title = "Broadcasting original signed operation…"
+	case "reconcile":
+		title = "Checking original operation status…"
+	case "cancelPrepared":
+		title = "Cancelling unsigned prepared operation…"
+	}
+	a.workWithFeedback(title, func(g uint64) (func(), error) {
 		var result json.RawMessage
 		err := a.callAt(g, method, map[string]string{"id": id}, &result)
 		value := publicText(result)
@@ -1263,14 +1254,14 @@ func (a *App) paymentAction(method, id string) {
 }
 func publicText(raw json.RawMessage) string {
 	if len(raw) > 131072 {
-		return "Result exceeds the display limit; inspect the paginated journal."
+		return "Result exceeds the display limit; inspect this wallet’s transaction history."
 	}
 	var b bytes.Buffer
 	if json.Indent(&b, raw, "", "  ") != nil {
 		return "Result unavailable."
 	}
 	if b.Len() > 65536 {
-		return "Result exceeds the display limit; inspect the paginated journal."
+		return "Result exceeds the display limit; inspect this wallet’s transaction history."
 	}
 	return b.String()
 }
@@ -1283,37 +1274,6 @@ func trimDecimal(value string) string {
 		return "0"
 	}
 	return value
-}
-func (a *App) loadJournal(more bool) {
-	previous := append([]journal.Operation(nil), a.journal...)
-	cursor, revision := a.journalCursor, a.journalRevision
-	if !more {
-		cursor = ""
-		revision = ""
-	}
-	a.work("Reading local payment journal…", func(g uint64) (func(), error) {
-		var page journalPage
-		err := a.callAt(g, "history", map[string]string{"cursor": cursor}, &page)
-		if err != nil {
-			return nil, err
-		}
-		if len(page.Operations) > 128 || more && page.Revision != revision || more && len(previous)+len(page.Operations) > 10000 {
-			return nil, errors.New("journal generation or limit")
-		}
-		return func() {
-			if more {
-				a.journalOffset = len(previous)
-				a.journal = append(previous, page.Operations...)
-			} else {
-				a.journalOffset = 0
-				a.journal = page.Operations
-			}
-			a.journalCursor = page.NextCursor
-			a.journalRevision = page.Revision
-			a.fields["settings"] = "Journal"
-			a.active = "settings"
-		}, nil
-	})
 }
 func (a *App) loadChain(id string, more bool) {
 	if more && a.chainOwner != id {
@@ -1713,7 +1673,7 @@ func (a *App) settingsPage() []webui.Node {
 	if selected == "" {
 		selected = "Wallet"
 	}
-	sections := row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", a.state.Locked), a.button("settingsJournal", "Journal", a.state.Locked), a.button("settingsAppearance", "Appearance", false))
+	sections := row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", a.state.Locked), a.button("settingsAppearance", "Appearance", false))
 	sections.ID, sections.Text, sections.Value = "settingsSections", "Settings sections", selected
 	nodes := []webui.Node{sections}
 	if selected == "Appearance" {
@@ -1723,7 +1683,7 @@ func (a *App) settingsPage() []webui.Node {
 		nodes = append(nodes, heading("Wallet settings"), a.storageLocation())
 	}
 	if a.state.Locked {
-		return append(nodes, label("Unlock the local wallet to configure wallet, exchange and journal settings."))
+		return append(nodes, label("Unlock the local wallet to configure wallet and exchange settings."))
 	}
 	switch a.fields["settings"] {
 	case "Exchange":
@@ -1738,48 +1698,8 @@ func (a *App) settingsPage() []webui.Node {
 			credentialText += " KuCoin also requires the API passphrase you created for that key."
 		}
 		nodes = append(nodes, a.exchangeProviderSelector(), heading(provider.Name+" connection"), a.combo("region", "Official API region", options), label(credentialText), row(a.button("exchangeConnect", "Connect "+provider.Name, false), a.button("exchangeDisconnect", "Disconnect "+provider.Name, false), a.button("exchangeStatus", "Refresh connection", false)), label(exchangeConnectionSummary(a.exchange)))
-	case "Journal":
-		nodes = append(nodes, heading("Local payment journal"), label("An unresolved payment must be reconciled by its original identity. A provider observation is not finality."), row(a.button("journalRefresh", "Refresh journal", false), a.button("journalPrevious", "Previous journal page", a.journalOffset == 0), a.button("journalNext", "Next journal page", a.journalOffset+128 >= len(a.journal) && a.journalCursor == "")))
-		start := min(a.journalOffset, len(a.journal))
-		end := min(start+128, len(a.journal))
-		for _, operation := range a.journal[start:end] {
-			amountText, symbol := operation.Plan.Amount+" atomic units", operation.Plan.Asset
-			for _, asset := range a.network(operation.Plan.Account.Network).Assets {
-				if asset.ID == operation.Plan.Asset {
-					if value, err := amount.Format(operation.Plan.Amount, asset.Decimals); err == nil {
-						amountText, symbol = trimDecimal(value), asset.Symbol
-					}
-				}
-			}
-			title := operation.Plan.ID + " · " + operation.State + "\n" + operation.Plan.Account.Network + " · " + operation.Plan.Account.Address + " → " + operation.Plan.Recipient + "\nAmount: " + amountText + " " + symbol
-			if staking, ok := stakingJournalDescription(operation.Plan); ok {
-				title = operation.Plan.ID + " · " + operation.State + "\n" + staking
-			}
-			if token, ok := near.TokenEffects(operation.Plan); ok {
-				title = operation.Plan.ID + " · " + operation.State + "\nNetwork: " + operation.Plan.Account.Network + "\n" + token
-			}
-			if operation.Receipt != nil {
-				title += "\n" + operation.Receipt.Identity + " · " + operation.Receipt.State + " · " + operation.Receipt.Detail
-			}
-			if chains.IsRetiredNetwork(operation.Plan.Account.Network) {
-				nodes = append(nodes, label(title+"\nRetired network — historical record only"))
-				continue
-			}
-			nodes = append(nodes, label(title))
-			switch operation.State {
-			case "PREPARED":
-				nodes = append(nodes, row(a.button("sendOperation/"+operation.Plan.ID, "Review original payment", false), a.button("cancelPrepared/"+operation.Plan.ID, "Cancel prepared payment", false)))
-			case "SIGNED_NOT_SUBMITTED", "UNKNOWN":
-				nodes = append(nodes, row(a.button("retry/"+operation.Plan.ID, "Broadcast original signed payment", false), a.button("reconcile/"+operation.Plan.ID, "Reconcile original payment", false)))
-			case "SUBMITTED", "SUBMITTING", "REORGED":
-				nodes = append(nodes, a.button("reconcile/"+operation.Plan.ID, "Reconcile original payment", false))
-			}
-		}
-		if a.result != "" && a.resultOwner != "exchange" {
-			nodes = append(nodes, label(a.result))
-		}
 	default:
-		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels, the address book or the local payment/exchange journal."))
+		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels, the address book or local payment and exchange history."))
 		if a.fields["tonProfile"] == "" {
 			a.fields["tonProfile"] = ton.ProfileSubwallet42
 		}
