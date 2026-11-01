@@ -19,9 +19,9 @@ transaction, canonical block, receipt, owned effect and approved token-runtime/
 precision checks. Cross-stream duplicates cannot create extra transfers.
 The cursor retains the original owner, network, index source and checked RPC
 head. Public index ordering can change and is not a frozen archival snapshot;
-candidate coverage remains incomplete, and changed/above-head observations
-require refresh. Exhaustion never independently proves that no older funds or
-transactions existed. Other networks, local nodes, signing and token policies
+candidate coverage remains incomplete. Detected non-advancing pages or
+above-head transactions require refresh. Exhaustion never independently proves
+that no older funds or transactions existed. Other networks, local nodes, signing and token policies
 retain their existing behavior.
 
 The production-Go read-only probe loads three checked owned transactions:
@@ -62,7 +62,9 @@ no user vault, secret, signature or public-chain payment is used.
 | PASS, parser and checked effects | Full EVM race suite, 61,223 bounded parser fuzz mutations, two compiling semantic negative controls, captured native/token empty schemas and four missing-row regressions pass on stable final sources. The public production probe returns three checked transactions. `reports/arbitrum-history-ui/backend-final-checklist.json`. |
 | PASS, complete local aggregate/build | Final `make test-ci`, portable build and managed installation pass. The updated desktop helper suite passes 189 checks. `reports/arbitrum-wallet-layout-final-aggregate.log`, `reports/arbitrum-wallet-layout-final-build.log`, `reports/icon-harness-helpers-final-v6.log`. |
 | PASS, actual graphical workflows | All 29 full generated-root/recovery app checks and seven clipboard workflows pass on the final binary with stable sources. Focused native token popup (10), main-row copy (3) and header/history/settings layout (11) checks also pass on that same binary. `reports/wails-wallet-icons-full-v5.json`, `reports/wails-wallet-icons-clipboard-v5.json`, `reports/wails-wallet-icons-{near-popup,main-row,history-layout}-v4.json`. Five final TON-only checks also pass with stable sources: `reports/wails-ton-icons-final.json`. |
-| NOT_RUN, hosted acceptance/publication | Exact-source hosted CI and publication are pending. |
+| PASS, exact-source hosted desktop | Source `89ad1e7c9aaa7f5d5d5fdd3ed55d73c8d61f1da6` passes the desktop job in [run 41299122249](https://github.com/neodix42/crypto-wallet/actions/runs/41299122249): 29 full graphical, 5 TON, 7 independent recovery and 9 private-geth checks. Artifact 13081395108 digest, all 9 JSON reports, source fingerprints, binary bindings and 1,521 reported source-file hashes verify. `reports/arbitrum-history-hosted-gui/summary.json`. Dedicated popup/header/layout campaigns remain separately evidenced locally. |
+| PASS, publication | Normal [release 0.1.36](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.36) and [build 41299122207](https://github.com/neodix42/crypto-wallet/actions/runs/41299122207) match exact source, tag, name and binary version. Publisher/provenance, four-file inventory and published bytes independently verify; archive SHA256 `e6f62d0a874c99380295a1412c5f6f92937f31b69693bb928e2168ab039244a2`. `reports/arbitrum-history-release-final/summary.json`. |
+| PASS, complete exact-source hosted checks | Both jobs in [run 41299122249](https://github.com/neodix42/crypto-wallet/actions/runs/41299122249) succeed on attempt 1: units/frontend/helpers, 81 semantic mutants across 10 campaigns, full races/stress, interoperability, 13 actual local integrations, 26 executed fuzz targets including the new public-index parser, and USDT/dependency/recovery/crash gates. All 30 JSON gates and 17 declared stable snapshots pass; 1,613 unique source paths and all producer hashes match exact commit objects. Artifact 13081870220 SHA256 `b40a68c4271cee7a6624a450b40fe769d18e6dbb8ceb8a05ce639cc2c6fa7c47`. `reports/arbitrum-history-hosted-checks/41299122249/verification.json`. |
 | NOT_RUN, external gates | Funded public sends, actual funded graphical approvals/pending operations, complete installed OS/Wayland and physical-machine matrix, and independent review. This is scoped implementation evidence, not production/audit certification. |
 
 The first native run failed because two older assertions still required the
@@ -81,8 +83,13 @@ pass. These earlier failures do not count as final acceptance.
 Actual graphical development attempts also exposed test-driver assumptions:
 selected icon outlines, Settings prose mistaken for a subtab, overview headers
 mistaken for wallet markers, a 34-pixel copy-button assumption, decorative OCR
-fragments, a Receive title/field substring ambiguity, and a hovered native copy tooltip still open during the strict single-window check. Each correction has
+fragments, a Receive title/field substring ambiguity, and a hovered native copy
+tooltip still open during the strict single-window check. Each correction has
 helper regressions and preserves exact native clipboard checks without glyph
 substitution. Concurrent GUI attempts collided on display allocation; final
 runs are sequential. Stale-binary and failed attempts remain diagnostic records,
-not passing candidate acceptance. The TON-only recovery scenario now reveals the address with ordinary bounded scrolling before measuring its icon; a clipped icon still fails. Focused/full reports use their recorded stable driver versions and the same final application binary; later driver-only changes do not alter that binary.
+not passing candidate acceptance. The TON-only recovery scenario now reveals the
+address with ordinary bounded scrolling before measuring its icon; a clipped
+icon still fails. Focused/full reports use their recorded stable driver versions
+and the same final application binary; later driver-only changes do not alter
+that binary.
