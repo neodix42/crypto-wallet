@@ -7,8 +7,8 @@ Horizen networks are explicitly retired under the later owner request; the exist
 
 ## Add and use a token
 
-1. Open the Ethereum or Base wallet tab and find **Track an ERC-20 token**.
-2. Enter its full contract address for that exact network, then choose
+1. Open a supported EVM wallet tab and choose **Track new token**.
+2. In the popup, enter its full contract address for that exact network, then choose
    **Verify and add token**. The contract is the asset identifier; it is not a
    recipient address.
 3. Review the separate Go-authored confirmation: network, owned account,

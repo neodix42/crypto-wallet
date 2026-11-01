@@ -904,6 +904,11 @@ func (a *App) event(e webui.Event) {
 	}
 	if e.ID == "tab" {
 		a.invalidatePaymentQuote()
+		if e.Value == "settings" && strings.HasPrefix(a.active, "wallet/") {
+			if account, ok := a.account(strings.TrimPrefix(a.active, "wallet/")); ok {
+				a.fields["rpcNetwork"] = account.Network
+			}
+		}
 		a.active = e.Value
 		if strings.HasPrefix(e.Value, "wallet/") {
 			id := strings.TrimPrefix(e.Value, "wallet/")
@@ -1065,7 +1070,9 @@ func (a *App) event(e webui.Event) {
 	case "showHidden":
 		a.fields["showHidden"] = e.Value
 		a.render()
-	case "settingsWallet", "settingsExchange", "settingsAppearance":
+	case "configureRPC":
+		a.configureSelectedRPC()
+	case "settingsWallet", "settingsExchange", "settingsAppearance", "settingsNetworks":
 		a.fields["settings"] = strings.TrimPrefix(e.ID, "settings")
 		if e.ID == "settingsExchange" {
 			a.exchangeAction("exchangeStatus", struct{}{})
@@ -1649,7 +1656,7 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	}
 	value, _ := a.balance(account, asset)
 	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
-	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉ Copy address")), heading(value + " " + asset.Symbol)}
+	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉")), heading(value + " " + asset.Symbol)}
 	if account.Family == "ton" {
 		page.Nodes = append(page.Nodes, a.tonNodes(account)...)
 	}
@@ -1691,7 +1698,7 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	if account.Family == "near" {
 		page.Nodes = append(page.Nodes, a.nearTokenNodes(account, asset)...)
 	}
-	page.Nodes = append(page.Nodes, row(a.button("configure/"+account.ID, "Configure trusted RPC", false), a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false)))
+	page.Nodes = append(page.Nodes, a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false))
 	if account.Family == "near" || account.Family == "aptos" {
 		page.Nodes = append(page.Nodes, a.entry("associate/"+account.ID, "Named / rotated on-chain account address"), a.button("associate/"+account.ID, "Verify and associate on-chain account", false))
 	}
@@ -1709,7 +1716,7 @@ func (a *App) settingsPage() []webui.Node {
 	if selected == "" {
 		selected = "Wallet"
 	}
-	sections := row(a.button("settingsWallet", "Wallet", false), a.button("settingsExchange", "Exchange", a.state.Locked), a.button("settingsAppearance", "Appearance", false))
+	sections := row(a.button("settingsWallet", "Wallet", false), a.button("settingsNetworks", "Networks", a.state.Locked), a.button("settingsExchange", "Exchange", a.state.Locked), a.button("settingsAppearance", "Appearance", false))
 	sections.ID, sections.Text, sections.Value = "settingsSections", "Settings sections", selected
 	nodes := []webui.Node{sections}
 	if selected == "Appearance" {
@@ -1722,6 +1729,8 @@ func (a *App) settingsPage() []webui.Node {
 		return append(nodes, label("Unlock the local wallet to configure wallet and exchange settings."))
 	}
 	switch a.fields["settings"] {
+	case "Networks":
+		return append(nodes, a.rpcSettingsPage()...)
 	case "Exchange":
 		provider := a.selectedExchangeProvider()
 		options := []webui.Option{}

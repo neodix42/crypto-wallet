@@ -1,5 +1,16 @@
 # Implementation and release evidence
 
+## Arbitrum history and header controls — 2026-11-01
+
+The reported Arbitrum index failure is reproduced as HTTP 403. A fixed-host, bounded Arbiscan candidate fallback now loads native ETH, USDT0 and USDC through the existing configured-chain transaction/receipt/effect checks. Index coverage stays explicitly incomplete. Utility navigation moves to header icons, wallets keep a separate tab row, token tracking uses a popup, trusted RPC configuration moves to Settings → Networks, and history scope uses Info beside icon-only Refresh. [Behavior and evidence checklist](ARBITRUM_HISTORY_AND_NAVIGATION.md).
+
+| State | Evidence |
+|---|---|
+| PASS, local implementation | Final full local aggregate, portable build and managed installation pass. Full EVM/native/prompt/bridge races, 121 frontend checks, project TypeScript, 189 desktop helpers, protocol/parser fuzz and two compiling parser negative controls pass. The production-Go read-only public probe loads three checked transactions without user storage, signatures or payments. Source-specific logs and retained development failures are linked in the checklist. |
+| PASS, actual graphical workflows | All 29 full generated-root/recovery app checks, seven actual clipboard workflows and focused token-popup (10), main-row-copy (3) and header/history/settings (11) checks pass on the final binary with stable sources. All five final TON-only recovery checks also pass with stable sources. Earlier failed/stale-source attempts are not acceptance. |
+| NOT_RUN, hosted CI/publication | Exact-source tests and the release have not run yet. |
+| NOT_RUN, external gates | Funded public graphical workflows, independent index completeness authentication, the full installed physical OS/Wayland matrix and independent security review. |
+
 ## Parallel balances, TON profile recovery and pending dialogs — 2026-11-01
 
 The main wallet now streams independent provider results from a bounded four-worker balance request. Shared authorities retain their rate controls; writes/prompts remain serialized and foreground work safely preempts reads. Exact TON profile recovery reuses/unhides stored identities and opens the requested wallet instead of leaving wallet ID 42 selected. Pending wallet operations appear in bounded dialogs with explicit original-operation actions and Later; encrypted records and duplicate-send reservations remain. [Behavior and checklist](PARALLEL_REFRESH_AND_RECOVERY.md).

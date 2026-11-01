@@ -46,7 +46,7 @@ func TestNearTokensShowIndependentBalancesExactContractsAndNativeOverview(t *tes
 	a.balances[account.ID] = []model.Balance{{Asset: account.Network + ":native", Atomic: "2000000000000000000000000", State: "provider-observed", At: "block"}, {Asset: first.ID, Atomic: "1250001", State: "provider-observed", At: "block"}, {Asset: second.ID, State: "unavailable", At: "block"}}
 	page := a.walletPage(account)
 	text := viewText(page)
-	for _, required := range []string{"1.250001", "Unknown", "Track a NEAR token", "Token contract account", "NEP-141 contract", first.Contract, second.Contract, account.Address} {
+	for _, required := range []string{"1.250001", "Unknown", "Track new token", "NEP-141 contract", first.Contract, second.Contract, account.Address} {
 		if !strings.Contains(text, required) {
 			t.Fatal("missing token view data", required)
 		}

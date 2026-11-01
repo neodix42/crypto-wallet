@@ -60,7 +60,7 @@ func TestEthereumWalletShowsEveryConfiguredTokenAndNativeBalanceWithExactIdentit
 		}
 	}
 	text := viewText(page)
-	for _, required := range []string{account.Address, "Verify and add token"} {
+	for _, required := range []string{account.Address, "Track new token"} {
 		if !strings.Contains(text, required) {
 			t.Fatal("wallet asset identity or tracking limitation missing")
 		}

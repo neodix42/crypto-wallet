@@ -141,14 +141,62 @@ describe('public React renderer', () => {
     expect(host.querySelector('table')).toBeNull();
     expect(host.textContent).toContain('TOKEN');
   });
-  it('handles wallet middle close and keeps Exchange and Settings as top tabs', async () => {
+  it('handles wallet middle close and opens utility pages from header icons', async () => {
     const state = view(); state.Pages!.push({ ID: 'wallet/a', Title: 'ETH · Ethereum', Nodes: [] }, { ID: 'exchange', Title: 'Exchange', Nodes: [] }, { ID: 'settings', Title: 'Settings', Nodes: [] });
     const emit = vi.fn(); await mount(<WalletShell view={state} status="" emit={emit}/>);
     const wallet = [...host.querySelectorAll('.tab')].find(tab => tab.textContent?.includes('ETH'))!;
     await act(async () => { wallet.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true })); });
     expect(emit).toHaveBeenCalledWith('closeTab', 'wallet/a');
-    await click([...host.querySelectorAll('[role="tab"]')].find(tab => tab.textContent === 'Settings')!);
+    await click(host.querySelector('.utility-navigation [aria-label="Settings"]'));
     expect(emit).toHaveBeenCalledWith('tab', 'settings');
+    expect([...host.querySelectorAll('.tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account', 'ETH · Ethereum']);
+    expect(host.querySelector('.utility-navigation [aria-label="Settings"] svg')).not.toBeNull();
+    expect(host.querySelector('.utility-navigation')!.textContent).toBe('');
+  });
+  it('discloses history limits only through the information icon and refreshes through an accessible icon', async () => {
+    const toolbar = node('row', 'historyToolbar/arbitrum');
+    const information = node('label', 'historyInfo/arbitrum', 'History information');
+    information.Tooltip = 'Address-indexed native and tracked ERC-20 history. <img src=x onerror=alert(1)> is literal provider text.';
+    toolbar.Children = [node('heading', '', 'Transaction history'), node('button', 'walletHistory/arbitrum', 'Refresh history'), information];
+    const emit = vi.fn(); await mount(<PublicNode node={toolbar} emit={emit}/>);
+    expect(host.querySelector('.history-toolbar h2')!.textContent).toBe('Transaction history');
+    expect(host.textContent).not.toContain(information.Tooltip); expect(host.textContent).not.toContain('Refresh history');
+    const refresh = host.querySelector('[aria-label="Refresh history"]')!;
+    expect(refresh.textContent).toBe(''); expect(refresh.getAttribute('title')).toBe('Refresh history'); expect(refresh.querySelector('svg')).not.toBeNull();
+    await click(refresh); expect(emit.mock.calls).toEqual([['walletHistory/arbitrum']]);
+    const info = host.querySelector('[aria-label="History information"]')!;
+    expect(info.getAttribute('aria-expanded')).toBe('false'); await click(info);
+    const note = host.querySelector('[role="note"]')!;
+    expect(note.textContent).toBe(information.Tooltip); expect(note.querySelector('img')).toBeNull(); expect(note.getAttribute('tabindex')).toBe('0');
+    expect(info.getAttribute('aria-controls')).toBe(note.id); expect(info.getAttribute('aria-expanded')).toBe('true');
+    await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(host.querySelector('[role="note"]')).toBeNull();
+    await click(info); await act(async () => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+    expect(host.querySelector('[role="note"]')).toBeNull(); expect(emit).toHaveBeenCalledOnce();
+  });
+  it('keeps the history information disclosure inside a small viewport and closes it on resize', async () => {
+    const information = node('label', 'historyInfo/ton', 'History information'); information.Tooltip = 'Bounded provider history';
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(500); vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600);
+    await mount(<PublicNode node={information} emit={() => {}}/>);
+    vi.spyOn(host.querySelector('.history-information')!, 'getBoundingClientRect').mockReturnValue({ x: 420, y: 540, left: 420, right: 462, top: 540, bottom: 582, width: 42, height: 42, toJSON() {} });
+    await click(host.querySelector('button'));
+    const note = host.querySelector<HTMLElement>('[role="note"]')!;
+    expect(note.style.left).toBe('16px'); expect(note.style.top).toBe('172px'); expect(note.style.maxHeight).toBe('360px');
+    await act(async () => { window.dispatchEvent(new Event('resize')); });
+    expect(host.querySelector('[role="note"]')).toBeNull();
+    vi.restoreAllMocks();
+  });
+  it('uses an icon-only public address action for every Go-authored copy label while retaining its exact public value', async () => {
+    const emit = vi.fn();
+    for (const label of ['⧉', '⧉ Copy address', 'Copy address']) {
+      const button = node('button', 'copyReceive/owned', label, '0xEXACT-PUBLIC-ADDRESS');
+      const markup = <PublicNode node={button} emit={emit}/>;
+      if (!root) await mount(markup); else await act(async () => { root!.render(markup); });
+      const copy = host.querySelector('button')!;
+      expect(copy.textContent).toBe(''); expect(copy.getAttribute('title')).toBe('Copy address'); expect(copy.getAttribute('aria-label')).toBe('Copy address'); expect(copy.querySelector('svg')).not.toBeNull();
+      await click(copy);
+    }
+    expect(emit.mock.calls).toEqual(Array(3).fill(['copyReceive/owned', '0xEXACT-PUBLIC-ADDRESS']));
   });
   it('renders NEAR Wallet/Staking tabs with selection and only typed public control events', async () => {
     const tabs = node('row', 'walletSections/near-mainnet:0', 'NEAR wallet sections', 'Staking');

@@ -332,6 +332,7 @@ func TestBackupRecoveryUsesDistinctStrictDisplayOnlyPrompt(t *testing.T) {
 // Fuzz only public protocol fixtures. No UI is instantiated and no entropy,
 // phrase generation, filesystem or network operation can occur in this target.
 func FuzzPromptProtocol(f *testing.F) {
+	f.Add([]byte(`{"id":"` + fixtureID + `","kind":"publicInput","title":"Track new token","labels":["Token contract address on Arbitrum One"]}`))
 	f.Add([]byte(`{"id":"` + fixtureID + `","kind":"pending","title":"Pending originals","summary":"Public saved operations","choices":[{"id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","label":"UNKNOWN","summary":"Original amount/address"}]}`))
 	f.Add([]byte(`{"id":"` + fixtureID + `","kind":"input","title":"Public fixture","labels":["Password"]}`))
 	f.Add(encodedFixtureBackup())

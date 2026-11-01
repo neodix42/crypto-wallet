@@ -38,9 +38,9 @@ func (a *App) walletAssets(account model.Account, selected model.Asset) []webui.
 	}
 	nodes = append(nodes, table)
 	if ethereumTokenNetwork(account) {
-		nodes = append(nodes, heading("Track an ERC-20 token"), a.entry("tokenContract/"+account.ID, "Token contract address on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed))
+		nodes = append(nodes, a.button("trackToken/"+account.ID, "Track new token", !a.state.RecoveryConfirmed))
 	} else if nearTokenNetwork(account) {
-		nodes = append(nodes, heading("Track a NEAR token"), a.entry("tokenContract/"+account.ID, "Token contract account on "+network.Name), a.button("importToken/"+account.ID, "Verify and add token", !a.state.RecoveryConfirmed), label("Add a NEP-141 token by its exact contract account. The recovery phrase restores this wallet address; add tracked contracts again after a fresh installation."))
+		nodes = append(nodes, a.button("trackToken/"+account.ID, "Track new token", !a.state.RecoveryConfirmed))
 	}
 	return append(nodes, a.discoveredTokenRows(account)...)
 }
@@ -69,6 +69,10 @@ func exchangeAssetAllowed(account model.Account, asset model.Asset) bool {
 }
 
 func (a *App) tokenEvent(kind, id string) bool {
+	if kind == "trackToken" {
+		a.trackTokenDialog(id)
+		return true
+	}
 	if kind == "open" {
 		if _, present := a.tokenDiscovery[id]; !present {
 			a.discoverBaseTokens(id)

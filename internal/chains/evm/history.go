@@ -16,7 +16,7 @@ import (
 )
 
 func (*Adapter) HistoryScope() string {
-	return "Ethereum and Base use paginated address-index candidates, independently checked against the configured chain RPC for native transfers and pinned/explicitly tracked ERC-20 events. Local nodes and other EVM networks use the latest 128 blocks. Indexer coverage, internal calls and bridge effects can be incomplete; an empty page is not proof of no historical funds."
+	return "Ethereum, Base and Arbitrum use paginated address-index candidates, independently checked against the configured chain RPC for native transfers and pinned/explicitly tracked ERC-20 events. Local nodes and other EVM networks use the latest 128 blocks. Indexer coverage, internal calls and bridge effects can be incomplete; an empty page is not proof of no historical funds."
 }
 
 var errTokenHistoryUnavailable = errors.New("EVM token history is unavailable/incomplete")

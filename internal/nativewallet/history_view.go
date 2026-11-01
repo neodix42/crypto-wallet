@@ -504,7 +504,17 @@ func historyPeerEqual(family, left, right string) bool {
 
 func (a *App) walletHistoryNodes(account model.Account) []webui.Node {
 	state := a.walletHistory[account.ID]
-	nodes := []webui.Node{heading("Transaction history"), row(a.button("walletHistory/"+account.ID, "Refresh history", state.Loading || state.Request != ""))}
+	refresh := a.button("walletHistory/"+account.ID, "Refresh history", state.Loading || state.Request != "")
+	refresh.Tooltip = "Refresh transaction history"
+	info := label("History information")
+	info.ID = "historyInfo/" + account.ID
+	info.Tooltip = "Transactions combine checked chain observations with this device's saved operations. Local records alone do not establish complete incoming history. Provider observations are not independent finality."
+	if state.Chain.Scope != "" {
+		info.Tooltip += "\n\n" + state.Chain.Scope
+	}
+	toolbar := row(heading("Transaction history"), refresh, info)
+	toolbar.ID = "historyToolbar/" + account.ID
+	nodes := []webui.Node{toolbar}
 	if a.active != "wallet/"+account.ID {
 		// Inactive pages do not allocate flattened history rows on each wallet
 		// update. Activation renders their retained account-scoped cache.
@@ -524,9 +534,6 @@ func (a *App) walletHistoryNodes(account model.Account) []webui.Node {
 	}
 	if state.LocalFailed {
 		nodes = append(nodes, label("Local payment history is unavailable. Chain observations cannot recover locally pending operations."))
-	}
-	if state.Chain.Scope != "" {
-		nodes = append(nodes, label(state.Chain.Scope))
 	}
 	table := node("transactionTable", "walletHistoryTable/"+account.ID, "Native currency and tracked token transactions", "")
 	rows := a.walletHistoryRows(account, state)

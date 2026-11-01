@@ -114,20 +114,24 @@ describe('transaction table and expanded main pages', () => {
     await rerender(<PublicNode node={node('explorer', '', txid, '')} emit={() => {}}/>);
     expect(host.textContent).toBe(txid);
   });
-  it('puts Settings last at the right utility edge while preserving selected identities and exact tab actions', async () => {
+  it('separates icon-only utilities in the header from account/wallet tabs, preserving selection and actions', async () => {
     const state = view(); state.Active = 'settings';
     state.Pages!.unshift({ ID: 'settings', Title: 'Settings', Nodes: [] });
     state.Pages!.push({ ID: 'addressbook', Title: 'Address book', Nodes: [] }, { ID: 'wallet/eth', Title: 'ETH', Nodes: [] }, { ID: 'exchange', Title: 'Exchange', Nodes: [] });
     const emit = vi.fn(); await mount(<WalletShell view={state} status="" emit={emit}/>);
-    expect([...host.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account', 'ETH', 'Exchange', 'Address book', 'Settings']);
-    expect(host.querySelector('.utility-start [role="tab"]')!.textContent).toBe('Exchange');
-    expect(host.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Settings');
+    expect([...host.querySelectorAll('.tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account', 'ETH']);
+    expect([...host.querySelectorAll('.app-header [role="tab"]')].map(tab => tab.getAttribute('aria-label'))).toEqual(['Exchange', 'Address book', 'Settings']);
+    expect(host.querySelector('.utility-navigation')!.textContent).toBe('');
+    expect(host.querySelector('[role="tab"][aria-selected="true"]')!.getAttribute('aria-label')).toBe('Settings');
+    expect(host.querySelector('.app-identity .build-metadata')!.textContent).toBe('0.1.1 · mainnet');
+    expect(host.querySelector('.app-header')!.lastElementChild!.className).toBe('utility-navigation');
+    expect([...host.querySelectorAll('.utility-navigation button')].every(button => button.querySelector('svg') && button.getAttribute('title') === button.getAttribute('aria-label'))).toBe(true);
     expect(host.querySelector('main')!.getAttribute('aria-label')).toBe('Settings');
     await click(host.querySelector('[role="tab"][aria-selected="true"]')!);
     expect(emit.mock.calls).toEqual([['tab', 'settings']]);
     state.Pages = state.Pages!.filter(page => page.ID !== 'exchange' && page.ID !== 'addressbook');
     await rerender(<WalletShell view={state} status="" emit={emit}/>);
-    expect(host.querySelector('.utility-start [role="tab"]')!.textContent).toBe('Settings');
+    expect(host.querySelector('.utility-navigation [role="tab"]')!.getAttribute('aria-label')).toBe('Settings');
   });
   it('uses the same full-width main card for wallet, Settings, Address book and Exchange, retaining scrollable full values', async () => {
     const style = document.createElement('style'); style.textContent = styles; document.head.append(style);

@@ -24,7 +24,7 @@ async function mount(component = <DialogHost/>) { await act(async () => { root =
 async function dispatch(target: EventTarget, event: Event) { await act(async () => { target.dispatchEvent(event); }); }
 async function push(value: unknown) { await act(async () => { events.get('wallet:dialog')!(value); }); }
 async function click(label: string) {
-  const element = [...host.querySelectorAll('button')].find(button => button.textContent === label);
+  const element = [...host.querySelectorAll('button')].find(button => button.textContent === label || button.getAttribute('aria-label') === label);
   expect(element, label).toBeDefined(); await dispatch(element!, new MouseEvent('click', { bubbles: true }));
 }
 async function submit() { await dispatch(host.querySelector('form')!, new Event('submit', { bubbles: true, cancelable: true })); }
@@ -85,6 +85,33 @@ describe('ordinary in-window wallet dialogs', () => {
     await dispatch(input, new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     expect(api.Reply).toHaveBeenCalledOnce(); expect(host.querySelector('input')).toBeNull();
   });
+  it('shows public token contract input in plain text and binds its Enter reply to the current dialog', async () => {
+    const prompt: Prompt = { id, kind: 'publicInput', title: 'Track new token', labels: ['Token contract address on Arbitrum One'] };
+    const api = bridge(prompt); let sent: Reply | undefined;
+    api.Reply.mockImplementation(async value => { sent = structuredClone(value); expect(host.querySelector('input')).toBeNull(); return true; });
+    await mount(); const input = host.querySelector('input')!;
+    expect(input.type).toBe('text'); expect(input.closest('label')!.textContent).toBe(prompt.labels![0]);
+    expect(host.querySelector('button.primary')!.textContent).toBe('Verify and add token');
+    const contract = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+    input.value = contract;
+    await dispatch(input, new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(sent).toEqual({ promptId: id, accepted: true, values: [contract] }); expect(input.value).toBe('');
+    await push({ ...inputPrompt, id: nextID }); expect(host.querySelector('input')!.type).toBe('password');
+  });
+  it.each(['Escape', 'Cancel'])('cancels public token input through %s without returning or retaining its values', async action => {
+    const api = bridge({ id, kind: 'publicInput', title: 'Track new token', labels: ['Token contract address on Base'] });
+    await mount(); const input = host.querySelector('input')!; input.value = '0xPUBLIC-FIXTURE';
+    if (action === 'Cancel') await click('Cancel');
+    else await dispatch(input, new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(api.Reply.mock.calls).toEqual([[{ promptId: id, accepted: false }]]); expect(input.value).toBe(''); expect(host.querySelector('[role="dialog"]')).toBeNull();
+  });
+  it('rejects excessive public UTF-8 values and does not enable copying from the token dialog', async () => {
+    const api = bridge({ id, kind: 'publicInput', title: 'Track new token', labels: ['Contract'] }); await mount();
+    const input = host.querySelector('input')!; input.value = 'é'.repeat(2049); await submit();
+    expect(api.Reply).not.toHaveBeenCalled(); expect(api.Copy).not.toHaveBeenCalled();
+    expect(host.textContent).toContain('4096 bytes');
+    expect([...host.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Cancel', 'Verify and add token']);
+  });
   it.each(['Escape', 'Cancel'])('cancels through %s without sending entered values', async action => {
     const api = bridge(inputPrompt); await mount(); const input = host.querySelector('input')!; input.value = 'SYNTHETIC-CANCEL';
     if (action === 'Cancel') await click('Cancel');
@@ -125,6 +152,9 @@ describe('ordinary in-window wallet dialogs', () => {
     const api = bridge({ id, kind: 'receive', title: 'Receive ETH', summary: 'Ethereum mainnet', address: '0x123', png: 'iVBORw0KGgo=' }); await mount();
     expect(host.querySelector('.dialog-receive')).not.toBeNull(); const image = host.querySelector('img')!;
     expect(image.src).toBe('data:image/png;base64,iVBORw0KGgo='); expect(host.querySelector('code')!.textContent).toBe('0x123');
+    const copy = host.querySelector('.receive-address button')!;
+    expect(copy.textContent).toBe(''); expect(copy.getAttribute('aria-label')).toBe('Copy address'); expect(copy.getAttribute('title')).toBe('Copy address'); expect(copy.querySelector('svg')).not.toBeNull();
+    expect(host.querySelector('.receive-address-label')!.textContent).toBe('Receive address');
     await click('Copy address'); expect(api.Copy.mock.calls).toEqual([[id]]); expect(host.textContent).toContain('Address copied.');
     await push(null); expect(image.getAttribute('src')).toBeNull(); expect(host.querySelector('img')).toBeNull();
   });

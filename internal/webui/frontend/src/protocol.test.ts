@@ -71,6 +71,7 @@ describe('private prompt validation', () => {
     { id, kind: 'receive', title: 'Receive', summary: 'Ethereum', address: '0x123', png: 'iVBORw0KGgo=' },
     { id, kind: 'recovery', title: 'Record', phrase },
     { id, kind: 'recoveryBackup', title: 'Backup', phrase },
+    { id, kind: 'publicInput', title: 'Track new token', labels: ['Token contract address on Arbitrum One'] },
   ];
   it('accepts exactly the supported prompt shapes and rejects cross-kind data', () => {
     for (const prompt of fixtures) {
@@ -82,6 +83,8 @@ describe('private prompt validation', () => {
     expect(validPrompt({ id, kind: 'file', title: 'Path', save: true })).toBe(false);
     expect(validPrompt({ id, kind: 'copy', title: 'Copy', address: 'x' })).toBe(false);
     expect(validPrompt({ id, kind: 'input', title: 'Input', labels: Array(9).fill('Field') })).toBe(false);
+    for (const labels of [[], Array(9).fill('Field'), [''], [null], ['x'.repeat(257)], ['x\0']]) expect(validPrompt({ id, kind: 'publicInput', title: 'Track new token', labels })).toBe(false);
+    expect(validPrompt({ id, kind: 'publicInput', title: 'Track new token', labels: ['Contract'], summary: 'Unrequested field' })).toBe(false);
     expect(validPrompt({ id, kind: 'receive', title: 'Receive', summary: '', address: 'x', png: 'https://tracking.invalid/qr' })).toBe(false);
     expect(validPrompt({ id, kind: 'recovery', title: 'Phrase', phrase: phrase + '  extra' })).toBe(false);
   });

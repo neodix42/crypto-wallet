@@ -1,3 +1,7 @@
+# Current history presentation and Arbitrum fallback
+
+Wallet history keeps its checked structured effects and read-only table. The heading now has Refresh and Info icons; full provider/archival scope text is in Info instead of a paragraph above the table. Arbitrum mainnet additionally uses bounded public Arbiscan native/token tables as candidate hashes when Blockscout and configured-RPC transfer indexes are unavailable. All displayed amounts, assets, peers and status still come from the checked selected-chain transaction/block/receipt and approved token policy. Public HTML pagination is incomplete and mutable, and never proves no older activity. See [current behavior and verification](ARBITRUM_HISTORY_AND_NAVIGATION.md).
+
 # Wallet transaction history
 
 The **Comment** column shows only actual on-chain memo/comment fields decoded from checked transactions, messages or token events. Local-only rows show **—**, and a missing chain memo stays **—** even if a local draft has text. Staking summaries, attached-deposit method labels, mint/burn prefixes, event explanations and coinbase labels are not comments. Actual text is preserved exactly, even when it resembles a UI description. Approval dialogs retain exact operation details. See [comment provenance and evidence](TRANSACTION_COMMENTS.md).

@@ -1,4 +1,4 @@
-// Package uiprompt implements the bounded, signer-owned Electron prompt protocol.
+// Package uiprompt implements bounded Go-authored wallet dialogs.
 // Only transient input/phrase prompts may contain secrets; never log a prompt or
 // reply, include it in an error, or persist it outside the encrypted vault.
 package uiprompt
@@ -99,7 +99,7 @@ func DecodePrompt(raw []byte) (Prompt, error) {
 	allowed := "id kind title"
 	required := "id kind title"
 	switch p.Kind {
-	case "input":
+	case "input", "publicInput":
 		allowed += " labels"
 		required += " labels"
 		if len(p.Labels) < 1 || len(p.Labels) > 8 {
@@ -187,7 +187,7 @@ func DecodeReply(raw []byte, p Prompt) (Reply, error) {
 	allowed := "promptId accepted"
 	if r.Accepted {
 		switch p.Kind {
-		case "input":
+		case "input", "publicInput":
 			allowed += " values"
 			if len(r.Values) != len(p.Labels) {
 				return Reply{}, ErrProtocol
@@ -269,6 +269,16 @@ func (u *UI) Input(title string, labels ...string) ([][]byte, error) {
 		r.Values[i] = ""
 	}
 	return out, nil
+}
+
+// PublicInput is for nonsecret selectors, such as an exact token contract.
+// Passwords, recovery words and credentials must continue to use masked Input.
+func (u *UI) PublicInput(title string, labels ...string) ([]string, error) {
+	r, err := u.ask(Prompt{Kind: "publicInput", Title: title, Labels: labels})
+	if err != nil {
+		return nil, err
+	}
+	return r.Values, nil
 }
 func (u *UI) Confirm(title, summary string) bool {
 	_, err := u.ask(Prompt{Kind: "confirm", Title: title, Summary: summary})

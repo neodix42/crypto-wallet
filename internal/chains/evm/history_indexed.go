@@ -84,19 +84,21 @@ func (a *Adapter) HistoryPage(ctx context.Context, account model.Account, cursor
 }
 
 type indexedHistoryCursor struct {
-	Version    int    `json:"v"`
-	Network    string `json:"network"`
-	Owner      string `json:"owner"`
-	Head       string `json:"head"`
-	Hash       string `json:"hash"`
-	Final      string `json:"final"`
-	NativePage int    `json:"nativePage"`
-	TokenPage  int    `json:"tokenPage"`
-	NativeDone bool   `json:"nativeDone"`
-	TokenDone  bool   `json:"tokenDone"`
-	Source     string `json:"source,omitempty"`
-	FromKey    string `json:"fromKey,omitempty"`
-	ToKey      string `json:"toKey,omitempty"`
+	Version      int    `json:"v"`
+	Network      string `json:"network"`
+	Owner        string `json:"owner"`
+	Head         string `json:"head"`
+	Hash         string `json:"hash"`
+	Final        string `json:"final"`
+	NativePage   int    `json:"nativePage"`
+	TokenPage    int    `json:"tokenPage"`
+	NativeDone   bool   `json:"nativeDone"`
+	TokenDone    bool   `json:"tokenDone"`
+	Source       string `json:"source,omitempty"`
+	FromKey      string `json:"fromKey,omitempty"`
+	ToKey        string `json:"toKey,omitempty"`
+	NativeAnchor string `json:"nativeAnchor,omitempty"`
+	TokenAnchor  string `json:"tokenAnchor,omitempty"`
 }
 
 func validHistoryRPCKey(key string) bool {
@@ -237,7 +239,7 @@ func (a *Adapter) historyIndexedPage(ctx context.Context, account model.Account,
 			position.Final = final.Number
 		}
 	} else {
-		if len(rawCursor) > 4096 || StrictJSON([]byte(rawCursor), &position) != nil || position.Version != 1 || position.Network != n.ID || position.Owner != strings.ToLower(account.Address) || position.NativePage < 1 || position.TokenPage < 1 || position.NativePage > indexedHistoryMaxPages || position.TokenPage > indexedHistoryMaxPages || position.NativeDone && position.TokenDone || !hashValid(position.Hash) || position.Source != "" && position.Source != "rpc-transfers" || !validHistoryRPCKey(position.FromKey) || !validHistoryRPCKey(position.ToKey) || position.Source == "" && (position.FromKey != "" || position.ToKey != "") {
+		if len(rawCursor) > 4096 || StrictJSON([]byte(rawCursor), &position) != nil || position.Version != 1 || position.Network != n.ID || position.Owner != strings.ToLower(account.Address) || position.NativePage < 1 || position.TokenPage < 1 || position.NativePage > indexedHistoryMaxPages || position.TokenPage > indexedHistoryMaxPages || position.NativeDone && position.TokenDone || !hashValid(position.Hash) || position.Source != "" && position.Source != "rpc-transfers" && position.Source != publicHistorySource || !validHistoryRPCKey(position.FromKey) || !validHistoryRPCKey(position.ToKey) || (position.Source != "rpc-transfers" && (position.FromKey != "" || position.ToKey != "")) || (position.Source != publicHistorySource && (position.NativeAnchor != "" || position.TokenAnchor != "")) || position.Source == publicHistorySource && (n.ID != "arbitrum-mainnet" || position.NativePage > publicHistoryMaxPages || position.TokenPage > publicHistoryMaxPages || !hashValid(position.NativeAnchor) || !hashValid(position.TokenAnchor)) {
 			return page, errors.New("invalid indexed history continuation")
 		}
 		if err := a.checkChain(ctx, n); err != nil {
@@ -257,7 +259,7 @@ func (a *Adapter) historyIndexedPage(ctx context.Context, account model.Account,
 	fetched := false
 	var candidateErr error
 	for _, endpoint := range historyIndexEndpoints(n.ID) {
-		if position.Source == "rpc-transfers" {
+		if position.Source == "rpc-transfers" || position.Source == publicHistorySource {
 			break
 		}
 		var native, token []string
@@ -313,6 +315,28 @@ func (a *Adapter) historyIndexedPage(ctx context.Context, account model.Account,
 			return page, candidateErr
 		}
 	}
+	if !fetched && n.ID == "arbitrum-mainnet" && (rawCursor == "" || position.Source == publicHistorySource) {
+		var native, token []string
+		nativeDone, tokenDone := position.NativeDone, position.TokenDone
+		nativeAnchor, tokenAnchor := position.NativeAnchor, position.TokenAnchor
+		candidateErr = nil
+		if !nativeDone {
+			native, nativeDone, nativeAnchor, candidateErr = a.historyPublicCandidates(ctx, account, position.NativePage, false, nativeAnchor)
+		}
+		if candidateErr == nil && !tokenDone {
+			token, tokenDone, tokenAnchor, candidateErr = a.historyPublicCandidates(ctx, account, position.TokenPage, true, tokenAnchor)
+		}
+		if candidateErr == nil {
+			candidates = append(native, token...)
+			fetched = true
+			position.Source = publicHistorySource
+			position.NativeDone, position.TokenDone = nativeDone, tokenDone
+			position.NativeAnchor, position.TokenAnchor = nativeAnchor, tokenAnchor
+			page.Scope += " Candidate index: Arbiscan public native/token transaction tables, at most 25 rows per stream/page. Public page ordering may change and token filtering may omit activity; refresh after a changed page. Only configured-chain RPC checks supply effects. This is not an exhaustive history claim."
+		} else if !errors.Is(candidateErr, errHistoryIndexUnavailable) {
+			return page, candidateErr
+		}
+	}
 	if !fetched {
 		// Do not turn an unavailable all-time index into a successful empty
 		// recent-window result. Existing loaded history remains available in UI.
@@ -356,7 +380,11 @@ func (a *Adapter) historyIndexedPage(ctx context.Context, account model.Account,
 		position.TokenPage++
 	}
 	if !position.NativeDone || !position.TokenDone {
-		if position.NativePage > indexedHistoryMaxPages || position.TokenPage > indexedHistoryMaxPages {
+		maxPages := indexedHistoryMaxPages
+		if position.Source == publicHistorySource {
+			maxPages = publicHistoryMaxPages
+		}
+		if position.NativePage > maxPages || position.TokenPage > maxPages {
 			page.Scope += " The 10,000-candidate-per-stream budget was reached; older activity remains unavailable."
 			return page, nil
 		}

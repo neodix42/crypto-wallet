@@ -52,7 +52,7 @@ export function validPrompt(value: unknown): value is Prompt {
     fields.push('appearance');
   }
   switch (value.kind) {
-    case 'input':
+    case 'input': case 'publicInput':
       fields = fields.concat('labels');
       if (!Array.isArray(value.labels) || value.labels.length < 1 || value.labels.length > 8 || !value.labels.every(v => boundedText(v, 256, false))) return false;
       break;
