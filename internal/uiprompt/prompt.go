@@ -23,15 +23,24 @@ var (
 )
 
 type Prompt struct {
-	ID      string   `json:"id"`
-	Kind    string   `json:"kind"`
-	Title   string   `json:"title"`
-	Labels  []string `json:"labels,omitempty"`
-	Summary string   `json:"summary,omitempty"`
-	Phrase  string   `json:"phrase,omitempty"`
-	PNG     []byte   `json:"png,omitempty"`
-	Address string   `json:"address,omitempty"`
-	Save    *bool    `json:"save,omitempty"`
+	ID      string          `json:"id"`
+	Kind    string          `json:"kind"`
+	Title   string          `json:"title"`
+	Labels  []string        `json:"labels,omitempty"`
+	Summary string          `json:"summary,omitempty"`
+	Phrase  string          `json:"phrase,omitempty"`
+	PNG     []byte          `json:"png,omitempty"`
+	Address string          `json:"address,omitempty"`
+	Save    *bool           `json:"save,omitempty"`
+	Choices []PendingChoice `json:"choices,omitempty"`
+}
+
+// PendingChoice is public operation text plus a fresh dialog-local capability.
+// Its ID is never an operation ID and grants no payment authority.
+type PendingChoice struct {
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	Summary string `json:"summary"`
 }
 
 type Reply struct {
@@ -47,7 +56,7 @@ func (p Prompt) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.Kind != "confirm" && p.Kind != "notice" && p.Kind != "receive" {
+	if p.Kind != "confirm" && p.Kind != "notice" && p.Kind != "receive" && p.Kind != "pending" {
 		return raw, nil
 	}
 	var fields map[string]json.RawMessage
@@ -106,6 +115,19 @@ func DecodePrompt(raw []byte) (Prompt, error) {
 		required += " summary"
 		if !text(p.Summary, 65536, true) {
 			return Prompt{}, ErrProtocol
+		}
+	case "pending":
+		allowed += " summary choices"
+		required += " summary choices"
+		if !text(p.Summary, 65536, true) || len(p.Choices) < 1 || len(p.Choices) > 18 {
+			return Prompt{}, ErrProtocol
+		}
+		seen := map[string]bool{}
+		for _, choice := range p.Choices {
+			if !ValidID(choice.ID) || seen[choice.ID] || !text(choice.Label, 512, false) || !text(choice.Summary, 16384, true) {
+				return Prompt{}, ErrProtocol
+			}
+			seen[choice.ID] = true
 		}
 	case "receive":
 		allowed += " summary address png"
@@ -174,6 +196,18 @@ func DecodeReply(raw []byte, p Prompt) (Reply, error) {
 				if !text(v, 4096, true) {
 					return Reply{}, ErrInputTooLong
 				}
+			}
+		case "pending":
+			allowed += " values"
+			if len(r.Values) != 1 {
+				return Reply{}, ErrProtocol
+			}
+			matched := false
+			for _, choice := range p.Choices {
+				matched = matched || choice.ID == r.Values[0]
+			}
+			if !matched {
+				return Reply{}, ErrProtocol
 			}
 		case "file":
 			allowed += " path"

@@ -2254,6 +2254,104 @@ class WailsSendAmountGeometry(unittest.TestCase):
                 self.scope['send_amount_geometry'](self.rows(),picture,bounds)
 
 
+class WailsTONProfileRecovery(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('ton_profile_oracles','ton_recovery_summary_points','ton_recovery_copied_field_matches','ton_recovery_copied_address_matches','confirm_ton_recovery')
+        self.scope={'ROOT':ROOT,'hashlib':hashlib,'json':json,'re':re}
+        exec(compile(ast.Module(body=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names],type_ignores=[]),'ton-recovery-observation','exec'),self.scope)
+        self.oracle=self.scope['ton_profile_oracles']()
+    def rows(self):
+        lines=(('Network:','ton-mainnet'),('Index:','0'),('Recovery','profile:','ton-bip39-slip10-v5r1-v1'),('Receiving','address:',self.oracle['legacy0']))
+        rows=[]
+        for line,words in enumerate(lines,1):
+            x=20
+            for word,value in enumerate(words,1):
+                width=max(8,len(value)*9)
+                rows.append(['5','1','1','1',str(line),str(word),str(x),str(40+line*25),str(width),'18','99',value])
+                x+=width+8
+        return rows
+    def test_independent_pinned_sdk_profiles_share_key_but_not_address(self):
+        self.assertNotEqual(self.oracle['legacy0'],self.oracle['subwallet42'])
+        self.assertRegex(self.oracle['legacy0'],r'^UQ[A-Za-z0-9_-]{46}$')
+        with mock.patch.object(pathlib.Path,'read_bytes',return_value=b'{}'),self.assertRaisesRegex(RuntimeError,'oracle changed'):
+            self.scope['ton_profile_oracles']()
+    def test_public_summary_locator_does_not_need_expected_address(self):
+        points=self.scope['ton_recovery_summary_points'](self.rows(),(100,100,1000,350))
+        self.assertEqual(points,{'Network':(156,174),'Index':(147,199),'Recovery profile':(156,224),'Receiving address':(160,249)})
+    def test_identity_values_are_not_injected_into_ocr_locator(self):
+        for old,new in [('ton-mainnet','ton-testnet'),('0','1'),('ton-bip39-slip10-v5r1-v1','ton-bip39-slip10-v5r1-subwallet42-v2')]:
+            rows=self.rows()
+            for row in rows:
+                if row[11]==old:row[11]=new
+            with self.subTest(old=old):
+                self.assertEqual(len(self.scope['ton_recovery_summary_points'](rows,(100,100,1000,350))),4)
+    def test_missing_changed_or_duplicate_public_labels_are_rejected(self):
+        rows=self.rows()
+        duplicate=[list(row) for row in rows[-3:]]
+        for row in duplicate:row[4]='9'
+        with self.assertRaises(RuntimeError):self.scope['ton_recovery_summary_points'](rows+duplicate,(100,100,1000,350))
+        for index in (0,2,4,7):
+            rows=self.rows();rows[index][11]='Other'
+            with self.subTest(index=index),self.assertRaises(RuntimeError):
+                self.scope['ton_recovery_summary_points'](rows,(100,100,1000,350))
+    def test_public_copy_point_cannot_escape_its_owned_dialog_body(self):
+        for index,value in ((6,'-1'),(7,'330'),(8,'1200')):
+            rows=self.rows();rows[-1][index]=value
+            with self.subTest(index=index),self.assertRaises(RuntimeError):
+                self.scope['ton_recovery_summary_points'](rows,(100,100,1000,350))
+    def test_native_fields_require_exact_network_index_and_profile_without_glyph_repair(self):
+        check=self.scope['ton_recovery_copied_field_matches']
+        for label,expected,incorrect in (('Network','ton-mainnet',('ton-testnet','TON-mainnet','ton-mainnet-other')),('Index','0',('1','00','O')),('Recovery profile','ton-bip39-slip10-v5r1-v1',('ton-bip39-slip10-v5r1-subwallet42-v2','ton-bip39-slip10-v5rl-vl'))):
+            with self.subTest(label=label):
+                exact=label+': '+expected
+                self.assertTrue(check(exact+'\n',label,expected))
+                self.assertTrue(check('No payment.\n'+exact+'\n',label,expected))
+                self.assertFalse(check(exact+'\n'+exact,label,expected))
+                self.assertFalse(check('Other: '+expected,label,expected))
+                for value in incorrect:self.assertFalse(check(label+': '+value,label,expected))
+        self.assertFalse(check('Other: 0','Other','0'))
+    def test_native_selected_line_or_complete_public_summary_matches_exactly(self):
+        value='Receiving address: '+self.oracle['legacy0']
+        check=self.scope['ton_recovery_copied_address_matches']
+        self.assertTrue(check(value+'\n',self.oracle['legacy0']))
+        self.assertTrue(check('Network: ton-mainnet\nIndex: 0\n'+value+'\nNo payment is performed.\n',self.oracle['legacy0']))
+    def test_wrong_stale_extended_or_duplicate_native_addresses_cannot_pass(self):
+        check=self.scope['ton_recovery_copied_address_matches'];expected=self.oracle['legacy0']
+        for value in ('Receiving address: '+self.oracle['subwallet42'],'Receiving address: '+expected+'A','Receiving address: '+expected[:-1]+'0','Address: '+expected,'Receiving address: '+expected+'\n'+self.oracle['subwallet42'],'Receiving address: '+expected+'\nReceiving address: '+expected):
+            with self.subTest(length=len(value)):
+                self.assertFalse(check(value,expected))
+                self.assertFalse(self.scope['ton_recovery_copied_field_matches'](value,'Receiving address',expected))
+    def confirmation_scope(self,summary):
+        actions=[];rows=self.rows()
+        # A confusable OCR glyph must not override the independently copied
+        # exact native profile; no expected value enters the geometry locator.
+        rows[6][11]='ton-bip39-slip10-v5rl-vl'
+        self.scope.update({'report':{},'desktop':SimpleNamespace(wait=lambda *a:(1,'owned'),prompt_geometry=lambda *a:(100,100,1000,350),focus=lambda *a:None,click=lambda *a:actions.append('click'),accept=lambda *a:actions.append('accept'),secret_window=lambda:False),'private_rows':lambda *a:rows,'reset_public_clipboard':lambda:actions.append('sentinel') or 'fresh-public-sentinel','native_copy_shortcut':lambda *a:actions.append('copy'),'clipboard':lambda:summary,'wait':lambda predicate,*a:predicate()})
+        return actions
+    def test_confirmation_checks_all_exact_native_fields_before_accept_without_retaining_values(self):
+        summary='Network: ton-mainnet\nIndex: 0\nRecovery profile: ton-bip39-slip10-v5r1-v1\nReceiving address: '+self.oracle['legacy0']
+        actions=self.confirmation_scope(summary)
+        self.scope['confirm_ton_recovery']('Add exact TON recovery profile',self.oracle['legacy0'])
+        self.assertEqual(actions.count('copy'),4)
+        self.assertEqual(actions.count('sentinel'),4)
+        self.assertEqual(actions[-1],'accept')
+        metadata=self.scope['report']['tonRecoveryConfirmationMetadata'][0]
+        self.assertFalse(metadata['ocrIdentityPrefixExact'])
+        self.assertEqual(metadata['nativeFieldsExact'],{'Network':True,'Index':True,'Recovery profile':True,'Receiving address':True})
+        serialized=json.dumps(self.scope['report'])
+        for identity in ('ton-mainnet','ton-bip39-slip10-v5r1-v1',self.oracle['legacy0']):self.assertNotIn(identity,serialized)
+    def test_wrong_native_field_or_unexpected_dialog_never_accepts(self):
+        summary='Network: ton-mainnet\nIndex: 0\nRecovery profile: ton-bip39-slip10-v5r1-v1\nReceiving address: '+self.oracle['legacy0']
+        for old,new in (('ton-mainnet','ton-testnet'),('Index: 0','Index: 1'),('ton-bip39-slip10-v5r1-v1','ton-bip39-slip10-v5rl-vl'),(self.oracle['legacy0'],self.oracle['subwallet42'])):
+            actions=self.confirmation_scope(summary.replace(old,new))
+            with self.subTest(old=old),self.assertRaisesRegex(RuntimeError,'native public metadata'):
+                self.scope['confirm_ton_recovery']('Recover existing TON profile',self.oracle['legacy0'])
+            self.assertNotIn('accept',actions)
+        with self.assertRaisesRegex(RuntimeError,'Unexpected TON recovery'):
+            self.scope['confirm_ton_recovery']('Record recovery phrase',self.oracle['legacy0'])
+
+
 class WailsExactPhraseObservation(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
@@ -2345,7 +2443,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsExactPhraseObservation):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

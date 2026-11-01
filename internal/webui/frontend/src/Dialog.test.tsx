@@ -201,3 +201,27 @@ describe('ordinary in-window wallet dialogs', () => {
     expect(text).toContain('&lt;iframe'); expect(text).not.toContain('<iframe');
   });
 });
+
+describe('pending operations in the main window', () => {
+  const pending: Prompt = { id, kind: 'pending', title: 'Pending operations', summary: '2 originals need attention. Later leaves them unchanged.', choices: [{ id: 'b'.repeat(32), label: 'Ethereum · UNKNOWN', summary: 'Original ETH amount and address <script>inert</script>' }, { id: 'c'.repeat(32), label: 'TON · PREPARED', summary: 'Original GRAM amount and address' }] };
+  it('requires an explicit selection, renders every bounded original as inert text and returns only its opaque choice', async () => {
+    const api = bridge(pending); let selected: Reply | undefined;
+    api.Reply.mockImplementation(async reply => { selected = structuredClone(reply); return true; });
+    await mount();
+    expect(host.querySelectorAll('input[type="radio"]')).toHaveLength(2);
+    expect(host.querySelector('script')).toBeNull();
+    expect(host.textContent).toContain('<script>inert</script>');
+    expect(host.querySelector('button.primary')?.textContent).toBe('Continue');
+    await submit(); expect(api.Reply).not.toHaveBeenCalled();
+    const choice = host.querySelectorAll<HTMLInputElement>('input[type="radio"]')[1]; choice.checked = true;
+    await submit();
+    expect(selected).toEqual({ promptId: id, accepted: true, values: ['c'.repeat(32)] });
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+  });
+  it('Later closes without any operation selection or payment request', async () => {
+    const api = bridge(pending); await mount();
+    const choice = host.querySelector<HTMLInputElement>('input[type="radio"]')!; choice.checked = true;
+    await click('Later');
+    expect(api.Reply.mock.calls).toEqual([[{ promptId: id, accepted: false }]]);
+  });
+});

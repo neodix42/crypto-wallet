@@ -9,9 +9,10 @@ export interface Appearance { theme: 'light' | 'dark'; fontSize: number }
 export interface View { Title: string; Status: string; StatusRevision: number; Active: string; Pages: Page[] | null; Appearance?: Appearance }
 export interface WalletEvent { ID: string; Value: string }
 export interface Prompt {
-  id: string; kind: 'input' | 'confirm' | 'notice' | 'receive' | 'recovery' | 'recoveryBackup';
+  id: string; kind: 'input' | 'confirm' | 'notice' | 'receive' | 'recovery' | 'recoveryBackup' | 'pending';
   title: string; labels?: string[]; summary?: string; phrase?: string; png?: string; address?: string;
   appearance?: Appearance;
+  choices?: { id: string; label: string; summary: string }[];
 }
 export interface Reply { promptId: string; accepted: boolean; values?: string[] }
 declare global {

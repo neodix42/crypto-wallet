@@ -1,5 +1,17 @@
 # Implementation and release evidence
 
+## Parallel balances, TON profile recovery and pending dialogs — 2026-11-01
+
+The main wallet now streams independent provider results from a bounded four-worker balance request. Shared authorities retain their rate controls; writes/prompts remain serialized and foreground work safely preempts reads. Exact TON profile recovery reuses/unhides stored identities and opens the requested wallet instead of leaving wallet ID 42 selected. Pending wallet operations appear in bounded dialogs with explicit original-operation actions and Later; encrypted records and duplicate-send reservations remain. [Behavior and checklist](PARALLEL_REFRESH_AND_RECOVERY.md).
+
+| State | Evidence |
+|---|---|
+| PASS, focused implementation | Full model/core/supervisor races/vet, blocked actual HTTP sockets, four-worker/shared-host bounds, exact owned streamed results, partial-token observations, safe preemption and lifecycle tests pass. Real encrypted TON signer/core recovery and restart preserve original signed UNKNOWN bytes; exact native profile selection and full native races pass. Two compiling semantic controls independently kill removed progress ownership and worker limits. |
+| PASS, complete local aggregate/build | Current units/frontend/helpers/stress, portable build and managed installation pass. Final helper suite: 168 tests. Pending dialogs pass complete native/prompt/bridge races, 114 frontend checks and bounded protocol fuzz. Original signed payments survive visibility changes with immutable bindings intact. |
+| PASS, actual TON recovery | Five uninstrumented offline graphical checks pass with stable sources: fresh and existing original0 recovery, exact native-copied confirmation metadata and independent SDK address, automatic wallet selection and no duplicate tabs. The first failed OCR-prefix observation is retained separately; the final harness checks exact native text without glyph repair. `reports/wails-ton-recovery-parallel-final.json`. |
+| NOT_RUN, hosted candidate | Exact-source hosted CI and publication are pending. |
+| NOT_RUN, external gates | Actual graphical pending-operation selection, real user storage/secrets and funded public sends are not used. Full physical OS/Wayland matrix and independent review remain separate gates. |
+
 ## TON empty history and distinct wallet IDs — 2026-10-31
 
 Public read-only checks reproduce the reported empty TON result. The supplied address is the same public key's separate subwallet-42 account, currently reported uninitialized with no transaction head; the earlier funded account uses subwallet 0. Their histories must remain separate. The empty page now points to original-profile recovery, and an empty native RPC page is checked against fresh account information, with exact-head retrieval when a head exists. [Diagnosis, behavior and checklist](TON_HISTORY_REFRESH.md).

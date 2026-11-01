@@ -53,6 +53,7 @@ type snapshot struct {
 type core struct {
 	child           *supervisor.Child
 	adapters        []model.Adapter
+	adapterRevision uint64
 	mu              sync.Mutex
 	last            time.Time
 	epoch           uint64
@@ -90,6 +91,7 @@ func (c *core) endSession() {
 	c.sessionCtx = nil
 	c.sessionCancel = nil
 	c.adapters = chains.All()
+	c.adapterRevision++
 	c.historyScans = nil
 	c.historyControls = nil
 	c.publicScans = nil
@@ -589,6 +591,8 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 			return nil, e
 		}
 		return c.chainHistoryAt(epoch, m.Session, string(b.AccountID), string(b.Cursor))
+	case "balanceBatch":
+		return c.balanceBatchAt(m, epoch)
 	case "balances":
 		var b struct {
 			AccountID string `json:"accountId"`
@@ -938,6 +942,7 @@ func (c *core) applySettingsAt(epoch uint64) error {
 		return errors.New("wallet session changed")
 	}
 	c.adapters = adapters
+	c.adapterRevision++
 	return nil
 }
 

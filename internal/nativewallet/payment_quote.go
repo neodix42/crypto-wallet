@@ -52,6 +52,7 @@ func (a *App) stopPaymentQuote() {
 }
 
 func (a *App) invalidatePaymentQuote() {
+	a.stopBalanceRefresh(true)
 	a.stopPaymentQuote()
 	if a.historyCancel != nil {
 		a.historyCancel()

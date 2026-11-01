@@ -167,7 +167,11 @@ func (c *core) accountPaymentReservationAt(epoch uint64, account model.Account) 
 	}
 	public := original
 	public.Signed = nil
-	if !reflect.DeepEqual(public, *reservation) || !reflect.DeepEqual(original.Plan.Account, account) || original.Digest != journal.Digest(original.Plan) {
+	// Visibility is presentation metadata. Compare copies so a later Hide or
+	// Show cannot orphan an original reservation or rewrite its approved plan.
+	originalAccount, currentAccount := original.Plan.Account, account
+	originalAccount.Hidden, currentAccount.Hidden = false, false
+	if !reflect.DeepEqual(public, *reservation) || !reflect.DeepEqual(originalAccount, currentAccount) || original.Digest != journal.Digest(original.Plan) {
 		return nil, errors.New(unavailable)
 	}
 	return &original, nil

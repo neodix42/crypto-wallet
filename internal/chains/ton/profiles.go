@@ -16,6 +16,14 @@ const ProfileSubwallet42 = "ton-bip39-slip10-v5r1-subwallet42-v2"
 // network-specific V5 client context. Recorded V1 accounts remain unchanged.
 const DefaultProfile = ProfileSubwallet42
 
+// ValidateAccount checks the public account's registered profile, StateInit,
+// network-bound wallet ID and receiving address. Root ownership is separately
+// authenticated by ValidateRecovery in the signer; this requires no secret.
+func ValidateAccount(account model.Account) error {
+	_, _, err := descriptor(account)
+	return err
+}
+
 func profileWalletID(profile string, globalID int32) (uint16, uint32, error) {
 	var subwallet uint16
 	switch profile {

@@ -18,6 +18,8 @@ The main account shows an approximate USDT subtotal from fresh public Bybit/Bina
 
 TON wallet IDs have separate receive addresses and histories. An older wallet may use the original subwallet-0 profile; open it if listed, or recover it under **Settings → Wallet → TON recovery profiles** using the original account index. The app never moves history between these accounts. [History checks and troubleshooting](docs/TON_HISTORY_REFRESH.md).
 
+Wallet balances refresh concurrently across up to four independent RPC authorities, with each result displayed as it arrives. Shared-provider rate limits still apply. TON recovery opens the selected profile and can restore an already stored hidden profile. Saved unresolved operations appear in a dialog after unlock or wallet selection; **Later** leaves their original records unchanged. [Behavior and verification checklist](docs/PARALLEL_REFRESH_AND_RECOVERY.md).
+
 ## Download and run on Ubuntu 24.04 / 26.04
 
 Use an **amd64/x86_64 Ubuntu desktop** with an X11 or Wayland session. Install runtime prerequisites on Ubuntu **24.04 LTS** or **26.04 LTS**:

@@ -69,6 +69,16 @@ export function validPrompt(value: unknown): value is Prompt {
       fields = fields.concat('summary');
       if (!boundedText(value.summary, 65536)) return false;
       break;
+    case 'pending': {
+      fields = fields.concat('summary', 'choices');
+      if (!boundedText(value.summary, 65536) || !Array.isArray(value.choices) || value.choices.length < 1 || value.choices.length > 18) return false;
+      const ids = new Set<string>();
+      for (const choice of value.choices) {
+        if (!object(choice) || Object.keys(choice).length !== 3 || typeof choice.id !== 'string' || !/^[a-f0-9]{32}$/.test(choice.id) || ids.has(choice.id) || !boundedText(choice.label, 512, false) || !boundedText(choice.summary, 16384)) return false;
+        ids.add(choice.id);
+      }
+      break;
+    }
     default: return false;
   }
   return Object.keys(value).length === fields.length && fields.every(field => Object.hasOwn(value, field));

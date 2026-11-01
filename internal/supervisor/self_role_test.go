@@ -49,6 +49,63 @@ func TestMain(m *testing.M) {
 			if channel.Accept(message) != nil {
 				return
 			}
+			if message.Method == "balanceBatch" {
+				var request struct {
+					AccountIDs []string `json:"accountIds"`
+				}
+				if json.Unmarshal(message.Body, &request) != nil || len(request.AccountIDs) == 0 {
+					return
+				}
+				for _, id := range request.AccountIDs {
+					if id == "blocked" {
+						control, err := channel.Read()
+						if err != nil || control.Method != "cancelHistory" || control.ID != message.ID || control.Session != message.Session || !bytes.Equal(control.Body, []byte(`{}`)) {
+							return
+						}
+						message.Body, message.Error = []byte(`null`), "REQUEST_CANCELLED"
+						if channel.Write(message) != nil {
+							return
+						}
+						break
+					}
+					frame := ipc.Message{Version: 1, ID: message.ID, Session: message.Session, Method: "balanceProgress", Body: []byte(fmt.Sprintf(`{"accountId":%q,"network":"unit-testnet","values":[{"asset":"unit-testnet:native","atomic":"1000000000000000001","state":"provider-observed","at":"123"}]}`, id))}
+					switch id {
+					case "foreign-account":
+						frame.Body = bytes.ReplaceAll(frame.Body, []byte("foreign-account"), []byte("unselected-account"))
+					case "wrong-session":
+						frame.Session += "foreign"
+					case "wrong-id":
+						frame.ID += "foreign"
+					case "provider-secret":
+						frame.Body = []byte(`{"accountId":"provider-secret","network":"unit-testnet","values":[],"error":"raw secret"}`)
+					case "private-field":
+						frame.Body = append(frame.Body[:len(frame.Body)-1], []byte(`,"signed":"forbidden"}`)...)
+					case "prompt":
+						frame.Method = "prompt"
+					case "missing":
+						continue
+					}
+					if channel.Write(frame) != nil {
+						return
+					}
+					if id == "duplicate" && channel.Write(frame) != nil {
+						return
+					}
+				}
+				if message.Error == "" {
+					message.Body = []byte(fmt.Sprintf(`{"completed":%d}`, len(request.AccountIDs)))
+					if request.AccountIDs[0] == "wrong-count" {
+						message.Body = []byte(`{"completed":0}`)
+					}
+					if request.AccountIDs[0] == "private-final" {
+						message.Body = []byte(`{"completed":1,"signed":"forbidden"}`)
+					}
+					if channel.Write(message) != nil {
+						return
+					}
+				}
+				continue
+			}
 			if message.Method == "send" {
 				var request struct{ Ready, Release string }
 				if json.Unmarshal(message.Body, &request) != nil {

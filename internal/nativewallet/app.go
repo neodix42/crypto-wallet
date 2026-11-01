@@ -128,6 +128,9 @@ type App struct {
 	appearance                            webui.Appearance
 	statusUntil, lastActivity, lastStatus time.Time
 	balanceQueue                          []string
+	balanceRefresh                        *balanceRefreshState
+	balanceSerial                         uint64
+	pendingInbox                          pendingInboxState
 }
 
 func Run(environment string) error {
@@ -275,6 +278,8 @@ func (a *App) privatePrompt(raw json.RawMessage) error {
 	return nil
 }
 func (a *App) close() {
+	a.stopBalanceRefresh(false)
+	a.clearPendingInbox()
 	a.stopPaymentQuote()
 	if a.closed {
 		return
@@ -289,6 +294,8 @@ func (a *App) close() {
 	a.ui.Close()
 }
 func (a *App) lock() {
+	a.stopBalanceRefresh(false)
+	a.clearPendingInbox()
 	a.stopPaymentQuote()
 	a.paymentQuote = paymentQuoteState{}
 	a.tonRevision++
@@ -356,6 +363,9 @@ func (a *App) tick() {
 	if a.busy || a.background {
 		return
 	}
+	if a.nextPendingPayments() {
+		return
+	}
 	if a.nextPaymentQuote() {
 		return
 	}
@@ -415,7 +425,7 @@ func safeError(err error) string {
 	case "TON_DEPLOYMENT_INVALID_PLAN":
 		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state or use Check pending payment in the Send form. No deployment was sent."
 	}
-	return "Request failed or is unavailable. Balance remains unknown until verified; reconcile pending operations before retrying."
+	return "Request failed or is unavailable. Check the selected operation and try again."
 }
 func (a *App) work(title string, fn func(uint64) (func(), error)) {
 	a.workWithFeedback(title, fn, nil)
@@ -427,6 +437,8 @@ func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), fe
 	if a.busy || a.closed {
 		return
 	}
+	a.pausePendingPayments()
+	a.stopBalanceRefresh(true)
 	a.stopPaymentQuote()
 	if a.historyCancel != nil {
 		a.historyCancel()
@@ -541,6 +553,11 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	return first, nil
 }
 func (a *App) applySnapshot(state snapshot, networks []model.Network) {
+	a.pausePendingPayments()
+	if state.Locked {
+		a.clearPendingInbox()
+	}
+	a.stopBalanceRefresh(false)
 	a.stopPaymentQuote()
 	a.paymentQuote = paymentQuoteState{}
 	activeAccounts := make([]model.Account, 0, len(state.Accounts))
@@ -604,6 +621,9 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 		}
 	}
 	a.ensureExchangeSelection()
+	if state.RecoveryConfirmed {
+		a.queuePendingPayments("")
+	}
 	a.refreshMarketPrices()
 	a.refreshActiveTONState()
 	if strings.HasPrefix(a.active, "wallet/") {
@@ -761,7 +781,7 @@ func (a *App) pollStatus() {
 		})
 	}()
 }
-func (a *App) nextBalance() {
+func (a *App) nextLegacyBalance() {
 	id := a.balanceQueue[0]
 	a.balanceQueue = a.balanceQueue[1:]
 	a.background = true
@@ -886,7 +906,9 @@ func (a *App) event(e webui.Event) {
 		a.invalidatePaymentQuote()
 		a.active = e.Value
 		if strings.HasPrefix(e.Value, "wallet/") {
-			a.queueWalletHistory(strings.TrimPrefix(e.Value, "wallet/"), "initial")
+			id := strings.TrimPrefix(e.Value, "wallet/")
+			a.queuePendingPayments(id)
+			a.queueWalletHistory(id, "initial")
 		}
 		a.render()
 		if e.Value == "exchange" && !a.state.Locked {
@@ -1022,7 +1044,7 @@ func (a *App) event(e webui.Event) {
 		if profile == "" {
 			profile = ton.ProfileSubwallet42
 		}
-		a.mutation("addTonAccount", map[string]any{"index": uint32(index), "profile": profile})
+		a.recoverTONProfile(uint32(index), profile)
 	case "addAccount":
 		index, err := strconv.ParseUint(a.fields["index"], 10, 32)
 		if err != nil {
@@ -1115,6 +1137,7 @@ func (a *App) walletEvent(action string) {
 			a.tabs = append(a.tabs, id)
 		}
 		a.active = "wallet/" + id
+		a.queuePendingPayments(id)
 		if account, ok := a.account(id); ok && account.Family == "ton" {
 			a.readTONState(account)
 		}
@@ -1276,7 +1299,10 @@ func (a *App) paymentAction(method, id string) {
 				a.balanceQueue = append(a.balanceQueue, account.ID)
 			}
 		}, err
-	}, func(error) { a.refreshWalletLocalHistory(owner) })
+	}, func(error) {
+		a.refreshWalletLocalHistory(owner)
+		a.queuePendingPayments(owner)
+	})
 }
 func publicText(raw json.RawMessage) string {
 	if len(raw) > 131072 {

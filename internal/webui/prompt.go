@@ -77,6 +77,7 @@ func cloneDialog(state *dialogState) *DialogView {
 	p := state.prompt
 	p.Labels = append([]string(nil), p.Labels...)
 	p.PNG = append([]byte(nil), p.PNG...)
+	p.Choices = append([]uiprompt.PendingChoice(nil), p.Choices...)
 	if p.Save != nil {
 		save := *p.Save
 		p.Save = &save
@@ -88,6 +89,7 @@ func clearPrompt(p *uiprompt.Prompt) {
 	p.Phrase = ""
 	p.Summary = ""
 	p.Labels = nil
+	p.Choices = nil
 	clear(p.PNG)
 	p.PNG = nil
 }

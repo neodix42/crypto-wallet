@@ -24,7 +24,7 @@ func historyControlKey(message ipc.Message) string { return message.Session + "\
 // Only provider reads can be interrupted without ending the wallet session.
 // Preparation, approval, signing and broadcasting keep their existing lifecycle.
 func cancellableReadMethod(method string) bool {
-	return method == "chainHistory" || method == "quotePayment" || method == "max"
+	return method == "chainHistory" || method == "quotePayment" || method == "max" || method == "balanceBatch"
 }
 
 // Register at the reader before queuing, so cancellation can race worker start.

@@ -77,3 +77,9 @@
 .send-amount-field{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin:13px 0}
 .send-amount-field>.field{min-width:0;margin:0}
 .send-amount-field>button{min-height:45px;align-self:end;white-space:nowrap}
+
+.pending-choices { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pending-choices legend { margin-bottom: 0.5rem; }
+.pending-choice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.pending-choice input { width: auto; min-height: 0; margin-top: 0.25rem; }
+.pending-choice pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 0.4rem 0 0; }

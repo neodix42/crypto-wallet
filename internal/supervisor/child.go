@@ -232,7 +232,7 @@ func (c *Child) CallPaymentQuoteAt(ctx context.Context, generation uint64, body,
 }
 
 func cancellableReadMethod(method string) bool {
-	return method == "chainHistory" || method == "quotePayment" || method == "max"
+	return method == "chainHistory" || method == "quotePayment" || method == "max" || method == "balanceBatch"
 }
 
 func (c *Child) call(expected *uint64, method string, body any, out any) error {
@@ -240,6 +240,10 @@ func (c *Child) call(expected *uint64, method string, body any, out any) error {
 }
 
 func (c *Child) callContext(expected *uint64, method string, body any, out any, historyContext context.Context) error {
+	return c.callStreamContext(expected, method, body, out, historyContext, nil, nil)
+}
+
+func (c *Child) callStreamContext(expected *uint64, method string, body any, out any, historyContext context.Context, onBalance, finishBalance func(json.RawMessage) error) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if historyContext != nil && (c.SelfRole != "--internal-core" || !cancellableReadMethod(method)) {
@@ -332,6 +336,17 @@ func (c *Child) callContext(expected *uint64, method string, body any, out any, 
 			c.Kill()
 			return errors.New("secure child session ended")
 		}
+		if r.Method == "balanceProgress" {
+			if method != "balanceBatch" || r.Error != "" || onBalance == nil || onBalance(r.Body) != nil {
+				c.Kill()
+				return errors.New("invalid wallet balance progress")
+			}
+			continue
+		}
+		if method == "balanceBatch" && (r.Method == "prompt" || r.Method == "activity") {
+			c.Kill()
+			return errors.New("balance reads cannot request approval or activity")
+		}
 		if r.Method == "prompt" {
 			p, promptError := uiprompt.DecodePrompt(r.Body)
 			if promptError != nil || r.Error != "" || promptIDs[p.ID] || len(promptIDs) >= 64 || c.OnPrompt == nil {
@@ -390,6 +405,12 @@ func (c *Child) callContext(expected *uint64, method string, body any, out any, 
 	}
 	if r.Error != "" {
 		return ipc.NewRequestError(r.Error)
+	}
+	if method == "balanceBatch" && (finishBalance == nil || finishBalance(r.Body) != nil) {
+		// Validate completeness before releasing the operation mutex. A later
+		// write must never inherit a malformed or unfinished stream.
+		c.Kill()
+		return errors.New("incomplete wallet balance stream")
 	}
 	if out != nil {
 		return json.Unmarshal(r.Body, out)

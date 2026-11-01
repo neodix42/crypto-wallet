@@ -93,3 +93,13 @@ describe('private prompt validation', () => {
     expect(phraseWords(fixtures[0])).toEqual([]);
   });
 });
+
+describe('pending operation dialog contract', () => {
+  it('accepts bounded opaque choices and rejects ambiguous/private prompt fields', () => {
+    const prompt: Prompt = { id, kind: 'pending', title: 'Pending operations', summary: 'Original saved operations', choices: [{ id: 'b'.repeat(32), label: 'Ethereum · UNKNOWN', summary: '<script>inert original memo</script>' }] };
+    expect(validPrompt(prompt)).toBe(true);
+    for (const choices of [[], Array(19).fill(prompt.choices![0]), [prompt.choices![0], prompt.choices![0]], [{ ...prompt.choices![0], id: 'actual-operation-id' }], [{ ...prompt.choices![0], label: 'x'.repeat(513) }], [{ ...prompt.choices![0], summary: 'x'.repeat(16385) }], [{ ...prompt.choices![0], html: '<script>' }]]) expect(validPrompt({ ...prompt, choices })).toBe(false);
+    expect(validPrompt({ ...prompt, phrase })).toBe(false);
+    expect(validPrompt({ ...prompt, choices: null })).toBe(false);
+  });
+});

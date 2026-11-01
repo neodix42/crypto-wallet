@@ -52,8 +52,8 @@ func TestTONExplicitRecoveryProfilePreservesExistingAccountsAcrossRestart(t *tes
 			t.Fatal("restarted profile/address changed")
 		}
 	}
-	if engine.AddTONAccount(legacy.Index, ton.Profile) == nil || engine.AddTONAccount(legacy.Index, ton.ProfileSubwallet42) == nil {
-		t.Fatal("duplicate existing profile was re-added")
+	if engine.AddTONAccount(legacy.Index, ton.Profile) != nil || engine.AddTONAccount(legacy.Index, ton.ProfileSubwallet42) != nil || len(engine.Snapshot().Accounts) != 2 {
+		t.Fatal("existing profile could not be recovered without duplication")
 	}
 }
 

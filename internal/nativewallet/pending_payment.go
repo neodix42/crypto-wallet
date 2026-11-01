@@ -91,6 +91,10 @@ func (a *App) hasPendingPayment(account model.Account) bool {
 }
 
 func (a *App) resolvePendingPayment(account model.Account, draft *model.Transfer, revision uint64) {
+	a.resolvePendingPaymentExpected(account, draft, revision, "")
+}
+
+func (a *App) resolvePendingPaymentExpected(account model.Account, draft *model.Transfer, revision uint64, expectedID string) {
 	if a.closed || a.state.Locked || !a.state.RecoveryConfirmed || a.busy || a.active != "wallet/"+account.ID {
 		return
 	}
@@ -101,7 +105,7 @@ func (a *App) resolvePendingPayment(account model.Account, draft *model.Transfer
 		var response pendingPaymentResponse
 		err := a.callAt(g, "pendingPayment", map[string]string{"accountId": account.ID}, &response)
 		return func() {
-			if response.Operation != nil && (!a.walletHistoryOperation(account, *response.Operation) || journal.Terminal(response.Operation.State)) {
+			if response.Operation != nil && (!a.walletHistoryOperation(account, *response.Operation) || journal.Terminal(response.Operation.State) || expectedID != "" && response.Operation.Plan.ID != expectedID) {
 				invalidOperation = true
 				return
 			}
@@ -116,6 +120,10 @@ func (a *App) resolvePendingPayment(account model.Account, draft *model.Transfer
 			return
 		}
 		if operation == nil {
+			if expectedID != "" {
+				a.notice("The selected original operation is no longer pending. No other operation was opened or sent.")
+				return
+			}
 			a.notice("This wallet has no unresolved local payment.")
 			if draft != nil {
 				a.preparePaymentDraft(account, *draft, revision)
@@ -124,6 +132,34 @@ func (a *App) resolvePendingPayment(account model.Account, draft *model.Transfer
 		}
 		if operation.State == "PREPARED" {
 			plan := operation.Plan
+			if expectedID != "" {
+				cancelChoice, e := newPendingChoice("Cancel unsigned preview", "Cancel only this original unsigned preview. Nothing is signed or broadcast; the saved record remains.")
+				if e != nil {
+					return
+				}
+				choices := []uiprompt.PendingChoice{}
+				reviewID := ""
+				if plan.Expires > time.Now().Unix() {
+					review, e := newPendingChoice("Review original payment", "Open the exact original approval and current-password dialog. No replacement payment is prepared.")
+					if e != nil {
+						return
+					}
+					choices, reviewID = append(choices, review), review.ID
+				}
+				choices = append(choices, cancelChoice)
+				selected, accepted, _ := a.pendingChoiceDialog("Original unsigned payment", a.pendingSummary(*operation), choices)
+				if !accepted {
+					a.notice("Unsigned preview left unchanged.")
+					return
+				}
+				if selected == cancelChoice.ID {
+					a.cancelPendingPayment(account, plan.ID, nil, revision)
+					return
+				}
+				if selected != reviewID || reviewID == "" {
+					return
+				}
+			}
 			matches := draft == nil
 			if draft != nil {
 				matches = a.validPaymentQuote(plan, account, *draft, false)
@@ -152,6 +188,27 @@ func (a *App) resolvePendingPayment(account model.Account, draft *model.Transfer
 				a.paymentAction("retry", operation.Plan.ID)
 			}
 			return
+		}
+		if len(historyOperationKinds(operation.State)) == 0 {
+			choice, e := newPendingChoice("Leave this original unchanged", "This saved approval has not reached a state that can be checked or broadcast here.")
+			if e == nil {
+				_, _, _ = a.pendingChoiceDialog("Original pending approval", a.pendingSummary(*operation), []uiprompt.PendingChoice{choice})
+			}
+			return
+		}
+		// An inbox selection already explicitly requested this original's
+		// review. A direct Send conflict also needs an actionable dialog,
+		// instead of silently checking and reporting only a status-bar message.
+		if expectedID == "" && operation.State != "UNKNOWN" {
+			choice, e := newPendingChoice("Check original transaction status", "Read the original transaction's status. This does not sign, broadcast, cancel or replace a payment.")
+			if e != nil {
+				return
+			}
+			selected, accepted, _ := a.pendingChoiceDialog("Payment is still pending", a.pendingSummary(*operation), []uiprompt.PendingChoice{choice})
+			if !accepted || selected != choice.ID {
+				a.notice("Original pending payment left unchanged.")
+				return
+			}
 		}
 		a.reconcilePendingPayment(account, *operation, draft, revision)
 	})
@@ -219,7 +276,8 @@ func (a *App) pendingPaymentEvent(kind, id string) bool {
 	}
 	account, ok := a.account(id)
 	if ok && !a.state.Locked && a.state.RecoveryConfirmed && !a.busy && a.active == "wallet/"+id {
-		a.resolvePendingPayment(account, nil, a.planRevision)
+		a.forcePendingPayments(account.ID)
+		a.nextPendingPayments()
 	}
 	return true
 }

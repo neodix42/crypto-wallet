@@ -54,6 +54,7 @@ func (a *App) readTONState(account model.Account) {
 	if a.tonStates[account.ID].Loading {
 		return
 	}
+	a.stopBalanceRefresh(true)
 	a.tonStates[account.ID] = tonObservation{Loading: true}
 	revision, epoch, g := a.tonRevision, a.epoch, a.core.Generation()
 	a.render()

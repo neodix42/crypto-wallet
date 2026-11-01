@@ -47,7 +47,7 @@ func (a *App) clearMarketPrices() {
 // tick. It does not mark global wallet work busy, request confirmation, reset
 // user inactivity or load exchange credentials. The coordinator caches attempts.
 func (a *App) refreshMarketPrices() {
-	if a.closed || a.state.Locked || !a.state.RecoveryConfirmed || a.environment != "mainnet" || a.marketPricesLoading || (!a.marketPricesAttempt.IsZero() && time.Since(a.marketPricesAttempt) < marketdata.RefreshInterval) {
+	if a.closed || a.busy || a.background || a.state.Locked || !a.state.RecoveryConfirmed || a.environment != "mainnet" || a.marketPricesLoading || (!a.marketPricesAttempt.IsZero() && time.Since(a.marketPricesAttempt) < marketdata.RefreshInterval) {
 		return
 	}
 	a.marketPricesLoading = true
