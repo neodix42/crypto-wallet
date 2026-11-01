@@ -80,6 +80,9 @@ func (a *App) preparePaymentDraft(account model.Account, draft model.Transfer, r
 			ready = true
 		}, err
 	}, func(err error) {
+		// Preparation may have been durably recorded even when its reply is
+		// lost or the edited form no longer accepts the returned preview.
+		defer a.queuePendingPayments(account.ID)
 		if invalidPlan {
 			a.notice(safeError(ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN")))
 			return

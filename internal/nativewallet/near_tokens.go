@@ -112,7 +112,7 @@ func (a *App) nearTokenEvent(kind, id string) bool {
 		a.render()
 		return true
 	}
-	a.work("Preparing exact token registration…", func(g uint64) (func(), error) {
+	a.workWithFeedback("Preparing exact token registration…", func(g uint64) (func(), error) {
 		var plan model.Plan
 		err := a.callAt(g, "prepareNearTokenRegistration", map[string]string{"accountId": id, "asset": asset.ID}, &plan)
 		var payload near.Payload
@@ -127,6 +127,8 @@ func (a *App) nearTokenEvent(kind, id string) bool {
 			// Neither selection nor editing may orphan its nonce reservation.
 			a.nearTokenPending[id] = plan
 		}, err
+	}, func(error) {
+		a.queuePendingPayments(account.ID)
 	})
 	return true
 }

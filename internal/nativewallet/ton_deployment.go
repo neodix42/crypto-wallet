@@ -121,6 +121,7 @@ func (a *App) tonEvent(kind, id string) bool {
 			ready = true
 		}, err
 	}, func(err error) {
+		defer a.queuePendingPayments(account.ID)
 		if ipc.PublicErrorCode(err) == "TON_DEPLOYMENT_PENDING" {
 			a.resolvePendingPayment(account, nil, a.planRevision)
 			return

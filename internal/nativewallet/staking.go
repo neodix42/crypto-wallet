@@ -171,7 +171,7 @@ func (a *App) stakingEvent(kind, id string) bool {
 		}
 	}
 	planRevision := a.planRevision
-	a.work("Preparing exact NEAR staking operation…", func(g uint64) (func(), error) {
+	a.workWithFeedback("Preparing exact NEAR staking operation…", func(g uint64) (func(), error) {
 		var plan model.Plan
 		err := a.callAt(g, "prepareNearStaking", map[string]string{"accountId": account.ID, "pool": pool, "action": action, "amount": value}, &plan)
 		if err == nil && (plan.Account.ID != account.ID || plan.Recipient != pool || plan.Account.Network != account.Network) {
@@ -191,6 +191,8 @@ func (a *App) stakingEvent(kind, id string) bool {
 			a.plan = &plan
 			a.planIsStaking = true
 		}, err
+	}, func(error) {
+		a.queuePendingPayments(account.ID)
 	})
 	return true
 }
