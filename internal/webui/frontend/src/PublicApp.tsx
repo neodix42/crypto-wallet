@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
-import type { Node, Page, View, WalletEvent } from './types';
+import type { ErrorNotice, Node, Page, View, WalletEvent } from './types';
 import { applyAppearance, inputWithinLimit, isAssetTable, isWalletRow, validView } from './protocol';
 import { DialogHost } from './Dialog';
+import { appendErrorNotice } from './error_notices';
 import { ExplorerLink, TransactionTable } from './TransactionTable';
 import { AddressBookIcon, CopyIcon, ExchangeIcon, InfoIcon, LockIcon, Mark, PlusIcon, RefreshIcon, SaveAddressIcon, SettingsIcon } from './icons';
 
@@ -262,6 +263,7 @@ export function WalletShell({ view, status, emit }: { view: View; status: string
 export function PublicApp() {
   const [view, setView] = useState(blank), [status, setStatus] = useState('');
   const [copyFeedbackRevision, setCopyFeedbackRevision] = useState(0);
+  const [localErrors, setLocalErrors] = useState<ErrorNotice[]>([]), nextError = useRef(0);
   const queue = useRef(Promise.resolve()), clipboardQueue = useRef(Promise.resolve()), live = useRef(true), currentView = useRef(blank), copyRequest = useRef(0);
   const copyTarget = useRef<{ ID: string; Value: string; page: string } | null>(null);
   const copyable = (ID: string, Value: string, state = currentView.current) => {
@@ -269,11 +271,15 @@ export function PublicApp() {
     const matches = (nodes: Node[]): boolean => nodes.some(node => node.Kind === 'button' && node.ID === ID && !node.Disabled && node.Value === Value || matches(node.Children || []));
     return !!Value && matches(page?.Nodes || []);
   };
+  const reportClientError = (message: string, operation = 'Wallet action', code = 'REQUEST_FAILED') => {
+    const notice = { ID: 'client-' + ++nextError.current, Title: 'Operation failed', Operation: operation, Code: code, Message: message };
+    setLocalErrors(queue => appendErrorNotice(queue, notice));
+  };
   const copyFeedback = (message: string) => { setStatus(message); setCopyFeedbackRevision(revision => revision + 1); };
   const emit: Emit = (ID, Value = '') => {
     if (ID.startsWith('copyReceive/')) {
       const request = ++copyRequest.current, page = currentView.current.Active;
-      if (!copyable(ID, Value)) { copyTarget.current = null; copyFeedback('Could not copy address. Try again.'); return; }
+      if (!copyable(ID, Value)) { copyTarget.current = null; reportClientError('Could not copy address. Try again. The displayed address is no longer available as the current copy target.', 'Copy receiving address', 'COPY_TARGET_CHANGED'); return; }
       copyTarget.current = { ID, Value, page };
       copyFeedback('');
       const current = () => live.current && request === copyRequest.current && page === currentView.current.Active && copyable(ID, Value);
@@ -281,8 +287,11 @@ export function PublicApp() {
         if (!current()) return;
         try {
           const copied = await window.runtime?.ClipboardSetText?.(Value);
-          if (current()) copyFeedback(copied === true ? 'Address copied.' : 'Could not copy address. Try again.');
-        } catch { if (current()) copyFeedback('Could not copy address. Try again.'); }
+          if (current()) {
+            if (copied === true) copyFeedback('Address copied.');
+            else reportClientError('Could not copy address. Try again. The system clipboard did not acknowledge a successful write.', 'Copy receiving address', 'CLIPBOARD_REJECTED');
+          }
+        } catch { if (current()) reportClientError('Could not copy address. Try again. The copy request failed before a successful clipboard acknowledgement.', 'Copy receiving address', 'CLIPBOARD_REQUEST_FAILED'); }
         finally { if (request === copyRequest.current) copyTarget.current = null; }
       };
       // Native runtime calls can be dispatched concurrently. Keep clipboard
@@ -292,9 +301,12 @@ export function PublicApp() {
     }
     if (ID !== 'activity') { copyRequest.current++; copyTarget.current = null; }
     const bridge = window.go?.webui?.PublicBridge;
-    if (!bridge) { setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.'); return; }
+    if (!bridge) { if (ID !== 'activity') reportClientError('The wallet connection is unavailable. Close and reopen CryptoWallet.', 'Contact wallet coordinator', 'WALLET_CONNECTION_UNAVAILABLE'); return; }
     const event: WalletEvent = { ID, Value };
-    queue.current = queue.current.then(async () => { if (await bridge.Event(event) !== true && ID !== 'activity') throw new Error('Unavailable'); }).catch(() => { if (live.current && ID !== 'activity') setStatus('Request failed. Check wallet state before retrying.'); });
+    queue.current = queue.current.then(async () => {
+      if (ID === 'ackError' && currentView.current.ErrorNotice?.ID !== Value) return;
+      if (await bridge.Event(event) !== true && ID !== 'activity' && !(ID === 'ackError' && currentView.current.ErrorNotice?.ID !== Value)) throw new Error('Unavailable');
+    }).catch(() => { if (live.current && ID !== 'activity' && !(ID === 'ackError' && currentView.current.ErrorNotice?.ID !== Value)) reportClientError('Request failed. Check wallet state before retrying. The wallet rejected this action or became unavailable before completion.', ID === 'ackError' ? 'Acknowledge error' : 'Wallet action', 'WALLET_REQUEST_FAILED'); });
   };
   useEffect(() => {
     live.current = true; applyAppearance();
@@ -305,12 +317,12 @@ export function PublicApp() {
         const target = copyTarget.current;
         if (target && (target.page !== value.Active || value.Status !== currentView.current.Status || value.StatusRevision !== currentView.current.StatusRevision || !copyable(target.ID, target.Value, value))) { copyRequest.current++; copyTarget.current = null; }
         currentView.current = value; applyAppearance(value.Appearance); setView(value); document.title = value.Title;
-      } else { copyRequest.current++; copyTarget.current = null; setStatus('The wallet returned an invalid view. Close and reopen CryptoWallet.'); }
+      } else { copyRequest.current++; copyTarget.current = null; reportClientError('The wallet returned an invalid view. Close and reopen CryptoWallet.', 'Read wallet state', 'INVALID_WALLET_VIEW'); }
     };
     const bridge = window.go?.webui?.PublicBridge;
     const unsubscribe = window.runtime?.EventsOn('wallet:view', value => { pushed = true; accept(value); });
-    if (bridge) bridge.Snapshot().then(value => { if (!pushed) accept(value); }).catch(() => { if (!disposed) setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.'); });
-    else setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.');
+    if (bridge) bridge.Snapshot().then(value => { if (!pushed) accept(value); }).catch(() => { if (!disposed) reportClientError('The wallet connection is unavailable. Close and reopen CryptoWallet.', 'Read wallet state', 'WALLET_CONNECTION_UNAVAILABLE'); });
+    else reportClientError('The wallet connection is unavailable. Close and reopen CryptoWallet.', 'Read wallet state', 'WALLET_CONNECTION_UNAVAILABLE');
     let lastActivity = 0;
     const activity = () => { const now = Date.now(); if (now - lastActivity >= 1000) { lastActivity = now; emit('activity'); } };
     const rejectedInput = () => { if (!disposed) copyFeedback(inputRejectedMessage); };
@@ -319,5 +331,10 @@ export function PublicApp() {
   }, []);
   useEffect(() => { setStatus(view.Status); }, [view.Status, view.StatusRevision]);
   useEffect(() => { if (!status) return; const timer = window.setTimeout(() => setStatus(''), 7000); return () => window.clearTimeout(timer); }, [status, view.StatusRevision, copyFeedbackRevision]);
-  return <><WalletShell view={view} status={status} emit={emit}/><DialogHost onError={setStatus}/></>;
+  const displayedError = localErrors[0] || view.ErrorNotice;
+  const acknowledgeError = (id: string) => {
+    if (localErrors[0]?.ID === id) setLocalErrors(queue => queue[0]?.ID === id ? queue.slice(1) : queue);
+    else if (view.ErrorNotice?.ID === id) emit('ackError', id);
+  };
+  return <><WalletShell view={view} status={status} emit={emit}/><DialogHost onError={reportClientError} errorNotice={displayedError} onAcknowledgeError={acknowledgeError}/></>;
 }

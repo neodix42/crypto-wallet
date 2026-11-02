@@ -1,5 +1,21 @@
 # Implementation and release evidence
 
+## Deterministic-account recovery and error dialogs — 2026-11-02
+
+Recovering an existing range succeeds without rewriting ciphertext; hidden
+wallets and archived groups return, and missing network/index slots are staged
+before persistence. Stored profiles, labels and original signed operations are
+preserved. Foreground failures now use persistent operation/code/reason dialogs;
+the status bar carries informational messages. [Behavior and checklist](DETERMINISTIC_RECOVERY_AND_ERRORS.md).
+
+| State | Evidence |
+|---|---|
+| PASS, backend and process protocols | Full signer/walletsigner/core/native/prompt/bridge races, actual coordinator/signer recovery and restart, typed error transport, secret/body canaries and exact stale acknowledgement checks. `reports/account-recovery-backend-checklist.json`, `reports/account-recovery-actual-process-race.log`, `reports/account-recovery-error-native-final-race.log`. |
+| PASS, local aggregate and build | `make test-ci`, portable build/managed installation, 153 frontend checks and TypeScript pass. The first aggregate's old supervisor assertion expected the newly preserved denial category to collapse to unknown; its corrected expectation retains all unknown-string canary checks. `reports/account-recovery-aggregate-v2.log`, `reports/account-recovery-build-final.log`. |
+| PASS, scoped actual recovery | Six uninstrumented recovery checks pass with stable sources on binary `b0bd995677c29cb0a4ca460397e648da98444025852fbd6afaf5d0d411187eb9`: existing recovery, persistent detailed invalid-range error, archived named-group recovery, exact native-copied address, cancellation and encrypted restart. `reports/account-recovery-dialogs-final.json`. The later wrong-password addition needs final graphical execution. |
+| NOT_RUN, final graphical/hosted gates | The final full/TON/account-menu graphical workflows, exact-source hosted CI and publication remain pending. |
+| NOT_RUN, external gates | Real user profiles/secrets and automatic public-chain spending are never used. Funded public transactions, live exchange custody, full physical OS/Wayland matrix and independent review remain separate gates. |
+
 ## Account layout and Send validation — 2026-11-02
 
 Account groups own a separate wallet subtab row; utilities retain parent context. Header icons/count, table refresh, one-row actions and concise balance formatting replace the prior layout. The account-row `+` chooses the next stored index; encrypted parent/wallet names and reversible archive actions use tab context menus. Exchange inputs use exact token/venue amount rules. Local exact-network and asset-precision validation gates quotes/preparation without changing signing authority. [Behavior and checklist](ACCOUNT_LAYOUT_AND_VALIDATION.md).

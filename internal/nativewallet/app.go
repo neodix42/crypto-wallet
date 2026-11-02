@@ -135,6 +135,9 @@ type App struct {
 	balanceRefresh                        *balanceRefreshState
 	balanceSerial                         uint64
 	pendingInbox                          pendingInboxState
+	errorQueue                            []webui.ErrorNotice
+	errorSequence                         uint64
+	statusIsError                         bool
 }
 
 func Run(environment string) error {
@@ -164,7 +167,7 @@ func Run(environment string) error {
 	app.ui = window
 	app.appearance, err = webui.LoadAppearance()
 	if err != nil {
-		app.notice("Appearance settings could not be read. Using Light with 18px text.")
+		app.queueError("Load appearance settings", ipc.ClassifyErrorCode(err), "Appearance settings could not be read. Using Light with 18px text.\n"+safeError(err))
 	}
 	monitorContext, stopMonitoring := context.WithCancel(context.Background())
 	defer stopMonitoring()
@@ -298,6 +301,7 @@ func (a *App) close() {
 	a.ui.Close()
 }
 func (a *App) lock() {
+	a.errorQueue = nil
 	a.stopBalanceRefresh(false)
 	a.clearPendingInbox()
 	a.stopPaymentQuote()
@@ -364,7 +368,7 @@ func (a *App) tick() {
 		a.render()
 	}
 	a.refreshMarketPrices()
-	if a.busy || a.background {
+	if a.busy || a.background || len(a.errorQueue) > 0 {
 		return
 	}
 	if a.nextPendingPayments() {
@@ -386,18 +390,23 @@ func (a *App) tick() {
 	}
 }
 func (a *App) notice(text string) {
+	a.statusIsError = false
 	a.status = text
 	a.statusRevision++
 	a.statusUntil = time.Now().Add(7 * time.Second)
 }
 func safeError(err error) string {
-	switch ipc.PublicErrorCode(err) {
+	code := ipc.ClassifyErrorCode(err)
+	if message, ok := detailedError(code); ok {
+		return message
+	}
+	switch code {
 	case "PASSWORD_POLICY":
-		return "Use an app password of 12–4096 UTF-8 bytes."
+		return "Use an app password of 12–4096 UTF-8 bytes. The password protects this installation and is handled locally."
 	case "PASSWORD_MISMATCH":
-		return "The passwords did not match."
+		return "The passwords did not match. Enter the same app password in both password fields."
 	case "INVALID_MNEMONIC":
-		return "Enter a valid English BIP39 recovery phrase."
+		return "Enter a valid English BIP39 recovery phrase with 12, 15, 18, 21 or 24 words and a valid checksum. Arbitrary text is not a recovery phrase."
 	case "INPUT_TOO_LONG":
 		return "An input exceeds 4,096 UTF-8 bytes."
 	case "REQUEST_CANCELLED":
@@ -429,7 +438,7 @@ func safeError(err error) string {
 	case "TON_DEPLOYMENT_INVALID_PLAN":
 		return "The deployment preview did not match this wallet's recorded contract. Refresh wallet state or use Check pending payment in the Send form. No deployment was sent."
 	}
-	return "Request failed or is unavailable. Check the selected operation and try again."
+	return "The request failed without a classified public reason. Private provider or internal error text is withheld. Check the selected operation’s original state before retrying; an unavailable response does not establish whether a payment was sent."
 }
 func (a *App) work(title string, fn func(uint64) (func(), error)) {
 	a.workWithFeedback(title, fn, nil)
@@ -467,6 +476,7 @@ func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), fe
 			}
 			if a.core.Generation() != generation {
 				a.lock()
+				a.reportError(title, ipc.NewRequestError("WALLET_LOCKED"))
 				return
 			}
 			a.busy = false
@@ -474,15 +484,24 @@ func (a *App) workWithFeedback(title string, fn func(uint64) (func(), error), fe
 			if err != nil {
 				a.privateRevision.Add(1)
 				a.ui.CancelPrompt()
-				a.notice(safeError(err))
+				sequence := a.errorSequence
+				if feedback != nil {
+					feedback(err)
+				}
+				if a.errorSequence == sequence {
+					a.reportError(title, err)
+				}
 			} else {
+				sequence := a.errorSequence
 				if apply != nil {
 					apply()
 				}
-				a.notice("Request completed. Check its returned state and any limitations.")
-			}
-			if feedback != nil {
-				feedback(err)
+				if a.errorSequence == sequence {
+					a.notice("Request completed. Check its returned state and any limitations.")
+				}
+				if feedback != nil {
+					feedback(nil)
+				}
 			}
 			a.render()
 			// Tabs remain navigable during work. Initialize a first address-book
@@ -665,6 +684,20 @@ func (a *App) refresh() {
 }
 func (a *App) mutation(method string, body any) {
 	title := "Waiting for wallet confirmation…"
+	switch method {
+	case "discoverAccounts":
+		title = "Recover deterministic accounts"
+	case "addNextAccount":
+		title = "Add deterministic account"
+	case "renameWallet":
+		title = "Rename wallet"
+	case "renameGroup":
+		title = "Rename account group"
+	case "deleteWallet":
+		title = "Delete wallet from visible account"
+	case "deleteGroup":
+		title = "Delete account group from visible list"
+	}
 	if method == "unlock" {
 		title = "Unlocking wallet…"
 	} else if method == "importToken" {
@@ -692,7 +725,7 @@ func (a *App) mutation(method string, body any) {
 					// including when the user subsequently cancels it. Never leave
 					// the old displayed address enabled after an uncertain refresh.
 					a.lock()
-					a.notice("The current receive address could not be refreshed. The wallet is locked; unlock it before copying or receiving.")
+					a.errorText("Refresh receive address", "The current receive address could not be refreshed. The wallet is locked; unlock it before copying or receiving.")
 				}
 			}
 		}
@@ -935,6 +968,13 @@ func (a *App) event(e webui.Event) {
 	if a.closed {
 		return
 	}
+	if e.ID == "ackError" {
+		if len(a.errorQueue) > 0 && a.errorQueue[0].ID == e.Value {
+			a.errorQueue = a.errorQueue[1:]
+			a.render()
+		}
+		return
+	}
 	if e.ID == "activity" {
 		a.lastActivity = time.Now()
 		pulse := !a.busy && !a.background && !a.state.Locked
@@ -1020,7 +1060,7 @@ func (a *App) event(e webui.Event) {
 		for _, prefix := range []string{"stakingPool/", "stakingAmount/"} {
 			if strings.HasPrefix(key, prefix) {
 				if _, pending := a.pendingStaking(strings.TrimPrefix(key, prefix)); pending {
-					a.notice("Cancel the original prepared staking operation before changing its contract or amount.")
+					a.errorText("Edit NEAR staking operation", "Cancel the original prepared staking operation before changing its contract or amount.")
 					a.render()
 					return
 				}
@@ -1103,7 +1143,7 @@ func (a *App) event(e webui.Event) {
 	case "addTonAccount":
 		index, err := strconv.ParseUint(a.fields["tonIndex"], 10, 32)
 		if err != nil {
-			a.notice("Enter a valid TON account index.")
+			a.errorText("Recover TON profile", "Enter a valid TON account index.")
 			a.render()
 			return
 		}
@@ -1117,20 +1157,18 @@ func (a *App) event(e webui.Event) {
 	case "addAccount":
 		index, err := strconv.ParseUint(a.fields["index"], 10, 32)
 		if err != nil {
-			a.notice("Enter a valid account index.")
+			a.errorText("Add deterministic account", "Enter a valid account index.")
 			a.render()
 			return
 		}
 		a.mutation("addAccount", map[string]uint32{"index": uint32(index)})
 	case "discoverAccounts":
-		start, e1 := strconv.ParseUint(a.fields["from"], 10, 32)
-		count, e2 := strconv.ParseUint(a.fields["count"], 10, 32)
-		if e1 != nil || e2 != nil || count == 0 || start+count-1 > 4294967295 {
-			a.notice("Enter valid bounded account indexes.")
-			a.render()
+		start, end, valid := recoveryRange(a.fields["from"], a.fields["count"])
+		if !valid {
+			a.reportError("Recover deterministic accounts", ipc.NewRequestError("ACCOUNT_RECOVERY_INVALID_RANGE"))
 			return
 		}
-		a.mutation("discoverAccounts", map[string]uint32{"start": uint32(start), "end": uint32(start + count - 1)})
+		a.mutation("discoverAccounts", map[string]uint32{"start": start, "end": end})
 	case "showHidden":
 		a.fields["showHidden"] = e.Value
 		a.render()
@@ -1204,7 +1242,7 @@ func (a *App) walletEvent(action string) {
 		}
 		if !found {
 			if len(a.tabs) >= 64 {
-				a.notice("Close a wallet tab before opening another.")
+				a.errorText("Open wallet tab", "Close a wallet tab before opening another.")
 				a.render()
 				return
 			}
@@ -1299,7 +1337,7 @@ func (a *App) walletEvent(action string) {
 		limit, e3 := strconv.ParseUint(a.fields["limit"], 10, 32)
 		budget, e4 := strconv.ParseUint(a.fields["blockBudget"], 10, 32)
 		if e1 != nil || e2 != nil || e3 != nil || e4 != nil {
-			a.notice("Enter valid discovery limits.")
+			a.errorText("Discover wallet activity", "Enter valid discovery limits.")
 			a.render()
 			return
 		}
@@ -1415,7 +1453,7 @@ func trimDecimal(value string) string {
 }
 func (a *App) loadChain(id string, more bool) {
 	if more && a.chainOwner != id {
-		a.notice("Refresh this wallet's history before requesting its next page.")
+		a.errorText("Load transaction history", "Refresh this wallet's history before requesting its next page.")
 		a.render()
 		return
 	}
@@ -1471,7 +1509,7 @@ func (a *App) exchangeAction(method string, body any) {
 	if method == "exchangeSwap" || method == "exchangeDeposit" || method == "exchangeWithdraw" {
 		request, ok := body.(map[string]string)
 		if !ok {
-			a.notice("The exchange request no longer matches the selected inputs.")
+			a.errorText("Prepare exchange operation", "The exchange request no longer matches the selected inputs.")
 			a.render()
 			return
 		}
@@ -1591,6 +1629,13 @@ func (a *App) render() {
 }
 func (a *App) view() webui.View {
 	view := webui.View{Title: "CryptoWallet · " + buildinfo.Version + " · " + a.environment, Status: a.status, StatusRevision: a.statusRevision, Active: a.active, Appearance: a.appearance.Normalized()}
+	if a.statusIsError {
+		view.Status = ""
+	}
+	if len(a.errorQueue) > 0 {
+		copy := a.errorQueue[0]
+		view.ErrorNotice = &copy
+	}
 	if a.state.Locked {
 		title := "Unlock local wallet"
 		nodes := []webui.Node{heading(title)}

@@ -130,7 +130,7 @@ func (a *App) tonEvent(kind, id string) bool {
 			return
 		}
 		if !ready {
-			a.notice("This deployment preview expired or its wallet changed. Use Check pending payment in the Send form before trying again.")
+			a.errorText("Deploy TON wallet contract", "This deployment preview expired or its wallet changed. Use Check pending payment in the Send form before trying again.")
 			return
 		}
 		// The coordinator resumes an existing unsigned operation, or prepares a

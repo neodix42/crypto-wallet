@@ -149,7 +149,7 @@ func TestIdentityAndFailurePaths(t *testing.T) {
 	if err := c.Call("unlock", make(chan int), nil); err == nil {
 		t.Fatal("unencodable request accepted")
 	}
-	if err := c.Call("unlock", map[string]string{"mode": "denied"}, nil); err == nil || ipc.PublicErrorCode(err) != "REQUEST_FAILED_STATE_UNKNOWN" {
+	if err := c.Call("unlock", map[string]string{"mode": "denied"}, nil); err == nil || ipc.PublicErrorCode(err) != "REQUEST_DENIED" {
 		t.Fatal("native denial lost", err)
 	}
 	if err := c.Call("create", map[string]string{"mode": "password-policy"}, nil); err == nil || ipc.PublicErrorCode(err) != "PASSWORD_POLICY" {

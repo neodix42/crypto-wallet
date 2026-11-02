@@ -115,7 +115,7 @@ func (a *App) stakingEvent(kind, id string) bool {
 		return true
 	}
 	if pool == "" {
-		a.notice("Enter the exact staking pool contract for this NEAR network.")
+		a.errorText("NEAR staking", "Enter the exact staking pool contract for this NEAR network.")
 		a.render()
 		return true
 	}
@@ -150,7 +150,7 @@ func (a *App) stakingEvent(kind, id string) bool {
 		return true
 	}
 	if _, pending := a.pendingStaking(account.ID); pending {
-		a.notice("Review or cancel the original prepared staking operation before preparing another one.")
+		a.errorText("NEAR staking", "Review or cancel the original prepared staking operation before preparing another one.")
 		a.render()
 		return true
 	}
@@ -165,7 +165,7 @@ func (a *App) stakingEvent(kind, id string) bool {
 		value = a.fields["stakingAmount/"+account.ID]
 		parsed, err := amount.Parse(value, 24)
 		if err != nil || parsed == "0" {
-			a.notice("Enter a positive NEAR amount with at most 24 decimal places.")
+			a.errorText("NEAR staking", "Enter a positive NEAR amount with at most 24 decimal places.")
 			a.render()
 			return true
 		}

@@ -46,6 +46,6 @@ func (a *App) configureSelectedRPC() {
 			return
 		}
 	}
-	a.notice("Choose one of your wallet networks before configuring its RPC.")
+	a.errorText("Configure trusted RPC", "Choose one of your wallet networks before configuring its RPC.")
 	a.render()
 }

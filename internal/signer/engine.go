@@ -506,18 +506,6 @@ func (e *Engine) AddAccount(index uint32) error {
 	return e.addAccounts(index, index)
 }
 
-// DiscoverAccounts reconstructs a deliberately bounded, explicitly chosen range.
-// It derives canonical profiles only; associations still require verification.
-func (e *Engine) DiscoverAccounts(start, end uint32) error {
-	if e.data == nil || start > end || end >= derivation.MaxIndex || end-start >= 20 {
-		return ErrDenied
-	}
-	if !e.UI.Confirm("Recover bounded account index range", fmt.Sprintf("Canonical account indices %d through %d (inclusive). Existing identities are preserved. This derives public accounts locally; balances remain unknown until queried. Record the indices and any noncanonical associations separately. NEAR names, rotated Aptos associations and Decred address gaps need separate discovery.", start, end)) {
-		return ErrDenied
-	}
-	return e.addAccounts(start, end)
-}
-
 func (e *Engine) addAccounts(index, end uint32) error {
 	if e.data == nil || index >= derivation.MaxIndex {
 		return ErrDenied

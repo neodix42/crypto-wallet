@@ -143,7 +143,7 @@ func (a *App) accountPresentationEvent(kind, id string) bool {
 	}
 	name := strings.TrimSpace(values[0])
 	if !model.AddressBookText(name, 80, false) {
-		a.notice("Enter a name of 1–80 bytes without control or invisible characters.")
+		a.errorText("Rename account or wallet", "Enter a name of 1–80 bytes without control or invisible characters.")
 		a.render()
 		return true
 	}

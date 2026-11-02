@@ -32,8 +32,8 @@ func TestTP032OlderBackupManualRangeAndHiddenRecovery(t *testing.T) {
 	if len(e.Snapshot().Accounts) != 3*len(original) {
 		t.Fatal("missing deterministic groups")
 	}
-	if e.DiscoverAccounts(0, 2) == nil {
-		t.Fatal("duplicate discovery succeeded")
+	if e.DiscoverAccounts(0, 2) != nil {
+		t.Fatal("repeated discovery did not reuse existing accounts")
 	}
 	a := original[0]
 	if e.HideAccount("missing", true) == nil || e.HideAccount(a.ID, true) != nil || e.HideAccount(a.ID, true) != nil {

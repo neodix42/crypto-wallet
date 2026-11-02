@@ -281,6 +281,12 @@ func validEvent(v View, e Event, modal bool) bool {
 	if modal {
 		return false
 	}
+	if e.ID == "ackError" {
+		return v.ErrorNotice != nil && e.Value == v.ErrorNotice.ID
+	}
+	if v.ErrorNotice != nil {
+		return false
+	}
 	if e.ID == "tab" || e.ID == "closeTab" {
 		for _, p := range v.Pages {
 			if p.ID == e.Value {

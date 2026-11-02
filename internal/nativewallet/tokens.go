@@ -107,16 +107,16 @@ func (a *App) tokenEvent(kind, id string) bool {
 	contract := strings.TrimSpace(a.fields["tokenContract/"+id])
 	if nearTokenNetwork(account) {
 		if near.New().ValidateAddress(account.Network, contract) != nil {
-			a.notice("Enter the exact NEAR token contract account for this network.")
+			a.errorText("Track token", "Enter the exact NEAR token contract account for this network.")
 			a.render()
 			return true
 		}
 	} else if len(contract) != 42 || !strings.HasPrefix(contract, "0x") {
-		a.notice("Enter the complete ERC-20 contract address for this network.")
+		a.errorText("Track token", "Enter the complete ERC-20 contract address for this network.")
 		a.render()
 		return true
 	} else if _, err := hex.DecodeString(contract[2:]); err != nil {
-		a.notice("Enter the complete ERC-20 contract address for this network.")
+		a.errorText("Track token", "Enter the complete ERC-20 contract address for this network.")
 		a.render()
 		return true
 	}

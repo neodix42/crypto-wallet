@@ -51,7 +51,7 @@ func (a *App) trackTokenDialog(id string) {
 		if errors.Is(err, uiprompt.ErrCancelled) {
 			a.notice("Token tracking cancelled.")
 		} else {
-			a.notice("The token contract could not be read. Open Track new token to try again.")
+			a.errorText("Track token", "The token contract could not be read. Open Track new token to try again.")
 		}
 		a.render()
 		return

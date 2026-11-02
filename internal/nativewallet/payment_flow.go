@@ -12,7 +12,7 @@ import (
 func (a *App) maximumPayment(account model.Account) {
 	draft := a.paymentDraft(account)
 	if !paymentRecipientValid(account, draft.Recipient) {
-		a.notice("Enter a valid recipient first so Max can estimate the transaction fee.")
+		a.errorText("Prepare wallet payment", "Enter a valid recipient first so Max can estimate the transaction fee.")
 		a.render()
 		return
 	}
@@ -41,7 +41,7 @@ func (a *App) maximumPayment(account model.Account) {
 		}, err
 	}, func(err error) {
 		if invalidPlan {
-			a.notice(safeError(ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN")))
+			a.reportError("Prepare wallet payment", ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN"))
 			return
 		}
 		if err == nil {
@@ -69,7 +69,7 @@ func (a *App) preparePaymentDraft(account model.Account, draft model.Transfer, r
 		if message == "" {
 			message = "Enter a valid recipient and a positive amount using the selected asset’s decimal precision."
 		}
-		a.notice(message)
+		a.errorText("Prepare wallet payment", message)
 		a.render()
 		return
 	}
@@ -97,7 +97,7 @@ func (a *App) preparePaymentDraft(account model.Account, draft model.Transfer, r
 		// lost or the edited form no longer accepts the returned preview.
 		defer a.queuePendingPayments(account.ID)
 		if invalidPlan {
-			a.notice(safeError(ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN")))
+			a.reportError("Prepare wallet payment", ipc.NewRequestError("PAYMENT_QUOTE_INVALID_PLAN"))
 			return
 		}
 		if ipc.PublicErrorCode(err) == "PAYMENT_PENDING" {

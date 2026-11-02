@@ -3,13 +3,18 @@ package walletsigner
 import (
 	"errors"
 	"localwallet/internal/chains/ton"
+	"localwallet/internal/ipc"
 	"localwallet/internal/signer"
 	"localwallet/internal/uiprompt"
+	"localwallet/internal/vault"
 )
 
 // Only these categories leave the secret-bearing process. Never forward an
 // error's text, native input, selected pathname or filesystem/provider detail.
 func requestErrorCode(err error) string {
+	if code := ipc.PublicErrorCode(err); code != "" && code != "REQUEST_FAILED_STATE_UNKNOWN" {
+		return code
+	}
 	for _, entry := range []struct {
 		err  error
 		code string
@@ -20,6 +25,13 @@ func requestErrorCode(err error) string {
 		{signer.ErrPasswordMismatch, "PASSWORD_MISMATCH"},
 		{signer.ErrInvalidPhrase, "INVALID_MNEMONIC"},
 		{uiprompt.ErrCancelled, "REQUEST_CANCELLED"},
+		{signer.ErrAccountRecoveryInvalidRange, "ACCOUNT_RECOVERY_INVALID_RANGE"},
+		{signer.ErrAccountRecoveryLimit, "ACCOUNT_RECOVERY_LIMIT"},
+		{signer.ErrAccountRecoveryDerivation, "ACCOUNT_RECOVERY_DERIVATION"},
+		{signer.ErrAccountRecoveryStorage, "ACCOUNT_RECOVERY_STORAGE"},
+		{signer.ErrAccountRecoveryStale, "ACCOUNT_RECOVERY_STALE"},
+		{signer.ErrAccountRecoveryCancelled, "REQUEST_CANCELLED"},
+		{signer.ErrAccountRecoveryLocked, "WALLET_LOCKED"},
 		{signer.ErrAddressBookInvalidInput, "ADDRESS_BOOK_INVALID_INPUT"},
 		{signer.ErrAddressBookInvalidAddress, "ADDRESS_BOOK_INVALID_ADDRESS"},
 		{signer.ErrAddressBookDuplicateName, "ADDRESS_BOOK_DUPLICATE_NAME"},
@@ -28,27 +40,16 @@ func requestErrorCode(err error) string {
 		{signer.ErrAddressBookStale, "ADDRESS_BOOK_STALE"},
 		{signer.ErrAddressBookUnavailable, "ADDRESS_BOOK_UNAVAILABLE"},
 		{signer.ErrAddressBookWriteFailed, "ADDRESS_BOOK_WRITE_FAILED"},
+		{vault.ErrUnlock, "AUTHENTICATION_FAILED"},
+		{vault.ErrFormat, "STORAGE_CORRUPT"},
+		{vault.ErrFile, "STORAGE_UNAVAILABLE"},
 	} {
 		if errors.Is(err, entry.err) {
 			return entry.code
 		}
 	}
+	if code := ipc.ClassifyErrorCode(err); code != "" && code != "REQUEST_FAILED_STATE_UNKNOWN" {
+		return code
+	}
 	return "REQUEST_DENIED"
-}
-
-var failureGuidance = map[string]string{
-	"PASSWORD_POLICY":   "Use an app password of 12–4096 UTF-8 bytes. The password protects this installation and is handled locally.",
-	"INPUT_TOO_LONG":    "An input exceeds 4096 UTF-8 bytes. Shorten it in the input window.",
-	"PASSWORD_MISMATCH": "The two new password entries do not match. Enter the same app password in both password fields.",
-	"INVALID_MNEMONIC":  "Enter a valid English BIP39 recovery phrase with 12, 15, 18, 21 or 24 words. Arbitrary text is not a recovery phrase. Its checksum must also be valid.",
-}
-
-func notifyFailure(ui signer.UI, err error) {
-	message := failureGuidance[requestErrorCode(err)]
-	if message == "" {
-		return
-	}
-	if native, ok := ui.(interface{ Notice(string, string) }); ok {
-		native.Notice("Wallet request failed", message)
-	}
 }

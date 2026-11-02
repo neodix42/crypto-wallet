@@ -20,15 +20,24 @@ type Page struct {
 	ID, Title, ParentID string
 	Nodes               []Node
 }
+type ErrorNotice struct {
+	ID, Title, Operation, Code, Message string
+}
+
 type View struct {
 	Title, Status, Active, AccountGroupID string
 	StatusRevision                        uint64
 	Pages                                 []Page
 	Appearance                            Appearance
+	ErrorNotice                           *ErrorNotice `json:"ErrorNotice,omitempty"`
 }
 type Event struct{ ID, Value string }
 
 func cloneView(v View) View {
+	if v.ErrorNotice != nil {
+		copy := *v.ErrorNotice
+		v.ErrorNotice = &copy
+	}
 	pages := make([]Page, len(v.Pages))
 	copy(pages, v.Pages)
 	for i := range pages {
@@ -55,6 +64,9 @@ func plain(s string, max int) bool {
 // password/mnemonic entry into the public event channel. Secrets belong only
 // to the separately typed Prompt API, never a public declarative form.
 func validateView(v View) bool {
+	if n := v.ErrorNotice; n != nil && (n.ID == "" || !plain(n.ID, 64) || n.Title == "" || !plain(n.Title, 256) || !plain(n.Operation, 256) || n.Code == "" || !plain(n.Code, 80) || n.Message == "" || !plain(n.Message, 8192)) {
+		return false
+	}
 	if v.Appearance != (Appearance{}) && !v.Appearance.Valid() {
 		return false
 	}

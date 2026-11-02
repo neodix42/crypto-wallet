@@ -211,7 +211,7 @@ func (a *App) validateExchangeAmountAction(method string, body map[string]string
 	if message == "" || !identity {
 		message = "The amount or selected exchange asset changed. Review the current fields before continuing."
 	}
-	a.notice(message)
+	a.errorText("Exchange amount validation", message)
 	a.render()
 	return false
 }

@@ -1010,12 +1010,13 @@ class WailsNearTokenPresentation(unittest.TestCase):
         self.clock.monotonic=lambda:self.clock.now
         self.clock.sleep=lambda seconds:setattr(self.clock,'now',self.clock.now+seconds)
         self.desktop=SimpleNamespace(secret_window=mock.Mock(return_value=False),
+                                     dialog_title=mock.Mock(return_value=False),
                                      wait=mock.Mock(return_value=(17,'CryptoWallet')),
                                      focus=mock.Mock(),key=mock.Mock())
         self.status=mock.Mock(return_value=False)
         self.visible=mock.Mock(return_value='NEAR mainnet · NEAR')
         self.scope={'time':self.clock,'desktop':self.desktop,'app':None,'text':self.visible,
-                    'public_status_contains':self.status}
+                    'public_status_contains':self.status,'acknowledge_error':mock.Mock()}
         exec(compile(ast.Module(body=functions,type_ignores=[]),'near-token-public-observation','exec'),self.scope)
         self.bounds=(80,32,1440,1036)
 
@@ -1061,12 +1062,14 @@ class WailsNearTokenPresentation(unittest.TestCase):
                 self.scope['near_native_token_row'](self.native_table(),bounds)
 
     def test_real_metadata_failure_needs_explicit_error_instead_of_busy_completed_or_old_status(self):
-        self.status.side_effect=[False,False,True]
+        self.desktop.dialog_title.side_effect=[False,False,True]
         self.scope['wait_near_token_import_failure'](seconds=1)
-        self.assertEqual(self.status.call_args_list,[mock.call('Request failed or is unavailable.')]*3)
+        self.assertEqual(self.desktop.dialog_title.call_args_list,[mock.call('Operation failed')]*3)
+        self.scope['acknowledge_error'].assert_called_once_with(('NETWORK_UNAVAILABLE',),'Checking token contract',('could not be reached',))
         self.desktop.key.assert_not_called()
-        self.status.side_effect=None
-        self.status.return_value=False
+        self.status.assert_not_called()
+        self.desktop.dialog_title.side_effect=None
+        self.desktop.dialog_title.return_value=False
         self.visible.return_value='Request completed. Waiting for wallet confirmation…'
         with self.assertRaisesRegex(RuntimeError,'bounded deadline'):
             self.scope['wait_near_token_import_failure'](seconds=.3)
@@ -2824,6 +2827,10 @@ class WailsAccountLayout(unittest.TestCase):
             if kind=='unowned':anchor=(215,400)
             with self.subTest(kind=kind),self.assertRaisesRegex(RuntimeError,'pair|outline|anchor'):
                 self.scope['tab_menu_targets'](words,image,self.bounds,anchor)
+    def test_tab_divider_above_context_menu_is_not_an_alternative_owning_top_border(self):
+        rows,picture=self.menu_fixture()
+        ImageDraw.Draw(picture).line((80,140,1519,140),fill=self.scope['palette']()['border'])
+        self.assertEqual(self.scope['tab_menu_targets'](rows,picture,self.bounds,(215,139)),{'Rename':(265,171),'Delete':(260,214)})
     def recipient_fixture(self,shift=0,duplicate=False):
         rows=[self.row('Recipient',150,300,80),self.row('address',240,300,75)]
         rows += [self.row(word,150+i*42,410,35) for i,word in enumerate(('Enter','a','valid','recipient','address'))]
@@ -2865,11 +2872,49 @@ class WailsAccountLayout(unittest.TestCase):
         events.assert_not_called()
 
 
+class WailsOperationalErrorDialogs(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('observed_error_code','acknowledge_error')
+        self.scope={'re':re}
+        exec(compile(ast.Module(body=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names],type_ignores=[]),'operational-error-observation','exec'),self.scope)
+        self.code='ACCOUNT_RECOVERY_INVALID_RANGE'
+    def row(self,value,x,y,width=100):
+        return ['5','1','1','1','1','1',str(x),str(y),str(width),'18','99',value]
+    def rows(self,code=None):
+        return [self.row('Operation',20,10),self.row('failed',130,10),self.row('Operation',20,70),
+                self.row('Recover deterministic accounts',150,70,300),self.row('Code',20,110,45),
+                self.row(code or self.code,150,110,340),self.row('Reason',20,150,70),
+                self.row('Choose a count from 1 through 20. The last index must remain below 1000000.',150,150,500)]
+    def test_expected_code_must_occupy_its_exact_measured_row_with_operation_and_complete_reason(self):
+        self.assertEqual(self.scope['observed_error_code'](self.rows(),(self.code,),'Recover deterministic accounts',('1 through 20','last index')),self.code)
+        for rows in (self.rows('UNKNOWN')+[self.row(self.code,150,200,340)],
+                     [row for row in self.rows() if row[11]!='Reason'],
+                     self.rows()+[self.row('Code',20,210,45)],
+                     [row for row in self.rows() if not row[11].startswith('Choose')]):
+            with self.subTest(rows=rows),self.assertRaisesRegex(RuntimeError,'Error dialog'):
+                self.scope['observed_error_code'](rows,(self.code,),'Recover deterministic accounts',('1 through 20','last index'))
+    def test_dialog_is_reobserved_after_timeout_and_only_exact_error_is_acknowledged(self):
+        order=[]
+        desktop=SimpleNamespace(wait=mock.Mock(),dialog_title=mock.Mock(return_value=True),accept=mock.Mock(side_effect=lambda title:order.append(('accept',title))),secret_window=mock.Mock(return_value=False))
+        self.scope.update(desktop=desktop,private_rows=mock.Mock(return_value=self.rows()),time=SimpleNamespace(sleep=lambda seconds:order.append(('wait',seconds))),wait=lambda predicate,seconds:predicate(),report={})
+        self.scope['acknowledge_error']((self.code,),'Recover deterministic accounts',('1 through 20',),persistent=True)
+        self.assertEqual(order,[('wait',7.2),('accept','Operation failed')])
+        self.assertEqual(self.scope['private_rows'].call_count,2)
+        self.assertFalse(self.scope['report']['operationalErrorDialogs'][0]['rawOCRRetained'])
+    def test_unexpected_error_code_cannot_be_accepted_or_repaired_from_prose(self):
+        desktop=SimpleNamespace(wait=mock.Mock(),accept=mock.Mock())
+        self.scope.update(desktop=desktop,private_rows=mock.Mock(return_value=self.rows('UNKNOWN')),report={})
+        with self.assertRaisesRegex(RuntimeError,'expected complete'):
+            self.scope['acknowledge_error']((self.code,),'Recover deterministic accounts',('1 through 20',))
+        desktop.accept.assert_not_called()
+
+
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation, WailsIconControls, WailsAccountLayout):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation, WailsIconControls, WailsAccountLayout, WailsOperationalErrorDialogs):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

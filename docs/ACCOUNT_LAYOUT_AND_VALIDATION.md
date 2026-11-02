@@ -65,16 +65,15 @@ existing spot restriction and mainnet-only exchange policy remain.
 
 | State | Scope |
 |---|---|
-| PASS, native/controller | Full native/prompt/bridge races, group ownership/utility/close/paging tests, distinct network counts, nineteen asset precision/receive checks, immediate validation updates and exact action guards. `reports/account-layout-final-native-race.log`, `reports/account-layout-native-controls.log`. |
-| PASS, validation controls | All eight active networks and nineteen defaults, checksum/friendly-address flags, imported precision, malformed inputs, unknown assets and stale/foreign drafts. Two compiling semantic controls kill removed early preparation and recipient checks using designated runtime assertions. `reports/account-send-validation-negative-controls.json`. |
-| PASS, frontend/contract | 145 frontend tests, project TypeScript and actual Go JSON binding pass. Empty optional-field compatibility, nested multi-account tabs, retained utility context, icon placement, zero-visible-row groups and invalid raw input feedback are covered. `reports/account-groups-ui/`, `reports/account-layout-wire-contract-final.log`. |
-| PASS, aggregate/build/helpers | Complete `make test-ci`, portable build and managed installation pass. All 200 desktop helpers pass. `reports/account-layout-aggregate-final-v4.log`, `reports/account-layout-build-final-v4.log`, `reports/account-layout-helpers-final-v7.log`. |
-| HISTORICAL CHECKPOINT, earlier focused layout | Seven uninstrumented app checks pass with stable sources on final binary `016cd36927149cba4feb4ac20d94024a06f46ebffe89b815416360aba0726f2a`: header/count/table refresh, parent/child groups with distinct addresses, ETH/Base/TON action rows, network/numeric rejection and invalid-field Max alignment, header Lock and Enter unlock. `reports/account-layout-target-v4.json`. |
-| NOT_RUN, current aggregate/build/GUI | The extended account-menu/Exchange candidate needs final aggregate/build and actual updated workflows. Earlier binary/checkpoints do not pass this gate. |
-| PASS, encrypted presentation backend | Full model/vault/signer/core/walletsigner races and vet pass. Actual signed UNKNOWN artifacts survive label/archive updates and encrypted restart; next index, bounded/scoped metadata, cancelled/stale confirmations and typed dispatch are tested. `reports/account-presentation-backend-checklist.json`. |
-| PASS, economic input controls | Full native/prompt/bridge races plus four separately compiling negative controls pass with stable sources. Sell/Buy USDT/USDC rules, eligible assets, zero-API rejection, ownership and exact venue bounds are covered. `reports/account-extended-final-native-race.log`, `reports/account-input-validation-negative-controls-final.json`. |
+| PASS, controller/protocol | Full affected native/prompt/bridge/core races, exact parent context, close/paging, eight network address validators, nineteen defaults and metadata prompt routing. Actual coordinator/signer subprocess tests retain encrypted names, original signed UNKNOWN bytes and reservations through restart. `reports/account-recovery-error-native-final-race.log`, `reports/account-recovery-actual-process-race.log`. |
+| PASS, encrypted presentation/recovery | Full final signer/walletsigner races and vet; staged derivation/storage failures, exact cancellation, bounded/scoped metadata and next-index rules. `reports/account-recovery-backend-checklist.json`. |
+| PASS, input controls | Four separately compiling semantic controls pass baseline and fail their designated runtime assertions after removing Send preparation/address or Exchange pre-API/quote bindings. Final 948-file snapshot is stable. `reports/account-input-validation-negative-controls-final.json`. |
+| PASS, frontend/contract | 153 frontend tests, TypeScript and shared Go JSON contract: nested ownership, pointer/keyboard menus, input precision/alignment, oversized-input retention and complete error dialogs. `reports/account-recovery-frontend-final.log`. |
+| PASS, aggregate/build/helpers | Complete `make test-ci`, portable build/managed installation and 212 graphical-helper tests. `reports/account-recovery-aggregate-v2.log`, `reports/account-recovery-build-final.log`, `reports/account-recovery-helpers-final-v2.log`. |
+| PASS, actual extended layout | Eleven uninstrumented checks pass with stable sources on binary `b0bd995677c29cb0a4ca460397e648da98444025852fbd6afaf5d0d411187eb9`: header/table layout, distinct parent/child identities, invalid Send/Exchange inputs, field/action alignment, + next-index creation, pointer/keyboard rename, cancelled/accepted archive, encrypted restart, hidden restoration, index nonreuse and header Lock/Enter unlock. `reports/account-recovery-layout-v2.json`. A later change only renames the unrelated full-workflow close-step label. |
+| NOT_RUN, final full/TON GUI | Current full generated-root/recovery and TON profile campaigns remain pending. Earlier seven-step layout and five-step staking checkpoints on binary `016cd369…` are historical. |
 | NOT_RUN, hosted CI/publication | Exact-source hosted tests and the next release have not run. |
-| NOT_RUN, external gates | Funded public transfers, full installed physical OS/Wayland matrix and independent review. No real profile, user secrets or automatic mainnet funds are used. |
+| NOT_RUN, external gates | Funded public transfers, live exchanges, full installed physical OS/Wayland matrix and independent review. No real profile, user secrets or automatic mainnet funds are used. |
 
 The initial native assertion still expected Max enabled for an empty recipient;
 it is updated to require validation while preserving all asset/receive checks.
@@ -109,3 +108,11 @@ The following full run correctly opened Staking, but the same words in its
 heading context is now excluded, while duplicate real navigation rows still
 fail. Five focused actual staking checks pass with stable sources on the final
 application binary. This correction changes only the test driver.
+
+The first extended context-menu measurement mistook the wallet-subtab divider
+four pixels above the menu for a second top border. Numeric candidate outlines
+and a guarded public-fixture image establish the cause. The final helper requires
+both complete vertical sides below rounded corners; a regression supplies the
+extra divider explicitly. The rejected run also records a driver edit during
+execution (`sourceStable: false`), so it is not acceptance. The final eleven-step
+campaign is source-stable and changes no product UI for this driver correction.

@@ -3,10 +3,12 @@ package signer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/derivation"
 	"localwallet/internal/journal"
 	"localwallet/internal/model"
+	"localwallet/internal/uiprompt"
 	"reflect"
 	"strings"
 	"testing"
@@ -142,8 +144,8 @@ func TestPresentationCancellationForeignNamesAndChangedGenerationCannotMutate(t 
 	u.approve = false
 	before, _ := json.Marshal(e.data)
 	for _, call := range calls {
-		if call() == nil {
-			t.Fatal("cancelled presentation mutation succeeded")
+		if err := call(); !errors.Is(err, uiprompt.ErrCancelled) {
+			t.Fatal("declined presentation confirmation lost cancellation category", err)
 		}
 	}
 	after, _ := json.Marshal(e.data)
@@ -163,8 +165,8 @@ func TestPresentationCancellationForeignNamesAndChangedGenerationCannotMutate(t 
 	accountsBefore, _ := json.Marshal(e.data.Accounts)
 	for _, call := range calls {
 		e.UI = &presentationHookUI{testUI: u, hook: func() { e.data.Generation++ }}
-		if call() == nil {
-			t.Fatal("stale confirmation mutated state")
+		if err := call(); !errors.Is(err, ErrDenied) || errors.Is(err, uiprompt.ErrCancelled) {
+			t.Fatal("stale confirmation lost denial category", err)
 		}
 		if !e.data.AccountPresentation.IsZero() {
 			t.Fatal("generation change accepted metadata")
@@ -174,9 +176,23 @@ func TestPresentationCancellationForeignNamesAndChangedGenerationCannotMutate(t 
 			t.Fatal("stale confirmation changed visibility or derived accounts")
 		}
 	}
+	// A prompt returning false because its session changed must remain a
+	// failure; only a decline in the original live session is cancellation.
+	u.approve = false
+	for _, call := range calls {
+		e.UI = &presentationHookUI{testUI: u, hook: func() { e.data.Generation++ }}
+		if err := call(); !errors.Is(err, ErrDenied) || errors.Is(err, uiprompt.ErrCancelled) {
+			t.Fatal("stale cancelled prompt was reported as an ordinary decline", err)
+		}
+	}
 	e.UI = &presentationHookUI{testUI: u, hook: e.Lock}
-	if e.RenameWallet(id, "new") == nil || e.data != nil {
-		t.Fatal("lock during prompt accepted metadata")
+	if err := e.RenameWallet(id, "new"); !errors.Is(err, ErrDenied) || errors.Is(err, uiprompt.ErrCancelled) || e.data != nil {
+		t.Fatal("lock during prompt was accepted or misreported as cancellation", err)
+	}
+	for _, call := range calls {
+		if err := call(); !errors.Is(err, ErrDenied) || errors.Is(err, uiprompt.ErrCancelled) {
+			t.Fatal("locked metadata request was reported as an ordinary decline", err)
+		}
 	}
 }
 

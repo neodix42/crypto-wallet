@@ -100,9 +100,9 @@ func serve(c *ipc.Channel, engine *signer.Engine, environment string) {
 		}
 		err = respond(c, m, func() (json.RawMessage, error) {
 			body, err := handle(engine, m, environment)
-			if err != nil && promptError == nil {
-				notifyFailure(engine.UI, err)
-			}
+			// The main UI renders the returned category as one complete error
+			// dialog. A second signer Notice would delay this response and ask
+			// the user to dismiss the same failure twice.
 			if promptError != nil {
 				return nil, promptError
 			}
@@ -132,6 +132,9 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 	// otherwise accepts it into a struct without changing its zero values.
 	body := bytes.TrimSpace(m.Body)
 	if len(body) == 0 || body[0] != '{' {
+		if m.Method == "discoverAccounts" {
+			return nil, signer.ErrAccountRecoveryInvalidRange
+		}
 		return nil, signer.ErrDenied
 	}
 	var out any
@@ -284,11 +287,13 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		}
 	case "discoverAccounts":
 		var b struct {
-			Start uint32 `json:"start"`
-			End   uint32 `json:"end"`
+			Start *uint32 `json:"start"`
+			End   *uint32 `json:"end"`
 		}
-		if err = signer.DecodeBody(m.Body, &b); err == nil {
-			err = e.DiscoverAccounts(b.Start, b.End)
+		if signer.DecodeBody(m.Body, &b) != nil || b.Start == nil || b.End == nil {
+			err = signer.ErrAccountRecoveryInvalidRange
+		} else {
+			err = e.DiscoverAccounts(*b.Start, *b.End)
 		}
 		if err == nil {
 			out, err = e.SnapshotPage("")

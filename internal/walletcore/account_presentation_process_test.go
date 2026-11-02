@@ -97,8 +97,8 @@ func TestAccountPresentationThroughActualCoordinatorAndSigner(t *testing.T) {
 	}
 	confirmationTitle = "Delete wallet from visible account"
 	accepted = false
-	if _, err = call("deleteWallet", map[string]string{"accountId": target.ID}); err == nil {
-		t.Fatal("cancelled wallet archive succeeded")
+	if _, err = call("deleteWallet", map[string]string{"accountId": target.ID}); ipc.PublicErrorCode(err) != "REQUEST_CANCELLED" {
+		t.Fatal("cancelled wallet archive lost its cancellation category", err)
 	}
 	accepted = true
 	state, err = call("deleteWallet", map[string]string{"accountId": target.ID})
@@ -116,8 +116,8 @@ func TestAccountPresentationThroughActualCoordinatorAndSigner(t *testing.T) {
 	}
 	confirmationTitle = "Delete account group from visible list"
 	accepted = false
-	if _, err = call("deleteGroup", map[string]uint32{"index": 1}); err == nil {
-		t.Fatal("cancelled group archive succeeded")
+	if _, err = call("deleteGroup", map[string]uint32{"index": 1}); ipc.PublicErrorCode(err) != "REQUEST_CANCELLED" {
+		t.Fatal("cancelled group archive lost its cancellation category", err)
 	}
 	accepted = true
 	state, err = call("deleteGroup", map[string]uint32{"index": 1})

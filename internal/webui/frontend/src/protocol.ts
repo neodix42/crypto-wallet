@@ -1,4 +1,4 @@
-import type { Appearance, Node, Prompt, View } from './types';
+import type { Appearance, ErrorNotice, Node, Prompt, View } from './types';
 
 const kinds = new Set(['label', 'heading', 'separator', 'row', 'column', 'button', 'entry', 'combo', 'check', 'address', 'transactionTable', 'explorer']);
 const transactionCells = ['label', 'address', 'address', 'label', 'explorer', 'label', 'label'];
@@ -19,7 +19,11 @@ export function applyAppearance(value?: Appearance): void {
 function accountGroup(value: unknown): value is string {
   return typeof value === 'string' && /^group\/(?:0|[1-9][0-9]{0,9})$/.test(value) && Number(value.slice(6)) <= 4294967295;
 }
+export function validErrorNotice(value: unknown): value is ErrorNotice {
+  return object(value) && Object.keys(value).length === 5 && boundedText(value.ID, 64, false) && boundedText(value.Title, 256, false) && boundedText(value.Operation, 256) && boundedText(value.Code, 80, false) && boundedText(value.Message, 8192, false);
+}
 export function validView(value: unknown): value is View {
+  if (object(value) && value.ErrorNotice !== undefined && value.ErrorNotice !== null && !validErrorNotice(value.ErrorNotice)) return false;
   if (object(value) && value.AccountGroupID !== undefined && value.AccountGroupID !== '' && !accountGroup(value.AccountGroupID)) return false;
   if (object(value) && value.Appearance !== undefined && !validAppearance(value.Appearance)) return false;
   if (!object(value) || !boundedText(value.Title, 256) || !boundedText(value.Status, 65536) || !boundedText(value.Active, 256) || !Number.isSafeInteger(value.StatusRevision) || Number(value.StatusRevision) < 0 || !list(value.Pages, 1000)) return false;

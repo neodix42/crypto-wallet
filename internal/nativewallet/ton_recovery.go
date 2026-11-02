@@ -18,7 +18,7 @@ func (a *App) recoverTONProfile(index uint32, profile string) {
 		return
 	}
 	if index >= derivation.MaxIndex || profile != ton.Profile && profile != ton.ProfileSubwallet42 {
-		a.notice("Choose a supported TON profile and a valid account index.")
+		a.errorText("Recover TON profile", "Choose a supported TON profile and a valid account index.")
 		a.render()
 		return
 	}
@@ -36,7 +36,7 @@ func (a *App) recoverTONProfile(index uint32, profile string) {
 			}
 		}
 		if !alreadyOpen {
-			a.notice("Close a wallet tab before opening another TON profile.")
+			a.errorText("Recover TON profile", "Close a wallet tab before opening another TON profile.")
 			a.render()
 			return
 		}
@@ -90,8 +90,17 @@ func (a *App) recoverTONProfile(index uint32, profile string) {
 			a.notice("TON profile recovery cancelled. Existing wallets are unchanged.")
 			return
 		}
-		if err != nil || !recovered {
-			a.notice("The selected TON profile could not be opened. Recovery does not deploy a contract or send funds. Existing wallet addresses are unchanged.")
+		if err != nil {
+			code := ipc.ClassifyErrorCode(err)
+			reason := safeError(err)
+			if code == "REQUEST_FAILED_STATE_UNKNOWN" {
+				reason = "The recovery request or returned account identity could not be verified. No classified recovery reason was returned; internal details are withheld."
+			}
+			a.queueError("Recover TON profile", code, "The selected TON profile could not be opened. Recovery does not deploy a contract or send funds. Existing wallet addresses are unchanged.\n"+reason)
+			return
+		}
+		if !recovered {
+			a.errorText("Recover TON profile", "The selected TON profile could not be opened. Recovery does not deploy a contract or send funds. Existing wallet addresses are unchanged.")
 			return
 		}
 		if !opened {

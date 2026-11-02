@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Prompt, Reply } from './types';
+import type { ErrorNotice, Prompt, Reply } from './types';
+import { appendErrorNotice } from './error_notices';
+import { ErrorDialog } from './ErrorDialog';
 import { applyAppearance, inputWithinLimit, phraseWords, validPrompt } from './protocol';
 import { CopyIcon } from './icons';
 
@@ -11,9 +13,11 @@ export function PromptContents({ prompt, error, copyStatus, copying, copy }: { p
   return <div className="dialog-body">{prompt.kind === 'pending' && <fieldset className="pending-choices"><legend>Saved operations</legend>{(prompt.choices || []).map(choice => <label className="pending-choice" key={choice.id}><input type="radio" name="pending-choice" value={choice.id} required/><span><strong>{choice.label}</strong><pre>{choice.summary}</pre></span></label>)}</fieldset>}{(prompt.kind === 'input' || prompt.kind === 'publicInput') && <div className="dialog-fields">{(prompt.labels || []).map((label, index) => <label className="field" key={index}><span>{label}</span><input name={`dialog-${index}`} type={prompt.kind === 'publicInput' ? 'text' : 'password'} autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} maxLength={4096}/></label>)}</div>}{recovery && <><p className="recovery-warning">Keep these words in order. Anyone with your recovery phrase can access your wallets.</p><ol className="recovery-words">{phraseWords(prompt).map((word, index) => <li key={index} data-recovery-word><span className="word-number">{index + 1}</span><span>{word}</span></li>)}</ol><p className="dialog-note">{prompt.kind === 'recovery' ? 'Next, confirm a few words from your saved copy.' : 'This is the same recovery phrase for all your wallets.'} Keep any additional BIP39 passphrase separately.</p><div className="phrase-copy"><button type="button" disabled={copying} onClick={copy}><CopyIcon/>Copy phrase</button><p className="dialog-note">Other apps and clipboard history may retain copied words. Clear the clipboard after use; existing copies may remain.</p><p className="copy-feedback" role="status">{copyStatus}</p></div></>}{prompt.kind === 'receive' && <><div className="qr-frame"><img draggable={false} src={`data:image/png;base64,${prompt.png}`} alt="Receive address QR code"/></div><p className="dialog-note receive-address-label">Receive address</p><div className="receive-address"><code tabIndex={0}>{prompt.address}</code><button type="button" className="copy-button icon-button" title="Copy address" aria-label="Copy address" onClick={copy} disabled={copying}><CopyIcon/></button></div><p className="copy-feedback" role="status">{copyStatus}</p></>}{(prompt.kind === 'receive' || prompt.kind === 'confirm' || prompt.kind === 'notice' || prompt.kind === 'pending') && <pre className="prompt-summary">{prompt.summary}</pre>}{error && <p className="dialog-error" role="alert">{error}</p>}</div>;
 }
 
-export function DialogHost({ onError }: { onError?: (message: string) => void } = {}) {
+export function DialogHost({ onError, errorNotice, onAcknowledgeError }: { onError?: (message: string, operation?: string, code?: string) => void; errorNotice?: ErrorNotice | null; onAcknowledgeError?: (id: string) => void } = {}) {
   const [prompt, setPrompt] = useState<Prompt | null>(null), [error, setError] = useState('');
   const [copying, setCopying] = useState(false), [copyStatus, setCopyStatus] = useState('');
+  const [ownErrors, setOwnErrors] = useState<ErrorNotice[]>([]), [processingReplies, setProcessingReplies] = useState(0);
+  const nextError = useRef(0);
   const current = useRef<Prompt | null>(null), epoch = useRef(0), replying = useRef<string | null>(null), copyPending = useRef(false);
   const form = useRef<HTMLFormElement>(null), errorHandler = useRef(onError);
   errorHandler.current = onError;
@@ -26,9 +30,9 @@ export function DialogHost({ onError }: { onError?: (message: string) => void } 
     eraseDOM(); current.current = null; epoch.current++;
     copyPending.current = false; setPrompt(null); setCopying(false); setCopyStatus(''); setError('');
   };
-  const reportError = (message = unavailable) => {
-    if (errorHandler.current) errorHandler.current(message);
-    else setError(message);
+  const reportError = (message = unavailable, operation = 'Wallet dialog', code = 'DIALOG_UNAVAILABLE') => {
+    if (errorHandler.current) errorHandler.current(message, operation, code);
+    else setOwnErrors(queue => appendErrorNotice(queue, { ID: 'dialog-local-' + ++nextError.current, Title: 'Operation failed', Operation: operation, Code: code, Message: message }));
   };
   const finish = async (accepted: boolean) => {
     const active = current.current;
@@ -38,7 +42,8 @@ export function DialogHost({ onError }: { onError?: (message: string) => void } 
     const values = accepted && (active.kind === 'input' || active.kind === 'publicInput') ? Array.from(form.current?.querySelectorAll('input') || []).map(input => input.value) : accepted && active.kind === 'pending' ? [selected!] : undefined;
     if (values && !values.every(inputWithinLimit)) { values.fill(''); setError('Each field must be at most 4096 bytes.'); return; }
     const reply: Reply = { promptId: active.id, accepted, ...(values ? { values } : {}) };
-    replying.current = active.id; clear(); const sentEpoch = epoch.current;
+    replying.current = active.id; setProcessingReplies(count => count + 1); clear(); const sentEpoch = epoch.current;
+    try {
     let failed = false;
     try {
       const ok = await window.go?.webui?.DialogBridge?.Reply(reply);
@@ -52,21 +57,26 @@ export function DialogHost({ onError }: { onError?: (message: string) => void } 
     try {
       const latest = await window.go?.webui?.DialogBridge?.Snapshot();
       if (epoch.current !== sentEpoch) return;
-      if (latest === null) { reportError(); return; }
-      if (!validPrompt(latest)) { reportError(restartRequired); return; }
+      if (latest === null) { reportError(unavailable, 'Submit wallet dialog', 'DIALOG_REPLY_NOT_ACCEPTED'); return; }
+      if (!validPrompt(latest)) { reportError(restartRequired, 'Recover wallet dialog', 'INVALID_DIALOG_DATA'); return; }
       epoch.current++; current.current = latest; copyPending.current = false;
       setPrompt(latest); setCopying(false); setCopyStatus(''); setError('The previous reply was not accepted. Review and try again.');
       if (latest.appearance) applyAppearance(latest.appearance);
-    } catch { if (epoch.current === sentEpoch) reportError(restartRequired); }
+      reportError('The previous dialog reply was not accepted. Review the current dialog before retrying.', 'Submit wallet dialog', 'DIALOG_REPLY_NOT_ACCEPTED');
+    } catch { if (epoch.current === sentEpoch) reportError(restartRequired, 'Recover wallet dialog', 'DIALOG_RECOVERY_FAILED'); }
+    } finally { setProcessingReplies(count => Math.max(0, count - 1)); }
   };
   const copy = async () => {
     const active = current.current, copiedEpoch = epoch.current;
     if (!active || copyPending.current || !['receive', 'recovery', 'recoveryBackup'].includes(active.kind)) return;
-    copyPending.current = true; setCopying(true); setCopyStatus('');
+    copyPending.current = true; setCopying(true); setCopyStatus(''); setError('');
     try {
       const ok = await window.go?.webui?.DialogBridge?.Copy(active.id);
-      if (epoch.current === copiedEpoch && current.current?.id === active.id) setCopyStatus(ok === true ? active.kind === 'receive' ? 'Address copied.' : 'Recovery phrase copied.' : 'Could not copy. Try again.');
-    } catch { if (epoch.current === copiedEpoch && current.current?.id === active.id) setCopyStatus('Could not copy. Try again.'); }
+      if (epoch.current === copiedEpoch && current.current?.id === active.id) {
+        if (ok === true) setCopyStatus(active.kind === 'receive' ? 'Address copied.' : 'Recovery phrase copied.');
+        else { setError('Could not copy. Try again. Close this dialog to view the error details.'); reportError('The system clipboard did not acknowledge the copy request. No successful copy has been verified.', active.kind === 'receive' ? 'Copy receiving address' : 'Copy recovery phrase', 'CLIPBOARD_REJECTED'); }
+      }
+    } catch { if (epoch.current === copiedEpoch && current.current?.id === active.id) { setError('Could not copy. Try again. Close this dialog to view the error details.'); reportError('The copy request failed before a successful clipboard acknowledgement. Clipboard contents have not been verified.', active.kind === 'receive' ? 'Copy receiving address' : 'Copy recovery phrase', 'CLIPBOARD_REQUEST_FAILED'); } }
     finally {
       if (epoch.current === copiedEpoch) { copyPending.current = false; setCopying(false); }
     }
@@ -76,7 +86,7 @@ export function DialogHost({ onError }: { onError?: (message: string) => void } 
     const accept = (value: unknown) => {
       if (disposed) return;
       if (value === null) { clear(); return; }
-      if (!validPrompt(value)) { clear(); reportError(); return; }
+      if (!validPrompt(value)) { clear(); reportError(unavailable, 'Open wallet dialog', 'INVALID_DIALOG_DATA'); return; }
       if (current.current?.id === value.id && current.current.kind === value.kind) return;
       eraseDOM(); epoch.current++; current.current = value; copyPending.current = false;
       setPrompt(value); setError(''); setCopying(false); setCopyStatus('');
@@ -115,7 +125,11 @@ export function DialogHost({ onError }: { onError?: (message: string) => void } 
       if (previousFocus?.isConnected) previousFocus.focus();
     };
   }, [prompt?.id]);
-  if (!prompt) return error && !onError ? <p className="dialog-status-error" role="alert">{error}</p> : null;
+  if (!prompt) {
+    const notice = ownErrors[0] || errorNotice;
+    if (!notice || processingReplies) return null;
+    return <ErrorDialog notice={notice} close={id => { if (ownErrors[0]?.ID === id) setOwnErrors(queue => queue[0]?.ID === id ? queue.slice(1) : queue); else onAcknowledgeError?.(id); }}/>;
+  }
   const recovery = prompt.kind === 'recovery' || prompt.kind === 'recoveryBackup';
   const descriptions: Record<Prompt['kind'], string> = { input: 'Enter the requested information to continue.', publicInput: 'Enter the requested public information.', confirm: 'Review the details before you confirm.', notice: '', receive: 'Verify the network before sending to this address.', recovery: 'Your recovery phrase restores all your wallets.', recoveryBackup: 'Your recovery phrase backup.', pending: 'Choose a saved operation to review, or leave it for later.' };
   const buttons: Record<Prompt['kind'], string> = { input: /^unlock\b/i.test(prompt.title) ? 'Unlock' : 'Continue', publicInput: prompt.title === 'Track new token' ? 'Verify and add token' : 'Continue', confirm: 'Confirm', notice: 'Close', receive: 'Done', recovery: 'I wrote it down', recoveryBackup: 'Done', pending: 'Continue' };

@@ -7,7 +7,8 @@ export interface Node {
 }
 export interface Page { ID: string; Title: string; Nodes: Node[] | null; ParentID?: string }
 export interface Appearance { theme: 'light' | 'dark'; fontSize: number }
-export interface View { Title: string; Status: string; StatusRevision: number; Active: string; Pages: Page[] | null; Appearance?: Appearance; AccountGroupID?: string }
+export interface ErrorNotice { ID: string; Title: string; Operation: string; Code: string; Message: string }
+export interface View { Title: string; Status: string; StatusRevision: number; Active: string; Pages: Page[] | null; Appearance?: Appearance; AccountGroupID?: string; ErrorNotice?: ErrorNotice | null }
 export interface WalletEvent { ID: string; Value: string }
 export interface Prompt {
   id: string; kind: 'input' | 'publicInput' | 'confirm' | 'notice' | 'receive' | 'recovery' | 'recoveryBackup' | 'pending';

@@ -20,6 +20,8 @@ TON wallet IDs have separate receive addresses and histories. An older wallet ma
 
 Wallet balances refresh concurrently across up to four independent RPC authorities, with each result displayed as it arrives. Shared-provider rate limits still apply. TON recovery opens the selected profile and can restore an already stored hidden profile. Saved unresolved operations appear in a dialog after unlock or wallet selection; **Later** leaves their original records unchanged. [Behavior and verification checklist](docs/PARALLEL_REFRESH_AND_RECOVERY.md).
 
+**Settings → Wallet → Recover deterministic accounts** restores a bounded range of account indices. Repeating an existing range succeeds; hidden wallets and archived groups return with their stored names and original identities, and only missing wallets are derived. Choose 1–20 indices per request. Operational failures open a persistent dialog with the operation, safe error code and complete public reason. The seven-second status bar carries informational messages only. Error details exclude passwords, phrases, credential-bearing URLs and raw provider responses. [Recovery and error-handling checklist](docs/DETERMINISTIC_RECOVERY_AND_ERRORS.md).
+
 ## Download and run on Ubuntu 24.04 / 26.04
 
 Use an **amd64/x86_64 Ubuntu desktop** with an X11 or Wayland session. Install runtime prerequisites on Ubuntu **24.04 LTS** or **26.04 LTS**:

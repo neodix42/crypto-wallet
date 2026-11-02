@@ -45,6 +45,13 @@ type HTTPError struct{ Status int }
 func (e *HTTPError) Error() string {
 	return "chain RPC rejected request: HTTP " + strconv.Itoa(e.Status)
 }
+
+// TransportError keeps a cause for typed local classification without exposing
+// its URL, credentials or operating-system context through Error().
+type TransportError struct{ cause error }
+
+func (*TransportError) Error() string   { return "chain RPC unavailable" }
+func (e *TransportError) Unwrap() error { return e.cause }
 func (c *Client) Do(ctx context.Context, method, endpoint, contentType string, body []byte, out any) error {
 	if e := Endpoint(strings.Split(endpoint, "?")[0]); e != nil {
 		return e
@@ -59,7 +66,7 @@ func (c *Client) Do(ctx context.Context, method, endpoint, contentType string, b
 	req.Header.Set("Accept", "application/json")
 	resp, e := c.HTTP.Do(req)
 	if e != nil {
-		return errors.New("chain RPC unavailable")
+		return &TransportError{cause: e}
 	}
 	defer resp.Body.Close()
 	b, e := io.ReadAll(io.LimitReader(resp.Body, 2<<20+1))

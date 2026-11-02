@@ -288,7 +288,7 @@
       "id": "TP-070",
       "status": "NOT_RUN",
       "evidence": "Current uninstrumented private-X11 Electron candidate passes 26 checks; actual portable Electron Send passes seven checks against real geth in an ordinary-user loopback-only namespace. Default 12-word GUI and all-five-length component scopes remain distinct.",
-      "remaining": "Clean Ubuntu 24.04/26.04 \u00d7 X11/Wayland lock/suspend/install/upgrade/full-flow acceptance, separate physical-machine recovery and other-chain installed sending NOT_RUN; earlier container sandbox obstacles remain BLOCKED."
+      "remaining": "Clean Ubuntu 24.04/26.04 × X11/Wayland lock/suspend/install/upgrade/full-flow acceptance, separate physical-machine recovery and other-chain installed sending NOT_RUN; earlier container sandbox obstacles remain BLOCKED."
     },
     {
       "id": "TP-071",
@@ -470,8 +470,14 @@
     {
       "id": "TP118-account-layout-and-send-validation",
       "status": "NOT_RUN",
-      "evidence": "Scoped implementation: docs/ACCOUNT_LAYOUT_AND_VALIDATION.md. Parent-owned wallet subtabs, header/table controls, concise balances and nonwrapping management rows. Top account-row + uses the signer-confirmed next index after all stored/archived indices. Tab menus rename or locally archive exact owned wallets/groups; encrypted presentation metadata is separate from immutable descriptors/plan digests. Full affected backend/controller races and vet, signed UNKNOWN byte/reservation/key retention through encrypted restart, page-scoped metadata and automatic-index bounds pass. Native Send/Exchange validation uses exact network/asset and fresh venue rules before economic API work, preserving all core authorization. Four compiling negative controls and 145 frontend/TypeScript/shared-Go-JSON checks pass. Extended final aggregate/build/actual GUI and hosted evidence pending; earlier graphical checkpoints remain separate.",
-      "remaining": "Current extended candidate aggregate/build/graphical workflows, exact-source hosted CI and publication NOT_RUN. Funded public transfers, live exchange operations, full physical OS/Wayland matrix and independent review remain external gates. Delete archives local visibility only, retaining recovery identity and original operation records. Compatible syntax is not ownership/funding proof; same-format networks cannot be distinguished by address alone. No user secrets/profiles or automatic mainnet spending."
+      "evidence": "Scoped implementation: docs/ACCOUNT_LAYOUT_AND_VALIDATION.md. Parent-owned wallet subtabs, header/table controls, concise balances and nonwrapping management rows. Top account-row + uses the signer-confirmed next index after all stored/archived indices. Tab menus rename or locally archive exact owned wallets/groups; encrypted presentation metadata is separate from immutable descriptors/plan digests. Full affected backend/controller races and vet, signed UNKNOWN byte/reservation/key retention through encrypted restart, page-scoped metadata and automatic-index bounds pass. Native Send/Exchange validation uses exact network/asset and fresh venue rules before economic API work, preserving all core authorization. Four compiling negative controls and 153 frontend/TypeScript/shared-Go-JSON checks pass. Final local aggregate/build pass; extended actual GUI and hosted evidence pending; earlier graphical checkpoints remain separate.",
+      "remaining": "Current extended graphical workflows, exact-source hosted CI and publication NOT_RUN. Funded public transfers, live exchange operations, full physical OS/Wayland matrix and independent review remain external gates. Delete archives local visibility only, retaining recovery identity and original operation records. Compatible syntax is not ownership/funding proof; same-format networks cannot be distinguished by address alone. No user secrets/profiles or automatic mainnet spending."
+    },
+    {
+      "id": "TP119-deterministic-recovery-and-error-dialogs",
+      "status": "NOT_RUN",
+      "evidence": "docs/DETERMINISTIC_RECOVERY_AND_ERRORS.md. Existing-range recovery is idempotent, archived groups/hidden wallets return and only missing active-network identities are staged. Full affected backend/controller/protocol races, actual coordinator/signer encrypted recovery/restart, fixed-code/canary checks, 153 frontend checks, portable build/installation and final make test-ci pass. Six scoped source-stable actual recovery checks pass; final broader GUI and wrong-password extension remain pending. Error dialogs retain operation/code/reason until exact acknowledgement; status is informational only, and raw private/provider text is redacted.",
+      "remaining": "Final full/TON/account-menu graphical workflows, exact-source hosted CI and release verification NOT_RUN. Funded public chains, live exchanges, physical installed OS/Wayland matrix and independent review remain external gates. No user profile/secrets or automatic mainnet funds."
     }
   ]
 }

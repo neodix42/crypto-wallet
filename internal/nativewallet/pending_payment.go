@@ -113,7 +113,7 @@ func (a *App) resolvePendingPaymentExpected(account model.Account, draft *model.
 		}, err
 	}, func(err error) {
 		if invalidOperation {
-			a.notice(safeError(ipc.NewRequestError("PAYMENT_PENDING_UNAVAILABLE")))
+			a.reportError("Check original pending payment", ipc.NewRequestError("PAYMENT_PENDING_UNAVAILABLE"))
 			return
 		}
 		if err != nil || a.state.Locked || a.active != "wallet/"+account.ID {
@@ -121,7 +121,7 @@ func (a *App) resolvePendingPaymentExpected(account model.Account, draft *model.
 		}
 		if operation == nil {
 			if expectedID != "" {
-				a.notice("The selected original operation is no longer pending. No other operation was opened or sent.")
+				a.errorText("Check original pending payment", "The selected original operation is no longer pending. No other operation was opened or sent.")
 				return
 			}
 			a.notice("This wallet has no unresolved local payment.")
@@ -244,11 +244,11 @@ func (a *App) reconcilePendingPayment(account model.Account, original journal.Op
 		switch receipt.State {
 		case "CONFIRMED", "FAILED", "REPLACED", "SUBMITTED", "UNKNOWN", "REORGED":
 		default:
-			a.notice("The original transaction status could not be verified. No broadcast was requested.")
+			a.errorText("Check original pending payment", "The original transaction status could not be verified. No broadcast was requested.")
 			return
 		}
 		if receipt.Identity == "" || original.Receipt != nil && original.Receipt.Identity != "" && receipt.Identity != original.Receipt.Identity {
-			a.notice("The original transaction identity could not be verified. No broadcast was requested.")
+			a.errorText("Check original pending payment", "The original transaction identity could not be verified. No broadcast was requested.")
 			return
 		}
 		if journal.Terminal(receipt.State) {

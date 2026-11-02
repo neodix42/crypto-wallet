@@ -79,7 +79,7 @@ func (a *App) readNearTokenStorage(account model.Account, asset model.Asset) {
 			}
 			a.nearTokenStorage[key] = observation
 			if observation.Failed {
-				a.notice("Token registration is unavailable. No registration or storage deposit has been verified.")
+				a.errorText("NEAR token registration", "Token registration is unavailable. No registration or storage deposit has been verified.")
 			}
 		}, nil
 	})
@@ -108,7 +108,7 @@ func (a *App) nearTokenEvent(kind, id string) bool {
 		return true
 	}
 	if _, pending := a.nearTokenPending[id]; pending {
-		a.notice("Review or cancel the original token registration before preparing another one.")
+		a.errorText("NEAR token registration", "Review or cancel the original token registration before preparing another one.")
 		a.render()
 		return true
 	}

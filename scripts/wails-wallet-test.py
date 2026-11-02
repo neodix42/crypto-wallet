@@ -41,6 +41,7 @@ mode.add_argument("--appearance-only", action="store_true", help="Targeted actua
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
 mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and direct address copy using a public disposable phrase; no wallet opening, RPC service or payment")
 mode.add_argument("--account-layout-only", action="store_true", help="Actual account/header/wallet-child-tab layout and recipient/amount validation on a disposable public profile; no funding, successful RPC response or approval")
+mode.add_argument("--recovery-errors-only", action="store_true", help="Actual repeated/archived deterministic-account recovery and persistent full-reason error dialogs on a disposable public profile; no funds or successful RPC")
 mode.add_argument("--clipboard-only", action="store_true", help="Actual row/wallet/Receive copy buttons and selected-address keyboard shortcuts on an owned X11 display using a disposable public fixture")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
@@ -76,6 +77,8 @@ if args.main_row_copy_only:
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
 if args.account_layout_only:
     report["scope"]="Actual uninstrumented offline X11 account/header layout on a public disposable phrase: no Account group dropdown, Balance label, header network count and ordered utility/Lock icons, table Refresh icon, child wallet tabs under distinct account groups, one-row wallet actions, inline network/decimal errors with aligned recipient-book and Amount/Max controls, automatic + creation, exact tab-name pointer/keyboard rename and archive confirmations, real encrypted-metadata restart, archived-index nonreuse, disconnected Exchange decimal/slippage validation, and Enter unlock. No provider balance, USD value, token import or payment is fabricated. Numeric valuation formatting and complete all-network validators are separately covered by Go/frontend tests."
+if args.recovery_errors_only:
+    report["scope"]="Actual uninstrumented offline X11 deterministic recovery on a disposable public phrase: repeat an existing range, reject an invalid range with a persistent operation/code/reason dialog, derive a missing group, rename/archive/recover it without changing its copied identity, cancel recovery without an error, and verify encrypted restart. No RPC response, user profile, positive balance, payment or deployment is fabricated."
     report["notRun"].extend(["Successful funded graphical fee/send validation", "Provider-priced dollar valuation in GUI", "Generated-root all-wallet recovery (targeted layout mode)"])
 if args.clipboard_only:
     report["scope"]="Actual uninstrumented X11 copy buttons and Ctrl+C/Ctrl+Shift+C/Ctrl+Insert for selected public addresses in the overview, wallet tab and verified Receive window. Every operation replaces a fresh public sentinel in an independent native clipboard client; no DOM/test bridge, private recovery words or transaction. Public disposable fixture only."
@@ -518,6 +521,37 @@ def private_rows(prefix):
             for position in (6,7,8,9):fields[position]=str(int(fields[position])//3)
             rows.append(fields)
     return rows
+
+def observed_error_code(rows, expected_codes, operation, reason_fragments):
+    # Decode only the code's measured row between its exact Code/Reason
+    # labels. A matching word in the prose or another dialog cannot pass.
+    labels={name:[row for row in rows if row[11]==name] for name in ("Code","Reason")}
+    if any(len(values)!=1 for values in labels.values()):raise RuntimeError("Error dialog did not expose unique Code and Reason labels")
+    code_label,reason_label=labels["Code"][0],labels["Reason"][0]
+    top,bottom=int(code_label[7]),int(reason_label[7])
+    if bottom<=top:raise RuntimeError("Error dialog details were not ordered")
+    values=[row[11] for row in rows if int(row[6])>int(code_label[6])+int(code_label[8])+8 and top-4<=int(row[7])<bottom-4]
+    normalized=lambda value:re.sub(r"[^A-Z0-9]","",value.upper())
+    observed=normalized(" ".join(values))
+    matches=[code for code in expected_codes if normalized(code)==observed]
+    content=" ".join(" ".join(row[11] for row in rows).split()).lower()
+    if len(matches)!=1 or operation.lower() not in content or any(fragment.lower() not in content for fragment in reason_fragments):
+        raise RuntimeError("Error dialog did not show the expected complete operation, code and reason; OCR payload withheld")
+    return matches[0]
+
+def acknowledge_error(expected_codes, operation, reason_fragments=(), persistent=False):
+    desktop.wait("Operation failed",45)
+    code=observed_error_code(private_rows("Operation failed"),expected_codes,operation,reason_fragments)
+    if persistent:
+        # The info footer expires after seven seconds; operational errors must
+        # still be acknowledged explicitly after that interval.
+        time.sleep(7.2)
+        if not desktop.dialog_title("Operation failed"):raise RuntimeError("Operational error auto-hid before acknowledgement")
+        if observed_error_code(private_rows("Operation failed"),expected_codes,operation,reason_fragments)!=code:raise RuntimeError("Error identity changed while waiting for acknowledgement")
+    desktop.accept("Operation failed")
+    wait(lambda:not desktop.secret_window(),30)
+    report.setdefault("operationalErrorDialogs",[]).append({"code":code,"operation":operation,"completeReasonObserved":True,"persistedPastInfoTimeout":persistent,"rawOCRRetained":False})
+    return code
 
 def private_click(prefix, words):
     if (prefix,words) not in (("Back up recovery phrase","Copy phrase"),("Record recovery phrase","Copy phrase")):
@@ -1910,6 +1944,9 @@ def wait_near_token_import_failure(seconds=45):
     while time.monotonic()<deadline:
         if app is not None and app.poll() is not None:
             raise RuntimeError("Owned wallet exited during offline NEAR token inspection")
+        if desktop.dialog_title("Operation failed"):
+            acknowledge_error(("NETWORK_UNAVAILABLE",),"Checking token contract",("could not be reached",))
+            return
         if desktop.secret_window():
             # Escape only in our owned main window; no unexpected approval is
             # accepted or authenticated, and no private pixels are persisted.
@@ -1919,7 +1956,6 @@ def wait_near_token_import_failure(seconds=45):
         visible=text()
         if "Prepared payment" in visible or "Original prepared token registration" in visible:
             raise RuntimeError("Read-only NEAR token inspection prepared a payment or registration")
-        if public_status_contains("Request failed or is unavailable."):return
         time.sleep(.1)
     raise RuntimeError("Offline NEAR token metadata failure was not shown within its bounded deadline")
 
@@ -1949,7 +1985,6 @@ def near_tokens():
             raise RuntimeError("Track new token dialog omitted its exact-network contract input or verification action")
         desktop.inputs("Track new token",[value])
         desktop.accept("Track new token")
-        wait(lambda:not desktop.secret_window(),30)
     stage("Open and cancel plain token tracking without requesting a password or changing assets")
     click("Track new token")
     desktop.wait("Track new token",30)
@@ -1959,7 +1994,7 @@ def near_tokens():
     passed("Track new token uses an ordinary cancellable in-window contract-entry dialog")
     stage("Reject a URL as a NEAR token contract before any private approval")
     token_dialog("https://invalid.near")
-    wait(lambda:public_status_contains("Enter the exact NEAR token contract account for this network."))
+    acknowledge_error(("REQUEST_DENIED",),"Track token",("Enter the exact NEAR token contract account",))
     if desktop.secret_window():raise RuntimeError("Invalid NEAR token URL opened a private approval")
     passed("Actual token popup rejects a URL with actionable contract-account feedback and no approval dialog")
     stage("Request real offline metadata for an exact NEAR contract without fabricating an import")
@@ -2132,7 +2167,12 @@ def tab_menu_targets(rows,picture,bounds,anchor):
             bottoms=[yy for yy in range(delete[3]+3,min(y+h-31,delete[3]+28)) if all(near(xx,yy) for xx in samples)]
             for top in tops:
                 for bottom in bottoms:
-                    if 85<=bottom-top<=125:rects.append((l,top,r,bottom))
+                    # A full-width wallet-tab divider can share the menu's
+                    # border colour above its real top edge. Require both
+                    # uninterrupted owning sides below the rounded corners;
+                    # four horizontal samples alone are not a rectangle.
+                    if 85<=bottom-top<=125 and all(near(l,yy) and near(r,yy) for yy in range(top+8,bottom-7)):
+                        rects.append((l,top,r,bottom))
     if len(rects)!=1:raise RuntimeError("Tab context menu complete owning outline was ambiguous or clipped")
     return {name:((box[0]+box[2])//2,(box[1]+box[3])//2) for name,box in (("Rename",rename),("Delete",delete))}
 
@@ -2379,6 +2419,71 @@ def account_layout_campaign(secret,installation,home):
     click("Lock wallet",top=True);wait(lambda:"Unlock local wallet" in text())
     unlock_with_enter(secret)
     passed("Header Lock works from a wallet page and ordinary Enter unlock restores the account overview")
+
+def account_recovery_campaign(secret,installation,home):
+    stage("Recover existing deterministic account index zero without duplicating wallets")
+    click("Main account",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(wallet_page_visible);scroll_public(4,35)
+    main_address=request_receive_copy()
+    def recover(start,count,accept=True,invalid=False):
+        click("Settings",top=True);click_settings_subtab("Wallet");scroll_public(4,35)
+        for label,value in (("Recover indexes from",str(start)),("Number of indexes",str(count))):
+            point=scroll_to_public_words(label)
+            desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True);desktop.type(value);desktop.park_pointer();time.sleep(.2)
+        click("Recover deterministic accounts")
+        if invalid:return
+        prefix="Recover bounded account index range"
+        desktop.wait(prefix,30)
+        summary=" ".join(row[11] for row in private_rows(prefix))
+        if not re.search(r"indices\s+"+str(start)+r"\s+through\s+"+str(start+count-1)+r"\b",summary,re.I):raise RuntimeError("Recovery did not confirm the exact requested index range")
+        del summary
+        if accept:desktop.accept(prefix)
+        else:desktop.focus(desktop.wait(prefix)[0]);desktop.key("Escape")
+        wait(lambda:not desktop.secret_window(),30)
+    recover(0,1)
+    if public_tab_point("Account 2","group"):raise RuntimeError("Existing range recovery derived an unwanted second group")
+    click("Main account",top=True);click("Ethereum",top=True);wait(wallet_page_visible);scroll_public(4,35)
+    if request_receive_copy()!=main_address:raise RuntimeError("Existing account recovery changed its exact native-copied identity")
+    passed("Actual existing-range recovery confirms index zero and succeeds without duplicating wallets or changing their copied identity")
+    stage("Show invalid recovery bounds in a persistent complete error dialog")
+    recover(0,21,invalid=True)
+    acknowledge_error(("ACCOUNT_RECOVERY_INVALID_RANGE",),"Recover deterministic accounts",("1 through 20","last index"),persistent=True)
+    passed("Invalid recovery shows operation, exact safe code and full bounded-range reason in a dialog that outlives the informational timeout")
+    stage("Recover a missing index, then archive and recover the same named group")
+    recover(0,2);wait(lambda:public_tab_point("Account 2","group"))
+    click("Account 2",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(wallet_page_visible);scroll_public(4,35)
+    second_address=request_receive_copy()
+    if second_address==main_address:raise RuntimeError("New recovered index reused the first account identity")
+    rename_tab("Account 2","group","Recovery reserve")
+    delete_tab("Recovery reserve","group")
+    recover(1,1);wait(lambda:public_tab_point("Recovery reserve","group"))
+    click("Recovery reserve",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(wallet_page_visible);scroll_public(4,35)
+    if request_receive_copy()!=second_address:raise RuntimeError("Archived recovery changed the stored group's exact copied identity")
+    passed("Actual recovery derives missing wallets, restores an archived named group and retains its original copied Ethereum address")
+    stage("Cancel another bounded recovery without an error or a new group")
+    recover(2,1,accept=False)
+    wait(lambda:public_status_contains("Request cancelled."))
+    if public_tab_point("Account 3","group"):raise RuntimeError("Cancelled recovery created another account")
+    passed("User-declined recovery remains informational and creates neither an error dialog nor another account")
+    stage("Restart and unlock the recovered named account")
+    close_gracefully();launch(installation,home)
+    wait(lambda:"Unlock local wallet" in text())
+    desktop.focus(desktop.wait("CryptoWallet")[0]);desktop.key("Return")
+    desktop.wait("Unlock local wallet",30)
+    desktop.inputs("Unlock local wallet",["PUBLIC-TEST-wrong-password-only"])
+    desktop.accept("Unlock local wallet")
+    acknowledge_error(("AUTHENTICATION_FAILED",),"Unlocking wallet",("were not accepted",))
+    wait(lambda:"Unlock local wallet" in text())
+    passed("A rejected password produces one complete authentication error dialog and leaves the encrypted wallet locked")
+    unlock_with_enter(secret)
+    wait(lambda:public_tab_point("Recovery reserve","group"))
+    click("Recovery reserve",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(wallet_page_visible);scroll_public(4,35)
+    if request_receive_copy()!=second_address:raise RuntimeError("Recovered named group changed after encrypted restart")
+    report["deterministicRecovery"]={"existingRangeIdempotent":True,"invalidRangeDialog":True,"missingIndexDerived":True,"archivedGroupRestored":True,"encryptedNameRetained":True,"exactNativeClipboardIdentityRetained":True,"cancelCreatesNoGroupOrError":True,"restartVerified":True,"additionalPasswordDuringRecovery":False,"preparedOrSent":False}
+    passed("Recovered visibility, encrypted local name and original receive identity survive a real exit/restart/Unlock")
 
 def history_layout_campaign():
     stage("Check header-only utility icons, wallet-only tabs and left-side version")
@@ -3067,15 +3172,15 @@ def address_book_campaign():
     click("Save address")
     report["addressBookSaveFeedback"]["repeatObservedImmediately"]="Address saved." in text()
     wait(lambda:address_book_composer_cleared() and "Disposable recipient" in text() and address_book_use_position())
-    for kind,name,address,feedback in (
-        ("invalid-address","Invalid recipient","invalid-ethereum-address","Enter a valid address for the selected network."),
-        ("duplicate-name","Disposable recipient","0x"+"3"*40,"A contact already uses this name in this wallet."),
-        ("duplicate-recipient","Another recipient",recipient,"This address and comment are already saved in this wallet."),
+    for kind,name,address,feedback,code in (
+        ("invalid-address","Invalid recipient","invalid-ethereum-address","Enter a valid address for the selected network.","ADDRESS_BOOK_INVALID_ADDRESS"),
+        ("duplicate-name","Disposable recipient","0x"+"3"*40,"A contact already uses this name in this wallet.","ADDRESS_BOOK_DUPLICATE_NAME"),
+        ("duplicate-recipient","Another recipient",recipient,"This address and comment are already saved in this wallet.","ADDRESS_BOOK_DUPLICATE_RECIPIENT"),
     ):
         stage("Address book: reject "+kind+" with actionable feedback and retain the usable saved recipient")
         field("Name",name);field("Address",address)
         click("Save address")
-        wait(lambda:public_status_contains(feedback))
+        acknowledge_error((code,),"Saving encrypted address book",(feedback,))
         visible=text()
         if "Address book unavailable" in visible or "Disposable recipient" not in visible or not address_book_use_position():
             raise RuntimeError("Rejected address-book edit discarded its known saved row or showed a false storage failure")
@@ -3263,6 +3368,8 @@ def staking_page():
     click("Refresh staking state")
     deadline=time.monotonic()+45
     while time.monotonic()<deadline:
+        if desktop.dialog_title("Operation failed"):
+            acknowledge_error(("NETWORK_UNAVAILABLE",),"Reading staking pool account state",("could not be reached",))
         if desktop.secret_window():raise RuntimeError("Read-only staking refresh opened a private approval")
         visible=text()
         if "state is unavailable" in visible:break
@@ -3356,7 +3463,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only or args.account_layout_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only or args.account_layout_only or args.recovery_errors_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -3396,6 +3503,8 @@ try:
                 passed("Actual main-row icon copies the exact independently derived public-fixture Ethereum address")
             if args.account_layout_only:
                 account_layout_campaign(different_password,installations[0],home)
+            if args.recovery_errors_only:
+                account_recovery_campaign(different_password,installations[0],home)
             if args.clipboard_only:
                 observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
                 clipboard_campaign(observed,different_password)
@@ -3483,8 +3592,9 @@ try:
             launch(installations[1],folder/"machine-b/home")
             unlock_with_enter(different_password)
             passed("WebKitGTK restart begins locked and unlocks the restored encrypted profile")
+            account_recovery_campaign(different_password,installations[1],folder/"machine-b/home")
             close_gracefully()
-            passed("All four public window closes exit successfully within ten seconds without termination or force-kill")
+            passed("All public window closes exit successfully within ten seconds without termination or force-kill")
         for log in logs:
             log.seek(0)
             output=log.read()

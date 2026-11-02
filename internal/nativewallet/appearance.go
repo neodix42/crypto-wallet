@@ -1,6 +1,7 @@
 package nativewallet
 
 import (
+	"localwallet/internal/ipc"
 	"localwallet/internal/webui"
 	"strconv"
 )
@@ -33,7 +34,7 @@ func (a *App) changeAppearance(key, value string) {
 		return
 	}
 	if err := webui.SaveAppearance(next); err != nil {
-		a.notice("Appearance settings could not be saved. Check access to the local configuration directory.")
+		a.queueError("Save appearance settings", ipc.ClassifyErrorCode(err), "Appearance settings could not be saved. Check access to the local configuration directory.\n"+safeError(err))
 		a.render()
 		return
 	}

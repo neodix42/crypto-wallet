@@ -4,20 +4,25 @@ import (
 	"fmt"
 	"localwallet/internal/derivation"
 	"localwallet/internal/model"
+	"localwallet/internal/uiprompt"
 )
 
 // Authorization for local presentation changes never authorizes a payment.
 // Recheck the exact vault/generation after the confirmation.
 // Reversible display metadata does not require another storage password.
-func (e *Engine) approvePresentation(title, summary string) bool {
+func (e *Engine) approvePresentation(title, summary string) error {
 	if !e.canAuthorize() {
-		return false
+		return ErrDenied
 	}
 	data, generation := e.data, e.data.Generation
-	if !e.UI.Confirm(title, summary) || e.data != data || !e.canAuthorize() || e.data.Generation != generation {
-		return false
+	approved := e.UI.Confirm(title, summary)
+	if e.data != data || !e.canAuthorize() || e.data.Generation != generation {
+		return ErrDenied
 	}
-	return true
+	if !approved {
+		return uiprompt.ErrCancelled
+	}
+	return nil
 }
 func (e *Engine) AddNextAccount() error {
 	if !e.canAuthorize() {
@@ -27,9 +32,8 @@ func (e *Engine) AddNextAccount() error {
 	if !ok {
 		return ErrDenied
 	}
-	data, generation := e.data, e.data.Generation
-	if !e.UI.Confirm("Add deterministic account", fmt.Sprintf("Create canonical account index %d (after the latest stored index). Existing hidden and archived indices are not reused. This derives wallets locally and sends no transaction.", next)) || e.data != data || !e.canAuthorize() || e.data.Generation != generation {
-		return ErrDenied
+	if err := e.approvePresentation("Add deterministic account", fmt.Sprintf("Create canonical account index %d (after the latest stored index). Existing hidden and archived indices are not reused. This derives wallets locally and sends no transaction.", next)); err != nil {
+		return err
 	}
 	return e.AddAccount(next)
 }
@@ -38,8 +42,8 @@ func (e *Engine) RenameWallet(id, name string) error {
 	if err != nil || !model.AddressBookText(name, 80, false) {
 		return ErrDenied
 	}
-	if !e.approvePresentation("Rename wallet", fmt.Sprintf("Network: %s\nReceiving address: %s\nNew local name: %s\nKeys, addresses and transactions remain unchanged.", account.Network, account.Address, name)) {
-		return ErrDenied
+	if err := e.approvePresentation("Rename wallet", fmt.Sprintf("Network: %s\nReceiving address: %s\nNew local name: %s\nKeys, addresses and transactions remain unchanged.", account.Network, account.Address, name)); err != nil {
+		return err
 	}
 	if e.data.AccountPresentation.WalletLabels == nil {
 		e.data.AccountPresentation.WalletLabels = map[string]string{}
@@ -62,8 +66,8 @@ func (e *Engine) RenameGroup(index uint32, name string) error {
 	if !e.groupExists(index) || !model.AddressBookText(name, 80, false) {
 		return ErrDenied
 	}
-	if !e.approvePresentation("Rename account group", fmt.Sprintf("Account index: %d\nNew local name: %s\nAll network wallet identities and saved operations remain unchanged.", index, name)) {
-		return ErrDenied
+	if err := e.approvePresentation("Rename account group", fmt.Sprintf("Account index: %d\nNew local name: %s\nAll network wallet identities and saved operations remain unchanged.", index, name)); err != nil {
+		return err
 	}
 	if e.data.AccountPresentation.GroupLabels == nil {
 		e.data.AccountPresentation.GroupLabels = map[string]string{}
@@ -76,8 +80,8 @@ func (e *Engine) DeleteWallet(id string) error {
 	if err != nil {
 		return ErrDenied
 	}
-	if !e.approvePresentation("Delete wallet from visible account", fmt.Sprintf("Network: %s\nReceiving address: %s\nRemove this wallet from the visible account list. Keys, recovery identity, funds and all pending/signed operation records are retained. No transaction is sent. Use Show hidden wallets to restore it.", account.Network, account.Address)) {
-		return ErrDenied
+	if err := e.approvePresentation("Delete wallet from visible account", fmt.Sprintf("Network: %s\nReceiving address: %s\nRemove this wallet from the visible account list. Keys, recovery identity, funds and all pending/signed operation records are retained. No transaction is sent. Use Show hidden wallets to restore it.", account.Network, account.Address)); err != nil {
+		return err
 	}
 	return e.HideAccount(id, true)
 }
@@ -85,8 +89,8 @@ func (e *Engine) DeleteGroup(index uint32) error {
 	if !e.groupExists(index) {
 		return ErrDenied
 	}
-	if !e.approvePresentation("Delete account group from visible list", fmt.Sprintf("Account index: %d\nHide all network wallets in this group. Keys, recovery indices, funds and pending/signed operations are retained. No transaction is sent. Show hidden wallets can restore the group.", index)) {
-		return ErrDenied
+	if err := e.approvePresentation("Delete account group from visible list", fmt.Sprintf("Account index: %d\nHide all network wallets in this group. Keys, recovery indices, funds and pending/signed operations are retained. No transaction is sent. Show hidden wallets can restore the group.", index)); err != nil {
+		return err
 	}
 	for i := range e.data.Accounts {
 		if e.data.Accounts[i].Index == index {

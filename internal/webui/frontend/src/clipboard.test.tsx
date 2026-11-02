@@ -61,7 +61,7 @@ describe('direct copying of displayed public receive addresses', () => {
     else if (failure === 'synchronous throw') clipboard.mockImplementation(() => { throw new Error('SYNTHETIC-CLIPBOARD-DETAIL'); });
     else if (failure === 'missing method') delete window.runtime!.ClipboardSetText;
     else delete window.runtime;
-    await click('copyReceive/public'); expect(host.querySelector('.status-bar')!.textContent).toBe('Could not copy address. Try again.');
+    await click('copyReceive/public'); expect(host.querySelector('.status-bar')!.textContent).toBe(''); expect(host.querySelector('[role="alertdialog"]')!.textContent).toContain('Could not copy address. Try again.');
     expect(host.textContent).not.toContain('SYNTHETIC'); expect(host.textContent).not.toContain('Address copied.'); expect(bridge.Event).not.toHaveBeenCalled();
   });
   it('restarts the seven-second status timeout after every successful copy', async () => {
@@ -115,7 +115,7 @@ describe('direct copying of displayed public receive addresses', () => {
   });
   it('does not write an empty address or dispatch its copy event', async () => {
     const { clipboard, bridge } = install(overview('')); await mount(); await click('copyReceive/public');
-    expect(clipboard).not.toHaveBeenCalled(); expect(bridge.Event).not.toHaveBeenCalled(); expect(host.querySelector('.status-bar')!.textContent).toBe('Could not copy address. Try again.');
+    expect(clipboard).not.toHaveBeenCalled(); expect(bridge.Event).not.toHaveBeenCalled(); expect(host.querySelector('.status-bar')!.textContent).toBe(''); expect(host.querySelector('[role="alertdialog"]')!.textContent).toContain('Could not copy address. Try again.');
   });
   it('keeps a disabled copy button inert', async () => {
     const state = overview(); state.Pages![0].Nodes![1].Children![3].Disabled = true; const { clipboard, bridge } = install(state); await mount(); await click('copyReceive/public');

@@ -1,4 +1,5 @@
 > Historical backup-policy regression evidence: the current app uses native recovery-phrase confirmation and phrase restoration. See [PHRASE_RECOVERY.md](PHRASE_RECOVERY.md) for current behavior and executed evidence.
+> Current trusted-UI failure handling uses persistent main-window operation/code/reason dialogs, without duplicate signer notices. The status bar is informational only. See [DETERMINISTIC_RECOVERY_AND_ERRORS.md](DETERMINISTIC_RECOVERY_AND_ERRORS.md); the Electron and backup details below remain historical.
 
 # Password and backup failure analysis
 

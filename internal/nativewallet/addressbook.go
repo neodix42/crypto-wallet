@@ -173,7 +173,7 @@ func (a *App) bookWork(action string, account model.Account, revision uint64, fn
 				message = "The change could not be confirmed. Refresh address book before retrying."
 			}
 		}
-		a.notice(message)
+		a.queueError(titles[action], ipc.ClassifyErrorCode(err), message)
 	})
 }
 
@@ -185,7 +185,7 @@ func (a *App) saveBookAddress() {
 	}
 	name, address, memo := strings.TrimSpace(a.fields["bookName"]), strings.TrimSpace(a.fields["bookAddress"]), a.fields["bookMemo"]
 	if !model.AddressBookText(name, 80, false) || !model.AddressBookText(address, 256, false) || !model.AddressBookText(memo, 120, true) || memo != "" && account.Family != "ton" {
-		a.notice("Enter a name (up to 80 bytes) and a complete address for the selected network. TON comments may contain up to 120 bytes.")
+		a.errorText("Save address book contact", "Enter a name (up to 80 bytes) and a complete address for the selected network. TON comments may contain up to 120 bytes.")
 		a.render()
 		return
 	}

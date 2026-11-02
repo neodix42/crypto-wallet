@@ -972,12 +972,6 @@ func (c *core) networkContextAt(d time.Duration, epoch uint64) (context.Context,
 
 // Only fixed categories cross the public IPC boundary, including failures
 // discovered during a post-approval network recheck or broadcast.
-func publicRequestErrorCode(err error) string {
-	if errors.Is(err, ton.ErrRateLimited) {
-		return "TON_RPC_RATE_LIMITED"
-	}
-	return ipc.PublicErrorCode(err)
-}
 
 // maximumSpendable is a trusted-adapter read-only capability. Core spot totals
 // include order holds, which are visible holdings but cannot be sent.

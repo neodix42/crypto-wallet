@@ -120,6 +120,10 @@ func TestRecoverTONProfileRejectsMismatchedPublicSnapshotsAndContextualizesError
 			if a.busy || a.active != "wallet/"+current.ID || len(a.state.Accounts) != 1 || !strings.Contains(a.status, "selected TON profile could not be opened") || strings.Contains(a.status, "Balance") || strings.Contains(a.status, "pending") || strings.Contains(a.status, "private") {
 				t.Fatal("invalid recovery changed the selected wallet or produced unrelated pending guidance", a.status)
 			}
+			view := a.view()
+			if view.Status != "" || view.ErrorNotice == nil || view.ErrorNotice.Operation != "Recover TON profile" || view.ErrorNotice.Message != a.status || view.ErrorNotice.Code == "" {
+				t.Fatal("TON recovery failure was not presented as a complete error dialog")
+			}
 		})
 	}
 }
