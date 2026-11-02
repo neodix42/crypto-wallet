@@ -125,7 +125,10 @@ class Client:
             if message['method'] != 'prompt':
                 require(message['method'] == method, 'Wallet response changed its requested method')
                 if expected_error is not None:
-                    require(message.get('error') == expected_error, 'Unrecorded payment quote gained spend authority')
+                    require(bool(message.get('error')), 'Unrecorded payment quote gained spend authority')
+                    require(message.get('error') == expected_error,
+                            'Quote refusal returned an unexpected public error category')
+                    require(message.get('body') is None, 'Quote refusal contained a response payload')
                     return None
                 require(not message.get('error'), 'Wallet rejected the local payment operation')
                 return message['body']
@@ -281,7 +284,7 @@ def inside(parent_namespace, directory):
             quotes.append(dict(maximum=maximum, atomicAmount=quoted['amount'], maximumFee=quoted['maxFee']))
         # A preview ID is deliberately not a signer capability. Rejection must
         # occur without any authorization/password prompt or network write.
-        client.call('send', {'id': quoted['id']}, expected_error='REQUEST_FAILED_STATE_UNKNOWN')
+        client.call('send', {'id': quoted['id']}, expected_error='REQUEST_DENIED')
         empty_journal = client.call('history', {'accountId': ethereum['id'], 'asset': asset['id']})
         require(empty_journal['complete'] and empty_journal['operations'] == [] and
                 client.call('pendingPayment', {'accountId': ethereum['id']}) == {'operation': None} and
@@ -295,7 +298,7 @@ def inside(parent_namespace, directory):
                 int(node.rpc('eth_getTransactionCount', [node_fixture.SOURCE, 'pending']), 16) == 0,
                 'Read-only estimates changed actual geth balances or nonce')
         report['readOnlyQuotes'] = dict(quotes=quotes, journalCount=0, pendingOperation=False,
-            promptCount=0, unrecordedQuoteSendDenied=True, balancesUnchanged=True,
+            promptCount=0, unrecordedQuoteSendDenied=True, unrecordedQuoteError='REQUEST_DENIED', balancesUnchanged=True,
             nonceUnchanged=True, encryptedGenerationsUnchanged=True)
         passed('Repeated Max and exact fee quotes leave geth balances/nonces and encrypted journal unchanged; preview ID cannot sign')
         report['phase'] = 'prepare-explicit-payment'
