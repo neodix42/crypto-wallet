@@ -44,6 +44,7 @@ func (a *App) selectExchangeProvider(id string) {
 	// A lost selection acknowledgement must leave no connected view or quote
 	// authorizing a subsequent operation under an uncertain provider context.
 	a.exchange = nil
+	a.wizard = nil
 	a.quote = nil
 	a.result = ""
 	a.resultOwner = ""

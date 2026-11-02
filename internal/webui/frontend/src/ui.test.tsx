@@ -23,6 +23,28 @@ beforeEach(() => {
 afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); root = undefined; vi.useRealTimers(); });
 
 describe('public React renderer', () => {
+  it('renders four ordered wizard steps, marks only the current step and never permits skipping by click', async () => {
+    const steps = node('row', 'exchangeSteps', 'Exchange steps', '2');
+    steps.Children = ['Deposit', 'Funding → Unified', 'Swap', 'Withdraw'].map(text => node('label', '', text));
+    const emit = vi.fn(); await mount(<PublicNode node={steps} emit={emit}/>);
+    const progress = host.querySelector('ol[aria-label="Exchange progress"]')!;
+    expect([...progress.querySelectorAll('li')].map(step => step.textContent)).toEqual(['✓Deposit', '2Funding → Unified', '3Swap', '4Withdraw']);
+    expect(progress.querySelector('[aria-current="step"]')!.textContent).toContain('Funding');
+    expect(progress.querySelectorAll('.complete')).toHaveLength(1);
+    await click(progress.querySelector('li:last-child'));
+    expect(emit).not.toHaveBeenCalled();
+    expect(progress.querySelector('button')).toBeNull();
+  });
+  it('copies the shown exchange deposit address directly without a payment event and treats memo text as inert data', async () => {
+    const address = '0x' + '2'.repeat(40), emit = vi.fn();
+    const preview = node('column'); preview.Children = [node('address', '', 'Bybit deposit address', address), node('button', 'copyReceive/exchange-deposit', 'Copy address', address), node('address', '', 'Required deposit memo', '<img src=x onerror=alert(1)>')];
+    await mount(<PublicNode node={preview} emit={emit}/>);
+    expect(host.querySelector('code')!.textContent).toBe(address);
+    expect(host.querySelector('img')).toBeNull();
+    await click(host.querySelector('[data-action="copyReceive/exchange-deposit"]'));
+    expect(emit.mock.calls).toEqual([['copyReceive/exchange-deposit', address]]);
+    expect(host.textContent).toContain('<img src=x onerror=alert(1)>');
+  });
   it('renders inert public data and every node kind without injecting provider HTML', () => {
     const attack = '<img src=x onerror=alert(1)>';
     const cases = [node('label', '', attack), node('heading', '', 'Heading'), node('separator'), node('button', 'refresh', 'Refresh'), node('address', '', 'Receive address', '0x123'), node('entry', 'field/amount', 'Amount', '1'), node('check', 'field/showHidden', 'Show hidden', 'true'), node('combo', 'field/region', 'Region')];

@@ -77,6 +77,7 @@ type App struct {
 	core                                  backend
 	environment                           string
 	state                                 snapshot
+	wizard                                *exchangeWizardUI
 	networks                              []model.Network
 	marketPrices                          marketdata.Snapshot
 	marketPricesLoading                   bool
@@ -331,6 +332,7 @@ func (a *App) lock() {
 	a.balances = map[string][]model.Balance{}
 	a.balanceQueue = nil
 	a.exchange = nil
+	a.wizard = nil
 	a.clearAddressBook()
 	a.quote = nil
 	a.chain = model.HistoryPage{}
@@ -342,7 +344,8 @@ func (a *App) lock() {
 	a.background = false
 	a.active = "group/0"
 	for key := range a.fields {
-		if strings.Contains(key, "recipient") || strings.Contains(key, "amount") || strings.Contains(key, "memo") || strings.HasPrefix(key, "stakingAmount/") {
+		lower := strings.ToLower(key)
+		if strings.Contains(lower, "recipient") || strings.Contains(lower, "amount") || strings.Contains(lower, "memo") || strings.HasPrefix(key, "wizard") || key == "exchangeMode" || strings.HasPrefix(key, "stakingAmount/") {
 			delete(a.fields, key)
 		}
 	}
@@ -1069,6 +1072,9 @@ func (a *App) event(e webui.Event) {
 		if len(e.Value) <= 4096 {
 			a.fields[key] = e.Value
 		}
+		if a.wizardField(key) {
+			return
+		}
 		if strings.HasPrefix(key, "recipient/") || strings.HasPrefix(key, "amount/") || strings.HasPrefix(key, "memo/") {
 			hadPlan := a.plan != nil
 			a.plan = nil
@@ -1103,6 +1109,9 @@ func (a *App) event(e webui.Event) {
 			a.exchangeRevision++
 			a.fields["exchangeAsset"] = ""
 			a.quote = nil
+			if a.wizard != nil {
+				a.wizard.preview = nil
+			}
 			a.ensureExchangeSelection()
 			a.render()
 		}
@@ -1112,11 +1121,17 @@ func (a *App) event(e webui.Event) {
 		if key == "exchangeAsset" || key == "side" || key == "slippage" {
 			a.exchangeRevision++
 			a.quote = nil
+			if key == "exchangeAsset" && a.wizard != nil {
+				a.wizard.preview = nil
+			}
 			a.render()
 		}
 		return
 	}
 	if a.busy {
+		return
+	}
+	if a.wizardAction(e.ID) {
 		return
 	}
 	switch e.ID {
@@ -1566,6 +1581,10 @@ func (a *App) exchangeAction(method string, body any) {
 			case "exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangeSelect":
 				a.fields["exchangeProvider"] = selected
 				a.exchange = append(a.exchange[:0], result...)
+				if method == "exchangeConnect" || method == "exchangeDisconnect" {
+					a.wizard = nil
+				}
+				a.adoptExchangeWizard(result)
 				a.quote = nil
 				if method == "exchangeSelect" {
 					a.result = ""
@@ -1935,6 +1954,17 @@ func (a *App) settingsPage() []webui.Node {
 	return nodes
 }
 func (a *App) exchangePage() []webui.Node {
+	if a.selectedExchangeProvider().ID == "bybit" && a.fields["exchangeMode"] != "existing" {
+		return a.exchangeWizardPage()
+	}
+	nodes := a.legacyExchangePage()
+	if a.selectedExchangeProvider().ID == "bybit" {
+		nodes = append([]webui.Node{a.button("wizardReturn", "Return to exchange wizard", false)}, nodes...)
+	}
+	return nodes
+}
+
+func (a *App) legacyExchangePage() []webui.Node {
 	var connection struct {
 		Connected bool   `json:"connected"`
 		Provider  string `json:"provider"`

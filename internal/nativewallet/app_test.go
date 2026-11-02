@@ -425,11 +425,14 @@ func TestNativeControllerExchangeAndWalletContextsStaySeparate(t *testing.T) {
 	if strings.Contains(viewText(a.walletPage(account)), a.result) {
 		t.Fatal("exchange result appeared in unrelated wallet tab")
 	}
-	for _, id := range []string{"exchangeDeposit", "exchangeSwap", "exchangeWithdraw"} {
+	for _, id := range []string{"wizardDeposit", "wizardMove", "wizardSwap", "wizardWithdraw"} {
 		n, ok := findNode(a.exchangePage(), id)
-		if !ok || !n.Disabled {
+		if ok && !n.Disabled {
 			t.Fatal("disconnected exchange mutation enabled")
 		}
+	}
+	if n, ok := findNode(a.exchangePage(), "wizardDeposit"); !ok || !n.Disabled {
+		t.Fatal("disconnected wizard deposit gate missing")
 	}
 }
 

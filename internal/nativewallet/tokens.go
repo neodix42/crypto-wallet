@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/chains/near"
+	"localwallet/internal/chains/ton"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
 	"strconv"
@@ -57,10 +58,9 @@ func exchangeAssetAllowed(account model.Account, asset model.Asset) bool {
 	if account.Family == "near" {
 		return asset.ID == account.Network+":native" && asset.Contract == ""
 	}
-	// New wallet defaults do not add an exchange's jetton or Core spot route.
-	// Those ledgers need separately reviewed provider metadata and fee policies.
+	// Only the pinned canonical USDT jetton has a reviewed exchange route.
 	if account.Family == "ton" {
-		return asset.ID == account.Network+":TON" && asset.Contract == ""
+		return asset.ID == account.Network+":TON" && asset.Contract == "" || account.Network == "ton-mainnet" && asset.ID == "ton-mainnet:USDT" && asset.Symbol == "USDT" && asset.Decimals == 6 && asset.Contract == ton.USDTMaster
 	}
 	if account.Family == "hypercore" {
 		return strings.HasPrefix(asset.ID, account.Network+":HYPE:") && asset.Symbol == "HYPE"

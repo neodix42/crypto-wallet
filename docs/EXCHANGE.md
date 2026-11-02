@@ -1,6 +1,7 @@
 # Exchange
 
-Current deposit/navigation correction: [Exchange tabs and deposit diagnostics](EXCHANGE_DEPOSIT_DIAGNOSTICS.md).
+Current Bybit interface: [four-step wizard, deposit preview and evidence](EXCHANGE_WIZARD.md).
+Earlier deposit/navigation correction: [Exchange tabs and deposit diagnostics](EXCHANGE_DEPOSIT_DIAGNOSTICS.md).
 The header icon opens a tab beside account names. On-chain deposits use their
 own authenticated network/address preflight and wallet approval; they do not
 require spot balances, market access or trading-fee queries. Read failures show
@@ -16,24 +17,24 @@ The wallet controls local private keys. **Bybit controls funds deposited into it
 
 ## Wallets and asset selection
 
-The mainnet registry has eight network wallets and ten pinned asset identities:
+The mainnet registry has eight networks and nineteen default asset identities. Venue routes are checked separately for each exact token/network:
 
 | Network wallet | Assets |
 | --- | --- |
-| Ethereum | ETH and pinned USDT ERC-20 |
-| HyperEVM | Native HYPE |
-| HyperCore | Spot HYPE in its separate ledger |
-| NEAR | Native NEAR |
+| Ethereum | ETH, pinned USDT and USDC ERC-20 |
+| HyperEVM | HYPE and native USDC |
+| HyperCore | Spot HYPE and USDC in its separate ledger |
+| NEAR | Native NEAR; custom NEP-141 tokens do not gain exchange routes |
 | Aptos | Native APT |
-| Base | ETH and canonical ZEN ERC-20 |
-| Decred | Native DCR |
-| TON | Native TON under the existing BIP39/V5R1 profile |
+| Base | ETH, canonical ZEN, bridged USDT and native USDC |
+| Arbitrum One | ETH, ARB, USDT0 and native USDC |
+| TON | GRAM and canonical USDT jetton under existing BIP39/V5R1 profiles |
 
-Ethereum USDT uses contract `0xdAC17F958D2ee523a2206206994597C13D831ec7`, six decimals and Ethereum chain ID 1. It uses the same Ethereum account and needs **Ethereum ETH for gas**. [Tether's official integration guidelines](https://tether.to/en/supported-protocols/) identify the contract and its legacy empty transfer return. This feature adds no TON USDT jetton, USDT on another wallet network or arbitrary token support.
+Ethereum USDT uses contract `0xdAC17F958D2ee523a2206206994597C13D831ec7`, six decimals and Ethereum chain ID 1. It uses the same Ethereum account and needs **Ethereum ETH for gas**. [Tether's official integration guidelines](https://tether.to/en/supported-protocols/) identify the contract and its legacy empty transfer return. See [default stablecoins](DEFAULT_STABLECOINS.md) for other networks’ independent pinned identities. Bybit’s reviewed TON-USDT route checks the full canonical jetton master. The pinned Arbitrum USDT0 maps to the Bybit USDT ledger while retaining its immutable wallet ID/contract. Custom tokens do not gain exchange routes.
 
 The asset selector displays the asset name. **Token contract** is separate metadata identifying an EVM token's issuing contract, not an owned wallet address. HyperCore spot assets use **Token identifier** rather than an ERC-20 contract label. For example, an Ethereum receive address such as `0x73410EA1FcbE1b8bCA883762dC56beF46403A469` identifies a wallet account, while USDT's `0xdAC17F958D2ee523a2206206994597C13D831ec7` identifies the shared Tether contract. ETH and supported Ethereum USDT for the same account use the same owned receive address. The app labels the selected wallet address separately; choose Ethereum at the sender and never send to the token contract as a deposit destination. This example does not verify ownership of the example address.
 
-A supported local wallet asset does not guarantee a Bybit deposit/withdrawal network or active USDT/USDC spot pair. The backend queries the selected service, matches full native/token/network identity and rejects ambiguous or suspended routes. A shared EVM address or ticker does not identify a network. HyperCore is never inferred from HyperEVM; unsupported routes and unmatched Decred exchange routes stay unavailable while the original wallets remain present. No implicit bridge is created.
+A supported local wallet asset does not guarantee a Bybit deposit/withdrawal network or active USDT/USDC spot pair. The backend queries the selected service, matches full native/token/network identity and rejects ambiguous or suspended routes. A shared EVM address or ticker does not identify a network. HyperCore is never inferred from HyperEVM; unsupported or ambiguous routes stay unavailable without altering local wallet support. No implicit bridge is created.
 
 ## Connect a Bybit account
 
@@ -52,7 +53,7 @@ The ordinary portfolio receives status and a key suffix. It cannot read the key,
 
 ## Deposit
 
-Choose the source wallet/network and wallet asset, enter an exact amount and select **Deposit**. A market refresh is optional for this operation. The backend obtains fresh authenticated coin/network metadata and the matching Bybit master-account deposit address, then builds an ordinary wallet transfer. It does not query exchange balances, spot pairs/prices or trading fees. Go checks complete network/token identity, deposit minimum, destination, amount, native fee and applicable memo before the existing approval/password/signing process. Tokens require their network's native gas. A TON deposit includes the returned account memo in the actual TON payment; an absent required memo is rejected.
+Choose the source wallet/network and wallet asset, enter an exact amount and select **Deposit**. The wizard requires a fresh displayed deposit destination; a spot-market quote is unnecessary for deposit. The backend obtains fresh authenticated coin/network metadata and the matching Bybit master-account deposit address, then builds an ordinary wallet transfer. It does not query exchange balances, spot pairs/prices or trading fees. Go checks complete network/token identity, deposit minimum, destination, amount, native fee and applicable memo before the existing approval/password/signing process. Tokens require their network's native gas. A TON deposit includes the returned memo in the actual TON payment. An explicitly empty memo is accepted for a unique address; missing/null memo data is rejected.
 
 The deposit-address API provides a token-contract suffix. That suffix can corroborate the already matched full coin-info contract; it cannot identify the token by itself. A wrong chain, contract, memo or suspended route prevents sending.
 

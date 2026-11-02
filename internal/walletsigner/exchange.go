@@ -2,6 +2,7 @@ package walletsigner
 
 import (
 	"encoding/json"
+	"localwallet/internal/exchange"
 	"localwallet/internal/exchange/bybit"
 	"localwallet/internal/signer"
 	"localwallet/internal/strictjson"
@@ -13,6 +14,24 @@ func handleExchange(e *signer.Engine, method string, raw json.RawMessage) (json.
 	var out any
 	var err error
 	switch method {
+	case "exchangeWizardCancel":
+		var in struct {
+			ID strictjson.Text `json:"id"`
+		}
+		if err = signer.DecodeBody(raw, &in); err == nil {
+			err = e.CancelExchangeWizardOperation(string(in.ID))
+		}
+		if err == nil {
+			out, err = e.ExchangeStatus()
+		}
+	case "exchangeWizardSave":
+		var in exchange.WizardState
+		if err = signer.DecodeBody(raw, &in); err == nil {
+			err = e.SaveExchangeWizard(in)
+		}
+		if err == nil {
+			out, err = e.ExchangeStatus()
+		}
 	case "exchangeStatus", "exchangeDisconnect":
 		err = signer.DecodeBody(raw, &struct{}{})
 		if err == nil && method == "exchangeDisconnect" {

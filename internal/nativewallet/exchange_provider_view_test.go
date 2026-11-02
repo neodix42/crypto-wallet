@@ -90,11 +90,14 @@ func TestLostOrMismatchedExchangeSelectionLeavesNoUsableCachedConnection(t *test
 			if a.selectedExchangeProvider().ID != "bybit" || a.exchange != nil || a.quote != nil {
 				t.Fatal("uncertain selection retained stale provider authority")
 			}
-			for _, id := range []string{"exchangeDeposit", "exchangeSwap", "exchangeWithdraw"} {
+			for _, id := range []string{"wizardDeposit", "wizardMove", "wizardSwap", "wizardWithdraw"} {
 				n, ok := findNode(a.exchangePage(), id)
-				if !ok || !n.Disabled {
+				if ok && !n.Disabled {
 					t.Fatal("uncertain provider enabled funding action", id)
 				}
+			}
+			if n, ok := findNode(a.exchangePage(), "wizardDeposit"); !ok || !n.Disabled {
+				t.Fatal("initial wizard funding gate missing")
 			}
 		})
 	}

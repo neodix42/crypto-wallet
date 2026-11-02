@@ -253,6 +253,7 @@ func TestCancelledTokenImportDoesNotInstallMetadataOrChangeWalletKeys(t *testing
 
 func TestImportedERC20WalletAssetsCannotBeOfferedAsReviewedBybitRoutes(t *testing.T) {
 	a, _, _ := fixture(t)
+	a.fields["exchangeMode"] = "existing"
 	account, usdc, dai := tokenFixture(t, a)
 	a.fields["exchangeAccount"], a.fields["exchangeAsset"] = account.ID, usdc.ID
 	a.exchange = json.RawMessage(`{"connected":true}`)

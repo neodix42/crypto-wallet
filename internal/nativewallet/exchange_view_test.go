@@ -51,6 +51,7 @@ func TestExchangeHumanReadableStatusQuoteAndOriginalReconcileWithoutJSONDump(t *
 	a, _, _ := fixture(t)
 	a.exchange = json.RawMessage(`{"connected":true,"endpoint":"https://api.bybit.com","message":"Public connected","operations":[{"id":"original-id","kind":"spot","state":"UNKNOWN"}],"debugDump":"must-not-render"}`)
 	a.quote = json.RawMessage(`{"symbol":"ETHUSDC","coin":"ETH","quoteCoin":"USDC","side":"Buy","lastPrice":"2500.123456","bidPrice":"2500","askPrice":"2501","feeRate":"0.001","observedAt":"public-time","balances":[{"accountType":"UNIFIED","coin":"USDC","available":"50.25"}],"route":{"supported":true,"chain":"ETH","minWithdraw":"0.001","withdrawFee":"0.0001","withdrawPercentageFee":"0"}}`)
+	a.fields["exchangeMode"] = "existing" // Existing balances retain their separately available controls.
 	page := a.exchangePage()
 	text := viewText(page)
 	if strings.Contains(text, "must-not-render") || strings.Contains(text, `\"connected\"`) || strings.Contains(text, `\"lastPrice\"`) {

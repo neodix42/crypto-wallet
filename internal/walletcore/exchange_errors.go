@@ -16,6 +16,10 @@ func exchangeReadFailure(stage string, err error) error {
 		return ipc.NewRequestError(code)
 	}
 	var api *bybit.APIError
+	var metadata *bybit.CoinMetadataError
+	if stage == "COIN" && errors.As(err, &metadata) && metadata != nil {
+		code = "METADATA_" + metadata.Field
+	}
 	if errors.As(err, &api) && api != nil && api.HTTPStatus == 0 && api.Code != 0 {
 		code = "BYBIT_" + strconv.FormatInt(api.Code, 10)
 	}

@@ -116,7 +116,7 @@ func methodFixtures() []methodFixture {
 		}},
 		{"withdraw", `{"id":"withdrawal1"}`, func(c *Client) error { _, e := c.Withdraw(ctx, fixtureWithdrawal()); return e }},
 		{"withdrawstatus", `{"rows":[{"withdrawId":"withdrawal1","coin":"ETH","chain":"ETH","amount":"0.1","withdrawFee":"0.0002","status":"success","toAddress":"0x1111111111111111111111111111111111111111","tag":"","withdrawType":0,"txID":"0xabcdef"}],"nextPageCursor":""}`, func(c *Client) error { _, e := c.WithdrawalRecords(ctx, "ETH", "withdrawal1", ""); return e }},
-		{"depositstatus", `{"rows":[{"id":"deposit1","coin":"TON","chain":"TON","amount":"1.234567891","txID":"abcdef1234","status":3,"toAddress":"EQpublicSyntheticAddress","tag":"1234567","successAt":"1700000000000","confirmations":"64"}],"nextPageCursor":""}`, func(c *Client) error { _, e := c.DepositRecords(ctx, "TON", "abcdef1234", ""); return e }},
+		{"depositstatus", `{"rows":[{"id":"deposit1","coin":"TON","chain":"TON","amount":"1.234567891","txID":"abcdef1234","status":3,"toAddress":"EQpublicSyntheticAddress","tag":"1234567","successAt":"1700000000000","confirmations":"64","depositType":"0","travelRuleStatus":0}],"nextPageCursor":""}`, func(c *Client) error { _, e := c.DepositRecords(ctx, "TON", "abcdef1234", ""); return e }},
 	}
 }
 

@@ -24,7 +24,8 @@ import (
 // Real client wire/TLS and real signer/vault evidence have separate tests.
 const exchangeChildBranches = `
  elif method=='exchangeStatus':
-  output={'connected':state.get('exchangeConnected',True),'endpoint':state.get('exchangeEndpoint','https://api.bybit.com'),'credentialId':'fixture-credential','keySuffix':'1234','operations':state.get('exchangeOps',[]),'operationCount':len(state.get('exchangeOps',[]))}
+  output={'connected':state.get('exchangeConnected',True),'endpoint':state.get('exchangeEndpoint','https://api.bybit.com'),'credentialId':'fixture-credential','keySuffix':'1234','operations':state.get('exchangeOps',[]),'operationCount':len(state.get('exchangeOps',[])),'wizard':state.get('wizard')}
+ elif method=='exchangeWizardSave':state['wizard']=body;output={'wizard':body,'operations':state.get('exchangeOps',[])}
  elif method=='exchangeConnect':state['exchangeConnected']=True;state['exchangeEndpoint']=body['endpoint'];output={}
  elif method=='exchangeDisconnect':state['exchangeConnected']=False;output={}
  elif method=='exchangePrepare':
@@ -38,6 +39,9 @@ const exchangeChildBranches = `
   for field in ['lastPrice','fee','feeCoin','chainType','contractAddress']:
    if field in body:output[field]=body[field]
   state.setdefault('exchangeOps',[]).append(output)
+  if body.get('wizardId'):
+   state['wizard'][{'transfer':'transferOperation','swap':'swapOperation','withdraw':'withdrawOperation'}[kind]]=ident
+   if kind=='transfer':state['wizard']['transferAmount']=payload['amount']
  elif method=='exchangeAuthorize':
   output=next(o for o in state.get('exchangeOps',[]) if o['id']==body['id']);output['state']='AUTHORIZED'
   if 'authorizationPayloadOverride' in state:output['payload']=state['authorizationPayloadOverride']

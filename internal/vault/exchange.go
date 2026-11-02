@@ -18,6 +18,8 @@ type ExchangeData struct {
 	SelectedProvider    string                 `json:"selectedProvider,omitempty"`
 	ProviderCredentials []*ExchangeCredentials `json:"providerCredentials,omitempty"`
 	Operations          []ExchangeOperation    `json:"operations"`
+	Wizard              *exchange.WizardState  `json:"wizard,omitempty"`
+	WizardCredentialID  string                 `json:"wizardCredentialId,omitempty"`
 }
 type ExchangeCredentials struct {
 	Provider   string `json:"provider,omitempty"`
@@ -108,6 +110,8 @@ func (d *ExchangeData) Destroy() {
 	}
 	d.ProviderCredentials = nil
 	d.Operations = nil
+	d.Wizard = nil
+	d.WizardCredentialID = ""
 }
 
 // ExchangeDigest authenticates the immutable approval intent. Status and the
@@ -144,6 +148,9 @@ func validateExchange(d *ExchangeData, accounts map[string]bool) error {
 		return nil
 	}
 	if len(d.Operations) > 1000 {
+		return ErrFormat
+	}
+	if d.Wizard == nil && d.WizardCredentialID != "" || d.Wizard != nil && (!d.Wizard.Valid() || !exchangeHex(d.WizardCredentialID, 64) || !accounts[d.Wizard.SourceAccount] || d.Wizard.TradeAccount != "" && !accounts[d.Wizard.TradeAccount] || d.Wizard.WithdrawAccount != "" && !accounts[d.Wizard.WithdrawAccount]) {
 		return ErrFormat
 	}
 	if _, ok := exchange.ProviderByID(d.SelectedProvider); !ok || len(d.ProviderCredentials) > 2 {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -187,38 +188,83 @@ func (c *Client) APIKeyInfo(ctx context.Context) (APIKeyInformation, error) {
 }
 
 func (c *Client) CoinInfo(ctx context.Context, coin string) (Coin, error) {
+	return c.coinInfo(ctx, coin, false)
+}
+
+// Deposit metadata does not authorize a withdrawal. Unknown withdrawal fees
+// or limits must not prevent an independently verified on-chain deposit, and
+// are never replaced by zero/unlimited defaults.
+func (c *Client) CoinInfoForDeposit(ctx context.Context, coin string) (Coin, error) {
+	return c.coinInfo(ctx, coin, true)
+}
+
+func (c *Client) coinInfo(ctx context.Context, coin string, depositOnly bool) (Coin, error) {
+	var raw json.RawMessage
 	var result struct {
 		Rows []Coin `json:"rows"`
 	}
-	if e := c.get(ctx, "/v5/asset/coin/query-info", url.Values{"coin": {coin}}, true, &result); e != nil {
+	if e := c.get(ctx, "/v5/asset/coin/query-info", url.Values{"coin": {coin}}, true, &raw); e != nil {
 		return Coin{}, e
+	}
+	var shape struct {
+		Rows []struct {
+			Chains []json.RawMessage `json:"chains"`
+		} `json:"rows"`
+	}
+	if json.Unmarshal(raw, &result) != nil || json.Unmarshal(raw, &shape) != nil {
+		return Coin{}, &CoinMetadataError{Field: "IDENTITY"}
 	}
 	if len(result.Rows) != 1 || result.Rows[0].Coin != coin || !boundedText(result.Rows[0].Name, 120, false) || len(result.Rows[0].Chains) == 0 || len(result.Rows[0].Chains) > 128 {
 		return Coin{}, ErrInvalidResponse
 	}
 	seen := map[string]bool{}
-	for _, chain := range result.Rows[0].Chains {
-		if !identifier(chain.Chain, 40) || seen[chain.Chain] || !boundedText(chain.ChainType, 120, false) || (chain.ChainDeposit != "0" && chain.ChainDeposit != "1") || (chain.ChainWithdraw != "0" && chain.ChainWithdraw != "1") || !decimal(chain.DepositMin, false) || !decimal(chain.WithdrawMin, false) || (chain.WithdrawFee != "" && !decimal(chain.WithdrawFee, false)) || !decimal(chain.WithdrawPercentageFee, false) || !boundedText(chain.ContractAddress, 256, true) {
-			return Coin{}, ErrInvalidResponse
+	result.Rows[0].InvalidChains = map[string]string{}
+	validCount := 0
+	for i, chain := range result.Rows[0].Chains {
+		if !required(shape.Rows[0].Chains[i], "chain", "chainType", "contractAddress") {
+			return Coin{}, &CoinMetadataError{Field: "IDENTITY"}
 		}
-		precision, e := strconv.ParseUint(chain.MinAccuracy, 10, 8)
-		if e != nil || precision > 36 || strconv.FormatUint(precision, 10) != chain.MinAccuracy || (chain.WithdrawMax != "-1" && !decimal(chain.WithdrawMax, false)) {
-			return Coin{}, ErrInvalidResponse
+		if !identifier(chain.Chain, 40) || !boundedText(chain.ChainType, 120, false) || !boundedText(chain.ContractAddress, 256, true) {
+			return Coin{}, &CoinMetadataError{Field: "IDENTITY"}
 		}
-		for _, count := range []string{chain.Confirmation, chain.SafeConfirmNumber} {
-			if _, e := chainutil.Uint(count, 64); e != nil {
-				return Coin{}, ErrInvalidResponse
-			}
+		if seen[chain.Chain] {
+			return Coin{}, &CoinMetadataError{Field: "DUPLICATE_CHAIN"}
 		}
 		seen[chain.Chain] = true
+		field := ""
+		switch {
+		case chain.ChainDeposit != "0" && chain.ChainDeposit != "1" || !depositOnly && chain.ChainWithdraw != "0" && chain.ChainWithdraw != "1":
+			field = "FLAGS"
+		case !decimal(chain.DepositMin, false):
+			field = "DEPOSIT_LIMIT"
+		case !depositOnly && (!decimal(chain.WithdrawMin, false) || (chain.WithdrawFee != "" && !decimal(chain.WithdrawFee, false)) || !decimal(chain.WithdrawPercentageFee, false) || chain.WithdrawMax != "-1" && !decimal(chain.WithdrawMax, false)):
+			field = "WITHDRAWAL_LIMIT"
+		}
+		precision, e := strconv.ParseUint(chain.MinAccuracy, 10, 8)
+		if field == "" && (e != nil || precision > 36 || strconv.FormatUint(precision, 10) != chain.MinAccuracy) {
+			field = "PRECISION"
+		}
+		for _, count := range []string{chain.Confirmation, chain.SafeConfirmNumber} {
+			if _, e := chainutil.Uint(count, 64); field == "" && e != nil {
+				field = "CONFIRMATIONS"
+			}
+		}
+		if field != "" {
+			result.Rows[0].InvalidChains[chain.Chain] = field
+		} else {
+			validCount++
+		}
+	}
+	if validCount == 0 {
+		return Coin{}, &CoinMetadataError{Field: result.Rows[0].InvalidChains[result.Rows[0].Chains[0].Chain]}
 	}
 	return result.Rows[0], nil
 }
 
 func (c *Client) DepositAddress(ctx context.Context, coin, chain string) (Deposit, error) {
 	var result struct {
-		Coin   string    `json:"coin"`
-		Chains []Deposit `json:"chains"`
+		Coin   string            `json:"coin"`
+		Chains []json.RawMessage `json:"chains"`
 	}
 	if e := c.get(ctx, "/v5/asset/deposit/query-address", url.Values{"coin": {coin}, "chainType": {chain}}, true, &result); e != nil {
 		return Deposit{}, e
@@ -226,7 +272,11 @@ func (c *Client) DepositAddress(ctx context.Context, coin, chain string) (Deposi
 	if result.Coin != coin || len(result.Chains) != 1 {
 		return Deposit{}, ErrInvalidResponse
 	}
-	d := result.Chains[0]
+	var d Deposit
+	if !required(result.Chains[0], "chain", "chainType", "addressDeposit", "tagDeposit", "contractAddress", "batchReleaseLimit") || json.Unmarshal(result.Chains[0], &d) != nil {
+		return Deposit{}, ErrInvalidResponse
+	}
+	d.MemoPresent = true
 	if d.Chain != chain || !boundedText(d.Address, 256, false) || !boundedText(d.Tag, 120, true) || !boundedText(d.ChainType, 120, false) || !boundedText(d.ContractAddress, 256, true) || (d.BatchReleaseLimit != "-1" && !decimal(d.BatchReleaseLimit, false)) {
 		return Deposit{}, ErrInvalidResponse
 	}
@@ -422,20 +472,52 @@ func (c *Client) WithdrawalRecords(ctx context.Context, coin, id, cursor string)
 	return r, nil
 }
 func (c *Client) DepositRecords(ctx context.Context, coin, txID, cursor string) (DepositPage, error) {
-	var r DepositPage
+	var raw struct {
+		Rows           []json.RawMessage `json:"rows"`
+		NextPageCursor string            `json:"nextPageCursor"`
+	}
+	r := DepositPage{Rows: []DepositRecord{}}
 	q := url.Values{"coin": {coin}, "txID": {txID}, "limit": {"50"}}
-	if e := c.get(ctx, "/v5/asset/deposit/query-record", cursorQuery(q, cursor), true, &r); e != nil {
+	if e := c.get(ctx, "/v5/asset/deposit/query-record", cursorQuery(q, cursor), true, &raw); e != nil {
 		return r, e
 	}
-	if r.Rows == nil || len(r.Rows) > 50 || !validCursor(r.NextPageCursor) || (r.NextPageCursor != "" && r.NextPageCursor == cursor) {
+	r.NextPageCursor = raw.NextPageCursor
+	if raw.Rows == nil || len(raw.Rows) > 50 || !validCursor(r.NextPageCursor) || (r.NextPageCursor != "" && r.NextPageCursor == cursor) {
 		return DepositPage{}, ErrInvalidResponse
 	}
 	seen := map[string]bool{}
-	for _, d := range r.Rows {
-		if d.Coin != coin || d.TxID != txID || !identifier(d.ID, 128) || seen[d.ID] || !identifier(d.Chain, 40) || !decimal(d.Amount, true) || !boundedText(d.ToAddress, 256, false) || !boundedText(d.Tag, 120, true) || d.Status < 0 || d.Status > 100 || (d.DepositFee != "" && !decimal(d.DepositFee, false)) || !boundedText(d.SuccessAt, 32, true) || !boundedText(d.Confirmations, 64, true) || !boundedText(d.DepositType, 16, true) || d.TravelRuleStatus < 0 || d.TravelRuleStatus > 3 {
+	for _, row := range raw.Rows {
+		var d DepositRecord
+		if !required(row, "id", "coin", "chain", "amount", "txID", "status", "toAddress", "tag", "depositType", "travelRuleStatus") || json.Unmarshal(row, &d) != nil {
+			return DepositPage{}, ErrInvalidResponse
+		}
+		if d.Coin != coin || !SameDepositTransactionHash(d.TxID, txID) || !identifier(d.ID, 128) || seen[d.ID] || !identifier(d.Chain, 40) || !decimal(d.Amount, true) || !boundedText(d.ToAddress, 256, false) || !boundedText(d.Tag, 120, true) || d.Status < 0 || d.Status > 100 || (d.DepositFee != "" && !decimal(d.DepositFee, false)) || !boundedText(d.SuccessAt, 32, true) || !boundedText(d.Confirmations, 64, true) || !boundedText(d.DepositType, 16, true) || d.TravelRuleStatus < 0 || d.TravelRuleStatus > 3 {
 			return DepositPage{}, ErrInvalidResponse
 		}
 		seen[d.ID] = true
+		r.Rows = append(r.Rows, d)
 	}
 	return r, nil
+}
+
+// Some TON APIs return a 32-byte transaction hash as hex and others as base64.
+// This accepts only that identical binary identity, never amount/time matches.
+func SameDepositTransactionHash(a, b string) bool {
+	if a == b {
+		return a != ""
+	}
+	decode := func(s string) []byte {
+		if len(s) == 64 {
+			if value, e := hex.DecodeString(s); e == nil {
+				return value
+			}
+		}
+		value, e := base64.StdEncoding.Strict().DecodeString(s)
+		if e != nil || len(value) != 32 || base64.StdEncoding.EncodeToString(value) != s {
+			return nil
+		}
+		return value
+	}
+	x, y := decode(a), decode(b)
+	return len(x) == 32 && len(y) == 32 && bytes.Equal(x, y)
 }

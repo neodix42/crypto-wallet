@@ -45,14 +45,16 @@ type exchangeAPI interface {
 }
 type exchangeFactory func(string, bybit.Authorizer) (exchangeAPI, error)
 type exchangePrivateStatus struct {
-	Provider       string                    `json:"provider"`
-	Providers      []exchangeConnection      `json:"providers"`
-	Connected      bool                      `json:"connected"`
-	Endpoint       string                    `json:"endpoint"`
-	CredentialID   string                    `json:"credentialId"`
-	KeySuffix      string                    `json:"keySuffix"`
-	Operations     []vault.ExchangeOperation `json:"operations"`
-	OperationCount int                       `json:"operationCount"`
+	Wizard             *exchange.WizardState     `json:"wizard,omitempty"`
+	WizardDepositState string                    `json:"wizardDepositState,omitempty"`
+	Provider           string                    `json:"provider"`
+	Providers          []exchangeConnection      `json:"providers"`
+	Connected          bool                      `json:"connected"`
+	Endpoint           string                    `json:"endpoint"`
+	CredentialID       string                    `json:"credentialId"`
+	KeySuffix          string                    `json:"keySuffix"`
+	Operations         []vault.ExchangeOperation `json:"operations"`
+	OperationCount     int                       `json:"operationCount"`
 }
 type exchangeConnection struct {
 	Provider  string `json:"provider"`
@@ -74,15 +76,22 @@ type exchangePublicOperation struct {
 	CreatedAt string `json:"createdAt"`
 }
 type exchangePublicStatus struct {
-	Provider    string                    `json:"provider"`
-	Providers   []exchangeConnection      `json:"providers"`
-	Connected   bool                      `json:"connected"`
-	Configured  bool                      `json:"configured"`
-	Endpoint    string                    `json:"endpoint"`
-	KeySuffix   string                    `json:"keySuffix"`
-	Environment string                    `json:"environment"`
-	Message     string                    `json:"message"`
-	Operations  []exchangePublicOperation `json:"operations"`
+	Wizard             *exchange.WizardState     `json:"wizard,omitempty"`
+	WizardDepositState string                    `json:"wizardDepositState,omitempty"`
+	Provider           string                    `json:"provider"`
+	Providers          []exchangeConnection      `json:"providers"`
+	Connected          bool                      `json:"connected"`
+	Configured         bool                      `json:"configured"`
+	Endpoint           string                    `json:"endpoint"`
+	KeySuffix          string                    `json:"keySuffix"`
+	Environment        string                    `json:"environment"`
+	Message            string                    `json:"message"`
+	Operations         []exchangePublicOperation `json:"operations"`
+}
+type exchangeWizardSnapshot struct {
+	Wizard       *exchange.WizardState     `json:"wizard"`
+	DepositState string                    `json:"wizardDepositState"`
+	Operations   []exchangePublicOperation `json:"operations"`
 }
 type exchangeRoute struct {
 	Supported             bool   `json:"supported"`
@@ -139,6 +148,7 @@ type exchangeResult struct {
 	ReportedFee    string            `json:"reportedFee,omitempty"`
 }
 type exchangeIntent struct {
+	WizardID        string                   `json:"wizardId,omitempty"`
 	Kind            string                   `json:"kind"`
 	AccountID       string                   `json:"accountId"`
 	AssetID         string                   `json:"assetId"`
@@ -225,7 +235,7 @@ func (c *core) exchangeAsset(id, assetID string) (model.Account, model.Asset, mo
 		}
 		for _, asset := range network.Assets {
 			if asset.ID == assetID {
-				return account, asset, adapter, nil
+				return account, exchange.LedgerAsset(asset), adapter, nil
 			}
 		}
 	}
@@ -312,6 +322,8 @@ func (c *core) exchangeStatusAt(epoch uint64) (exchangePublicStatus, error) {
 		result.Provider = "bybit"
 	}
 	result.Configured, result.Endpoint, result.KeySuffix = status.Connected, status.Endpoint, status.KeySuffix
+	result.Wizard = status.Wizard
+	result.WizardDepositState = status.WizardDepositState
 	result.Operations = exchangePublicOperations(status.Operations)
 	if result.Provider != "bybit" {
 		if client != nil {
@@ -396,6 +408,39 @@ func (c *core) exchangeProviderStatusAt(epoch uint64, status exchangePrivateStat
 }
 func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 	switch message.Method {
+	case "exchangeWizardCancel":
+		var in struct {
+			ID strictjson.Text `json:"id"`
+		}
+		if strictjson.Decode(message.Body, &in) != nil || in.ID == "" {
+			return nil, errExchange
+		}
+		var status exchangePrivateStatus
+		if err := c.childCallAt(epoch, "exchangeWizardCancel", in, &status); err != nil {
+			return nil, err
+		}
+		return exchangeWizardSnapshot{status.Wizard, status.WizardDepositState, exchangePublicOperations(status.Operations)}, nil
+	case "exchangeWizardLoad":
+		if strictjson.Decode(message.Body, &struct{}{}) != nil {
+			return nil, errExchange
+		}
+		var status exchangePrivateStatus
+		if err := c.childCallAt(epoch, "exchangeStatus", struct{}{}, &status); err != nil {
+			return nil, err
+		}
+		return exchangeWizardSnapshot{status.Wizard, status.WizardDepositState, exchangePublicOperations(status.Operations)}, nil
+	case "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
+		return c.exchangeWizardAt(message, epoch)
+	case "exchangeWizardSave":
+		var in exchange.WizardState
+		if strictjson.Decode(message.Body, &in) != nil || !in.Valid() {
+			return nil, errExchange
+		}
+		var status exchangePrivateStatus
+		if err := c.childCallAt(epoch, "exchangeWizardSave", in, &status); err != nil {
+			return nil, err
+		}
+		return exchangeWizardSnapshot{status.Wizard, status.WizardDepositState, exchangePublicOperations(status.Operations)}, nil
 	case "exchangeStatus", "exchangeDisconnect":
 		if strictjson.Decode(message.Body, &struct{}{}) != nil {
 			return nil, errExchange
@@ -461,6 +506,24 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, errExchange
 		}
 		return c.reconcileExchangeAt(epoch, client, operation)
+	case "exchangeDepositPreview":
+		var in struct {
+			Provider  strictjson.Text `json:"provider,omitempty"`
+			AccountID strictjson.Text `json:"accountId"`
+			AssetID   strictjson.Text `json:"assetId"`
+		}
+		if strictjson.Decode(message.Body, &in) != nil {
+			return nil, errExchange
+		}
+		client, status, err := c.exchangeClientAt(epoch)
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
+			return nil, errExchange
+		}
+		return c.exchangeDepositPreviewAt(epoch, client, string(in.AccountID), string(in.AssetID))
 	case "exchangeQuote":
 		var in struct {
 			Provider  strictjson.Text `json:"provider,omitempty"`
@@ -484,10 +547,13 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		return quote, err
 	case "exchangeDeposit", "exchangeWithdraw":
 		var in struct {
-			Provider  strictjson.Text `json:"provider,omitempty"`
-			AccountID strictjson.Text `json:"accountId"`
-			AssetID   strictjson.Text `json:"assetId"`
-			Amount    strictjson.Text `json:"amount"`
+			Provider        strictjson.Text `json:"provider,omitempty"`
+			AccountID       strictjson.Text `json:"accountId"`
+			AssetID         strictjson.Text `json:"assetId"`
+			Amount          strictjson.Text `json:"amount"`
+			WizardID        strictjson.Text `json:"wizardId,omitempty"`
+			ExpectedAddress strictjson.Text `json:"expectedAddress,omitempty"`
+			ExpectedMemo    strictjson.Text `json:"expectedMemo,omitempty"`
 		}
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
@@ -501,9 +567,12 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, errExchange
 		}
 		if message.Method == "exchangeDeposit" {
-			return c.exchangeDepositAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
+			return c.exchangeDepositAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), exchangeDepositExpectation{WizardID: string(in.WizardID), Address: string(in.ExpectedAddress), Memo: string(in.ExpectedMemo)})
 		}
-		return c.exchangeWithdrawAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
+		if in.ExpectedAddress != "" || in.ExpectedMemo != "" {
+			return nil, errExchange
+		}
+		return c.exchangeWithdrawWizardAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), string(in.WizardID))
 	case "exchangeSwap":
 		var in struct {
 			Provider  strictjson.Text `json:"provider,omitempty"`
@@ -513,6 +582,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			Amount    strictjson.Text `json:"amount"`
 			Slippage  strictjson.Text `json:"slippage"`
 			QuoteCoin strictjson.Text `json:"quoteCoin,omitempty"`
+			WizardID  strictjson.Text `json:"wizardId,omitempty"`
 		}
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, errExchange
@@ -525,7 +595,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
 			return nil, errExchange
 		}
-		return c.exchangeSwapAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage), string(in.QuoteCoin))
+		return c.exchangeSwapWizardAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage), string(in.WizardID), string(in.QuoteCoin))
 	}
 	return nil, errExchange
 }
@@ -686,61 +756,55 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	quote.PricePrecision = instrument.PriceFilter.TickSize
 	return quote, chain, info, nil
 }
-func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
-	account, asset, adapter, err := c.exchangeAsset(accountID, assetID)
+func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, assetID, value string, expectations ...exchangeDepositExpectation) (exchangeResult, error) {
+	if len(expectations) > 1 {
+		return exchangeResult{}, errExchange
+	}
+	var expected exchangeDepositExpectation
+	if len(expectations) == 1 {
+		expected = expectations[0]
+	}
+	var wizard *exchange.WizardState
+	if expected.WizardID != "" {
+		if expected.Address == "" {
+			return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
+		}
+		var status exchangePrivateStatus
+		if err := c.childCallAt(epoch, "exchangeStatus", struct{}{}, &status); err != nil || status.Wizard == nil || status.Wizard.ID != expected.WizardID || status.Wizard.Step != 1 || status.Wizard.DepositOperation != "" || status.Wizard.SourceAccount != accountID || status.Wizard.SourceAsset != assetID || status.Wizard.DepositAmount != value {
+			return exchangeResult{}, errExchange
+		}
+		copy := *status.Wizard
+		wizard = &copy
+	}
+	target, err := c.exchangeDepositTargetAt(epoch, client, accountID, assetID)
 	if err != nil {
 		return exchangeResult{}, err
 	}
+	if expected.Address != "" && (expected.Address != target.deposit.Address || expected.Memo != target.deposit.Tag) {
+		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_DESTINATION_CHANGED")
+	}
+	if expected.Address == "" && expected.Memo != "" {
+		return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
+	}
+	if wizard != nil {
+		if !target.info.IsMaster || target.info.UTA != 1 {
+			return exchangeResult{}, ipc.NewRequestError("EXCHANGE_UNIFIED_REQUIRED")
+		}
+		if !exchangePermission(target.info, "AccountTransfer") || !exchangePermission(target.info, "SpotTrade") || !exchangePermission(target.info, "Withdraw") || !exchangeWithdrawalRegionSupported(client.Endpoint()) {
+			return exchangeResult{}, ipc.NewRequestError("EXCHANGE_WIZARD_PERMISSIONS")
+		}
+	}
+	account, asset, adapter, chain, deposit := target.account, target.asset, target.adapter, target.chain, target.deposit
 	atomic, err := amount.Parse(value, asset.Decimals)
 	if err != nil || atomic == "0" {
 		return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
 	}
-	service, known := exchange.ProviderForEndpoint(client.Endpoint())
-	if !known {
-		return exchangeResult{}, errExchange
-	}
-	// An on-chain deposit needs authenticated asset/network/address metadata,
-	// not a tradable pair, exchange balance or fee-rate permission. Keep the
-	// ordinary wallet's exact payment, approval, fee and durable send pipeline.
-	ctx, cancel := c.networkContextAt(90*time.Second, epoch)
-	defer cancel()
-	info, err := client.APIKeyInfo(ctx)
-	if err != nil {
-		return exchangeResult{}, exchangeReadFailure("KEY", err)
-	}
-	if service.ID == "bybit" && !info.IsMaster {
-		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_MASTER_REQUIRED")
-	}
-	coin, err := client.CoinInfo(ctx, asset.Symbol)
-	if err != nil {
-		return exchangeResult{}, exchangeReadFailure("COIN", err)
-	}
-	chain, err := exchange.MatchProviderRoute(service.ID, account, asset, coin)
-	if err != nil {
-		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_ROUTE_UNAVAILABLE")
-	}
-	if chain.ChainDeposit != "1" {
-		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_SUSPENDED")
-	}
 	if !exchangeAtLeast(value, chain.DepositMin) {
 		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_BELOW_MINIMUM")
 	}
-	deposit, err := client.DepositAddress(ctx, asset.Symbol, chain.Chain)
-	cancel()
-	if err != nil {
-		return exchangeResult{}, exchangeReadFailure("DEPOSIT_ADDRESS", err)
-	}
-	// Bybit's deposit-address endpoint reports a contract suffix, not necessarily
-	// the full contract. CoinInfo supplies the full already-verified identity.
-	contractMatches := deposit.ContractAddress == "" && asset.Contract == ""
-	if asset.Contract != "" {
-		contractMatches = strings.EqualFold(deposit.ContractAddress, asset.Contract) || service.ID == "bybit" && len(asset.Contract) >= 6 && len(deposit.ContractAddress) == 6 && strings.EqualFold(deposit.ContractAddress, asset.Contract[len(asset.Contract)-6:])
-	}
-	if !contractMatches || exchange.ValidateProviderRoute(service.ID, account, asset, deposit.Chain, deposit.ChainType, chain.ContractAddress) != nil || deposit.Chain != chain.Chain || deposit.ChainType != chain.ChainType || adapter.ValidateAddress(account.Network, deposit.Address) != nil || deposit.Tag != "" && account.Family != "ton" || account.Family == "ton" && deposit.Tag == "" {
-		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_ADDRESS_INVALID")
-	}
+
 	transfer := model.Transfer{AccountID: account.ID, Asset: asset.ID, Recipient: deposit.Address, Amount: atomic, Memo: deposit.Tag}
-	ctx, cancel = c.networkContextAt(45*time.Second, epoch)
+	ctx, cancel := c.networkContextAt(45*time.Second, epoch)
 	plan, err := adapter.Prepare(ctx, account, transfer)
 	cancel()
 	if err != nil {
@@ -758,6 +822,12 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 	}
 	if plan.Expires == 0 {
 		plan.Expires = time.Now().Add(time.Minute).Unix()
+	}
+	if wizard != nil {
+		wizard.DepositOperation = plan.ID
+		if err = c.childCallAt(epoch, "exchangeWizardSave", *wizard, nil); err != nil {
+			return exchangeResult{}, err
+		}
 	}
 	if err = c.childCallAt(epoch, "prepare", plan, nil); err != nil {
 		return exchangeResult{}, err
@@ -917,6 +987,10 @@ func (c *core) ensureExchangeFunds(epoch uint64, client exchangeAPI, info bybit.
 	return nil, nil
 }
 func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage string, selectedQuote ...string) (exchangeResult, error) {
+	return c.exchangeSwapWizardAt(epoch, client, accountID, assetID, side, value, slippage, "", selectedQuote...)
+}
+
+func (c *core) exchangeSwapWizardAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage string, wizardID string, selectedQuote ...string) (exchangeResult, error) {
 	quote, _, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, side, selectedQuote...)
 	if err != nil {
 		return exchangeResult{}, err
@@ -944,7 +1018,7 @@ func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, asset
 	} else if transfer != nil {
 		return *transfer, nil
 	}
-	return c.executeExchangeAt(epoch, client, exchangeIntent{Kind: "swap", AccountID: accountID, AssetID: assetID, Order: &order, LastPrice: quote.LastPrice, Fee: fee, FeeCoin: feeCoin})
+	return c.executeExchangeAt(epoch, client, exchangeIntent{WizardID: wizardID, Kind: "swap", AccountID: accountID, AssetID: assetID, Order: &order, LastPrice: quote.LastPrice, Fee: fee, FeeCoin: feeCoin})
 }
 
 func exchangeIOCOrder(quote exchangeQuote, order bybit.SpotOrder) (bybit.SpotOrder, string, string, error) {
@@ -1031,7 +1105,19 @@ func exchangeIOCOrder(quote exchangeQuote, order bybit.SpotOrder) (bybit.SpotOrd
 	return order, feeText, feeCoin, err
 }
 func (c *core) exchangeWithdrawAt(epoch uint64, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
-	quote, chain, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, "Sell")
+	return c.exchangeWithdrawWizardAt(epoch, client, accountID, assetID, value, "")
+}
+
+func (c *core) exchangeWithdrawWizardAt(epoch uint64, client exchangeAPI, accountID, assetID, value string, wizardID string) (exchangeResult, error) {
+	var quote exchangeQuote
+	var chain bybit.Chain
+	var info bybit.APIKeyInformation
+	var err error
+	if wizardID != "" {
+		quote, chain, info, err = c.exchangeWithdrawalQuoteAt(epoch, client, accountID, assetID)
+	} else {
+		quote, chain, info, err = c.exchangeQuoteAt(epoch, client, accountID, assetID, "Sell")
+	}
 	if err != nil {
 		return exchangeResult{}, err
 	}
@@ -1087,7 +1173,7 @@ func (c *core) exchangeWithdrawAt(epoch uint64, client exchangeAPI, accountID, a
 		w.FeeType = 0
 		w.FeeMode = "kucoin-external"
 	}
-	return c.executeExchangeAt(epoch, client, exchangeIntent{Kind: "withdraw", AccountID: accountID, AssetID: assetID, Withdrawal: &w, Fee: fee, FeeCoin: asset.Symbol, ChainType: chain.ChainType, ContractAddress: chain.ContractAddress})
+	return c.executeExchangeAt(epoch, client, exchangeIntent{WizardID: wizardID, Kind: "withdraw", AccountID: accountID, AssetID: assetID, Withdrawal: &w, Fee: fee, FeeCoin: asset.Symbol, ChainType: chain.ChainType, ContractAddress: chain.ContractAddress})
 }
 
 func exchangeNativeWithdrawalFee(value, fixed, percentage string, precision uint8) (string, error) {
@@ -1227,14 +1313,18 @@ func exchangeRejectionMessage(code int64) string {
 }
 func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation vault.ExchangeOperation) (exchangeResult, error) {
 	result := exchangeResult{ID: operation.ID, Kind: operation.Kind, State: operation.State, RemoteID: operation.ExternalID}
-	if operation.State == "CONFIRMED" || operation.State == "FAILED" || operation.State == "CANCELLED" {
+	// A resumed wizard needs the original executed amounts and fees, which
+	// aren't part of the immutable operation payload. Re-read this exact order
+	// and executions; never replace it or reopen its terminal local state.
+	settledSwap := operation.State == "CONFIRMED" && operation.Kind == "swap"
+	if operation.State == "CONFIRMED" && !settledSwap || operation.State == "FAILED" || operation.State == "CANCELLED" {
 		if operation.Kind == "withdraw" && operation.State == "CONFIRMED" {
 			result.State = "EXCHANGE_COMPLETED"
 		}
 		result.Message = "Recorded exchange result. A completed withdrawal is the exchange's report, not independent on-chain finality."
 		return result, nil
 	}
-	if operation.State != "SUBMITTING" && operation.State != "UNKNOWN" && operation.State != "PENDING" {
+	if !settledSwap && operation.State != "SUBMITTING" && operation.State != "UNKNOWN" && operation.State != "PENDING" {
 		return result, errExchange
 	}
 	ctx, cancel := c.networkContextAt(45*time.Second, epoch)
@@ -1371,6 +1461,12 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		}
 	default:
 		return result, errExchange
+	}
+	if settledSwap {
+		if state != "CONFIRMED" || externalID != operation.ExternalID || result.FilledBase == "" || result.FilledQuote == "" {
+			return result, exchangeReadFailure("EXECUTIONS", bybit.ErrInvalidResponse)
+		}
+		return result, nil
 	}
 	updated, err := c.updateExchangeAt(epoch, operation.ID, state, externalID)
 	if err != nil {

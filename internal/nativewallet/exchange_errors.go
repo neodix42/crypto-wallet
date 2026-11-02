@@ -13,7 +13,16 @@ func exchangeReadReason(code string) (string, bool) {
 	}
 	name := map[string]string{"KEY": "Checking exchange API credentials", "COIN": "Reading the selected asset's deposit and withdrawal networks", "BALANCE": "Reading exchange Funding/Unified balances", "INSTRUMENT": "Reading the selected spot pair", "TICKER": "Reading the spot price", "FEE": "Reading the account's spot trading fee", "DEPOSIT_ADDRESS": "Reading the exact network's exchange deposit address", "WALLET_FEE": "Estimating the wallet payment and native network fee"}[stage]
 	var reason string
-	if strings.HasPrefix(cause, "BYBIT_") {
+	if stage == "DEPOSIT_CREDIT" {
+		name = "Verifying the original deposit's Bybit credit"
+	}
+	if stage == "EXECUTIONS" {
+		name = "Verifying the original spot order's executed amounts and fees"
+	}
+	if strings.HasPrefix(cause, "METADATA_") {
+		field := map[string]string{"METADATA_IDENTITY": "network identity/contract", "METADATA_DUPLICATE_CHAIN": "duplicate network identifiers", "METADATA_FLAGS": "deposit/withdrawal availability flags", "METADATA_DEPOSIT_LIMIT": "minimum deposit", "METADATA_WITHDRAWAL_LIMIT": "withdrawal minimum, maximum or fee", "METADATA_PRECISION": "network decimal precision", "METADATA_CONFIRMATIONS": "deposit/security confirmation counts"}[cause]
+		reason = "Bybit's selected coin/network metadata has missing or invalid " + field + ". The wallet cannot safely use that route. Other fully validated networks remain available; the response body and credentials are not logged or displayed."
+	} else if strings.HasPrefix(cause, "BYBIT_") {
 		number := strings.TrimPrefix(cause, "BYBIT_")
 		reason = "Bybit returned API code " + number + ". "
 		switch number {

@@ -1,5 +1,25 @@
 # Implementation and release evidence
 
+## Bybit wizard and network/address metadata — 2026-11-02
+
+Bybit now defaults to Deposit → Funding/Unified → Spot swap → owned-wallet
+withdrawal. Refresh displays the authenticated deposit address/memo and wallet
+balance; preparation rechecks that exact destination. Incomplete unrelated coin
+network rows no longer block a valid selected route, deposit reads do not require
+withdrawal-only limits, and exact HyperEVM display aliases remain distinct from
+HyperCore. Per-step operation IDs resume from encrypted storage without replay.
+[Behavior, failure diagnosis and evidence checklist](EXCHANGE_WIZARD.md).
+
+| State | Evidence |
+|---|---|
+| PASS, final local aggregate/build | Final aggregate, 158 React checks, portable build and fixed-field diagnostic/canary tests. `reports/exchange-wizard-ci-complete.log`, `reports/exchange-wizard-final-build.log`. |
+| PASS, authorization/recovery | Real encrypted wizard persistence/restart, one-use password/HMAC authority, exact budgets/owned routes and UNKNOWN retention; all four coordinator steps and hostile credit/address fixtures pass. Backend/client/vault races and final native/Wails races pass. `reports/exchange-wizard-policy-tests-v2.log`, `reports/exchange-wizard-final-focused.log`, `reports/exchange-wizard-race.log`, `reports/exchange-wizard-final-ui-race.log`. |
+| PASS, final security | Complete stable-source security campaign and all 81 existing semantic mutants. `reports/exchange-wizard-security-complete.log`. |
+| PASS, final scoped graphical | Six actual X11 Appearance/Bybit-cancellation/navigation/wizard checks on binary `19cd18aa…`, source-stable. `reports/exchange-wizard-final-appearance.json`. |
+| PASS, earlier full checkpoint | All 37 full graphical workflows and 26 measured fuzz targets pass before the final UI preview/driver follow-up. `reports/exchange-wizard-full-v2.json`, `reports/exchange-wizard-fuzz.log`. |
+| PASS, final portable recovery/execution | Final binary restores 24 descriptors independently and passes nine private-geth checks. `reports/exchange-wizard-recovery-final.log`, `reports/exchange-wizard-geth-final.log`. |
+| NOT_RUN | Exact-source hosted checks/publication for this wizard; authenticated real Bybit account/region/IP/whitelist and funded deposit/transfer/spot/withdrawal acceptance. Physical OS/Wayland matrix and independent review remain external. |
+
 ## Exchange tab and independent deposit preflight — 2026-11-02
 
 The header icon opens a closable Exchange tab beside account names. Deposit
@@ -13,8 +33,8 @@ wallet consent, current password, signing and original-operation records remain.
 |---|---|
 | PASS, final aggregate/races/build | Complete aggregate, 156 frontend checks, affected full races, vet and portable Go build pass, including native fee/reserve diagnostics. `reports/exchange-deposit-tabs-test-ci-final.log`, `reports/exchange-deposit-tabs-race-final.log`, `reports/exchange-deposit-tabs-vet.log`, `reports/exchange-deposit-tabs-build-final.log`. |
 | PASS, scoped graphical/security | Five actual X11 navigation/Appearance/Bybit-cancellation checks and the complete stable-source security campaign pass before the later fee-diagnostic follow-up. These remain scoped evidence; final-source reruns are separate below. |
-| RUNNING | Final updated-source local security and actual graphical reruns. |
-| NOT_RUN | Exact-source hosted CI and publication for this correction; private Bybit account/key/IP/region/whitelist and funded deposit/spot/withdrawal acceptance. Physical OS/Wayland matrix and independent review remain external gates. No real user secrets/profile or mainnet spending. |
+| PASS | Final updated-source local security and five graphical checks pass. `reports/exchange-deposit-tabs-security-complete.log`, `reports/exchange-deposit-tabs-appearance-final.json`. |
+| PASS, hosted predecessor | Both jobs in [tests 41473582648](https://github.com/neodix42/crypto-wallet/actions/runs/41473582648) and build/release jobs in [41473582647](https://github.com/neodix42/crypto-wallet/actions/runs/41473582647) succeed for source `567b275e87ae19cfcc9d43c6605bb76c49ffa1e1`, released as normal 0.1.42. This predates the wizard and does not certify private funded acceptance. |
 
 ## Deterministic-account recovery and error dialogs — 2026-11-02
 

@@ -35,10 +35,12 @@ func TestExchangeRoutesUseActualWalletRegistryIdentities(t *testing.T) {
 			}
 			seen[network.ID] = true
 			for _, asset := range network.Assets {
-				// Wallet support alone cannot authorize a new exchange route. TON
-				// USDT uses a jetton master, unlike the reviewed native TON route.
+				// Only Bybit's explicitly reviewed canonical jetton route is added.
 				if network.ID == "ton-mainnet" && asset.Contract != "" {
-					for _, provider := range []string{"bybit", "binance", "kucoin"} {
+					if err := ValidateRoute(model.Account{Network: network.ID}, asset, "TON", label, asset.Contract); err != nil {
+						t.Fatal("reviewed canonical Bybit jetton rejected", err)
+					}
+					for _, provider := range []string{"binance", "kucoin"} {
 						if !errors.Is(ValidateProviderRoute(provider, model.Account{Network: network.ID}, asset, "TON", label, asset.Contract), ErrRoute) {
 							t.Fatal("wallet jetton addition authorized an unreviewed exchange route", provider, asset.ID)
 						}

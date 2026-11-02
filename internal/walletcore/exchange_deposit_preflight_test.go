@@ -135,7 +135,7 @@ func TestExchangeDepositReadErrorsRetainStageAndNumericCodeBeforePreparation(t *
 }
 
 func TestExchangeDepositPolicyFailuresHaveSpecificReasonsAndNoPayment(t *testing.T) {
-	for _, tc := range []struct{ scenario, code string }{{"master", "EXCHANGE_DEPOSIT_MASTER_REQUIRED"}, {"route", "EXCHANGE_DEPOSIT_ROUTE_UNAVAILABLE"}, {"suspended", "EXCHANGE_DEPOSIT_SUSPENDED"}, {"minimum", "EXCHANGE_DEPOSIT_BELOW_MINIMUM"}, {"address", "EXCHANGE_DEPOSIT_ADDRESS_INVALID"}} {
+	for _, tc := range []struct{ scenario, code string }{{"master", "EXCHANGE_DEPOSIT_MASTER_REQUIRED"}, {"route", "EXCHANGE_DEPOSIT_ROUTE_UNAVAILABLE"}, {"suspended", "EXCHANGE_DEPOSIT_SUSPENDED"}, {"minimum", "EXCHANGE_DEPOSIT_BELOW_MINIMUM"}, {"address", "EXCHANGE_DEPOSIT_NETWORK_MISMATCH"}} {
 		t.Run(tc.scenario, func(t *testing.T) {
 			c, api, adapter, _ := fixtureExchangeCoordinator(t)
 			switch tc.scenario {

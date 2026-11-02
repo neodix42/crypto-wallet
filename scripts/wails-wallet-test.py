@@ -2313,9 +2313,30 @@ def exchange_tab_campaign():
     report["exchangeTabNavigation"]={"accountRow":True,"singleTab":True,"preservedAcrossNavigation":True,"middleClose":True,"keyboardClose":True,"returnedToAccount":True,"credentialsOrPayments":False}
     passed("Actual middle-click and keyboard close remove Exchange, return to its remembered account and permit reopening without credentials or funds")
 
-def exchange_input_campaign():
+def exchange_wizard_draft_campaign():
     click("Exchange",top=True);scroll_public(4,35)
     wait(lambda:"Bybit Exchange" in text() and "Connect your Bybit account in Settings" in text())
+    wait(lambda:"Deposit to Funding" in text() and "Asset to deposit" in text())
+    choose_public_option("Network / source account",0)
+    choose_public_option("Asset to deposit",0)
+    def fill_deposit(value):
+        point=wait(lambda:public_words_position("Deposit amount"))
+        desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True)
+        desktop.type(value);desktop.park_pointer();time.sleep(.25)
+    for value in ("-1","1e3","0","NaN"):
+        fill_deposit(value)
+        wait(lambda:"Enter a positive ETH amount" in text())
+        if desktop.secret_window():raise RuntimeError("Invalid wizard draft requested credentials or authority")
+    fill_deposit("1")
+    wait(lambda:"Enter a positive ETH amount" not in text())
+    if "Bybit deposit address:" in text():raise RuntimeError("Disconnected wizard invented an exchange deposit address")
+    report["exchangeWizardDraft"]={"sequentialSteps":4,"initialStep":"Deposit to Funding","networkAndAssetSelectors":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
+    passed("Actual disconnected Bybit wizard starts at Deposit to Funding, validates network/asset amount drafts and invents no deposit address or payment")
+
+def exchange_input_campaign():
+    exchange_wizard_draft_campaign()
+    click("Manage existing Bybit funds")
+    wait(lambda:"Spot direction" in text())
     choose_public_option("Wallet / network",0)
     choose_public_option("Wallet asset",0)
     choose_public_option("Spot direction",0)
@@ -3008,6 +3029,8 @@ def appearance_campaign(installation, home, secret):
     wait(lambda:any(row[11]=="CryptoWallet" and int(row[9])==baseline["brandGlyphHeight"] for row in public_rows()))
     observe_appearance("Restored Light/18 through actual settings")
     exchange_tab_campaign()
+    exchange_wizard_draft_campaign()
+    click("Main account",top=True)
 
 def ethereum_tokens(expected_address=None):
     stage("Observe actual Ethereum native and ERC-20 balance rows")

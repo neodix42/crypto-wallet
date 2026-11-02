@@ -184,7 +184,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize", "exchangeWizardCancel":
 		interactive = true
 	}
 	if interactive {
@@ -491,7 +491,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		return c.nearStakingAt(m, epoch)
 	case "nearTokenStorage", "prepareNearTokenRegistration":
 		return c.nearTokenStorageAt(m, epoch)
-	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile":
+	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDepositPreview", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile", "exchangeWizardSave", "exchangeWizardLoad", "exchangeWizardCancel", "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
 		return c.exchangeAt(m, epoch)
 	case "networks":
 		var networks []model.Network

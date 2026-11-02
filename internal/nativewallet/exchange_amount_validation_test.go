@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"localwallet/internal/exchange"
 	"localwallet/internal/model"
 	"localwallet/internal/webui"
 )
 
 func exchangeValidationQuote(a *App, account model.Account, asset model.Asset, side, quoteCoin string, now time.Time) exchangeInputQuote {
+	asset = exchange.LedgerAsset(asset)
 	q := exchangeInputQuote{Provider: a.selectedExchangeProvider().ID, AccountID: account.ID, AssetID: asset.ID, Coin: asset.Symbol, QuoteCoin: quoteCoin, Side: side, Symbol: asset.Symbol + quoteCoin, BasePrecision: "0.000001", QuotePrecision: "0.01", BidPrice: "100", MinOrderAmount: "5", MaxOrderQty: "100", ObservedAt: nowToExchangeMilliseconds(now)}
 	q.ObservedAt = nowToExchangeMilliseconds(now)
 	q.Route.Supported, q.Route.DepositEnabled, q.Route.WithdrawEnabled = true, true, true
@@ -58,6 +60,7 @@ func TestExchangeAmountValidationAllProvidersDirectionsAndEligibleAssets(t *test
 				continue
 			}
 			eligible++
+			asset = exchange.LedgerAsset(asset)
 			for _, provider := range []string{"bybit", "binance", "kucoin"} {
 				for _, direction := range []string{"Sell", "Buy", "SellUSDC", "BuyUSDC"} {
 					t.Run(asset.ID+"/"+provider+"/"+direction, func(t *testing.T) {
@@ -78,7 +81,7 @@ func TestExchangeAmountValidationAllProvidersDirectionsAndEligibleAssets(t *test
 			}
 		}
 	}
-	if eligible != 17 {
+	if eligible != 18 {
 		t.Fatal("reviewed default route eligibility changed", eligible)
 	}
 }

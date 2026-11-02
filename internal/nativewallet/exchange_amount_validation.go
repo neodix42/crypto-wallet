@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"localwallet/internal/amount"
+	"localwallet/internal/exchange"
 	"localwallet/internal/model"
 )
 
@@ -35,13 +36,17 @@ func (a *App) exchangeAmountValidation() exchangeInputValidation {
 }
 
 func (a *App) exchangeAmountValidationAt(now time.Time) exchangeInputValidation {
+	return a.exchangeAmountValidationFieldsAt(a.fields, a.quote, now)
+}
+
+func (a *App) exchangeAmountValidationFieldsAt(fields map[string]string, data json.RawMessage, now time.Time) exchangeInputValidation {
 	result := exchangeInputValidation{InputLabel: "Amount to spend / withdraw"}
-	account, owned := a.account(a.fields["exchangeAccount"])
+	account, owned := a.account(fields["exchangeAccount"])
 	network := a.network(account.Network)
 	var asset model.Asset
 	for _, candidate := range network.Assets {
-		if candidate.ID == a.fields["exchangeAsset"] && exchangeAssetAllowed(account, candidate) {
-			asset = candidate
+		if candidate.ID == fields["exchangeAsset"] && exchangeAssetAllowed(account, candidate) {
+			asset = exchange.LedgerAsset(candidate)
 			break
 		}
 	}
@@ -50,7 +55,7 @@ func (a *App) exchangeAmountValidationAt(now time.Time) exchangeInputValidation 
 		result.DepositError, result.WithdrawError = result.SwapError, result.SwapError
 		return result
 	}
-	side, quoteCoin, directionValid := spotDirection(a.fields["side"])
+	side, quoteCoin, directionValid := spotDirection(fields["side"])
 	spendCoin := asset.Symbol
 	if side == "Buy" {
 		spendCoin = quoteCoin
@@ -59,13 +64,13 @@ func (a *App) exchangeAmountValidationAt(now time.Time) exchangeInputValidation 
 	if side == "Buy" {
 		result.InputLabel = "Amount to spend (" + quoteCoin + ") / deposit or withdraw (" + asset.Symbol + ")"
 	}
-	slipText, slipErr := amount.Parse(a.fields["slippage"], 2)
+	slipText, slipErr := amount.Parse(fields["slippage"], 2)
 	slip, invalidSlip := amount.Atomic(slipText)
 	slipValid := slipErr == nil && invalidSlip == nil && slip.Sign() > 0 && slip.Cmp(big.NewInt(100)) <= 0
-	if !slipValid && a.fields["slippage"] != "" {
+	if !slipValid && fields["slippage"] != "" {
 		result.SlippageError = "Enter a slippage limit from 0.01% to 1%."
 	}
-	value := a.fields["exchangeAmount"]
+	value := fields["exchangeAmount"]
 	quantity, commonErr := exchangeInputAtomic(value)
 	assetAtomic, assetErr := amount.Parse(value, asset.Decimals)
 	assetValid := commonErr == nil && quantity.Sign() > 0 && assetErr == nil && assetAtomic != "0"
@@ -90,7 +95,7 @@ func (a *App) exchangeAmountValidationAt(now time.Time) exchangeInputValidation 
 		result.SwapError = "Select a supported spot direction."
 		return result
 	}
-	quote, fresh := a.exchangeInputQuoteAt(account, asset, side, quoteCoin, now)
+	quote, fresh := a.exchangeInputQuoteFromAt(account, asset, side, quoteCoin, now, data)
 	if !fresh {
 		result.SwapError = "Refresh market data to obtain this pair's current trading limits."
 		return result
@@ -174,8 +179,12 @@ func exchangeInputAtLeast(value, minimum string) bool {
 	return err == nil && invalid == nil && a.Cmp(b) >= 0
 }
 func (a *App) exchangeInputQuoteAt(account model.Account, asset model.Asset, side, quoteCoin string, now time.Time) (exchangeInputQuote, bool) {
+	return a.exchangeInputQuoteFromAt(account, asset, side, quoteCoin, now, a.quote)
+}
+
+func (a *App) exchangeInputQuoteFromAt(account model.Account, asset model.Asset, side, quoteCoin string, now time.Time, data json.RawMessage) (exchangeInputQuote, bool) {
 	var quote exchangeInputQuote
-	if len(a.quote) > 131072 || json.Unmarshal(a.quote, &quote) != nil || quote.Provider != a.selectedExchangeProvider().ID || quote.AccountID != account.ID || quote.AssetID != asset.ID || quote.Coin != asset.Symbol || quote.Side != side || quote.QuoteCoin != quoteCoin {
+	if len(data) > 131072 || json.Unmarshal(data, &quote) != nil || quote.Provider != a.selectedExchangeProvider().ID || quote.AccountID != account.ID || quote.AssetID != asset.ID || quote.Coin != asset.Symbol || quote.Side != side || quote.QuoteCoin != quoteCoin {
 		return quote, false
 	}
 	observed, err := strconv.ParseInt(quote.ObservedAt, 10, 64)

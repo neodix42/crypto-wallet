@@ -19,6 +19,7 @@ import (
 )
 
 type ExchangeIntent struct {
+	WizardID        string                   `json:"wizardId,omitempty"`
 	Kind            string                   `json:"kind"`
 	AccountID       string                   `json:"accountId"`
 	AssetID         string                   `json:"assetId"`
@@ -32,14 +33,16 @@ type ExchangeIntent struct {
 	ContractAddress string                   `json:"contractAddress,omitempty"`
 }
 type ExchangeStatus struct {
-	Provider       string                    `json:"provider"`
-	Providers      []ExchangeConnection      `json:"providers"`
-	Connected      bool                      `json:"connected"`
-	Endpoint       string                    `json:"endpoint,omitempty"`
-	KeySuffix      string                    `json:"keySuffix,omitempty"`
-	CredentialID   string                    `json:"credentialId,omitempty"`
-	Operations     []vault.ExchangeOperation `json:"operations"`
-	OperationCount int                       `json:"operationCount"`
+	Wizard             *exchange.WizardState     `json:"wizard,omitempty"`
+	WizardDepositState string                    `json:"wizardDepositState,omitempty"`
+	Provider           string                    `json:"provider"`
+	Providers          []ExchangeConnection      `json:"providers"`
+	Connected          bool                      `json:"connected"`
+	Endpoint           string                    `json:"endpoint,omitempty"`
+	KeySuffix          string                    `json:"keySuffix,omitempty"`
+	CredentialID       string                    `json:"credentialId,omitempty"`
+	Operations         []vault.ExchangeOperation `json:"operations"`
+	OperationCount     int                       `json:"operationCount"`
 }
 type ExchangeConnection struct {
 	Provider  string `json:"provider"`
@@ -80,6 +83,18 @@ func (e *Engine) ExchangeStatus() (ExchangeStatus, error) {
 	if c := x.Credential(x.Selected()); c != nil {
 		s.Connected, s.Endpoint = true, c.Endpoint
 		s.CredentialID = vault.ExchangeCredentialID(c)
+		if x.Selected() == "bybit" && x.Wizard != nil && x.WizardCredentialID == s.CredentialID {
+			copy := *x.Wizard
+			s.Wizard = &copy
+			if copy.DepositOperation != "" {
+				s.WizardDepositState = "MISSING"
+				for _, o := range e.data.Operations {
+					if o.Plan.ID == copy.DepositOperation {
+						s.WizardDepositState = o.State
+					}
+				}
+			}
+		}
 		if len(c.APIKey) >= 4 {
 			s.KeySuffix = string(c.APIKey[len(c.APIKey)-4:])
 		}
@@ -89,7 +104,8 @@ func (e *Engine) ExchangeStatus() (ExchangeStatus, error) {
 		start = 0
 	}
 	for i, o := range x.Operations {
-		if i >= start || exchangeUnresolved(o.State) {
+		wizardRef := s.Wizard != nil && (o.ID == s.Wizard.TransferOperation || o.ID == s.Wizard.SwapOperation || o.ID == s.Wizard.WithdrawOperation)
+		if i >= start || exchangeUnresolved(o.State) || wizardRef {
 			s.Operations = append(s.Operations, o)
 		}
 	}
@@ -286,7 +302,7 @@ func (e *Engine) exchangeAsset(accountID, assetID string) (model.Account, model.
 		if n.ID == a.Network && !n.Testnet {
 			for _, asset := range n.Assets {
 				if asset.ID == assetID {
-					return a, asset, nil
+					return a, exchange.LedgerAsset(asset), nil
 				}
 			}
 		}
@@ -435,6 +451,36 @@ func (e *Engine) PrepareExchange(in ExchangeIntent) (vault.ExchangeOperation, er
 		return vault.ExchangeOperation{}, ErrDenied
 	}
 	o.Digest = vault.ExchangeDigest(o)
+	if in.WizardID != "" {
+		if x.Selected() != "bybit" || x.Wizard == nil || x.Wizard.ID != in.WizardID || x.WizardCredentialID != o.CredentialID {
+			return vault.ExchangeOperation{}, ErrDenied
+		}
+		w := *x.Wizard
+		switch in.Kind {
+		case "transfer":
+			if w.Step != 2 || w.TransferOperation != "" || w.SourceAccount != in.AccountID || w.SourceAsset != in.AssetID || in.Transfer.FromAccountType != "FUND" || in.Transfer.ToAccountType != "UNIFIED" || in.Transfer.Coin != asset.Symbol || !exchangeWithinBudget(in.Transfer.Amount, w.DepositAmount) {
+				return vault.ExchangeOperation{}, ErrDenied
+			}
+			w.TransferOperation = id
+			w.TransferAmount = in.Transfer.Amount
+		case "swap":
+			if w.Step != 3 || w.SwapOperation != "" || w.TradeAccount != in.AccountID || w.TradeAsset != in.AssetID || w.TradeSide != in.Order.Side || w.QuoteCoin == "" || w.TradeAmount != in.Order.Qty || !exchangeWithinBudget(in.Order.Qty, w.TransferAmount) {
+				return vault.ExchangeOperation{}, ErrDenied
+			}
+			_, source, lookupErr := e.exchangeAsset(w.SourceAccount, w.SourceAsset)
+			base, quote, valid := bybit.SpotPair(in.Order.Symbol)
+			if lookupErr != nil || !valid || quote != w.QuoteCoin || in.Order.Side == "Sell" && base != source.Symbol || in.Order.Side == "Buy" && quote != source.Symbol {
+				return vault.ExchangeOperation{}, ErrDenied
+			}
+			w.SwapOperation = id
+		case "withdraw":
+			if w.Step != 4 || w.WithdrawOperation != "" || w.WithdrawAccount != in.AccountID || w.WithdrawAsset != in.AssetID || w.WithdrawAmount != in.Withdrawal.Amount || !exchangeWithinBudget(in.Withdrawal.Amount, w.OutputAmount) {
+				return vault.ExchangeOperation{}, ErrDenied
+			}
+			w.WithdrawOperation = id
+		}
+		x.Wizard = &w
+	}
 	x.Operations = append(x.Operations, o)
 	if err = e.persist(); err != nil {
 		return vault.ExchangeOperation{}, err

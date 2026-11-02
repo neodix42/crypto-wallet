@@ -39,6 +39,9 @@ type Coin struct {
 	Name   string  `json:"name"`
 	Coin   string  `json:"coin"`
 	Chains []Chain `json:"chains"`
+	// Invalid rows remain present for ambiguity checks but are never routes.
+	// They must not invalidate a different, fully checked network for this coin.
+	InvalidChains map[string]string `json:"-"`
 }
 type Chain struct {
 	Chain                 string `json:"chain"`
@@ -62,6 +65,9 @@ type Deposit struct {
 	Chain             string `json:"chain"`
 	ContractAddress   string `json:"contractAddress"`
 	BatchReleaseLimit string `json:"batchReleaseLimit"`
+	// True only when the authenticated address response explicitly includes
+	// tagDeposit, including its documented empty-string no-memo value.
+	MemoPresent bool `json:"-"`
 }
 type Balance struct {
 	AccountType string `json:"accountType"`

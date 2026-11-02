@@ -106,6 +106,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'explorer': return <ExplorerLink node={node}/>;
     case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {
+      if (node.ID === 'exchangeSteps') return <ol className="exchange-steps" aria-label="Exchange progress">{(node.Children || []).map((step, index) => <li key={index} className={index + 1 === Number(node.Value) ? 'current' : index + 1 < Number(node.Value) ? 'complete' : ''} aria-current={index + 1 === Number(node.Value) ? 'step' : undefined}><span className="step-number" aria-hidden="true">{index + 1 < Number(node.Value) ? '✓' : index + 1}</span><span>{step.Text}</span></li>)}</ol>;
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
       if (node.ID.startsWith('sendAmount/')) {
         const [amount, maximum] = node.Children || [], owner = node.ID.slice('sendAmount/'.length);
@@ -137,7 +138,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
       const refreshState = node.ID === 'refresh', lock = node.ID === 'lock';
       const icon = copy ? 'Copy address' : refreshHistory ? 'Refresh history' : refreshState ? 'Refresh wallet state' : lock ? 'Lock wallet' : '';
       const loadAddress = node.ID.startsWith('addressBookLoad/'), saveAddress = node.ID.startsWith('addressBookSave/');
-      const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap)/.test(node.ID);
+      const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap|wizardDeposit$|wizardMove$|wizardSwap$|wizardWithdraw$)/.test(node.ID);
       return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button icon-button' : icon ? 'icon-button' : ''} ${primary ? 'primary' : ''} ${loadAddress || saveAddress ? 'addressbook-action' : ''}`} disabled={node.Disabled} title={icon || node.Tooltip || (loadAddress || saveAddress ? node.Text : undefined)} aria-label={icon || (loadAddress || saveAddress ? node.Text : undefined)} onClick={() => copy ? emit(node.ID, node.Value) : emit(node.ID)}>{copy ? <CopyIcon/> : refreshHistory || refreshState ? <RefreshIcon/> : lock ? <LockIcon/> : loadAddress ? <AddressBookIcon/> : saveAddress ? <SaveAddressIcon/> : node.Text}</button>;
     }
   }
