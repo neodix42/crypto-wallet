@@ -488,10 +488,16 @@ func (c *Client) DepositRecords(ctx context.Context, coin, txID, cursor string) 
 	seen := map[string]bool{}
 	for _, row := range raw.Rows {
 		var d DepositRecord
-		if !required(row, "id", "coin", "chain", "amount", "txID", "status", "toAddress", "tag", "depositType", "travelRuleStatus") || json.Unmarshal(row, &d) != nil {
+		if !required(row, "id", "coin", "chain", "amount", "txID", "status", "toAddress", "tag", "depositType") || json.Unmarshal(row, &d) != nil {
 			return DepositPage{}, ErrInvalidResponse
 		}
-		if d.Coin != coin || !SameDepositTransactionHash(d.TxID, txID) || !identifier(d.ID, 128) || seen[d.ID] || !identifier(d.Chain, 40) || !decimal(d.Amount, true) || !boundedText(d.ToAddress, 256, false) || !boundedText(d.Tag, 120, true) || d.Status < 0 || d.Status > 100 || (d.DepositFee != "" && !decimal(d.DepositFee, false)) || !boundedText(d.SuccessAt, 32, true) || !boundedText(d.Confirmations, 64, true) || !boundedText(d.DepositType, 16, true) || d.TravelRuleStatus < 0 || d.TravelRuleStatus > 3 {
+		var fields map[string]json.RawMessage
+		_ = json.Unmarshal(row, &fields)
+		_, d.TravelRuleStatusPresent = fields["travelRuleStatus"]
+		if d.TravelRuleStatusPresent && !required(row, "travelRuleStatus") {
+			return DepositPage{}, ErrInvalidResponse
+		}
+		if d.Coin != coin || !SameDepositTransactionHash(d.TxID, txID) || !identifier(d.ID, 128) || seen[d.ID] || !identifier(d.Chain, 40) || !decimal(d.Amount, true) || !boundedText(d.ToAddress, 256, false) || !boundedText(d.FromAddress, 256, true) || !boundedText(d.Tag, 120, true) || d.Status < 0 || d.Status > 100 || (d.DepositFee != "" && !decimal(d.DepositFee, false)) || !boundedText(d.SuccessAt, 32, true) || !boundedText(d.Confirmations, 64, true) || !boundedText(d.DepositType, 16, true) || d.TravelRuleStatus < 0 || d.TravelRuleStatus > 3 {
 			return DepositPage{}, ErrInvalidResponse
 		}
 		seen[d.ID] = true
@@ -512,11 +518,13 @@ func SameDepositTransactionHash(a, b string) bool {
 				return value
 			}
 		}
-		value, e := base64.StdEncoding.Strict().DecodeString(s)
-		if e != nil || len(value) != 32 || base64.StdEncoding.EncodeToString(value) != s {
-			return nil
+		for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+			value, e := encoding.Strict().DecodeString(s)
+			if e == nil && len(value) == 32 && encoding.EncodeToString(value) == s {
+				return value
+			}
 		}
-		return value
+		return nil
 	}
 	x, y := decode(a), decode(b)
 	return len(x) == 32 && len(y) == 32 && bytes.Equal(x, y)

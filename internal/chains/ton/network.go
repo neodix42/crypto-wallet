@@ -521,6 +521,12 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 		if e != nil {
 			return model.Receipt{}, e
 		}
+		// Exchanges may index the sending wallet's transaction rather than the
+		// receiving account's transaction. Retain both checked chain identities;
+		// the signed external-message hash remains a separate identity and is
+		// never substituted for either transaction. This metadata alone does not
+		// establish recipient delivery or exchange credit.
+		sourceTransaction := hex.EncodeToString(tx.Hash)
 		rt, _, e := a.findArchivedTransaction(ctx, p.Account.Network, p.Recipient, func(rt *tlb.Transaction) bool {
 			if rt.IO.In == nil || rt.IO.In.MsgType != tlb.MsgTypeInternal {
 				return false
@@ -529,7 +535,7 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 			return err == nil && bytes.Equal(inc.Hash(), msgCell.Hash())
 		})
 		if e != nil {
-			return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient archival trace unavailable or inconsistent"}, e
+			return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient archival trace unavailable or inconsistent", SourceTransaction: sourceTransaction}, e
 		}
 		if rt != nil {
 			d, ok := rt.Description.(tlb.TransactionDescriptionOrdinary)
@@ -541,9 +547,9 @@ func (a *Adapter) Reconcile(ctx context.Context, p model.Plan, s model.Signed) (
 					return model.Receipt{Identity: s.Identity, State: "FAILED", Detail: "recipient computation/action bounced or failed"}, nil
 				}
 			}
-			return model.Receipt{Identity: s.Identity, State: "CONFIRMED", Detail: "matching source external message, successful action, and recipient credit BOCs (trusted RPC; no independent proof of finality)", Block: hex.EncodeToString(rt.Hash)}, nil
+			return model.Receipt{Identity: s.Identity, State: "CONFIRMED", Detail: "matching source external message, successful action, and recipient credit BOCs (trusted RPC; no independent proof of finality)", Block: hex.EncodeToString(rt.Hash), SourceTransaction: sourceTransaction}, nil
 		}
-		return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient credit not observed within bounded archival search (at most 3200 linked transactions); absence does not prove failure"}, nil
+		return model.Receipt{Identity: s.Identity, State: "SUBMITTED", Detail: "source action succeeded; recipient credit not observed within bounded archival search (at most 3200 linked transactions); absence does not prove failure", SourceTransaction: sourceTransaction}, nil
 	}
 	return model.Receipt{Identity: s.Identity, State: "UNKNOWN", Detail: "message absent from bounded archival search (at most 32 pages / 3200 linked transactions); explicit history continuation can inspect older records; absence or seqno advancement does not prove payment failure or success"}, nil
 }

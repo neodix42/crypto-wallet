@@ -840,7 +840,16 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 	if !ok {
 		return exchangeResult{}, errExchange
 	}
-	return exchangeResult{ID: plan.ID, Kind: "deposit", State: receipt.State, TransactionID: receipt.Identity, Message: "This is the original on-chain wallet payment, retained in the wallet's transaction history and encrypted operation records. Chain submission does not establish exchange deposit credit; wait for exchange credit before swapping. TON includes the required deposit memo."}, nil
+	message := "Original deposit status: " + receipt.State + ". Its identity is retained in encrypted operation records. Confirmation and Bybit credit are checked automatically in the wizard; no replacement deposit is sent."
+	if account.Family == "ton" {
+		message += " The submitted TON identifier is its signed external-message hash; its transaction hash is shown after chain confirmation."
+		if plan.Memo == "" {
+			message += " This verified deposit address explicitly requires no memo."
+		} else {
+			message += " The required deposit memo is included in the signed payment."
+		}
+	}
+	return exchangeResult{ID: plan.ID, Kind: "deposit", State: receipt.State, TransactionID: receipt.Identity, Message: message}, nil
 }
 func exchangeAvailable(balances []exchangeBalance, kind, coin string) string {
 	for _, b := range balances {

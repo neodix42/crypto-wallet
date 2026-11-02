@@ -3,6 +3,7 @@ package ton
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"math/big"
 	"strconv"
 	"strings"
@@ -187,6 +188,14 @@ func TestUSDTLinkedReceiptRejectsCoherentWrongEffects(t *testing.T) {
 			}
 			if e != nil || r.State != want || r.Identity != g.s.Identity || g.rpc.send != 0 {
 				t.Fatalf("wanted %s without broadcast: %+v %v", want, r, e)
+			}
+			if want == "CONFIRMED" {
+				sourceCell, err := tlb.ToCell(g.owner)
+				if err != nil || r.SourceTransaction != hex.EncodeToString(sourceCell.Hash()) || r.SourceTransaction == r.Identity {
+					t.Fatal("confirmed jetton source transaction metadata mismatch", r, err)
+				}
+			} else if r.SourceTransaction != "" {
+				t.Fatal("unresolved jetton exposed source identity as delivery evidence", r)
 			}
 		})
 	}

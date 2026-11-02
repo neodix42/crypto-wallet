@@ -21,6 +21,9 @@ func TestPendingInboxFindsLateOperationsOnceAndLaterLeavesEveryOriginalUnchanged
 	before := viewText(original)
 	reads, prompts := 0, 0
 	core.handler = func(_ uint64, method string, body, out any) error {
+		if method == "exchangeWizardLoad" {
+			return answer(out, map[string]any{"wizard": nil})
+		}
 		if method != "history" {
 			t.Error("inbox requested payment authority", method)
 			return errors.New("unexpected mutation")
@@ -81,6 +84,8 @@ func TestPendingInboxSelectionCannotSubstituteAnotherOriginal(t *testing.T) {
 	core.handler = func(_ uint64, method string, body, out any) error {
 		calls = append(calls, method)
 		switch method {
+		case "exchangeWizardLoad":
+			return answer(out, map[string]any{"wizard": nil})
 		case "history":
 			return answer(out, journalPage{Operations: []journal.Operation{original}, Total: 1, Revision: "one", Complete: true})
 		case "pendingPayment":
@@ -101,7 +106,7 @@ func TestPendingInboxSelectionCannotSubstituteAnotherOriginal(t *testing.T) {
 	a.nextPendingPayments()
 	ui.apply(t)
 	ui.apply(t)
-	if strings.Join(calls, ",") != "history,pendingPayment" || !strings.Contains(a.status, "could not be verified") {
+	if strings.Join(calls, ",") != "history,exchangeWizardLoad,pendingPayment" || !strings.Contains(a.status, "could not be verified") {
 		t.Fatal("stale selection substituted original", calls, a.status)
 	}
 }
@@ -253,6 +258,9 @@ func TestPendingInboxStaleWorkerNeverOpensDialogOrStealsForeground(t *testing.T)
 			op := pendingFixture(t, a, "UNKNOWN")
 			started, release := make(chan struct{}), make(chan struct{})
 			core.handler = func(_ uint64, method string, body, out any) error {
+				if method == "exchangeWizardLoad" {
+					return answer(out, map[string]any{"wizard": nil})
+				}
 				if method != "history" {
 					return errors.New("unexpected")
 				}
@@ -297,6 +305,9 @@ func TestPausedPendingInboxCannotClearNewBackgroundOwnerOrDismissalState(t *test
 	a.pendingInbox.SeenOwners = map[string]string{op.Plan.ID: op.Plan.Account.ID}
 	started, release := make(chan struct{}), make(chan struct{})
 	core.handler = func(_ uint64, method string, body, out any) error {
+		if method == "exchangeWizardLoad" {
+			return answer(out, map[string]any{"wizard": nil})
+		}
 		close(started)
 		<-release
 		return answer(out, journalPage{Operations: []journal.Operation{op}, Total: 1, Revision: "one", Complete: true})

@@ -24,9 +24,10 @@ type wizardDepositPreview struct {
 }
 type wizardBalance struct{ AccountType, Coin, Available, WalletBalance string }
 type wizardDepositCredit struct {
-	Ready                                           bool
-	ChainState, Message, ReportedAmount, DepositFee string
-	Balances                                        []wizardBalance
+	Ready, ChainConfirmed                                           bool
+	ChainState, Message, ReportedAmount, DepositFee                 string
+	Coin, DepositedAmount, TransactionID, ReadError, TransferBudget string
+	Balances                                                        []wizardBalance
 }
 type wizardPair struct{ ID, AccountID, AssetID, Side, QuoteCoin, OutputCoin, Symbol string }
 type wizardDestination struct {
@@ -38,13 +39,17 @@ type wizardResult struct {
 	Fees                                                             map[string]string
 }
 type exchangeWizardUI struct {
-	state        *exchange.WizardState
-	depositState string
-	preview      *wizardDepositPreview
-	credit       *wizardDepositCredit
-	balances     []wizardBalance
-	pairs        []wizardPair
-	destinations []wizardDestination
+	state             *exchange.WizardState
+	depositState      string
+	preview           *wizardDepositPreview
+	credit            *wizardDepositCredit
+	balances          []wizardBalance
+	pairs             []wizardPair
+	destinations      []wizardDestination
+	depositChecking   bool
+	depositCheckedAt  time.Time
+	depositNotified   bool
+	depositPollSerial uint64
 }
 
 func (a *App) exchangeWizardData() *exchangeWizardUI {
@@ -68,7 +73,10 @@ func (a *App) adoptExchangeWizard(raw json.RawMessage) {
 func (a *App) adoptWizardState(w *exchange.WizardState) {
 	u := a.exchangeWizardData()
 	if w == nil {
-		u.state = nil
+		u.state, u.credit, u.balances = nil, nil, nil
+		u.depositPollSerial++
+		u.depositChecking, u.depositNotified = false, false
+		u.depositCheckedAt = time.Time{}
 		return
 	}
 	if !w.Valid() {
@@ -76,6 +84,12 @@ func (a *App) adoptWizardState(w *exchange.WizardState) {
 		return
 	}
 	old := u.state
+	if old == nil || old.ID != w.ID {
+		u.credit, u.balances = nil, nil
+		u.depositPollSerial++
+		u.depositChecking, u.depositNotified = false, false
+		u.depositCheckedAt = time.Time{}
+	}
 	changed := old == nil || old.ID != w.ID || old.Step != w.Step || old.DepositOperation != w.DepositOperation || old.TransferOperation != w.TransferOperation || old.SwapOperation != w.SwapOperation || old.WithdrawOperation != w.WithdrawOperation
 	copy := *w
 	u.state = &copy
@@ -274,7 +288,10 @@ func (a *App) exchangeWizardPage() []webui.Node {
 		if !locked {
 			nodes = append(nodes, a.button("wizardDeposit", "Deposit", disabled || !valid || !ready))
 		} else {
-			nodes = append(nodes, label("Original deposit: "+u.state.DepositOperation), a.button("wizardCheckDeposit", "Check deposit credit and continue", disabled), a.button("wizardPendingDeposit", "Review original pending deposit", disabled))
+			nodes = append(nodes, label("Original deposit: "+u.state.DepositOperation), label("Checking the original transaction and Bybit credit automatically."), a.button("wizardCheckDeposit", "Refresh deposit confirmation", disabled))
+			if u.depositState == "PREPARED" || u.depositState == "AWAITING_CONFIRMATION" || u.depositState == "SIGNED_NOT_SUBMITTED" {
+				nodes = append(nodes, a.button("wizardPendingDeposit", "Resume original deposit", disabled))
+			}
 			if u.depositState == "PREPARED" || u.depositState == "CANCELLED" || u.depositState == "MISSING" {
 				nodes = append(nodes, a.wizardClearButton(u.state.DepositOperation, disabled)...)
 			}
@@ -285,11 +302,44 @@ func (a *App) exchangeWizardPage() []webui.Node {
 	case 2:
 		w := u.state
 		nodes = append(nodes, heading("2. Move Funding to Unified"), label("Asset: "+asset.Symbol+" · Network: "+a.network(account.Network).Name))
-		if u.credit != nil {
-			nodes = append(nodes, label("Bybit reported deposit: "+u.credit.ReportedAmount+" "+asset.Symbol))
+		deposited := w.DepositAmount
+		if u.credit != nil && u.credit.DepositedAmount != "" {
+			deposited = u.credit.DepositedAmount
 		}
-		for _, b := range u.balances {
-			nodes = append(nodes, label(b.AccountType+" available: "+b.Available+" "+b.Coin))
+		nodes = append(nodes, label("On-chain deposit: "+deposited+" "+asset.Symbol), label("Original deposit: "+w.DepositOperation))
+		if u.credit != nil {
+			nodes = append(nodes, label(u.credit.Message))
+			if u.credit.TransactionID != "" {
+				nodes = append(nodes, node("address", "", "Deposit transaction", u.credit.TransactionID))
+			}
+			if u.credit.Ready && u.credit.ReportedAmount != "" {
+				nodes = append(nodes, label("Bybit reported deposit amount: "+u.credit.ReportedAmount+" "+asset.Symbol))
+				if u.credit.DepositFee != "" {
+					nodes = append(nodes, label("Bybit reported deposit fee: "+u.credit.DepositFee+" "+asset.Symbol))
+				} else {
+					nodes = append(nodes, label("Bybit deposit fee: not reported"))
+				}
+				nodes = append(nodes, label("Conservative transfer limit: "+wizardTransferLimit(u.credit)+" "+asset.Symbol))
+			}
+		} else {
+			nodes = append(nodes, label("Deposit confirmed on-chain. Checking Bybit credit and account balances…"))
+		}
+		for _, kind := range []string{"FUND", "UNIFIED"} {
+			name := "Funding"
+			if kind == "UNIFIED" {
+				name = "Unified"
+			}
+			available := wizardAvailable(u.balances, kind, asset.Symbol)
+			if available == "" {
+				nodes = append(nodes, label(name+" balance: not yet available"))
+			} else {
+				nodes = append(nodes, label(name+" available: "+available+" "+asset.Symbol))
+				for _, balance := range u.balances {
+					if balance.AccountType == kind && balance.Coin == asset.Symbol && balance.WalletBalance != "" {
+						nodes = append(nodes, label(name+" total: "+balance.WalletBalance+" "+asset.Symbol))
+					}
+				}
+			}
 		}
 		if len(u.balances) > 0 && !exchangeInputAtLeast(wizardAvailable(u.balances, "FUND", asset.Symbol), a.fields["wizardTransferAmount"]) {
 			nodes = append(nodes, label("Funding does not yet have enough available funds. If Bybit auto-transferred the deposit to Unified, change that setting or move the funds back to Funding in Bybit before continuing."))
@@ -297,13 +347,17 @@ func (a *App) exchangeWizardPage() []webui.Node {
 		field := a.entry("wizardTransferAmount", "Amount to move ("+asset.Symbol+")")
 		field.InputMode = "decimal"
 		field.Disabled = field.Disabled || w.TransferOperation != ""
-		valid := wizardPositive(field.Value, asset.Decimals) && wizardAtMost(field.Value, w.DepositAmount)
+		ceiling := w.DepositAmount
+		if u.credit != nil && u.credit.Ready && u.credit.ReportedAmount != "" {
+			ceiling = wizardTransferLimit(u.credit)
+		}
+		valid := wizardPositive(field.Value, asset.Decimals) && wizardAtMost(field.Value, ceiling)
 		if field.Value != "" && !valid {
-			field.Error = "Enter a positive amount no greater than this deposit."
+			field.Error = "Enter a positive amount no greater than the credited deposit."
 		}
 		nodes = append(nodes, field, a.button("wizardRefreshFunding", "Refresh Funding / Unified balances", disabled))
 		if w.TransferOperation == "" {
-			nodes = append(nodes, a.button("wizardMove", "Move to Unified", disabled || !valid || !exchangeInputAtLeast(wizardAvailable(u.balances, "FUND", asset.Symbol), field.Value)))
+			nodes = append(nodes, a.button("wizardMove", "Move to Unified", disabled || !wizardCreditReady(u.credit) || !valid || !exchangeInputAtLeast(wizardAvailable(u.balances, "FUND", asset.Symbol), field.Value)))
 		} else {
 			nodes = append(nodes, label("Original Funding transfer: "+w.TransferOperation), a.button("wizardCheckTransfer", "Check transfer and continue", disabled))
 			nodes = append(nodes, a.wizardClearButton(w.TransferOperation, disabled)...)
@@ -469,6 +523,11 @@ func (a *App) saveWizardAt(g uint64, w *exchange.WizardState) error {
 }
 
 func (a *App) wizardWork(title string, fn func(uint64) (wizardUpdate, error)) {
+	if a.wizard != nil {
+		// A delayed read must not overwrite an action or its freshly loaded state.
+		a.wizard.depositPollSerial++
+		a.wizard.depositChecking = false
+	}
 	revision := a.exchangeRevision
 	var update wizardUpdate
 	var saved *exchange.WizardState
@@ -577,6 +636,8 @@ func (a *App) wizardWork(title string, fn func(uint64) (wizardUpdate, error)) {
 	}, func(err error) {
 		if err != nil {
 			apply()
+		} else if update.credit != nil {
+			a.notifyWizardDepositConfirmed(a.exchangeWizardData(), update.credit)
 		}
 	})
 }
@@ -699,7 +760,9 @@ func (a *App) wizardAction(id string) bool {
 	}
 	if id == "wizardPendingDeposit" {
 		if state.SourceAccount != "" {
-			a.queuePendingPayments(state.SourceAccount)
+			a.forcePendingPayments(state.SourceAccount)
+			// An explicit review is not the automatic unlock inbox.
+			a.pendingInbox.Request = state.SourceAccount
 		}
 		return true
 	}
@@ -747,15 +810,15 @@ func (a *App) wizardAction(id string) bool {
 		a.errorText("Prepare Bybit swap", a.wizardTradeValidation().SwapError)
 		return true
 	}
-	if id == "wizardMove" && (!sourceOK || state.Step != 2 || !wizardPositive(fields["wizardTransferAmount"], asset.Decimals) || !wizardAtMost(fields["wizardTransferAmount"], state.DepositAmount)) {
-		a.errorText("Prepare Funding transfer", "Enter a valid transfer amount within this deposit.")
+	if id == "wizardMove" && (!sourceOK || state.Step != 2 || !wizardCreditReady(u.credit) || !wizardPositive(fields["wizardTransferAmount"], asset.Decimals) || !wizardAtMost(fields["wizardTransferAmount"], state.DepositAmount) || !wizardAtMost(fields["wizardTransferAmount"], wizardTransferLimit(u.credit)) || !exchangeInputAtLeast(wizardAvailable(u.balances, "FUND", asset.Symbol), fields["wizardTransferAmount"])) {
+		a.errorText("Prepare Funding transfer", "Wait for Bybit to credit this deposit, then enter a valid amount within its credited amount and available Funding balance.")
 		return true
 	}
 	if id == "wizardWithdraw" && (!destinationOK || state.Step != 4 || !wizardPositive(fields["wizardWithdrawAmount"], 36) || !wizardAtMost(fields["wizardWithdrawAmount"], state.OutputAmount)) {
 		a.errorText("Prepare Bybit withdrawal", "Refresh withdrawal networks and choose a valid debit within the actual swap proceeds.")
 		return true
 	}
-	titles := map[string]string{"wizardRefreshDeposit": "Reading Bybit deposit address and wallet balance", "wizardDeposit": "Preparing deposit to Bybit", "wizardCheckDeposit": "Checking the original Bybit deposit credit", "wizardRefreshFunding": "Reading Bybit Funding / Unified balances", "wizardMove": "Moving Funding to Unified", "wizardCheckTransfer": "Checking the original Funding transfer", "wizardRefreshPairs": "Finding available Bybit spot pairs", "wizardRefreshMarket": "Reading Bybit market and deposit address", "wizardSwap": "Preparing Bybit spot swap", "wizardCheckSwap": "Checking the original Bybit spot order", "wizardRefreshWithdraw": "Reading owned-wallet withdrawal routes", "wizardWithdraw": "Preparing Bybit withdrawal", "wizardCheckWithdraw": "Checking the original Bybit withdrawal"}
+	titles := map[string]string{"wizardRefreshDeposit": "Reading Bybit deposit address and wallet balance", "wizardDeposit": "Preparing deposit to Bybit", "wizardCheckDeposit": "Checking the original deposit confirmation and Bybit credit", "wizardRefreshFunding": "Reading Bybit Funding / Unified balances", "wizardMove": "Moving Funding to Unified", "wizardCheckTransfer": "Checking the original Funding transfer", "wizardRefreshPairs": "Finding available Bybit spot pairs", "wizardRefreshMarket": "Reading Bybit market and deposit address", "wizardSwap": "Preparing Bybit spot swap", "wizardCheckSwap": "Checking the original Bybit spot order", "wizardRefreshWithdraw": "Reading owned-wallet withdrawal routes", "wizardWithdraw": "Preparing Bybit withdrawal", "wizardCheckWithdraw": "Checking the original Bybit withdrawal"}
 	title, known := titles[id]
 	if !known {
 		return true
@@ -839,14 +902,13 @@ func (a *App) wizardAction(id string) bool {
 			}
 			update.credit = &check
 			update.balances = check.Balances
-			if check.Ready {
-				state.Step = 2
-				err = a.saveWizardAt(g, &state)
-			}
 		case "wizardRefreshFunding":
-			var result struct{ Balances []wizardBalance }
-			err = a.callAt(g, "exchangeFundingBalances", map[string]string{"accountId": state.SourceAccount, "assetId": state.SourceAsset}, &result)
-			update.balances = result.Balances
+			var check wizardDepositCredit
+			err = a.callAt(g, "exchangeDepositCheck", map[string]string{"wizardId": state.ID}, &check)
+			if err == nil {
+				update.credit = &check
+				update.balances = check.Balances
+			}
 		case "wizardMove":
 			err = a.callAt(g, "exchangeFundingTransfer", map[string]string{"wizardId": state.ID, "amount": fields["wizardTransferAmount"]}, &update.result)
 			if err == nil {

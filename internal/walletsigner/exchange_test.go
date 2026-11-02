@@ -96,6 +96,23 @@ func TestExchangePrivateDispatchRequiresMaskedCredentialsAndDurableApproval(t *t
 	}
 }
 
+func TestExchangeDepositConfirmationDispatchHasNoDraftOrDebitAuthority(t *testing.T) {
+	e, _ := dispatchEngine(t, "mainnet", true)
+	for _, body := range []json.RawMessage{
+		json.RawMessage(`{"wizardId":"missing","depositOperation":"missing"}`),
+		json.RawMessage(`{"wizardId":"missing","depositOperation":"missing","step":2}`),
+		json.RawMessage(`{"wizardId":"missing","depositOperation":"missing","amount":"1"}`),
+		json.RawMessage(`{"wizardId":"missing","wizardId":"other","depositOperation":"missing"}`),
+		json.RawMessage(`{"wizardId":null,"depositOperation":"missing"}`),
+	} {
+		m := request("exchangeWizardDepositConfirmed", struct{}{})
+		m.Body = body
+		if _, err := handle(e, m, "mainnet"); err == nil {
+			t.Fatal("unbound confirmation or caller-selected draft authority accepted")
+		}
+	}
+}
+
 func TestExchangePrivateDispatchRejectsUnknownFieldsSecretsAndLockedRequests(t *testing.T) {
 	e, _ := dispatchEngine(t, "mainnet", false)
 	methods := []string{"exchangeStatus", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize", "exchangeOperation", "exchangeCancel", "exchangeAuth", "exchangeUpdate", "exchangeReject"}

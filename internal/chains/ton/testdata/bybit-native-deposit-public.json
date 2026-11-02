@@ -1,0 +1,15 @@
+{
+  "provenance": "Public read-only TON Center API v2 getTransactions and getAddressInformation responses, captured 2026-11-02. These are already published mainnet transaction BOCs and a public key; no wallet storage, private key, recovery phrase, API credential or mainnet write was used.",
+  "sourceURL": "https://toncenter.com/api/v2/getTransactions?address=UQAomnBshnaKi0Uu645Qg-hXScddgZwXa2U__ba7kf8UvZ05&limit=100&archival=true",
+  "recipientURL": "https://toncenter.com/api/v2/getTransactions?address=UQDoJhPJopCXVzyqm_wt0ELXSnP_epdc06lQuGwiE_MtHn1L&limit=100&archival=true",
+  "publicKeyURL": "https://toncenter.com/api/v2/getAddressInformation?address=UQAomnBshnaKi0Uu645Qg-hXScddgZwXa2U__ba7kf8UvZ05",
+  "sourceAddress": "UQAomnBshnaKi0Uu645Qg-hXScddgZwXa2U__ba7kf8UvZ05",
+  "recipientAddress": "UQDoJhPJopCXVzyqm_wt0ELXSnP_epdc06lQuGwiE_MtHn1L",
+  "publicKey": "147a5702cf5b19ed6d42414157e938aae51e2e5e15b03d1ddf212a681e1e22e6",
+  "externalHash": "956c289e323fb73723362df1bc26db154f720a30bc9eda1cf10cbf016581fb89",
+  "sourceHash": "9aabe0765796346d0ce447f63a4ec565ab41daec90ac77316e4c21bb891722d1",
+  "recipientHash": "5ab9780b09037d425c9d8a4b43d17ae39582f7768ddc05c2fbc3efbdb610b974",
+  "internalMessageHash": "f4ec5c75ae06008af404ea950fc904772e190282fd2439e8939c13484a09208b",
+  "sourceBOC": "te6cckECDAEAAlYAA7VyiacGyGdoqLRS7rjlCD6FdJx12BnBdrZT/9truR/xS9AABnwYEkeEoiCk8i+2joMkUyIHqWeRbhFGeXHRZNhzByT6jJtspZ9AAAZ7dFdW6RaujnFAADRg5W/oAQIDAgHgBAUAgnIAbh22aP17koIlOsif+rEjdUtgkSzv+1k02qclxMyd4IlOPxSS8niGCLGReoBXvQwJZwnY7vtjjJO+VNWuEEbfAhEMgMdGGCgxpEAKCwHliABRNODZDO0VFopd1xyhB9Cuk467Azgu1sp/+213I/4pegObSztz///4i1dHQUAAAAAV2tshTAZf7Vmmnjz2HQ3voQDDwXAKuvWDnUb+4YoNgJ1ALKxuuxPoZr7QSob4va6KqRvG9+/XiL+KOLDQykdeFQYBAd8JAgoOw8htAwcIAAAAamIAdBMJ5NFIS6ueVU3+Fugha6U5/71LrmnUqFw2EQn5lo8oCy0F4AAAAAAAAAAAAAAAAAAAALFoAFE04NkM7RUWil3XHKEH0K6TjrsDOC7Wyn/7bXcj/il7ADoJhPJopCXVzyqm/wt0ELXSnP/epdc06lQuGwiE/MtHlAWWgvAABVs8AADPgwJI8JbV0c4oQACdQmljE4gAAAAAAAAAACPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIABtyYCCNclbNAAAAAAAAgAAAAAAAzFAbZzocI13jc2q9BMvOcciefNI0+Q66TcasHDyPVa6QFAWDNpyjxc=",
+  "recipientBOC": "te6cckECBwEAAZIAA7N+gmE8mikJdXPKqb/C3QQtdKc/96l1zTqVC4bCIT8y0eAABnwYEkeEykVgO3KR7hU8OOxdwiYTh/sXM4i1NM5aJN/87edxWOJAAAZO4bW+AIaujnFAABRHAMgBAgMBAaAEAIJyWzprx0aHQfCi/jHB+PlXT3x6tA5bdPahw/DdsM9+n/Aop0S3vAJ8YBMl1Tl1/luaZjRPepgEIEu/hMlV1emuFgIZBId+yUBZaC8AGENBcQUGALFoAFE04NkM7RUWil3XHKEH0K6TjrsDOC7Wyn/7bXcj/il7ADoJhPJopCXVzyqm/wt0ELXSnP/epdc06lQuGwiE/MtHlAWWgvAABVs8AADPgwJI8JbV0c4oQACcJ8w9CQAAAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFvAAAAAAAAAAAAAAAABLUUtpEnlC4z33SeGHxRhIq/htUa7i3D8ghbwxhQTn44E390FPQ=="
+}

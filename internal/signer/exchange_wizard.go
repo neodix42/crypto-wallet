@@ -10,6 +10,41 @@ import (
 	"localwallet/internal/vault"
 )
 
+// ConfirmExchangeWizardDeposit changes navigation only. It consumes neither a
+// payment approval nor exchange authorization. Keeping the update inside the
+// signer preserves any draft fields/operation references changed while a
+// background chain query was running; a stale full wizard save cannot do so.
+func (e *Engine) ConfirmExchangeWizardDeposit(wizardID, operationID string) error {
+	x, err := e.exchangeData()
+	if err != nil || x.Selected() != "bybit" || x.Wizard == nil || x.Wizard.ID != wizardID || operationID == "" || x.Wizard.DepositOperation != operationID {
+		return ErrDenied
+	}
+	credential := x.Credential("bybit")
+	if credential == nil || x.WizardCredentialID != vault.ExchangeCredentialID(credential) {
+		return ErrDenied
+	}
+	w := *x.Wizard
+	for _, operation := range e.data.Operations {
+		if operation.Plan.ID != operationID {
+			continue
+		}
+		if operation.State != "CONFIRMED" || operation.Signed == nil || operation.Receipt == nil || operation.Receipt.State != "CONFIRMED" || operation.Receipt.Identity != operation.Signed.Identity || operation.Plan.Account.ID != w.SourceAccount || operation.Plan.Asset != w.SourceAsset {
+			return ErrDenied
+		}
+		_, asset, lookupErr := e.exchangeAsset(w.SourceAccount, w.SourceAsset)
+		atomic, parseErr := amount.Parse(w.DepositAmount, asset.Decimals)
+		if lookupErr != nil || parseErr != nil || atomic != operation.Plan.Amount {
+			return ErrDenied
+		}
+		if w.Step != 1 {
+			return nil // Repeated observations never regress or overwrite a draft.
+		}
+		w.Step = 2
+		return e.SaveExchangeWizard(w)
+	}
+	return ErrDenied
+}
+
 // SaveExchangeWizard persists a navigation draft, not a debit capability.
 // Every payment/transfer/order/withdrawal retains its separate authorization.
 func (e *Engine) SaveExchangeWizard(w exchange.WizardState) error {

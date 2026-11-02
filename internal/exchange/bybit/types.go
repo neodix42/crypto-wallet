@@ -235,12 +235,16 @@ type DepositRecord struct {
 	TxID             string `json:"txID"`
 	Status           int    `json:"status"`
 	ToAddress        string `json:"toAddress"`
+	FromAddress      string `json:"fromAddress"`
 	Tag              string `json:"tag"`
 	SuccessAt        string `json:"successAt"`
 	Confirmations    string `json:"confirmations"`
 	DepositFee       string `json:"depositFee"`
 	DepositType      string `json:"depositType"`
 	TravelRuleStatus int    `json:"travelRuleStatus"`
+	// Bybit omits this field in non-compliance areas (including its public
+	// response example). An explicitly reported review state is never ignored.
+	TravelRuleStatusPresent bool `json:"-"`
 }
 type DepositPage struct {
 	Rows           []DepositRecord `json:"rows"`

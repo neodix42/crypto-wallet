@@ -14,6 +14,17 @@ func handleExchange(e *signer.Engine, method string, raw json.RawMessage) (json.
 	var out any
 	var err error
 	switch method {
+	case "exchangeWizardDepositConfirmed":
+		var in struct {
+			WizardID         strictjson.Text `json:"wizardId"`
+			DepositOperation strictjson.Text `json:"depositOperation"`
+		}
+		if err = signer.DecodeBody(raw, &in); err == nil {
+			err = e.ConfirmExchangeWizardDeposit(string(in.WizardID), string(in.DepositOperation))
+		}
+		if err == nil {
+			out, err = e.ExchangeStatus()
+		}
 	case "exchangeWizardCancel":
 		var in struct {
 			ID strictjson.Text `json:"id"`

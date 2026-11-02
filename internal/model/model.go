@@ -76,13 +76,18 @@ type Balance struct {
 	At     string `json:"at"`
 }
 type Receipt struct {
-	Identity  string            `json:"identity"`
-	State     string            `json:"state"`
-	Detail    string            `json:"detail"`
-	Block     string            `json:"block"`
-	Timestamp int64             `json:"timestamp,omitempty"`
-	Explorer  string            `json:"explorer,omitempty"`
-	Transfers []HistoryTransfer `json:"transfers,omitempty"`
+	Identity string `json:"identity"`
+	State    string `json:"state"`
+	Detail   string `json:"detail"`
+	Block    string `json:"block"`
+	// SourceTransaction is a decoded and locally checked source-chain transaction
+	// identity, distinct from a signed external-message identity or a linked
+	// recipient transaction. It is populated only after checking the exact
+	// signed source execution and outgoing effects; it is not delivery proof.
+	SourceTransaction string            `json:"sourceTransaction,omitempty"`
+	Timestamp         int64             `json:"timestamp,omitempty"`
+	Explorer          string            `json:"explorer,omitempty"`
+	Transfers         []HistoryTransfer `json:"transfers,omitempty"`
 }
 
 // HistoryPage is a bounded observation, not a proof of balance or finality.

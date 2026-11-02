@@ -26,6 +26,12 @@ const exchangeChildBranches = `
  elif method=='exchangeStatus':
   output={'connected':state.get('exchangeConnected',True),'endpoint':state.get('exchangeEndpoint','https://api.bybit.com'),'credentialId':'fixture-credential','keySuffix':'1234','operations':state.get('exchangeOps',[]),'operationCount':len(state.get('exchangeOps',[])),'wizard':state.get('wizard')}
  elif method=='exchangeWizardSave':state['wizard']=body;output={'wizard':body,'operations':state.get('exchangeOps',[])}
+ elif method=='exchangeWizardDepositConfirmed':
+  original=next((o for o in state.get('ops',[]) if o['plan']['id']==body['depositOperation']),None)
+  wizard=state.get('wizard')
+  if not wizard or wizard['id']!=body['wizardId'] or wizard.get('depositOperation')!=body['depositOperation'] or not original or original['state']!='CONFIRMED':error='SYNTHETIC_DENIED'
+  elif wizard['step']==1:wizard['step']=2
+  output={'wizard':wizard,'operations':state.get('exchangeOps',[])}
  elif method=='exchangeConnect':state['exchangeConnected']=True;state['exchangeEndpoint']=body['endpoint'];output={}
  elif method=='exchangeDisconnect':state['exchangeConnected']=False;output={}
  elif method=='exchangePrepare':

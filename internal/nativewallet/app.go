@@ -374,6 +374,9 @@ func (a *App) tick() {
 	if a.busy || a.background || len(a.errorQueue) > 0 {
 		return
 	}
+	if a.nextWizardDepositCheck() {
+		return
+	}
 	if a.nextPendingPayments() {
 		return
 	}

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"unicode/utf8"
 
+	"localwallet/internal/exchange"
 	"localwallet/internal/journal"
 	"localwallet/internal/uiprompt"
 )
@@ -188,10 +189,20 @@ func (a *App) nextPendingPayments() bool {
 	a.pendingInbox.Cancel = cancel
 	a.pendingInbox.Serial++
 	serial, epoch, generation, revision := a.pendingInbox.Serial, a.epoch, a.core.Generation(), a.state.Revision
+	checkWizard := query == "*" && a.selectedExchangeProvider().ID == "bybit"
 	a.background = true
 	go func() {
 		defer cancel()
 		operations, err := readPendingOperations(ctx, a.core, generation, accountID)
+		var savedWizard *exchange.WizardState
+		if err == nil && len(operations) > 0 && checkWizard && ctx.Err() == nil {
+			var saved struct{ Wizard *exchange.WizardState }
+			// This local navigation read needs no network request or approval.
+			// On fresh unlock the Exchange page has not loaded its state yet.
+			if a.core.CallAt(generation, "exchangeWizardLoad", struct{}{}, &saved) == nil {
+				savedWizard = saved.Wizard
+			}
+		}
 		a.ui.Dispatch(func() {
 			if a.closed || a.epoch != epoch || a.pendingInbox.Serial != serial {
 				return
@@ -221,6 +232,15 @@ func (a *App) nextPendingPayments() bool {
 					a.pendingInboxFailure(accountID)
 				}
 				return
+			}
+			if query == "*" {
+				filtered := operations[:0]
+				for _, operation := range operations {
+					if !a.wizardManagesPendingDeposit(operation) && !wizardOwnsPendingDeposit(savedWizard, operation) {
+						filtered = append(filtered, operation)
+					}
+				}
+				operations = filtered
 			}
 			var unseen []journal.Operation
 			for _, operation := range operations {

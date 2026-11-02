@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -43,12 +44,18 @@ type exchangeSwapChoice struct {
 	Symbol     string `json:"symbol"`
 }
 type exchangeDepositCheck struct {
-	Ready          bool              `json:"ready"`
-	ChainState     string            `json:"chainState"`
-	Message        string            `json:"message"`
-	ReportedAmount string            `json:"reportedAmount,omitempty"`
-	DepositFee     string            `json:"depositFee,omitempty"`
-	Balances       []exchangeBalance `json:"balances,omitempty"`
+	Ready           bool              `json:"ready"`
+	ChainConfirmed  bool              `json:"chainConfirmed"`
+	ChainState      string            `json:"chainState"`
+	Message         string            `json:"message"`
+	Coin            string            `json:"coin,omitempty"`
+	DepositedAmount string            `json:"depositedAmount,omitempty"`
+	TransactionID   string            `json:"transactionId,omitempty"`
+	ReadError       string            `json:"readError,omitempty"`
+	ReportedAmount  string            `json:"reportedAmount,omitempty"`
+	DepositFee      string            `json:"depositFee,omitempty"`
+	TransferBudget  string            `json:"transferBudget,omitempty"`
+	Balances        []exchangeBalance `json:"balances,omitempty"`
 }
 
 func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) {
@@ -117,6 +124,9 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 		if message.Method == "exchangeDepositCheck" {
 			return check, nil
 		}
+		if check.ReadError != "" {
+			return nil, ipc.NewRequestError(check.ReadError)
+		}
 		if w.Step != 2 || w.TransferOperation != "" || !check.Ready {
 			return nil, ipc.NewRequestError("EXCHANGE_DEPOSIT_PENDING")
 		}
@@ -125,7 +135,7 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 			return nil, err
 		}
 		atomic, e := amount.Parse(string(in.Amount), asset.Decimals)
-		if e != nil || atomic == "0" || !exchangeAtLeast(w.DepositAmount, string(in.Amount)) {
+		if e != nil || atomic == "0" || !exchangeAtLeast(w.DepositAmount, string(in.Amount)) || !exchangeAtLeast(check.TransferBudget, string(in.Amount)) {
 			return nil, ipc.NewRequestError("INVALID_ARGUMENT")
 		}
 		info, err := client.APIKeyInfo(ctx)
@@ -355,18 +365,49 @@ func exchangeSameTONHash(a, b string) bool {
 				return b
 			}
 		}
-		b, e := base64.StdEncoding.DecodeString(s)
-		if e != nil || len(b) != 32 {
-			return nil
+		for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+			b, e := encoding.Strict().DecodeString(s)
+			if e == nil && len(b) == 32 && encoding.EncodeToString(b) == s {
+				return b
+			}
 		}
-		return b
+		return nil
 	}
 	x, y := decode(a), decode(b)
 	return len(x) == 32 && len(y) == 32 && string(x) == string(y)
 }
 
+// Bybit does not document whether its reported deposit amount is gross or
+// net of depositFee. Reserve every reported fee from the lesser of the signed
+// original amount and the reported amount, so existing Funding funds cannot
+// silently cover that fee. This can leave a second fee-sized reserve if the
+// reported amount is already net. An empty fee remains "not reported" in the
+// response; the resulting upper bound is not a claim that the fee was zero.
+func exchangeDepositTransferBudget(original, reported, fee string, decimals uint8) (string, error) {
+	limit, err := exchangeAtomic(original)
+	observed, observedErr := exchangeAtomic(reported)
+	if err != nil || observedErr != nil || decimals > 36 {
+		return "", bybit.ErrInvalidResponse
+	}
+	if observed.Cmp(limit) < 0 {
+		limit = observed
+	}
+	if fee != "" {
+		reserved, feeErr := exchangeAtomic(fee)
+		if feeErr != nil || reserved.Cmp(limit) > 0 {
+			return "", bybit.ErrInvalidResponse
+		}
+		limit.Sub(limit, reserved)
+	}
+	// Any exchange-ledger precision beyond the wallet asset's precision is
+	// retained as a reserve, never rounded up into an additional debit.
+	unit := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(36-decimals)), nil)
+	limit.Quo(limit, unit).Mul(limit, unit)
+	return exchangeDecimal(limit)
+}
+
 func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client exchangeAPI, w exchange.WizardState) (exchangeDepositCheck, error) {
-	check := exchangeDepositCheck{Message: "The original deposit has not yet been verified as credited by Bybit."}
+	check := exchangeDepositCheck{Message: "No original deposit has been submitted in this workflow."}
 	if w.DepositOperation == "" {
 		return check, nil
 	}
@@ -379,8 +420,19 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 	if op.Plan.ID != w.DepositOperation || op.Plan.Account.ID != w.SourceAccount || op.Plan.Asset != w.SourceAsset {
 		return check, errExchange
 	}
+	account, asset, _, err := c.exchangeAsset(w.SourceAccount, w.SourceAsset)
+	if err != nil {
+		return check, err
+	}
+	deposited, parseErr := amount.Format(op.Plan.Amount, asset.Decimals)
+	expected, expectedErr := amount.Parse(w.DepositAmount, asset.Decimals)
+	if parseErr != nil || expectedErr != nil || expected != op.Plan.Amount {
+		return check, errExchange
+	}
+	check.Coin, check.DepositedAmount = asset.Symbol, w.DepositAmount
 	check.ChainState = op.State
 	if op.Signed == nil {
+		check.Message = "The original deposit has not been signed or sent. Complete its original approval or clear the unsigned draft explicitly."
 		return check, nil
 	}
 	result, err := c.paymentAt("reconcile", w.DepositOperation, epoch)
@@ -392,33 +444,76 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 		return check, errExchange
 	}
 	check.ChainState = receipt.State
+	check.TransactionID = receipt.Identity
 	if receipt.State != "CONFIRMED" {
+		check.Message = "The original deposit is still awaiting verified on-chain delivery. Its original identity is retained; no new deposit is sent while checking it."
+		if receipt.State == "FAILED" || receipt.State == "REPLACED" || receipt.State == "REORGED" {
+			check.Message = "The original deposit's on-chain result is " + receipt.State + ". No Bybit credit has been verified; inspect the original payment before taking any further action."
+		}
 		return check, nil
 	}
-	account, asset, _, err := c.exchangeAsset(w.SourceAccount, w.SourceAsset)
-	if err != nil {
+	check.ChainConfirmed = true
+	if account.Family == "ton" {
+		check.TransactionID = receipt.Block
+	}
+	check.Message = "The original deposit is confirmed on-chain. Bybit has not yet returned its matching credited deposit; an exchange balance alone does not identify this deposit."
+	// The signer advances only its current original operation. It never saves
+	// a stale copy of this navigation draft over concurrent foreground edits.
+	if err := c.childCallAt(epoch, "exchangeWizardDepositConfirmed", struct {
+		WizardID         string `json:"wizardId"`
+		DepositOperation string `json:"depositOperation"`
+	}{w.ID, w.DepositOperation}, nil); err != nil {
 		return check, err
 	}
-	coin, err := client.CoinInfo(ctx, asset.Symbol)
+	readFailure := func(stage string, err error) (exchangeDepositCheck, error) {
+		check.Ready = false
+		if check.ReadError == "" {
+			check.ReadError = ipc.PublicErrorCode(exchangeReadFailure(stage, err))
+		}
+		check.Message = "The original deposit is confirmed on-chain, but Bybit credit or account balances could not be verified (" + check.ReadError + "). Checking again does not send another deposit or authorize an exchange transfer."
+		return check, nil
+	}
+	// Show both actual account balances after delivery, independently of how
+	// soon Bybit indexes the exact deposit. Neither observation grants credit.
+	check.Balances, err = exchangeBalances(ctx, client, asset.Symbol)
 	if err != nil {
-		return check, exchangeReadFailure("COIN", err)
+		check.Balances = nil
+		check.ReadError = ipc.PublicErrorCode(exchangeReadFailure("BALANCE", err))
+	}
+	coin, err := exchangeDepositCoinInfo(ctx, client, asset.Symbol)
+	if err != nil {
+		return readFailure("COIN", err)
 	}
 	chain, err := exchange.MatchProviderRoute("bybit", account, asset, coin)
 	if err != nil {
-		return check, ipc.NewRequestError("EXCHANGE_DEPOSIT_ROUTE_UNAVAILABLE")
+		return readFailure("COIN", err)
 	}
-	tx := receipt.Identity
+	identities := []string{receipt.Identity}
+	queries := []string{receipt.Identity}
 	if account.Family == "ton" {
-		tx = receipt.Block
-		if len(tx) != 64 {
-			return check, nil
+		// A TON signature identifies an external message, not a transaction.
+		// Exchanges can index either verified leg of the same linked payment.
+		// Never query/match the external-message identity as a deposit txID.
+		identities, queries = nil, nil
+		for _, tx := range []string{receipt.Block, receipt.SourceTransaction} {
+			raw, decodeErr := hex.DecodeString(tx)
+			if decodeErr != nil || len(raw) != 32 {
+				continue
+			}
+			canonical := hex.EncodeToString(raw)
+			duplicate := false
+			for _, previous := range identities {
+				duplicate = duplicate || previous == canonical
+			}
+			if !duplicate {
+				identities = append(identities, canonical)
+				queries = append(queries, canonical, base64.StdEncoding.EncodeToString(raw))
+			}
 		}
-	}
-	queries := []string{tx}
-	if account.Family == "ton" {
-		if raw, e := hex.DecodeString(tx); e == nil && len(raw) == 32 {
-			queries = append(queries, base64.StdEncoding.EncodeToString(raw))
+		if len(identities) == 0 {
+			return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
 		}
+		check.TransactionID = identities[0]
 	}
 	var matched *bybit.DepositRecord
 	for _, query := range queries {
@@ -427,21 +522,21 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 		for page := 0; page < 10; page++ {
 			result, err := client.DepositRecords(ctx, asset.Symbol, query, cursor)
 			if err != nil {
-				return check, exchangeReadFailure("DEPOSIT_CREDIT", err)
+				return readFailure("DEPOSIT_CREDIT", err)
 			}
 			for _, record := range result.Rows {
-				sameTx := record.TxID == tx
+				sameTx := record.TxID == query
 				if account.Family == "ton" {
-					sameTx = exchangeSameTONHash(record.TxID, tx)
+					sameTx = exchangeSameTONHash(record.TxID, query)
 				}
 				if !sameTx {
 					continue
 				}
-				if record.Coin != asset.Symbol || record.Chain != chain.Chain || !exchangeSameAddress(account.Network, record.ToAddress, op.Plan.Recipient) || record.Tag != op.Plan.Memo {
-					return check, exchangeReadFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+				if record.Coin != asset.Symbol || record.Chain != chain.Chain || !exchangeSameAddress(account.Network, record.ToAddress, op.Plan.Recipient) || record.Tag != op.Plan.Memo || record.FromAddress != "" && !exchangeSameAddress(account.Network, record.FromAddress, account.Address) {
+					return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
 				}
 				if matched != nil {
-					return check, exchangeReadFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+					return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
 				}
 				copy := record
 				matched = &copy
@@ -450,33 +545,41 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 				break
 			}
 			if seen[result.NextPageCursor] || page == 9 {
-				return check, exchangeReadFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+				return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
 			}
 			seen[result.NextPageCursor] = true
 			cursor = result.NextPageCursor
 		}
 		if matched != nil {
+			// A complete exact identity match needs no alternative encoding or
+			// leg query. An unsupported alternative must not hide valid credit.
 			break
 		}
 	}
 	if matched == nil {
+		if check.ReadError != "" {
+			return readFailure("BALANCE", bybit.ErrInvalidResponse)
+		}
 		return check, nil
 	}
 	check.ReportedAmount, check.DepositFee = matched.Amount, matched.DepositFee
-	deposited, parseErr := amount.Format(op.Plan.Amount, asset.Decimals)
 	credited, creditErr := exchangeAtomic(matched.Amount)
-	if parseErr != nil || creditErr != nil || credited.Sign() <= 0 || !exchangeAtLeast(deposited, matched.Amount) {
-		return check, exchangeReadFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+	if creditErr != nil || credited.Sign() <= 0 || !exchangeAtLeast(deposited, matched.Amount) {
+		return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+	}
+	budget, budgetErr := exchangeDepositTransferBudget(deposited, matched.Amount, matched.DepositFee, asset.Decimals)
+	if budgetErr != nil {
+		return readFailure("DEPOSIT_CREDIT", budgetErr)
 	}
 	if matched.Status != 3 || matched.DepositType != "0" || matched.TravelRuleStatus != 0 {
 		check.Message = "Bybit reports this deposit pending, restricted or under review. Complete any required checks with Bybit; no transfer is authorized."
 		return check, nil
 	}
-	check.Balances, err = exchangeBalances(ctx, client, asset.Symbol)
-	if err != nil {
-		return check, exchangeReadFailure("BALANCE", err)
+	if check.ReadError != "" {
+		return readFailure("BALANCE", bybit.ErrInvalidResponse)
 	}
 	check.Ready = true
+	check.TransferBudget = budget
 	check.Message = "Bybit reports the exact original deposit credited. Verify the Funding available amount before the separately approved move to Unified."
 	return check, nil
 }

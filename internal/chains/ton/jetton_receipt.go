@@ -145,6 +145,7 @@ func (a *Adapter) reconcileJetton(ctx context.Context, p model.Plan, s model.Sig
 		if im.SrcAddr != nil && im.SrcAddr.Equals(dw) && im.DstAddr != nil && im.DstAddr.Equals(owner) && !im.Bounced && im.Amount.Nano().Cmp(new(big.Int).SetUint64(jettonForward)) == 0 && sameCell(im.Body, want) {
 			r.State = "CONFIRMED"
 			r.Block = hex.EncodeToString(recipientTx.Hash)
+			r.SourceTransaction = hex.EncodeToString(tx.Hash)
 			r.Detail = "Exact signed V5R1 request and hash-linked successful canonical USDT source/recipient wallet executions plus matching transfer notification verified (trusted archival RPC; no independent consensus proof)"
 			return r, nil
 		}

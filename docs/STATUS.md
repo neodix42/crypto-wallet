@@ -1,5 +1,22 @@
 # Implementation and release evidence
 
+## Original Bybit deposit confirmation — 2026-11-03
+
+The reported 6 GRAM transfer is linked and confirmed by public TON BOCs. The
+wizard quietly reconciles its original operation and advances on chain delivery
+to deposited-asset and Funding/Unified balances. Exact exchange credit remains
+required before a Funding debit. TON sender/recipient transaction hashes are
+separate from its external-message ID; documented optional Bybit review fields
+and deposit-only metadata no longer block valid responses. Reported amount/fee
+and a conservative transfer budget remain distinct. No replacement deposit or
+automatic exchange debit is authorized.
+[Diagnosis, behavior and evidence checklist](EXCHANGE_DEPOSIT_CONFIRMATION.md).
+
+PASS: complete final CI, affected races, vet, portable build, all 81 security
+mutants in ten stable-source campaigns and six actual stable-source X11 checks.
+Hosted exact-source acceptance/publication is NOT_RUN until recorded below;
+the user's private Bybit credit and funded acceptance remain NOT_RUN.
+
 ## Bybit wizard and network/address metadata — 2026-11-02
 
 Bybit now defaults to Deposit → Funding/Unified → Spot swap → owned-wallet

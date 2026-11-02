@@ -48,14 +48,23 @@ exact fee/reserve checks, approval, current password and signing remain.
 ## Four steps
 
 1. Deposit an exact native/token amount to the verified Funding destination.
-   A submitted chain transaction stays on this step. Continue requires the
-   original chain receipt and an exact Bybit deposit record matching transaction,
-   network, token, destination and memo, with successful normal credit and
-   approved Travel Rule state. The parser requires explicit restriction fields;
-   missing values cannot silently mean approval. Bounded pagination, duplicates
-   and cursor loops fail closed. TON uses the checked transaction hash rather
-   than confusing it with the signed external-message identity.
-2. Inspect fresh transferable/safe Funding and Unified balances. Explicitly
+   After its initial exact approval/password, the wallet signs/sends once and
+   automatically checks the original operation. Pending confirmations do not
+   reopen a dialog. A confirmed chain receipt advances to step 2; this alone
+   never authorizes spending exchange funds. TON checks its linked sender and
+   recipient transaction hashes, distinct from the signed external-message ID.
+2. Inspect the deposited asset and fresh transferable/safe Funding and Unified
+   balances. Exact Bybit credit is checked automatically on this page: matching
+   transaction, network, token, destination and memo, successful normal credit
+   and no applicable pending Travel Rule review. The region-specific Travel
+   Rule field may be absent according to Bybit's contract; an explicit pending
+   or denied value still blocks spending. Missing mandatory credit fields,
+   duplicates and cursor loops fail closed. The transfer remains disabled until
+   verified credit. Its default and ceiling conservatively subtract a nonempty
+   reported fee from the smaller of original/reported amounts. Raw amount and
+   fee remain separate; ambiguous gross/net semantics can leave a remainder,
+   and an empty fee is labelled unreported rather than claimed zero.
+   Explicitly
    approve an exact FUND → UNIFIED internal transfer within the deposit budget.
    Only the original transfer's verified completion and sufficient current
    Unified balance permit the next step. Bybit defaults deposits to Funding,
@@ -109,6 +118,9 @@ Official contracts checked on 2026-11-02:
 [deposit account preference](https://bybit-exchange.github.io/docs/v5/asset/deposit/set-deposit-acct),
 [internal transfer](https://bybit-exchange.github.io/docs/v5/asset/transfer/create-inter-transfer),
 [safe account balances](https://bybit-exchange.github.io/docs/v5/asset/balance/account-coin-balance).
+
+The subsequent submitted-deposit recovery correction and public TON trace are
+documented in [automatic confirmation](EXCHANGE_DEPOSIT_CONFIRMATION.md).
 
 ## Hosted graphical-driver correction
 
