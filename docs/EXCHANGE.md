@@ -1,8 +1,14 @@
 # Exchange
 
+Current deposit/navigation correction: [Exchange tabs and deposit diagnostics](EXCHANGE_DEPOSIT_DIAGNOSTICS.md).
+The header icon opens a tab beside account names. On-chain deposits use their
+own authenticated network/address preflight and wallet approval; they do not
+require spot balances, market access or trading-fee queries. Read failures show
+the exact stage and safe numeric Bybit reason in a persistent dialog.
+
 The current provider selector supports **Bybit, Binance and KuCoin** with separately encrypted credentials. Read [Exchange providers](EXCHANGE_PROVIDERS.md) for their distinct endpoints, Binance LIMIT IOC trading, fee policies and original-operation recovery. KuCoin supports Classic account observations, deposit and owned-wallet withdrawal; new KuCoin trades are blocked because additional KCS fee debits cannot be verified safely, and internal funding must be moved through KuCoin itself. The sections below document retained Bybit-specific behavior; its Market order and inclusive-withdrawal rules do not apply to the other services.
 
-This integration requires a **Bybit Unified Trading Account**, using Funding and Unified balances. A Classic-only account can authenticate its key but cannot complete this balance/transfer flow; authentication alone does not establish trading eligibility.
+Spot trading and internal Funding/Unified transfers require a **Bybit Unified Trading Account**. A Classic-only account can authenticate its key and use an available master-account on-chain deposit route; it cannot complete the Unified balance/trading flow. Authentication or a deposit does not establish trading eligibility.
 
 The owner's 2026-10-24 request adds an optional Exchange tab with **Deposit**, **Swap** and **Withdraw**. The later USDC direction request permits custodial Bybit spot asset/USDT or asset/USDC trading. Ethereum USDT remains the pinned on-chain stablecoin; selecting a USDC spot quote does not add a USDC wallet contract or withdrawal route. The existing blockchain wallets, recovery profiles, secret requirements and production gates remain in force.
 
@@ -40,13 +46,13 @@ Connection, region, key changes and Disconnect live in **Settings → Exchange**
 
 The API key identifies the account connection; the API secret signs authenticated requests using HMAC. A key alone cannot authorize trading, transfers or withdrawals. “System-generated” names Bybit's key type, which provides both values; this app does not generate a replacement key. Self-generated RSA keys are not supported. Both fields remain masked. See [Bybit's authentication guide](https://bybit-exchange.github.io/docs/v5/guide) for its distinction between HMAC system-generated and RSA self-generated keys.
 
-Information and error messages appear in the compact fixed bottom status bar and clear after seven seconds without changing page layout. They do not authorize a retry. If a message reports an unknown balance or uncertain request, refresh or reconcile the original operation before considering another write.
+Informational messages appear in the compact fixed bottom status bar and clear after seven seconds. Operational errors remain in a dialog with operation, code and reason until acknowledged. Neither authorizes a retry; an uncertain existing operation must be reconciled by its original identity before another write.
 
 The ordinary portfolio receives status and a key suffix. It cannot read the key, secret or beneficiary fields or submit a generic signed API payload. Credentials stay in the authenticated encrypted local vault. Go core performs HTTPS requests. The default product now uses Wails/React and system WebKitGTK, with Go roles and its renderer unconfined under the explicit owner instruction; no OS-enforced signer remote-IP denial is claimed. The trusted in-process Wails dialog and transient Go transport handle entered credentials, just as they handle entered wallet passwords. Their compromise can capture those inputs; masked fields and backend generation do not remove that trust.
 
 ## Deposit
 
-Choose the source wallet/network and wallet asset, refresh its market, enter an exact amount and select **Deposit**. The backend obtains the matching Bybit deposit address and builds an ordinary wallet transfer. Go checks the complete network/token identity, destination, amount, fee and applicable memo before its existing approval/password/signing process. USDT deposits require enough Ethereum ETH gas. A TON deposit includes the returned account memo in the actual TON payment; an absent required memo is rejected.
+Choose the source wallet/network and wallet asset, enter an exact amount and select **Deposit**. A market refresh is optional for this operation. The backend obtains fresh authenticated coin/network metadata and the matching Bybit master-account deposit address, then builds an ordinary wallet transfer. It does not query exchange balances, spot pairs/prices or trading fees. Go checks complete network/token identity, deposit minimum, destination, amount, native fee and applicable memo before the existing approval/password/signing process. Tokens require their network's native gas. A TON deposit includes the returned account memo in the actual TON payment; an absent required memo is rejected.
 
 The deposit-address API provides a token-contract suffix. That suffix can corroborate the already matched full coin-info contract; it cannot identify the token by itself. A wrong chain, contract, memo or suspended route prevents sending.
 

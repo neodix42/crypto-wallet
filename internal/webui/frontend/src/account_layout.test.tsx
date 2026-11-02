@@ -29,6 +29,50 @@ beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); root = undefined; });
 
 describe('account-owned wallet navigation and controls', () => {
+  it('opens one Exchange tab beside account names and keeps it while navigating accounts', async () => {
+    const state = accounts(), emit = vi.fn(); await render(<WalletShell view={state} status="" emit={emit}/>);
+    expect(host.querySelector('.account-tabs .exchange-tab')).toBeNull();
+    await click(host.querySelector('.utility-navigation [aria-label="Exchange"]'));
+    expect(emit.mock.calls).toEqual([['tab', 'exchange']]);
+    state.Active = 'exchange'; await render(<WalletShell view={state} status="" emit={emit}/>);
+    expect([...host.querySelectorAll('.account-tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account', 'Account 1', 'Exchange']);
+    expect(host.querySelectorAll('.account-tabs [aria-selected="true"]')).toHaveLength(1);
+    expect(host.querySelector('.account-tabs [aria-selected="true"]')!.textContent).toBe('Exchange');
+    expect(host.querySelector('main')!.getAttribute('aria-label')).toBe('Exchange');
+    expect(host.querySelector('.wallet-subtabs')).toBeNull();
+    await click(host.querySelector('.utility-navigation [aria-label="Exchange"]'));
+    expect(host.querySelectorAll('.exchange-tab')).toHaveLength(1);
+    state.Active = 'group/0'; state.AccountGroupID = 'group/0'; await render(<WalletShell view={state} status="" emit={emit}/>);
+    expect(host.querySelector('.exchange-tab')).not.toBeNull();
+    expect(host.querySelector('.account-tabs [aria-selected="true"]')!.textContent).toBe('Main account');
+    await click(host.querySelector('.exchange-tab [role="tab"]'));
+    expect(emit.mock.calls.at(-1)).toEqual(['tab', 'exchange']);
+  });
+  it('closes the active Exchange tab to its remembered account and allows reopening', async () => {
+    const state = accounts(); state.Active = 'exchange'; const emit = vi.fn();
+    await render(<WalletShell view={state} status="" emit={emit}/>);
+    await click(host.querySelector('[aria-label="Close Exchange"]'));
+    expect(emit.mock.calls).toEqual([['tab', 'group/1']]);
+    expect(host.querySelector('.exchange-tab')).toBeNull();
+    state.Active = 'group/1'; await render(<WalletShell view={state} status="" emit={emit}/>);
+    await click(host.querySelector('.utility-navigation [aria-label="Exchange"]'));
+    expect(host.querySelectorAll('.exchange-tab')).toHaveLength(1);
+  });
+  it('middle-closes an inactive Exchange tab without changing wallet selection and clears it on lock', async () => {
+    const state = accounts(); state.Active = 'exchange'; const emit = vi.fn();
+    await render(<WalletShell view={state} status="" emit={emit}/>);
+    state.Active = 'wallet/near-1'; await render(<WalletShell view={state} status="" emit={emit}/>);
+    for (const button of [0, 2]) await act(async () => { host.querySelector('.exchange-tab')!.dispatchEvent(new MouseEvent('auxclick', { button, bubbles: true, cancelable: true })); });
+    expect(host.querySelector('.exchange-tab')).not.toBeNull();
+    await act(async () => { host.querySelector('.exchange-tab')!.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true })); });
+    expect(host.querySelector('.exchange-tab')).toBeNull(); expect(emit).not.toHaveBeenCalled();
+    await click(host.querySelector('.utility-navigation [aria-label="Exchange"]'));
+    expect(host.querySelector('.exchange-tab')).not.toBeNull();
+    const locked = accounts(); locked.Active = 'group/0'; locked.Pages = locked.Pages!.filter(page => page.ID !== 'exchange');
+    await render(<WalletShell view={locked} status="" emit={emit}/>);
+    await render(<WalletShell view={state} status="" emit={emit}/>);
+    expect(host.querySelector('.exchange-tab')).toBeNull();
+  });
   it('moves authoritative network count and lock beside utility icons while keeping refresh inside the table header', async () => {
     const state = accounts(); state.Active = 'group/1'; const emit = vi.fn();
     await render(<WalletShell view={state} status="" emit={emit}/>);

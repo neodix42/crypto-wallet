@@ -1523,6 +1523,16 @@ func (a *App) exchangeAction(method string, body any) {
 		selected = request["provider"]
 	}
 	title := "Reading " + a.selectedExchangeProvider().Name + "…"
+	switch method {
+	case "exchangeDeposit":
+		title = "Preparing deposit to " + a.selectedExchangeProvider().Name
+	case "exchangeQuote":
+		title = "Reading " + a.selectedExchangeProvider().Name + " market and network"
+	case "exchangeWithdraw":
+		title = "Preparing withdrawal from " + a.selectedExchangeProvider().Name
+	case "exchangeSwap":
+		title = "Preparing " + a.selectedExchangeProvider().Name + " spot trade"
+	}
 	if method == "exchangeSelect" {
 		title = "Selecting exchange…"
 	}
@@ -1571,7 +1581,11 @@ func (a *App) exchangeAction(method string, body any) {
 				a.quote = nil
 			}
 		}, nil
-	}, func(error) {
+	}, func(err error) {
+		if err != nil && method == "exchangeStatus" && a.exchangeRevision == revision && a.selectedExchangeProvider().ID == selected {
+			a.exchange = nil
+			a.quote = nil
+		}
 		if depositAccount != "" {
 			a.refreshWalletLocalHistory(depositAccount)
 		}

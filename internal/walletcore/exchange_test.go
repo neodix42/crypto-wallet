@@ -579,7 +579,7 @@ func TestExchangeStatusSchemasPermissionsAndSessionAuthFailClosed(t *testing.T) 
 	}
 	api.fail["key"] = errors.New("synthetic unavailable")
 	out, e = c.handle(message("exchangeStatus", struct{}{}))
-	if e != nil || out.(exchangePublicStatus).Connected || !out.(exchangePublicStatus).Configured {
+	if publicRequestErrorCode(e) != "EXCHANGE_READ_KEY__REQUEST_FAILED_STATE_UNKNOWN" || out.(exchangePublicStatus).Connected || !out.(exchangePublicStatus).Configured {
 		t.Fatal("unverified credentials claimed connected", out, e)
 	}
 	delete(api.fail, "key")

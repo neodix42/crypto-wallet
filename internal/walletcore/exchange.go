@@ -331,10 +331,10 @@ func (c *core) exchangeStatusAt(epoch uint64) (exchangePublicStatus, error) {
 	info, err := client.APIKeyInfo(ctx)
 	if err != nil {
 		result.Message = "Bybit could not verify the configured API key. Check its regional endpoint, permissions, IP restrictions and availability. Pending operations still require reconciliation."
-		return result, nil
+		return result, exchangeReadFailure("KEY", err)
 	}
 	result.Connected = true
-	result.Message = "Bybit connection verified. Deposits use the wallet payment journal in Settings. Trading uses unleveraged spot only; withdrawal destinations must be whitelisted on Bybit."
+	result.Message = "Bybit connection verified. Deposits use the wallet's confirmation and transaction history. Trading uses unleveraged spot only; withdrawal destinations must be whitelisted on Bybit."
 	if !exchangePermission(info, "SpotTrade") {
 		result.Message += " This key lacks spot trading permission."
 	}
@@ -624,11 +624,11 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	defer cancel()
 	info, err := client.APIKeyInfo(ctx)
 	if err != nil {
-		return quote, bybit.Chain{}, info, err
+		return quote, bybit.Chain{}, info, exchangeReadFailure("KEY", err)
 	}
 	coin, err := client.CoinInfo(ctx, asset.Symbol)
 	if err != nil {
-		return quote, bybit.Chain{}, info, err
+		return quote, bybit.Chain{}, info, exchangeReadFailure("COIN", err)
 	}
 	chain, routeErr := exchange.MatchProviderRoute(service.ID, account, asset, coin)
 	if routeErr == nil {
@@ -642,7 +642,7 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	}
 	quote.Balances, err = exchangeBalances(ctx, client, asset.Symbol, quoteCoin)
 	if err != nil {
-		return quote, chain, info, err
+		return quote, chain, info, exchangeReadFailure("BALANCE", err)
 	}
 	if asset.Symbol == quoteCoin {
 		return quote, chain, info, nil
@@ -661,14 +661,14 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 		if errors.Is(err, bybit.ErrNotListed) || errors.As(err, &apiErr) && apiErr.Code == 10001 {
 			return quote, chain, info, nil
 		}
-		return quote, chain, info, err
+		return quote, chain, info, exchangeReadFailure("INSTRUMENT", err)
 	}
 	if instrument.Symbol != symbol || instrument.BaseCoin != asset.Symbol || instrument.QuoteCoin != quoteCoin || instrument.Status != "Trading" {
-		return quote, chain, info, errExchange
+		return quote, chain, info, exchangeReadFailure("INSTRUMENT", bybit.ErrInvalidResponse)
 	}
 	ticker, err := client.SpotTicker(ctx, symbol)
 	if err != nil {
-		return quote, chain, info, err
+		return quote, chain, info, exchangeReadFailure("TICKER", err)
 	}
 	fee, err := client.SpotFeeRate(ctx, symbol)
 	if err != nil {
@@ -676,10 +676,10 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 			quote.TradingUnavailable = "Binance BNB fee payment is enabled for this pair. Change that fee setting at Binance before trading; this wallet does not authorize spending BNB. Deposit and withdrawal remain separate."
 			return quote, chain, info, nil
 		}
-		return quote, chain, info, err
+		return quote, chain, info, exchangeReadFailure("FEE", err)
 	}
 	if ticker.Symbol != symbol || fee.Symbol != symbol {
-		return quote, chain, info, errExchange
+		return quote, chain, info, exchangeReadFailure("FEE", bybit.ErrInvalidResponse)
 	}
 	quote.Symbol, quote.LastPrice, quote.BidPrice, quote.AskPrice, quote.FeeRate = symbol, ticker.LastPrice, ticker.Bid1Price, ticker.Ask1Price, fee.TakerFeeRate
 	quote.BasePrecision, quote.QuotePrecision, quote.MinOrderAmount, quote.MaxOrderQty = instrument.LotSizeFilter.BasePrecision, instrument.LotSizeFilter.QuotePrecision, instrument.LotSizeFilter.MinOrderAmt, instrument.LotSizeFilter.MaxMarketOrderQty
@@ -687,42 +687,67 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	return quote, chain, info, nil
 }
 func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
-	quote, chain, _, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, "Sell")
-	if err != nil {
-		return exchangeResult{}, err
-	}
-	if !quote.Route.Supported || !quote.Route.DepositEnabled || !exchangeAtLeast(value, chain.DepositMin) {
-		return exchangeResult{}, errExchange
-	}
 	account, asset, adapter, err := c.exchangeAsset(accountID, assetID)
 	if err != nil {
 		return exchangeResult{}, err
 	}
 	atomic, err := amount.Parse(value, asset.Decimals)
 	if err != nil || atomic == "0" {
+		return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
+	}
+	service, known := exchange.ProviderForEndpoint(client.Endpoint())
+	if !known {
 		return exchangeResult{}, errExchange
 	}
-	ctx, cancel := c.networkContextAt(45*time.Second, epoch)
+	// An on-chain deposit needs authenticated asset/network/address metadata,
+	// not a tradable pair, exchange balance or fee-rate permission. Keep the
+	// ordinary wallet's exact payment, approval, fee and durable send pipeline.
+	ctx, cancel := c.networkContextAt(90*time.Second, epoch)
+	defer cancel()
+	info, err := client.APIKeyInfo(ctx)
+	if err != nil {
+		return exchangeResult{}, exchangeReadFailure("KEY", err)
+	}
+	if service.ID == "bybit" && !info.IsMaster {
+		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_MASTER_REQUIRED")
+	}
+	coin, err := client.CoinInfo(ctx, asset.Symbol)
+	if err != nil {
+		return exchangeResult{}, exchangeReadFailure("COIN", err)
+	}
+	chain, err := exchange.MatchProviderRoute(service.ID, account, asset, coin)
+	if err != nil {
+		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_ROUTE_UNAVAILABLE")
+	}
+	if chain.ChainDeposit != "1" {
+		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_SUSPENDED")
+	}
+	if !exchangeAtLeast(value, chain.DepositMin) {
+		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_BELOW_MINIMUM")
+	}
 	deposit, err := client.DepositAddress(ctx, asset.Symbol, chain.Chain)
 	cancel()
 	if err != nil {
-		return exchangeResult{}, err
+		return exchangeResult{}, exchangeReadFailure("DEPOSIT_ADDRESS", err)
 	}
 	// Bybit's deposit-address endpoint reports a contract suffix, not necessarily
 	// the full contract. CoinInfo supplies the full already-verified identity.
 	contractMatches := deposit.ContractAddress == "" && asset.Contract == ""
 	if asset.Contract != "" {
-		contractMatches = strings.EqualFold(deposit.ContractAddress, asset.Contract) || quote.Provider == "bybit" && len(deposit.ContractAddress) == 6 && strings.EqualFold(deposit.ContractAddress, asset.Contract[len(asset.Contract)-6:])
+		contractMatches = strings.EqualFold(deposit.ContractAddress, asset.Contract) || service.ID == "bybit" && len(asset.Contract) >= 6 && len(deposit.ContractAddress) == 6 && strings.EqualFold(deposit.ContractAddress, asset.Contract[len(asset.Contract)-6:])
 	}
-	if !contractMatches || exchange.ValidateProviderRoute(quote.Provider, account, asset, deposit.Chain, deposit.ChainType, chain.ContractAddress) != nil || deposit.ChainType != chain.ChainType || adapter.ValidateAddress(account.Network, deposit.Address) != nil || deposit.Tag != "" && account.Family != "ton" || account.Family == "ton" && deposit.Tag == "" {
-		return exchangeResult{}, errExchange
+	if !contractMatches || exchange.ValidateProviderRoute(service.ID, account, asset, deposit.Chain, deposit.ChainType, chain.ContractAddress) != nil || deposit.Chain != chain.Chain || deposit.ChainType != chain.ChainType || adapter.ValidateAddress(account.Network, deposit.Address) != nil || deposit.Tag != "" && account.Family != "ton" || account.Family == "ton" && deposit.Tag == "" {
+		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_DEPOSIT_ADDRESS_INVALID")
 	}
 	transfer := model.Transfer{AccountID: account.ID, Asset: asset.ID, Recipient: deposit.Address, Amount: atomic, Memo: deposit.Tag}
 	ctx, cancel = c.networkContextAt(45*time.Second, epoch)
 	plan, err := adapter.Prepare(ctx, account, transfer)
 	cancel()
 	if err != nil {
-		return exchangeResult{}, err
+		if publicRequestErrorCode(err) == "REQUEST_FAILED_STATE_UNKNOWN" {
+			err = paymentQuoteError(err)
+		}
+		return exchangeResult{}, exchangeReadFailure("WALLET_FEE", err)
 	}
 	if plan.ID == "" {
 		var id [16]byte
@@ -745,7 +770,7 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 	if !ok {
 		return exchangeResult{}, errExchange
 	}
-	return exchangeResult{ID: plan.ID, Kind: "deposit", State: receipt.State, TransactionID: receipt.Identity, Message: "This is the original on-chain wallet payment, retained in the Local payment journal in Settings. Chain submission does not establish exchange deposit credit; wait for exchange credit before swapping. TON includes the required deposit memo."}, nil
+	return exchangeResult{ID: plan.ID, Kind: "deposit", State: receipt.State, TransactionID: receipt.Identity, Message: "This is the original on-chain wallet payment, retained in the wallet's transaction history and encrypted operation records. Chain submission does not establish exchange deposit credit; wait for exchange credit before swapping. TON includes the required deposit memo."}, nil
 }
 func exchangeAvailable(balances []exchangeBalance, kind, coin string) string {
 	for _, b := range balances {

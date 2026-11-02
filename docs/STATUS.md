@@ -1,5 +1,21 @@
 # Implementation and release evidence
 
+## Exchange tab and independent deposit preflight — 2026-11-02
+
+The header icon opens a closable Exchange tab beside account names. Deposit
+no longer runs spot balance/market/fee queries before obtaining its exact
+network/address. Read failures preserve the stage and numeric Bybit reason;
+wallet fee/reserve failures are classified before durable preparation. Existing
+wallet consent, current password, signing and original-operation records remain.
+[Behavior and evidence checklist](EXCHANGE_DEPOSIT_DIAGNOSTICS.md).
+
+| State | Evidence |
+|---|---|
+| PASS, final aggregate/races/build | Complete aggregate, 156 frontend checks, affected full races, vet and portable Go build pass, including native fee/reserve diagnostics. `reports/exchange-deposit-tabs-test-ci-final.log`, `reports/exchange-deposit-tabs-race-final.log`, `reports/exchange-deposit-tabs-vet.log`, `reports/exchange-deposit-tabs-build-final.log`. |
+| PASS, scoped graphical/security | Five actual X11 navigation/Appearance/Bybit-cancellation checks and the complete stable-source security campaign pass before the later fee-diagnostic follow-up. These remain scoped evidence; final-source reruns are separate below. |
+| RUNNING | Final updated-source local security and actual graphical reruns. |
+| NOT_RUN | Exact-source hosted CI and publication for this correction; private Bybit account/key/IP/region/whitelist and funded deposit/spot/withdrawal acceptance. Physical OS/Wayland matrix and independent review remain external gates. No real user secrets/profile or mainnet spending. |
+
 ## Deterministic-account recovery and error dialogs — 2026-11-02
 
 Recovering an existing range succeeds without rewriting ciphertext; hidden

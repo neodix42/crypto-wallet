@@ -23,6 +23,7 @@ func publicRequestErrorCode(err error) string {
 		err  error
 		code string
 	}{
+		{errExchange, "EXCHANGE_STATE_INVALID"},
 		{ton.ErrRateLimited, "TON_RPC_RATE_LIMITED"},
 		{vault.ErrUnlock, "AUTHENTICATION_FAILED"},
 		{vault.ErrFormat, "STORAGE_CORRUPT"},

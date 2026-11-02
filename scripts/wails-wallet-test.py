@@ -2285,6 +2285,34 @@ def observe_invalid_recipient_geometry():
     rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
     return recipient_input_geometry(rows,picture,bounds)
 
+def exchange_tab_campaign():
+    stage("Open the actual Exchange page as one account-row tab")
+    click("Exchange",top=True)
+    wait(lambda:"Bybit Exchange" in text())
+    point=wait(lambda:public_tab_point("Exchange","group"))
+    account=wait(lambda:public_tab_point("Main account","group"))
+    if abs(point[1]-account[1])>8 or point[0]<=account[0]:
+        raise RuntimeError("Exchange tab was not beside the account names")
+    click("Exchange",top=True)
+    wait(lambda:public_tab_point("Exchange","group"))
+    click("Main account",top=True);wait(account_overview_visible)
+    point=wait(lambda:public_tab_point("Exchange","group"))
+    desktop.click(*point);desktop.park_pointer()
+    wait(lambda:"Bybit Exchange" in text())
+    if desktop.secret_window():raise PrivateWindowVisible("Read-only Exchange tab navigation opened a private dialog")
+    passed("Header Exchange opens a unique account-row tab which persists across account navigation and reopens its own page")
+    point=wait(lambda:public_tab_point("Exchange","group"))
+    desktop.click(*point,button=2);desktop.park_pointer()
+    wait(account_overview_visible)
+    if public_tab_point("Exchange","group"):raise RuntimeError("Middle click did not close the Exchange tab")
+    click("Exchange",top=True);wait(lambda:"Bybit Exchange" in text())
+    point=wait(lambda:public_tab_point("Exchange","group"))
+    desktop.click(*point);desktop.key("Tab");desktop.key("Return");desktop.park_pointer()
+    wait(account_overview_visible)
+    if public_tab_point("Exchange","group"):raise RuntimeError("Keyboard close did not remove the Exchange tab")
+    report["exchangeTabNavigation"]={"accountRow":True,"singleTab":True,"preservedAcrossNavigation":True,"middleClose":True,"keyboardClose":True,"returnedToAccount":True,"credentialsOrPayments":False}
+    passed("Actual middle-click and keyboard close remove Exchange, return to its remembered account and permit reopening without credentials or funds")
+
 def exchange_input_campaign():
     click("Exchange",top=True);scroll_public(4,35)
     wait(lambda:"Bybit Exchange" in text() and "Connect your Bybit account in Settings" in text())
@@ -2979,6 +3007,7 @@ def appearance_campaign(installation, home, secret):
     wait(lambda:json.loads(preferences.read_text())==appearance)
     wait(lambda:any(row[11]=="CryptoWallet" and int(row[9])==baseline["brandGlyphHeight"] for row in public_rows()))
     observe_appearance("Restored Light/18 through actual settings")
+    exchange_tab_campaign()
 
 def ethereum_tokens(expected_address=None):
     stage("Observe actual Ethereum native and ERC-20 balance rows")
