@@ -66,8 +66,12 @@ its own approval.
 | PASS | Complete final `make test-ci`, affected full Go race suite, vet and rebuilt portable executable. `reports/deposit-confirmation-ci-final.log`, `reports/deposit-confirmation-race-final.log`, `reports/deposit-confirmation-vet-final.log`, `reports/deposit-confirmation-build-final.log`. |
 | PASS | Final `make test-security-ci`; all 81 mutants in ten campaigns killed, every campaign source-stable. `reports/deposit-confirmation-security-final.log`. |
 | PASS | Six actual final-binary X11 Appearance/Bybit-cancellation/Exchange navigation/disconnected-wizard checks; source-stable, binary SHA256 `e87402897d11b054b207ebf54d27393075c19cfde1debea79ba0f598134c64ec`. `reports/deposit-confirmation-final-appearance.json`. |
-| NOT_RUN | Hosted exact-source full desktop/recovery/private-geth and aggregate fuzz/integration campaigns; publication and publisher verification. Results will be recorded after push. |
-| NOT_RUN | This user's private Bybit credit, account restrictions and funded Funding/Unified transfer. Development never opens the real profile, imports real credentials or sends mainnet funds. |
+| PASS, exact-source hosted desktop | [Tests 41518447785](https://github.com/neodix42/crypto-wallet/actions/runs/41518447785), job 125527926457, source `63577f77aadc5e2862be42fa01b7a416e4d3852a`: 38 full graphical workflows, five TON, seven recovery and nine actual private-geth checks. Artifact 13177273441 digest `d9c195d576eee6e2e71f0c4f9aab09022ce8368774a57f8956b0691a044fca5b`; all nine report/source/binary bindings verify. `reports/deposit-confirmation-hosted-gui/summary.json`. |
+| PASS, exact-source hosted backend | Same run/source, job 125527927068: all 30 JSON gates, 81 killed mutants in ten campaigns, full races/stress, 26 measured fuzz targets, 13 actual local integrations and 24 restored descriptors across eight networks. Artifact 13179575218 digest `dae66e097ecf35564ec1d60285215eb774bc83678ae235c0a80c6107b50f5b65`; 1,678 exact Git-source hashes match, zero mismatches. `reports/deposit-confirmation-hosted-checks/verification.json`. |
+| PASS, publication | [Build/release 41518447774](https://github.com/neodix42/crypto-wallet/actions/runs/41518447774), normal [release 0.1.45](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.45), exact source/tag/version and publisher signature verified. The sole portable archive contains cryptowallet, install-user.sh and PNG/SVG icons; SHA256 `ff08aa1eb6191e693877d451d809345514b3376b14282d6f058ec6c084338e89`. `reports/deposit-confirmation-release/summary.json`. |
+| PASS, downloaded executable | Six actual stable-source X11 checks on the authenticated downloaded 0.1.45 executable, SHA256 `45272e613186cf4ffca84c8ea8bc385f0954ff4fcfec2d2e85b6fbabf2486264`. `reports/deposit-confirmation-published.json`. |
+| FAIL, superseded local attempt | The first full local campaign passed all 38 UI steps but failed its source-stability gate because the fee-budget fix changed code during the run. It is not final acceptance. `reports/deposit-confirmation-wallet.json`. The final exact-source hosted campaign above passes. |
+| NOT_RUN | This user's private Bybit credit, account restrictions and funded Funding/Unified transfer; physical installed OS/Wayland matrix and independent review. Development never opens the real profile, imports real credentials or sends mainnet funds. |
 
 Earlier development failures are retained separately: two inbox mocks needed to
 accept the new local navigation read, and the new TON coordinator fixture used
@@ -76,6 +80,13 @@ Both are fixed with the production guards intact. The first full local desktop
 campaign began before the final fee-budget change, so it cannot certify the
 final candidate; its own stability gate remains authoritative. These attempts
 are distinct from final passing results above.
+
+The earlier successful deposit-parser fixture always supplied the review field,
+and coordinator credit fixtures used EVM receipt identities. Those tests did
+not cover the real TON message-versus-transaction distinction or automatic
+wizard progression. Public transaction BOCs, missing-field client cases,
+verified source/recipient identity cases and lifecycle/polling tests now cover
+those gaps. They still do not replace private funded Bybit acceptance.
 
 Bybit contract:
 [deposit records](https://bybit-exchange.github.io/docs/v5/asset/deposit/deposit-record).

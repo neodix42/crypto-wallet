@@ -14,8 +14,27 @@ automatic exchange debit is authorized.
 
 PASS: complete final CI, affected races, vet, portable build, all 81 security
 mutants in ten stable-source campaigns and six actual stable-source X11 checks.
-Hosted exact-source acceptance/publication is NOT_RUN until recorded below;
-the user's private Bybit credit and funded acceptance remain NOT_RUN.
+
+Both jobs in [tests 41518447785](https://github.com/neodix42/crypto-wallet/actions/runs/41518447785)
+pass for `63577f77aadc5e2862be42fa01b7a416e4d3852a`. Digest-verified desktop
+artifact 13177273441 passes 38 full GUI, five TON, seven recovery and nine actual
+private-geth checks with all nine report/source/binary bindings verified.
+Backend artifact 13179575218 passes all 30 JSON gates, 81 mutants, full
+races/stress, 26 measured fuzz targets, 13 actual local integrations and
+24-descriptor recovery; 1,678 exact-source hashes match with zero mismatches.
+`reports/deposit-confirmation-hosted-gui/summary.json`,
+`reports/deposit-confirmation-hosted-checks/verification.json`.
+
+[Build/release 41518447774](https://github.com/neodix42/crypto-wallet/actions/runs/41518447774)
+and normal [release 0.1.45](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.45)
+pass publisher/source/tag/version/archive verification. Six actual checks on
+the authenticated downloaded executable also pass source-stable.
+`reports/deposit-confirmation-release/summary.json`,
+`reports/deposit-confirmation-published.json`.
+The earlier full local GUI attempt is FAIL on source stability despite its
+38 passing steps; it is distinct from the final hosted acceptance. The user's
+private Bybit credit and funded acceptance, physical OS/Wayland matrix and
+independent review remain NOT_RUN.
 
 ## Bybit wizard and network/address metadata — 2026-11-02
 
