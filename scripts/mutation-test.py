@@ -144,6 +144,15 @@ class RuntimeEvidence(unittest.TestCase):
 
 
 class SourceAndControlIsolation(unittest.TestCase):
+    def test_all_critical_mutants_have_one_current_source_location(self):
+        # Catch a refactored/missing guard during the fast developer suite,
+        # before a hosted campaign spends minutes reaching that mutation.
+        for name,filename,before,after,_ in mutation.mutants:
+            with self.subTest(name=name):
+                self.assertEqual((ROOT/filename).read_text().count(before),1,
+                                 'critical mutant no longer targets one reviewed guard')
+                self.assertNotEqual(before,after)
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix='wallet-mutant-source-')
         self.addCleanup(temporary.cleanup)
