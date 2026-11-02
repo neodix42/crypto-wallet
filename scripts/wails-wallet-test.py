@@ -553,6 +553,17 @@ def acknowledge_error(expected_codes, operation, reason_fragments=(), persistent
     report.setdefault("operationalErrorDialogs",[]).append({"code":code,"operation":operation,"completeReasonObserved":True,"persistedPastInfoTimeout":persistent,"rawOCRRetained":False})
     return code
 
+def wait_informational_cancellation(operation):
+    def complete():
+        if desktop.dialog_title("Operation failed"):
+            # A brief empty gap after Reply is not completion: the backend can
+            # still return a denial and open its error on the next UI turn.
+            code=observed_error_code(private_rows("Operation failed"),("REQUEST_DENIED",),operation,("wallet rejected",))
+            report["unexpectedCancellationError"]={"operation":operation,"code":code,"rawOCRRetained":False}
+            raise RuntimeError("Explicit cancellation incorrectly opened an operational error dialog")
+        return not desktop.secret_window() and public_status_contains("Request cancelled.")
+    wait(complete,30)
+
 def private_click(prefix, words):
     if (prefix,words) not in (("Back up recovery phrase","Copy phrase"),("Record recovery phrase","Copy phrase")):
         raise RuntimeError("Unexpected private control request")
@@ -2942,7 +2953,7 @@ def appearance_campaign(installation, home, secret):
     # API authentication/observation and all funds-moving exchange operations.
     desktop.focus(desktop.wait("Approve Bybit custody and API access")[0])
     desktop.key("Escape")
-    wait(lambda:not desktop.secret_window(),30)
+    wait_informational_cancellation("Reading Bybit")
     passed("Actual Bybit Connect asks only masked API key/secret, keeps both fields and footer visible at 24 px, reaches exact custody confirmation without a second app password, and cancels before connecting")
     stage("Restart actual wallet and verify persisted Dark/24 before Enter unlock")
     close_gracefully()

@@ -3,12 +3,14 @@ package signer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
 
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/model"
+	"localwallet/internal/uiprompt"
 	"localwallet/internal/vault"
 )
 
@@ -94,7 +96,7 @@ func TestExchangeConnectUsesOnlyPrivateAPICredentialsAndCustodyConfirmation(t *t
 }
 
 func TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions(t *testing.T) {
-	for _, mode := range []string{"cancel-input", "cancel-confirm", "locked", "recovery", "testnet", "lock-input", "lock-confirm", "generation-input", "generation-confirm", "data-input", "exchange-input", "persist"} {
+	for _, mode := range []string{"cancel-input", "cancel-confirm", "cancel-changed-confirm", "locked", "recovery", "testnet", "lock-input", "lock-confirm", "generation-input", "generation-confirm", "data-input", "exchange-input", "persist"} {
 		t.Run(mode, func(t *testing.T) {
 			e, original, _ := exchangeEngine(t)
 			before, err := e.Files.Read("vault.lwv")
@@ -109,6 +111,9 @@ func TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions(t *testing
 			switch mode {
 			case "cancel-confirm":
 				original.approve = false
+			case "cancel-changed-confirm":
+				original.approve = false
+				ui.confirmHook = func() { e.data.Generation++ }
 			case "locked":
 				e.Lock()
 			case "recovery":
@@ -130,11 +135,15 @@ func TestExchangeConnectRejectsCancelledChangedAndUnavailableSessions(t *testing
 			case "persist":
 				ui.confirmHook = func() { e.parameters = vault.Parameters{} }
 			}
-			if err := e.ConnectExchange("https://api.bybit.com"); err == nil {
+			err = e.ConnectExchange("https://api.bybit.com")
+			if err == nil {
 				if mode == "cancel-confirm" {
 					t.Fatal("cancelled Bybit custody approval granted connection")
 				}
 				t.Fatal("Bybit connection accepted a changed wallet session")
+			}
+			if mode == "cancel-confirm" && !errors.Is(err, uiprompt.ErrCancelled) || mode == "cancel-changed-confirm" && !errors.Is(err, ErrDenied) {
+				t.Fatal("exchange consent cancellation was confused with changed-session failure", err)
 			}
 			after, err := e.Files.Read("vault.lwv")
 			if err != nil || !bytes.Equal(before, after) {

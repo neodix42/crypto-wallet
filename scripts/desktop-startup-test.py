@@ -2875,7 +2875,7 @@ class WailsAccountLayout(unittest.TestCase):
 class WailsOperationalErrorDialogs(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('observed_error_code','acknowledge_error')
+        names=('observed_error_code','acknowledge_error','wait_informational_cancellation')
         self.scope={'re':re}
         exec(compile(ast.Module(body=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names],type_ignores=[]),'operational-error-observation','exec'),self.scope)
         self.code='ACCOUNT_RECOVERY_INVALID_RANGE'
@@ -2907,6 +2907,25 @@ class WailsOperationalErrorDialogs(unittest.TestCase):
         self.scope.update(desktop=desktop,private_rows=mock.Mock(return_value=self.rows('UNKNOWN')),report={})
         with self.assertRaisesRegex(RuntimeError,'expected complete'):
             self.scope['acknowledge_error']((self.code,),'Recover deterministic accounts',('1 through 20',))
+        desktop.accept.assert_not_called()
+    def test_cancel_requires_final_info_feedback_not_a_transient_gap_between_dialogs(self):
+        statuses=mock.Mock(side_effect=[False,False,True]);results=[]
+        def wait(predicate,seconds):
+            for _ in range(3):
+                results.append(predicate())
+                if results[-1]:return
+            raise RuntimeError('cancel did not finish')
+        self.scope.update(desktop=SimpleNamespace(dialog_title=mock.Mock(return_value=False),secret_window=mock.Mock(return_value=False)),public_status_contains=statuses,wait=wait)
+        self.scope['wait_informational_cancellation']('Reading Bybit')
+        self.assertEqual(results,[False,False,True])
+        self.assertEqual(statuses.call_args_list,[mock.call('Request cancelled.')]*3)
+    def test_cancel_error_is_a_failure_and_is_never_automatically_accepted(self):
+        rows=self.rows('REQUEST_DENIED');rows[3][11]='Reading Bybit';rows[-1][11]='The wallet rejected the operation.'
+        desktop=SimpleNamespace(dialog_title=mock.Mock(return_value=True),accept=mock.Mock())
+        self.scope.update(desktop=desktop,private_rows=mock.Mock(return_value=rows),wait=lambda predicate,seconds:predicate(),report={})
+        with self.assertRaisesRegex(RuntimeError,'incorrectly opened'):
+            self.scope['wait_informational_cancellation']('Reading Bybit')
+        self.assertEqual(self.scope['report']['unexpectedCancellationError']['code'],'REQUEST_DENIED')
         desktop.accept.assert_not_called()
 
 

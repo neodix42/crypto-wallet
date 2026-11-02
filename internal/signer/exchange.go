@@ -14,6 +14,7 @@ import (
 	"localwallet/internal/exchange/bybit"
 	"localwallet/internal/model"
 	"localwallet/internal/strictjson"
+	"localwallet/internal/uiprompt"
 	"localwallet/internal/vault"
 )
 
@@ -218,8 +219,12 @@ func (e *Engine) ConnectExchangeProvider(provider, endpoint string) error {
 			return ErrDenied
 		}
 	}
-	if !e.UI.Confirm("Approve "+service.Name+" custody and API access", "Service: "+service.Name+"\nEndpoint: "+endpoint+"\nDeposited assets are held by "+service.Name+", which controls trading, custody, withdrawals, fees and availability. API credentials permit the permissions configured in your "+service.Name+" account. This wallet supports unleveraged spot trades and withdrawals only to its selected owned accounts. No deposit, trade, transfer or withdrawal is sent by connecting. Keep the API key restricted and whitelist your wallet withdrawal addresses on "+service.Name+". The exchange secret is stored only inside the encrypted local vault; recovery phrases do not restore it.") || !current() {
+	accepted := e.UI.Confirm("Approve "+service.Name+" custody and API access", "Service: "+service.Name+"\nEndpoint: "+endpoint+"\nDeposited assets are held by "+service.Name+", which controls trading, custody, withdrawals, fees and availability. API credentials permit the permissions configured in your "+service.Name+" account. This wallet supports unleveraged spot trades and withdrawals only to its selected owned accounts. No deposit, trade, transfer or withdrawal is sent by connecting. Keep the API key restricted and whitelist your wallet withdrawal addresses on "+service.Name+". The exchange secret is stored only inside the encrypted local vault; recovery phrases do not restore it.")
+	if !current() {
 		return ErrDenied
+	}
+	if !accepted {
+		return uiprompt.ErrCancelled
 	}
 	if old := x.Credential(service.ID); old != nil {
 		clear(old.APIKey)
