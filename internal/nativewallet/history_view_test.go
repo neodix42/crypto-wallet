@@ -373,7 +373,7 @@ func TestWalletWorkPreemptsAutomaticHistoryWithoutEndingTheSession(t *testing.T)
 	ui.apply(t)
 	ui.apply(t)
 	state := a.walletHistory[account.ID]
-	if a.state.Locked || a.busy || a.background || core.Generation() != generation || !state.ChainPaused || state.ChainFailed || state.Loading || !strings.Contains(viewText(a.walletHistoryNodes(account)), "paused for your action") {
+	if a.state.Locked || a.busy || a.background || core.Generation() != generation || !state.ChainPaused || state.ChainFailed || state.Loading || strings.Contains(viewText(a.walletHistoryNodes(account)), "paused for your action") {
 		t.Fatal("history held up work or ended the unlocked session", state)
 	}
 }

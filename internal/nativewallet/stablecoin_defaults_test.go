@@ -80,13 +80,26 @@ func TestStablecoinDefaultsAllNineteenAssetsHavePreciseRowsAndOwnedReceive(t *te
 				}
 			}
 			maximum, ok := findNode(page.Nodes, "max/"+account.ID)
-			if !ok || maximum.Text != "Max" || maximum.Disabled || !strings.Contains(maximum.Tooltip, "native gas balance") || !strings.Contains(maximum.Tooltip, "remainder") {
-				t.Fatal("compact Max or honest fee hint absent", maximum)
+			if !ok || maximum.Text != "Max" || !maximum.Disabled || !strings.Contains(maximum.Tooltip, "native gas balance") || !strings.Contains(maximum.Tooltip, "remainder") {
+				t.Fatal("recipient-less Max enabled or honest fee hint absent", maximum)
 			}
 			input, ok := findNode(page.Nodes, "field/amount/"+account.ID)
-			if !ok || input.Text != "Amount (1 means 1 "+asset.Symbol+")" {
+			if !ok || input.Text != "Amount (1 means 1 "+asset.Symbol+")" || input.InputMode != "decimal" {
 				t.Fatal("whole-token input denomination wrong", asset, input)
 			}
+			if fee, ok := findNode(page.Nodes, "paymentFee/"+account.ID); !ok || fee.Text != "" {
+				t.Fatal("empty draft displays the removed fee helper", fee)
+			}
+			a.fields["recipient/"+account.ID] = quoteRecipient(account)
+			validRecipient := a.walletPage(account)
+			maximum, ok = findNode(validRecipient.Nodes, "max/"+account.ID)
+			if !ok || maximum.Disabled {
+				t.Fatal("compatible recipient cannot request an amount estimate", maximum)
+			}
+			if send, ok := findNode(validRecipient.Nodes, "prepare/"+account.ID); !ok || !send.Disabled {
+				t.Fatal("Send accepts an empty amount", send)
+			}
+			delete(a.fields, "recipient/"+account.ID)
 			compact := false
 			for _, item := range page.Nodes {
 				if item.Kind == "row" && len(item.Children) == 2 && item.Children[0].ID == "field/amount/"+account.ID && item.Children[1].ID == "max/"+account.ID {

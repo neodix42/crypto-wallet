@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"localwallet/internal/webui"
 )
@@ -42,8 +43,17 @@ func TestExchangeSelectionUsesAcknowledgedProviderAndSeparateOfficialCredentialF
 			if !strings.Contains(a.status, "completed") {
 				t.Fatal("provider credential connection did not route correctly")
 			}
+			a.fields["exchangeAmount"] = "10.25"
 			for _, method := range []string{"exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw"} {
+				if method == "exchangeSwap" {
+					account, asset := selectedExchangeValidationAsset(t, a)
+					setExchangeValidationQuote(a, exchangeValidationQuote(a, account, asset, "Sell", "USDT", time.Now()))
+				}
 				core.handler = func(_ uint64, m string, body, out any) error {
+					if method == "exchangeSwap" && provider.id == "kucoin" {
+						t.Error("KuCoin's unverified KCS debit policy reached the spot API")
+						return errors.New("unsupported KuCoin spot fee policy")
+					}
 					if m != method || body.(map[string]string)["provider"] != provider.id {
 						t.Error("operation lost selected-provider intent", m, body)
 						return errors.New("wrong provider")
@@ -51,6 +61,12 @@ func TestExchangeSelectionUsesAcknowledgedProviderAndSeparateOfficialCredentialF
 					return answer(out, json.RawMessage(`{"state":"UNKNOWN"}`))
 				}
 				a.event(webui.Event{ID: method})
+				if method == "exchangeSwap" && provider.id == "kucoin" {
+					if a.busy || !strings.Contains(a.status, "unavailable") {
+						t.Fatal("KuCoin spot trading bypassed the existing fee policy", a.status)
+					}
+					continue
+				}
 				ui.apply(t)
 			}
 		})

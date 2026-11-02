@@ -38,17 +38,19 @@ import (
 )
 
 type snapshot struct {
-	Locked            bool                `json:"locked"`
-	WalletExists      bool                `json:"walletExists"`
-	VaultState        string              `json:"vaultState"`
-	Environment       string              `json:"environment"`
-	RecoveryConfirmed bool                `json:"recoveryConfirmed"`
-	Accounts          []model.Account     `json:"accounts"`
-	Operations        []journal.Operation `json:"operations"`
-	AccountsCursor    string              `json:"accountsCursor"`
-	TotalAccounts     int                 `json:"totalAccounts"`
-	TotalOperations   int                 `json:"totalOperations"`
-	Revision          string              `json:"revision"`
+	Locked            bool                      `json:"locked"`
+	WalletExists      bool                      `json:"walletExists"`
+	VaultState        string                    `json:"vaultState"`
+	Environment       string                    `json:"environment"`
+	RecoveryConfirmed bool                      `json:"recoveryConfirmed"`
+	NextAccountIndex  *uint32                   `json:"nextAccountIndex,omitempty"`
+	Presentation      model.AccountPresentation `json:"presentation,omitempty,omitzero"`
+	Accounts          []model.Account           `json:"accounts"`
+	Operations        []journal.Operation       `json:"operations"`
+	AccountsCursor    string                    `json:"accountsCursor"`
+	TotalAccounts     int                       `json:"totalAccounts"`
+	TotalOperations   int                       `json:"totalOperations"`
+	Revision          string                    `json:"revision"`
 }
 type core struct {
 	child           *supervisor.Child
@@ -182,7 +184,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize":
 		interactive = true
 	}
 	if interactive {
@@ -512,13 +514,14 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 	case "status":
 		s, err := c.current()
 		s.Accounts = nil
+		s.Presentation = model.AccountPresentation{}
 		s.Operations = nil
 		s.AccountsCursor = ""
 		return struct {
 			Version string `json:"version"`
 			snapshot
 		}{buildinfo.Version, s}, err
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "addTonAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery":
 		var out json.RawMessage
 		if e := c.childCallAt(epoch, m.Method, json.RawMessage(m.Body), &out); e != nil {
 			return nil, e

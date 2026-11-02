@@ -40,6 +40,7 @@ mode.add_argument("--arbitrum-copy-only", action="store_true", help="Targeted re
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
 mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and direct address copy using a public disposable phrase; no wallet opening, RPC service or payment")
+mode.add_argument("--account-layout-only", action="store_true", help="Actual account/header/wallet-child-tab layout and recipient/amount validation on a disposable public profile; no funding, successful RPC response or approval")
 mode.add_argument("--clipboard-only", action="store_true", help="Actual row/wallet/Receive copy buttons and selected-address keyboard shortcuts on an owned X11 display using a disposable public fixture")
 args = parser.parse_args()
 if not re.fullmatch(r"[a-z0-9-]{1,80}",args.report_name):
@@ -73,6 +74,9 @@ if args.appearance_only:
 if args.main_row_copy_only:
     report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and direct native copying of the displayed public address using the disposable abandon/about phrase. The icon must keep the account overview open, avoid wallet confirmation and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
+if args.account_layout_only:
+    report["scope"]="Actual uninstrumented offline X11 account/header layout on a public disposable phrase: no Account group dropdown, Balance label, header network count and ordered utility/Lock icons, table Refresh icon, child wallet tabs under distinct account groups, one-row wallet actions, inline network/decimal errors with aligned recipient-book and Amount/Max controls, automatic + creation, exact tab-name pointer/keyboard rename and archive confirmations, real encrypted-metadata restart, archived-index nonreuse, disconnected Exchange decimal/slippage validation, and Enter unlock. No provider balance, USD value, token import or payment is fabricated. Numeric valuation formatting and complete all-network validators are separately covered by Go/frontend tests."
+    report["notRun"].extend(["Successful funded graphical fee/send validation", "Provider-priced dollar valuation in GUI", "Generated-root all-wallet recovery (targeted layout mode)"])
 if args.clipboard_only:
     report["scope"]="Actual uninstrumented X11 copy buttons and Ctrl+C/Ctrl+Shift+C/Ctrl+Insert for selected public addresses in the overview, wallet tab and verified Receive window. Every operation replaces a fresh public sentinel in an independent native clipboard client; no DOM/test bridge, private recovery words or transaction. Public disposable fixture only."
     report["notRun"].append("Generated-root setup, backup and all-eight-wallet restore comparison (clipboard-only mode)")
@@ -135,8 +139,8 @@ class PrivateWindowVisible(RuntimeError):
 
 def palette():
     if appearance["theme"] == "dark":
-        return {"page":(16,19,25), "surface":(23,28,36), "chrome":(21,25,32), "input":(17,23,32), "primary":(185,229,208), "selected":(34,60,46), "selectedBorder":(82,113,94), "border":(52,60,74), "button":(34,41,51), "disabled":(28,34,43)}
-    return {"page":(245,247,250), "surface":(255,255,255), "chrome":(237,241,246), "input":(255,255,255), "primary":(32,99,67), "selected":(228,240,233), "selectedBorder":(142,183,160), "border":(197,207,219), "button":(233,238,245), "disabled":(245,247,250)}
+        return {"page":(16,19,25), "surface":(23,28,36), "chrome":(21,25,32), "input":(17,23,32), "primary":(185,229,208), "selected":(34,60,46), "selectedBorder":(82,113,94), "border":(52,60,74), "button":(34,41,51), "disabled":(28,34,43), "error":(242,197,189)}
+    return {"page":(245,247,250), "surface":(255,255,255), "chrome":(237,241,246), "input":(255,255,255), "primary":(32,99,67), "selected":(228,240,233), "selectedBorder":(142,183,160), "border":(197,207,219), "button":(233,238,245), "disabled":(245,247,250), "error":(139,37,48)}
 
 def masked_field_rectangles(picture, bounds, color):
     x,y,w,h=bounds
@@ -703,7 +707,7 @@ def click_primary_public(heading):
     desktop.click((points[0]+points[-1])//2,group[len(group)//2][0])
 
 def click(words, top=False, last=False, button=1):
-    if words=="Copy address" or top and words in ("Settings","Exchange","Address book"):
+    if words=="Copy address" or top and words in ("Settings","Exchange","Address book","Lock wallet"):
         return click_public_icon(words)
     wanted = [w.lower() for w in words.split()]
     for attempt in range(12):
@@ -721,7 +725,7 @@ def click(words, top=False, last=False, button=1):
                 # the distinct Save receive QR button on the same public row.
                 if before=="save" or after=="address":continue
             _, main_y, _, _ = desktop.geometry(desktop.wait("CryptoWallet")[0])
-            if top and int(row[7]) > main_y + 145:
+            if top and int(row[7]) > main_y + 205:
                 continue
             matches.append(row)
         if matches:
@@ -741,10 +745,23 @@ def click(words, top=False, last=False, button=1):
         time.sleep(.15)
     raise RuntimeError("Public native control not found: " + words)
 
+def account_overview_visible(rows=None):
+    # The removed Account group selector is not an overview identity. Require
+    # one complete, ordered table-header baseline; a wallet's receive label,
+    # token table or utility prose cannot masquerade as the account table.
+    rows=public_rows() if rows is None else rows
+    matches=[]
+    for network in address_phrase_bounds("Network",rows):
+        for balance in address_phrase_bounds("Native balance",rows):
+            for receive in address_phrase_bounds("Receive address",rows):
+                if (network[2]<balance[0]<balance[2]<receive[0]
+                    and max(box[3] for box in (network,balance,receive))-min(box[1] for box in (network,balance,receive))<=36):
+                    matches.append((network,balance,receive))
+    return len(matches)==1
+
 def wallet_page_visible(rows=None):
     rows=public_rows() if rows is None else rows
-    visible=" ".join(row[11] for row in rows)
-    return "Account group" not in visible and public_words_position("Receive address",rows) is not None
+    return not account_overview_visible(rows) and public_words_position("Receive address",rows) is not None
 
 def public_icon_rectangles(picture,region,disabled=False):
     # Locate complete rendered icon buttons from their own four borders and
@@ -820,11 +837,11 @@ def utility_icon_targets(rows,picture,geometry):
     center=int(brand[0][7])+int(brand[0][9])//2
     controls=public_icon_rectangles(picture,(x+w//2,max(y,center-36),x+w-8,min(y+h,center+37)))
     controls=sorted((r for r in controls if abs((r[1]+r[3])//2-center)<=12),key=lambda r:r[0])
-    if len(controls)!=3:raise RuntimeError("Header did not have exactly three complete utility icons")
-    return dict(zip(("Exchange","Address book","Settings"),controls))
+    if len(controls)!=4:raise RuntimeError("Header did not have exactly four complete utility icons")
+    return dict(zip(("Exchange","Address book","Lock wallet","Settings"),controls))
 
 def click_public_icon(label):
-    if label not in ("Copy address","Exchange","Address book","Settings"):
+    if label not in ("Copy address","Exchange","Address book","Lock wallet","Settings"):
         raise RuntimeError("Unknown public icon action")
     rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
     if label=="Copy address":point,_=address_icon_target(rows,picture,geometry)
@@ -1020,7 +1037,7 @@ def main_row_copy_target(rows,picture,geometry):
     x,y,w,h=geometry
     if x<0 or y<0 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Main-row public capture did not contain its complete wallet bounds")
     visible=" ".join(row[11] for row in rows)
-    if "Account group" not in visible:
+    if not account_overview_visible(rows):
         raise RuntimeError("Main-row address copy left the account overview")
     matches=[row for row in rows if row[11]=="Ethereum" and y+145<int(row[7])<y+h-55]
     if len(matches)!=1:raise RuntimeError("Main-account Ethereum row was not uniquely visible")
@@ -1123,8 +1140,8 @@ def main_row_copy(expected_address=None):
     stage("Main-account Ethereum row icon and direct validated address copy")
     copied=request_main_row_copy()
     stage("Main row copy preserves the main account")
-    wait(lambda:"Account group" in text())
-    if "Account group" not in text():raise RuntimeError("Main-row copy opened a wallet page")
+    wait(account_overview_visible)
+    if not account_overview_visible():raise RuntimeError("Main-row copy opened a wallet page")
     if not re.fullmatch(r"0x[0-9a-fA-F]{40}",copied):
         raise RuntimeError("Main-row copy did not return a complete Ethereum address")
     if expected_address is not None and copied!=expected_address:
@@ -1167,7 +1184,7 @@ def address_selection_target(context,rows,geometry,diagnostics=None):
     left_bound,right_bound=x+12,x+w-12
     visible=" ".join(row[11] for row in rows)
     if context=="overview":
-        if "Account group" not in visible:
+        if not account_overview_visible(rows):
             raise RuntimeError("Address selection left the account overview")
         labels=[row for row in rows if row[11]=="Ethereum" and y+145<int(row[7])<y+h-55]
         if len(labels)!=1:raise RuntimeError("Ethereum selection row was not uniquely visible")
@@ -1224,6 +1241,23 @@ def address_selection_target(context,rows,geometry,diagnostics=None):
         if width>=40 and re.fullmatch(r"[0Oo][xX][0-9A-Za-z]{4,64}",row[11]):
             candidates.append((left+width//2,top+height//2))
     if diagnostics is not None:diagnostics.update(prefixCandidates=len(candidates),eligibleBoxes=[list(box[:4]) for box in eligible])
+    # PSM 11 can report a second short suffix box over the same rendered
+    # glyphs. Retire only an exact, byte-preserving hex suffix beside one
+    # complete hex prefix, ending at that prefix's measured right edge. No
+    # expected SDK address is consulted; all other overlap remains fatal.
+    prefixes=[box for box in eligible if re.fullmatch(r"0x[0-9A-Fa-f]{40}",box[4])]
+    deduplicated=[]
+    if len(prefixes)==1 and len(candidates)==1:
+        prefix=prefixes[0];right=prefix[0]+prefix[2];baseline=prefix[1]+prefix[3]/2
+        for box in eligible:
+            if box==prefix:continue
+            suffix=box[4]
+            if (re.fullmatch(r"[0-9A-Fa-f]{1,8}",suffix) and prefix[4].endswith(suffix)
+                and prefix[0]<=box[0]<right and box[2]<prefix[2]/2
+                and abs(box[0]+box[2]-right)<=2 and abs(box[1]+box[3]/2-baseline)<=3):
+                deduplicated.append(box)
+        if deduplicated:eligible=[box for box in eligible if box not in deduplicated]
+    if diagnostics is not None:diagnostics["containedExactSuffixBoxesRetired"]=len(deduplicated)
     ordered=sorted(eligible)
     if any(b[0]<a[0]+a[2] and abs(b[1]+b[3]//2-(a[1]+a[3]//2))<=6 for a,b in zip(ordered,ordered[1:])):
         raise RuntimeError("Overlapping public address OCR chunks were ambiguous")
@@ -1365,7 +1399,7 @@ def selected_address_copy(context,expected_address):
             raise PrivateWindowVisible("Private prompt appeared during public address selection")
         if context=="overview":
             visible=text()
-            if "Account group" not in visible or wallet_page_visible():
+            if not account_overview_visible() or wallet_page_visible():
                 raise RuntimeError("Selecting an overview address navigated to a wallet")
         if clipboard()!=sentinel:
             raise RuntimeError("Selecting an address changed CLIPBOARD without a copy shortcut")
@@ -1472,8 +1506,8 @@ def addresses(networks=("Ethereum", "Base", "HyperEVM", "HyperCore", "NEAR", "Ap
             while time.monotonic()<deadline:
                 rows=public_rows();words=" ".join(r[11] for r in rows)
                 _,main_y,_,_=desktop.geometry(desktop.wait("CryptoWallet")[0])
-                present=any(r[11].lower().strip("·.,:")==network.lower() and int(r[7])<=main_y+145 for r in rows)
-                if "Account group" in words and not wallet_page_visible(rows) and not present:break
+                present=any(r[11].lower().strip("·.,:")==network.lower() and int(r[7])<=main_y+205 for r in rows)
+                if account_overview_visible(rows) and not wallet_page_visible(rows) and not present:break
                 click(network,top=True,button=2)
                 time.sleep(.15)
             else:raise RuntimeError("Middle click did not close the selected wallet tab")
@@ -1768,21 +1802,23 @@ def public_decimal_cell(rows,picture,bounds,row_y,expected):
         if raw.decode().strip()==expected:return True
     return False
 
-def send_amount_geometry(rows,picture,bounds):
+def send_amount_geometry(rows,picture,bounds,value_text="1.25"):
     # Public-only pixel helper. The caller uses public_rows' existing atomic
     # private-window guard; no DOM, injected script or private capture is used.
     x,y,w,h=bounds
     if picture.mode!="RGB" or min(x,y)<0 or w<300 or h<200 or x+w>picture.width or y+h>picture.height:
         raise RuntimeError("Amount/Max observation exceeds owned public bounds")
-    labels={word:[row for row in rows if row[11]==word and x+15<=int(row[6])<x+w-15 and y+145<int(row[7])<y+h-50] for word in ("Amount","1.25","Max")}
+    labels={word:[row for row in rows if row[11]==word and x+15<=int(row[6])<x+w-15 and y+145<int(row[7])<y+h-50] for word in ("Amount",value_text,"Max")}
     if any(len(found)!=1 for found in labels.values()):raise RuntimeError("Amount/Max public labels are not unique")
-    amount,value,maximum=(labels[word][0] for word in ("Amount","1.25","Max"))
+    amount,value,maximum=(labels[word][0] for word in ("Amount",value_text,"Max"))
     box=lambda row:tuple(int(row[index]) for index in (6,7,8,9))
     ax,ay,aw,ah=box(amount);vx,vy,vw,vh=box(value);mx,my,mw,mh=box(maximum)
     if not (ax<=vx<vx+vw<mx and 12<=vy-(ay+ah)<=40 and abs((vy+vh/2)-(my+mh/2))<=5):
         raise RuntimeError("Max is not beside the Amount input")
-    colors=(palette()["border"],palette()["primary"])
-    outlined=lambda xx,yy:any(max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),wanted))<=3 for wanted in colors)
+    colors=(palette()["border"],palette()["primary"],palette()["error"])
+    disabled_border=tuple(round(.45*a+.55*b) for a,b in zip(palette()["border"],palette()["surface"]))
+    outlined=lambda xx,yy:(any(max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),wanted))<=3 for wanted in colors)
+                           or max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),disabled_border))<=1)
     cy=round((vy+vh/2+my+mh/2)/2)
     edges=[]
     for xx in range(max(x+5,ax-4),x+w-10):
@@ -1808,6 +1844,29 @@ def send_amount_geometry(rows,picture,bounds):
     if abs(field[3]-button[3])>2 or abs((field[3]-field[1])-(button[3]-button[1]))>4:
         raise RuntimeError("Max and Amount input bottom edges are not aligned")
     return {"input":field,"max":button,"bottomDifference":abs(field[3]-button[3]),"sameRow":True}
+
+def click_disabled_max():
+    # A disabled label is legitimately absent from ordinary OCR. Re-observe
+    # its actual low-opacity glyph through the existing contrast path, then
+    # require the complete input/button borders and disabled fill before input.
+    rows,picture,bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
+    measured=send_amount_geometry(rows,picture,bounds)
+    rect=measured["max"]
+    if any(max(abs(a-b) for a,b in zip(picture.getpixel(point),palette()["disabled"]))>2
+           for point in ((rect[0]+6,rect[1]+6),(rect[2]-6,rect[1]+6),(rect[0]+6,rect[3]-6),(rect[2]-6,rect[3]-6))):
+        raise RuntimeError("Max was not visibly disabled with an empty recipient")
+    if desktop.secret_window():raise PrivateWindowVisible("Refusing disabled Max input while a private prompt is visible")
+    window,_=desktop.wait("CryptoWallet")
+    if desktop.geometry(window)!=bounds:raise RuntimeError("Public Max window moved after its fresh capture")
+    desktop.focus(window)
+    desktop.click((rect[0]+rect[2])//2,(rect[1]+rect[3])//2)
+    desktop.park_pointer();time.sleep(.3)
+    after_rows,after_picture,after_bounds=public_rows(contrast=True,with_picture=True,with_geometry=True)
+    after=send_amount_geometry(after_rows,after_picture,after_bounds)
+    if after_bounds!=bounds or after["input"]!=measured["input"] or after["max"]!=measured["max"]:
+        raise RuntimeError("Disabled Max changed its amount form or geometry")
+    measured["afterClick"]=after
+    return measured
 
 def public_words_position(words, rows=None):
     wanted=[word.lower() for word in words.split()]
@@ -1932,6 +1991,395 @@ def scroll_to_public_words(words, contrast=False):
         scroll_public(5,3)
     raise RuntimeError("Expected staking control or disclosure missing: "+words)
 
+def action_row_targets(rows,labels):
+    # Static action labels supply geometry only. Require each full phrase on
+    # one baseline, then one unique complete set on Send's actual row.
+    candidates={}
+    for label in labels:
+        words=label.lower().split();found=[]
+        for i,row in enumerate(rows):
+            segment=rows[i:i+len(words)]
+            if len(segment)!=len(words) or [r[11].lower().strip("·.,:") for r in segment]!=words:continue
+            if label=="Receive" and 0<i<len(rows)-1:
+                before,after=rows[i-1],rows[i+1]
+                # Save receive QR is a separate complete button on this same
+                # action row. Its interior word cannot become the Receive
+                # action; admit only the exact same-line bounded phrase.
+                same_line=before[1:5]==row[1:5]==after[1:5]
+                close=(0<=int(row[6])-int(before[6])-int(before[8])<=60
+                       and 0<=int(after[6])-int(row[6])-int(row[8])<=60
+                       and max(abs(int(other[7])-int(row[7])) for other in (before,after))<=6)
+                if same_line and close and before[11].lower()=="save" and after[11].lower()=="qr":continue
+            boxes=[tuple(int(r[index]) for index in (6,7,8,9)) for r in segment]
+            if max(box[1]+box[3] for box in boxes)-min(box[1] for box in boxes)>36:continue
+            if any(box[2]<=0 or not 8<=box[3]<=36 for box in boxes):continue
+            if any(not 0<=right[0]-(left[0]+left[2])<=60 for left,right in zip(boxes,boxes[1:])):continue
+            found.append(((boxes[0][0]+boxes[-1][0]+boxes[-1][2])//2,round(sum(box[1]+box[3]/2 for box in boxes)/len(boxes))))
+        candidates[label]=found
+    sets=[]
+    for send in candidates.get("Send",[]):
+        match={label:[point for point in candidates[label] if abs(point[1]-send[1])<=8] for label in labels}
+        if all(len(points)==1 for points in match.values()):sets.append({label:points[0] for label,points in match.items()})
+    if len(sets)!=1:raise RuntimeError("Wallet actions were not uniquely visible on one row")
+    return sets[0]
+
+def account_header_observation(rows,picture,geometry):
+    x,y,w,h=geometry
+    icons=utility_icon_targets(rows,picture,geometry)
+    count=[]
+    for first,second in zip(rows,rows[1:]):
+        if first[11]=="8" and second[11]=="networks" and abs(int(first[7])-int(second[7]))<=6:
+            box=(int(first[6]),int(first[7]),int(second[6])+int(second[8]),max(int(first[7])+int(first[9]),int(second[7])+int(second[9])))
+            if x<box[0]<box[2]<icons["Exchange"][0] and y<box[1]<box[3]<y+77:count.append(box)
+    if len(count)!=1:raise RuntimeError("Eight-network count was not uniquely visible before Exchange")
+    return {"networkCount":list(count[0]),"icons":{key:list(value) for key,value in icons.items()}}
+
+def table_refresh_target(rows,picture,geometry):
+    if not account_overview_visible(rows):raise RuntimeError("Refresh observation left the account table")
+    x,y,w,h=geometry
+    headers=address_phrase_bounds("Receive address",rows)
+    headers=[box for box in headers if x<box[0]<box[2]<x+w and y+145<box[1]<box[3]<y+h-32]
+    if len(headers)!=1:raise RuntimeError("Account table receive header was not unique")
+    box=headers[0];cy=(box[1]+box[3])//2
+    controls=public_icon_rectangles(picture,(box[2]+8,max(y,cy-33),x+w-12,min(y+h-31,cy+34)))
+    controls=[rect for rect in controls if abs((rect[1]+rect[3])//2-cy)<=12]
+    if len(controls)!=1:raise RuntimeError("Account table Refresh icon was not uniquely complete")
+    rect=controls[0]
+    return ((rect[0]+rect[2])//2,(rect[1]+rect[3])//2),rect
+
+def wallet_child_tab_observation(rows,geometry,label="Ethereum"):
+    x,y,w,h=geometry
+    # Only an observed public header band is admitted; content headings and
+    # table rows cannot provide a main or child tab. Exact parent labels have
+    # their separate account row, while a wallet must occupy the lower row.
+    main=[row for row in rows if y+77<int(row[7])<y+130]
+    child=[row for row in rows if y+130<=int(row[7])<y+205]
+    if any(row[11]==label for row in main):raise RuntimeError("Wallet still occupies the account tab row")
+    wallets=[row for row in child if row[11]==label]
+    if len(wallets)!=1:raise RuntimeError("Wallet child tab was not uniquely visible below its account")
+    return {"mainRowContainsWallet":False,"walletBaseline":int(wallets[0][7]),"walletTabsForSelectedGroup":1}
+
+def public_label_boxes(label,rows):
+    # Exact public lexical labels may span OCR blocks. A punctuation-only
+    # separator such as the tab's middle dot carries no spelling authority.
+    normalize=lambda value:value.lower().strip("·.,:;()[]")
+    wanted=[word for item in label.split() if (word:=normalize(item))]
+    observed=[row for row in rows if len(row)==12 and normalize(row[11])]
+    found=[]
+    for i in range(len(observed)-len(wanted)+1):
+        segment=observed[i:i+len(wanted)]
+        if [normalize(row[11]) for row in segment]!=wanted:continue
+        boxes=[tuple(int(row[index]) for index in (6,7,8,9)) for row in segment]
+        if any(width<=0 or not 8<=height<=36 for _,_,width,height in boxes):continue
+        if any(not 0<=b[0]-a[0]-a[2]<=60 or abs(b[1]+b[3]//2-a[1]-a[3]//2)>6 for a,b in zip(boxes,boxes[1:])):continue
+        found.append((boxes[0][0],min(box[1] for box in boxes),boxes[-1][0]+boxes[-1][2],max(box[1]+box[3] for box in boxes)))
+    return found
+
+def account_add_target(rows,picture,geometry):
+    x,y,w,h=geometry
+    # Account + is the only complete icon on the account row. Child close
+    # controls and utilities live in distinct bands and cannot supply it.
+    controls=public_icon_rectangles(picture,(x+16,y+77,x+w-12,min(y+h-31,y+136)))
+    controls=[rect for rect in controls if y+77<rect[1]<rect[3]<y+136]
+    if len(controls)!=1:raise RuntimeError("Account + icon was not uniquely complete on its own row")
+    rect=controls[0]
+    return ((rect[0]+rect[2])//2,(rect[1]+rect[3])//2),rect
+
+def add_next_account(expected_title):
+    rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
+    point,rect=account_add_target(rows,picture,bounds)
+    if desktop.secret_window():raise PrivateWindowVisible("Unexpected dialog before account +")
+    if desktop.geometry(desktop.wait("CryptoWallet")[0])!=bounds:raise RuntimeError("Account + window moved before input")
+    desktop.click(*point);desktop.park_pointer()
+    desktop.wait("Add deterministic account",30)
+    expected_index=int(expected_title.split()[-1])-1
+    summary=" ".join(row[11] for row in private_rows("Add deterministic account"))
+    if not re.search(r"canonical account index\s+"+str(expected_index)+r"\b",summary,re.I):raise RuntimeError("Account + confirmation did not display the exact next canonical index")
+    del summary
+    desktop.accept("Add deterministic account")
+    wait(lambda:not desktop.secret_window(),30)
+    wait(lambda:public_tab_point(expected_title,"group"))
+    report.setdefault("automaticAccountCreation",[]).append({"expectedTab":expected_title,"icon":list(rect),"exactConfirmation":True,"additionalPassword":False,"preparedOrSent":False})
+
+def public_tab_point(title,kind,rows=None,geometry=None):
+    if kind not in ("group","wallet"):raise RuntimeError("Unknown account tab kind")
+    rows=public_rows() if rows is None else rows
+    geometry=desktop.geometry(desktop.wait("CryptoWallet")[0]) if geometry is None else geometry
+    x,y,w,h=geometry
+    low,high=(77,130) if kind=="group" else (130,205)
+    boxes=[box for box in public_label_boxes(title,rows) if x+12<box[0]<box[2]<x+w-12 and y+low<box[1]<box[3]<y+high]
+    if len(boxes)>1:raise RuntimeError("Tab name was ambiguous within its owning row")
+    return ((boxes[0][0]+boxes[0][2])//2,(boxes[0][1]+boxes[0][3])//2) if boxes else None
+
+def tab_menu_targets(rows,picture,bounds,anchor):
+    x,y,w,h=bounds
+    if picture.mode!="RGB" or min(x,y)<0 or w<300 or h<200 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Context-menu bounds exceed the owned public capture")
+    if not (x<anchor[0]<x+w and y+77<anchor[1]<y+205):raise RuntimeError("Context-menu anchor is outside the owned tab rows")
+    candidates={name:[box for box in public_label_boxes(name,rows) if x<box[0]<box[2]<x+w and y<box[1]<box[3]<y+h-31 and abs(box[0]-anchor[0])<220 and -15<box[1]-anchor[1]<150] for name in ("Rename","Delete")}
+    pairs=[(r,d) for r in candidates["Rename"] for d in candidates["Delete"] if abs(r[0]-d[0])<=3 and 30<=d[1]-r[1]<=65]
+    if len(pairs)!=1:raise RuntimeError("Tab context menu did not have one complete ordered Rename/Delete pair")
+    rename,delete=pairs[0]
+    border=palette()["border"]
+    near=lambda xx,yy:max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),border))<=3
+    cy=(rename[1]+rename[3])//2
+    left=[xx for xx in range(max(x+1,rename[0]-35),rename[0]-7) if all(near(xx,cy+dy) for dy in (-3,0,3))]
+    rects=[]
+    for l in left:
+        for r in range(max(delete[2]+10,l+185),min(x+w-1,l+215)):
+            if not all(near(r,cy+dy) for dy in (-3,0,3)):continue
+            samples=(l+10,(l+r)//2,r-10)
+            tops=[yy for yy in range(max(y+1,rename[1]-28),rename[1]-3) if all(near(xx,yy) for xx in samples)]
+            bottoms=[yy for yy in range(delete[3]+3,min(y+h-31,delete[3]+28)) if all(near(xx,yy) for xx in samples)]
+            for top in tops:
+                for bottom in bottoms:
+                    if 85<=bottom-top<=125:rects.append((l,top,r,bottom))
+    if len(rects)!=1:raise RuntimeError("Tab context menu complete owning outline was ambiguous or clipped")
+    return {name:((box[0]+box[2])//2,(box[1]+box[3])//2) for name,box in (("Rename",rename),("Delete",delete))}
+
+def native_tab_menu_shortcut():
+    codes=[mod.X.XKeysymToKeycode(desktop.d,mod.X.XStringToKeysym(name)) for name in (b"Shift_L",b"F10")]
+    if not all(codes):raise RuntimeError("Owned X11 keyboard map lacks the tab context shortcut")
+    pressed=[]
+    try:
+        for code in codes:mod.T.XTestFakeKeyEvent(desktop.d,code,1,0);pressed.append(code)
+    finally:
+        for code in reversed(pressed):mod.T.XTestFakeKeyEvent(desktop.d,code,0,0)
+        mod.X.XFlush(desktop.d)
+    time.sleep(.15)
+
+def open_tab_menu(title,kind,keyboard=False):
+    rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
+    point=public_tab_point(title,kind,rows,bounds)
+    if not point:raise RuntimeError("Owned tab was not uniquely visible before context menu")
+    if desktop.secret_window():raise PrivateWindowVisible("Unexpected dialog before tab context input")
+    if desktop.geometry(desktop.wait("CryptoWallet")[0])!=bounds:raise RuntimeError("Tab context owner moved before input")
+    desktop.focus(desktop.wait("CryptoWallet")[0])
+    mod.T.XTestFakeMotionEvent(desktop.d,-1,*point,0)
+    mod.T.XTestFakeButtonEvent(desktop.d,3,1,0);mod.T.XTestFakeButtonEvent(desktop.d,3,0,0);mod.X.XFlush(desktop.d)
+    desktop.park_pointer();time.sleep(.2)
+    # The first actual right-click focuses this specific owner. Exercise the
+    # ordinary keyboard route after dismissing its first observed menu.
+    if keyboard:
+        rows,picture,observed=public_rows(with_picture=True,with_geometry=True)
+        tab_menu_targets(rows,picture,observed,point)
+        desktop.key("Escape");native_tab_menu_shortcut();desktop.park_pointer();time.sleep(.2)
+    rows,picture,observed=public_rows(with_picture=True,with_geometry=True)
+    if observed!=bounds:raise RuntimeError("Context-menu owner moved before menu observation")
+    report.setdefault("tabMenuObservations",[]).append({"kind":kind,"keyboard":keyboard,"anchor":list(point),"window":list(observed),"actionBoxes":{name:[list(box) for box in public_label_boxes(name,rows)] for name in ("Rename","Delete")}})
+    return tab_menu_targets(rows,picture,observed,point)
+
+def rename_tab(title,kind,name,keyboard=False):
+    targets=open_tab_menu(title,kind,keyboard)
+    desktop.click(*targets["Rename"]);desktop.park_pointer()
+    prefix="Rename "+title
+    desktop.wait(prefix,30);desktop.inputs(prefix,[name]);desktop.accept(prefix)
+    confirmation="Rename account group" if kind=="group" else "Rename wallet"
+    desktop.wait(confirmation,30);desktop.accept(confirmation)
+    wait(lambda:not desktop.secret_window(),30)
+    wait(lambda:public_tab_point(name,kind))
+    report.setdefault("tabRenames",[]).append({"kind":kind,"name":name,"keyboardMenu":keyboard,"exactBackendConfirmation":True,"additionalPassword":False,"preparedOrSent":False})
+
+def delete_tab(title,kind,accept=True):
+    targets=open_tab_menu(title,kind)
+    desktop.click(*targets["Delete"]);desktop.park_pointer()
+    confirmation="Delete account group from visible list" if kind=="group" else "Delete wallet from visible account"
+    desktop.wait(confirmation,30)
+    if accept:desktop.accept(confirmation)
+    else:desktop.focus(desktop.wait(confirmation)[0]);desktop.key("Escape")
+    wait(lambda:not desktop.secret_window(),30)
+    wait(lambda:(public_tab_point(title,kind) is None) if accept else bool(public_tab_point(title,kind)))
+    report.setdefault("tabArchives",[]).append({"kind":kind,"confirmed":accept,"archiveOnlyConfirmation":True,"additionalPassword":False,"preparedOrSent":False})
+
+def recipient_input_geometry(rows,picture,bounds):
+    x,y,w,h=bounds
+    if picture.mode!="RGB" or min(x,y)<0 or w<300 or h<200 or x+w>picture.width or y+h>picture.height:raise RuntimeError("Recipient bounds exceed the owned public capture")
+    labels=address_phrase_bounds("Recipient address",rows)
+    errors=public_label_boxes("Enter a valid recipient address",rows)
+    labels=[box for box in labels if x<box[0]<box[2]<x+w and y+145<box[1]<box[3]<y+h-100
+            and not any(error[0]<=box[0]<box[2]<=error[2] and abs(error[1]-box[1])<=6 for error in errors)]
+    if len(labels)!=1:raise RuntimeError("Recipient field label was not uniquely visible")
+    label=labels[0]
+    icons=public_icon_rectangles(picture,(label[2]+8,label[3]+5,x+w-15,min(y+h-32,label[3]+85)))
+    icons=sorted(icons,key=lambda rect:rect[0])
+    if len(icons)!=2 or abs(icons[0][3]-icons[1][3])>2:raise RuntimeError("Recipient address-book icons were not complete and aligned")
+    cy=(icons[0][1]+icons[0][3])//2
+    colors=(palette()["border"],palette()["primary"],palette()["error"])
+    near=lambda xx,yy:any(max(abs(a-b) for a,b in zip(picture.getpixel((xx,yy)),color))<=3 for color in colors)
+    left=[xx for xx in range(label[0]-3,label[0]+3) if all(near(xx,cy+dy) for dy in (-3,0,3))]
+    right=[xx for xx in range(icons[0][0]-20,icons[0][0]-4) if all(near(xx,cy+dy) for dy in (-3,0,3))]
+    fields=[]
+    for l in left:
+        for r in right:
+            samples=(l+8,(l+r)//2,r-8)
+            tops=[yy for yy in range(label[3]+5,cy-8) if all(near(xx,yy) for xx in samples)]
+            bottoms=[yy for yy in range(cy+8,min(y+h-32,cy+38)) if all(near(xx,yy) for xx in samples)]
+            for top in tops:
+                for bottom in bottoms:
+                    if 36<=bottom-top<=65:fields.append((l,top,r,bottom))
+    if len(fields)!=1:raise RuntimeError("Recipient input complete outline was not unique")
+    field=fields[0]
+    if any(abs(field[3]-icon[3])>2 for icon in icons):raise RuntimeError("Recipient feedback moved address-book icons below the input")
+    errors=public_label_boxes("Enter a valid recipient address",rows)
+    if len(errors)!=1 or errors[0][1]<=field[3]:raise RuntimeError("Recipient validation error was not below the complete input/icon row")
+    return {"input":list(field),"icons":[list(icon) for icon in icons],"bottomDifferences":[abs(field[3]-icon[3]) for icon in icons],"errorBelowRow":True}
+
+def observe_invalid_recipient_geometry():
+    # The keyboard focus ring is an extra outline, not an input boundary.
+    # Blur through this fixed public heading before measuring the underlying
+    # input and icon borders. This neither edits a draft nor invokes an action.
+    heading=public_words_position("Send ETH")
+    if not heading:raise RuntimeError("Public Send heading missing before recipient geometry")
+    if desktop.secret_window():raise PrivateWindowVisible("Unexpected private dialog before recipient geometry")
+    desktop.click(*heading);desktop.park_pointer();time.sleep(.15)
+    rows,picture,bounds=public_rows(with_picture=True,with_geometry=True)
+    return recipient_input_geometry(rows,picture,bounds)
+
+def exchange_input_campaign():
+    click("Exchange",top=True);scroll_public(4,35)
+    wait(lambda:"Bybit Exchange" in text() and "Connect your Bybit account in Settings" in text())
+    choose_public_option("Wallet / network",0)
+    choose_public_option("Wallet asset",0)
+    choose_public_option("Spot direction",0)
+    def fill(label,value):
+        point=wait(lambda:public_words_position(label))
+        desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True)
+        if value:desktop.type(value)
+        else:desktop.key("BackSpace")
+        desktop.park_pointer();time.sleep(.25)
+    for value in ("-1","1e3","0","NaN"):
+        fill("Amount to spend / withdraw",value)
+        wait(lambda:"Enter a positive decimal amount" in text())
+        if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Invalid Exchange amount requested authority")
+    fill("Amount to spend / withdraw","1")
+    wait(lambda:"positive decimal amount" not in text())
+    fill("Slippage limit","2")
+    wait(lambda:"Enter a slippage limit from 0.01% to 1%" in text())
+    fill("Slippage limit","0.50")
+    wait(lambda:"Enter a slippage limit" not in text())
+    if desktop.secret_window():raise RuntimeError("Disconnected Exchange validation opened a credential or payment dialog")
+    report["exchangeDraftValidation"]={"provider":"Bybit","disconnected":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"slippageBoundsVisible":True,"positiveDraftClearsSyntaxError":True,"preparedOrSent":False}
+    passed("Disconnected Exchange rejects malformed/zero spend drafts and out-of-range slippage inline, without an API credential or payment dialog")
+
+def account_layout_campaign(secret,installation,home):
+    stage("Inspect account overview without the removed group selector")
+    click("Main account",top=True);scroll_public(4,35);wait(account_overview_visible)
+    rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
+    visible=" ".join(row[11] for row in rows)
+    if "Account group" in visible or "Refresh wallet state" in visible or "Lock wallet" in visible:
+        raise RuntimeError("Account overview retained removed selector or text utility buttons")
+    if public_words_position("Balance",rows) is None or "~" in visible:
+        raise RuntimeError("Account balance label retained approximate formatting")
+    report["accountHeader"]=account_header_observation(rows,picture,geometry)
+    point,rect=table_refresh_target(rows,picture,geometry)
+    desktop.click(*point);desktop.park_pointer();time.sleep(.3)
+    if desktop.secret_window():raise RuntimeError("Read-only table Refresh requested approval")
+    report["accountTableRefresh"]={"rectangle":list(rect),"preparedOrSent":False}
+    passed("Actual account overview omits its group selector, uses Balance, and exposes eight-network/header utility icons plus a table Refresh icon")
+    click("Ethereum");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    main_address=request_receive_copy()
+    rows,picture,geometry=public_rows(with_picture=True,with_geometry=True)
+    report["accountWalletChildTabs"]=[wallet_child_tab_observation(rows,geometry)]
+    report["walletActionRows"]={"Ethereum":action_row_targets(rows,("Send","Receive","Track new token","Hide wallet"))}
+    passed("Actual Ethereum wallet opens under the account's child-tab row with Send, Receive, Track and Hide on one line")
+    click("Send");wait(lambda:public_words_position("Recipient address"))
+    def fill(label,value):
+        point=public_words_position(label)
+        if not point:raise RuntimeError("Public send input label missing: "+label)
+        desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True)
+        desktop.type(value) if value else desktop.key("BackSpace")
+        desktop.park_pointer();time.sleep(.35)
+    fill("Recipient address","astro-stakers.poolv1.near")
+    wait(lambda:"Enter a valid recipient address for Ethereum" in text())
+    report["invalidRecipientGeometry"]=observe_invalid_recipient_geometry()
+    fill("Amount","1e3")
+    wait(lambda:"Enter a positive decimal amount with at most 18 decimal places" in text())
+    title=public_words_position("Send ETH")
+    if not title:raise RuntimeError("Native Send heading missing before invalid-amount geometry")
+    desktop.click(*title);desktop.park_pointer();time.sleep(.2)
+    errors=[]
+    for contrast in (False,True):
+        observed,picture,bounds=public_rows(contrast=contrast,with_picture=True,with_geometry=True)
+        try:
+            report["invalidAmountMaxGeometry"]=send_amount_geometry(observed,picture,bounds,value_text="1e3")
+            break
+        except RuntimeError as error:errors.append(str(error))
+    else:raise RuntimeError("Invalid-amount feedback moved Max away from its input: "+"; ".join(errors))
+    for invalid,feedback in (("-1","positive decimal"),("NaN","positive decimal"),("0","greater than zero"),("1.0000000000000000001","positive decimal")):
+        fill("Amount",invalid);wait(lambda:feedback in text())
+        if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Invalid draft requested payment authority")
+    visible=text()
+    if "Enter a valid recipient and amount to estimate" in visible or "Chain history loading was paused for your action" in visible:
+        raise RuntimeError("Removed advisory copy remained visible")
+    fill("Recipient address","0x"+"2"*40);fill("Amount","")
+    if "valid recipient address" in text():raise RuntimeError("Compatible EVM recipient retained an invalid-address error")
+    click("Send");wait(lambda:"Recipient address" not in text())
+    report["sendInputValidation"]={"network":"ethereum-mainnet","foreignRecipientRejected":True,"invalidDecimalsRejected":["1e3","-1","NaN","0","19 fractional digits"],"preparedOrSent":False}
+    passed("Actual Send rejects a foreign-format recipient and invalid decimal drafts inline without confirmation, RPC-success fabrication or payment authority")
+    add_next_account("Account 2")
+    click("Account 2",top=True);scroll_public(4,35);wait(account_overview_visible)
+    if "Account group" in text():raise RuntimeError("New account overview retained the removed group selector")
+    click("Ethereum");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    second_address=request_receive_copy()
+    if main_address==second_address:raise RuntimeError("Two derived account groups shared the same Ethereum identity")
+    for title,expected in (("Main account",main_address),("Account 2",second_address)):
+        click(title,top=True);scroll_public(4,35);wait(account_overview_visible)
+        rows,_,geometry=public_rows(with_picture=True,with_geometry=True)
+        report["accountWalletChildTabs"].append(wallet_child_tab_observation(rows,geometry))
+        click("Ethereum",top=True);wait(lambda:wallet_page_visible());scroll_public(4,35)
+        if request_receive_copy()!=expected:raise RuntimeError("Switching parent account selected another group's wallet")
+    report["accountHierarchy"]={"parentGroups":2,"walletChildrenPerVisibleParent":1,"distinctEthereumIdentities":True,"switchesRetainExactCopiedIdentity":True,"preparedOrSent":False}
+    passed("Two deterministic account groups keep independent wallet subtabs and exact fresh native-copied identities when switching parents")
+    stage("Rename actual child and parent tabs through pointer and keyboard context menus")
+    rename_tab("ETH · Ethereum","wallet","Ether reserve",keyboard=True)
+    rename_tab("Account 2","group","Savings")
+    delete_tab("Ether reserve","wallet",accept=False)
+    if request_receive_copy()!=second_address:raise RuntimeError("Cancelled tab deletion changed the exact wallet identity")
+    passed("Tab-name context menus support keyboard/pointer Rename and backend Delete cancellation without a storage-password prompt or identity change")
+    stage("Persist encrypted account and wallet labels through a real application exit")
+    close_gracefully();launch(installation,home);unlock_with_enter(secret)
+    wait(lambda:public_tab_point("Savings","group"))
+    click("Savings",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    wait(lambda:public_tab_point("Ether reserve","wallet"))
+    if request_receive_copy()!=second_address:raise RuntimeError("Restarted renamed wallet changed its exact copied identity")
+    report["tabMetadataRestart"]={"groupName":"Savings","walletName":"Ether reserve","exactCopiedIdentityRetained":True,"realGracefulRestart":True}
+    passed("Encrypted parent/child names persist through actual exit/restart/Unlock and preserve the exact derived receive address")
+    stage("Archive and restore a child, then archive its parent without reusing its index")
+    delete_tab("Ether reserve","wallet")
+    click("Settings",top=True);click_settings_subtab("Wallet")
+    label=wait(lambda:public_words_position("Show hidden wallets"))
+    desktop.click(*label);desktop.park_pointer();time.sleep(.3)
+    click("Savings",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    wait(lambda:public_tab_point("Ether reserve","wallet"))
+    if request_receive_copy()!=second_address:raise RuntimeError("Show hidden wallets did not restore the archived identity")
+    click("Settings",top=True);click_settings_subtab("Wallet")
+    label=wait(lambda:public_words_position("Show hidden wallets"));desktop.click(*label);desktop.park_pointer();time.sleep(.3)
+    delete_tab("Savings","group",accept=False)
+    delete_tab("Savings","group")
+    close_gracefully();launch(installation,home);unlock_with_enter(secret)
+    if public_tab_point("Savings","group"):raise RuntimeError("Archived account group returned after restart")
+    report["archivedGroupRestart"]={"hiddenAfterRealRestart":True}
+    add_next_account("Account 3")
+    click("Account 3",top=True);scroll_public(4,35);wait(account_overview_visible)
+    click("Ethereum");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    third_address=request_receive_copy()
+    if third_address in (main_address,second_address):raise RuntimeError("Automatic account + reused a stored or archived identity")
+    report["tabArchiveRestore"]={"childRestoredWithSameAddress":True,"parentCancelledThenArchived":True,"nextVisibleAccount":"Account 3","archivedIndexNotReused":True,"threeDistinctEthereumIdentities":True,"preparedOrSent":False}
+    passed("Confirmed Delete archives the exact child/parent, Show hidden restores its identity, and account + skips the archived index")
+    stage("Validate disconnected Exchange amounts and slippage without authentication or API effects")
+    exchange_input_campaign()
+    click("Main account",top=True);scroll_public(4,35)
+    click("Base");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    rows=public_rows();report["walletActionRows"]["Base"]=action_row_targets(rows,("Send","Receive","Track new token","Refresh token discovery","Hide wallet"))
+    click("Main account",top=True);scroll_public(4,35)
+    click("TON");wait(lambda:wallet_page_visible());scroll_public(4,35)
+    rows=public_rows();report["walletActionRows"]["TON"]=action_row_targets(rows,("Send","Receive","Refresh contract status","Hide wallet"))
+    passed("Base token discovery and TON contract refresh remain on their single Send/Receive/Hide action rows")
+    click("Lock wallet",top=True);wait(lambda:"Unlock local wallet" in text())
+    unlock_with_enter(secret)
+    passed("Header Lock works from a wallet page and ordinary Enter unlock restores the account overview")
+
 def history_layout_campaign():
     stage("Check header-only utility icons, wallet-only tabs and left-side version")
     window,_=desktop.wait("CryptoWallet");x,y,w,h=desktop.geometry(window)
@@ -1947,7 +2395,7 @@ def history_layout_campaign():
     passed("Actual header has Exchange, Address book and rightmost Settings icons above the wallet-only tab row, with version at the left")
     def expanded_content(page):
         picture=public_picture()
-        point=(x+w-50,y+195)
+        point=(x+w-50,y+245)
         if picture.getpixel(point)!=palette()["surface"]:
             raise RuntimeError("Content panel did not extend across the available window: "+page)
         report.setdefault("expandedContent",[]).append({"page":page,"point":list(point),"pixel":list(picture.getpixel(point)),"windowWidth":w})
@@ -2068,6 +2516,34 @@ def history_icon_campaign():
     report["historyIcons"]={"measuredRefreshAndInfo":True,"scopeInitiallyCollapsed":True,"scopeShownOnInfo":True,"escapeClosesInfo":True,"refreshWithoutApproval":True,"fabricatedResponse":False}
     passed("History Info reveals its bounded provider scope and closes with Escape; the adjacent Refresh icon performs an honest offline read without approval")
 
+def near_section_targets(rows):
+    # Only the complete Wallet/Staking navigation pair may select a section.
+    # The management action Hide wallet is a different complete phrase even
+    # when it appears earlier in OCR order on the same wallet page.
+    wallets=[];staking=[]
+    for index,row in enumerate(rows):
+        if row[11].lower()=="wallet":
+            previous=rows[index-1] if index else None
+            if (previous is not None and previous[11].lower()=="hide" and previous[1:5]==row[1:5]
+                and 0<=int(row[6])-int(previous[6])-int(previous[8])<=60
+                and abs(int(previous[7])-int(row[7]))<=6):continue
+            wallets.append(row)
+        if row[11].lower()=="staking":staking.append(row)
+    pairs=[]
+    for wallet in wallets:
+        for stake in staking:
+            line=[row[11] for row in rows if row[1:5]==wallet[1:5]]
+            # NEAR Wallet · Staking is the selected page's complete heading,
+            # not a second navigation row. Ignore separators only; unknown
+            # lexical words, split titles and repeated real tabs still fail.
+            if (wallet[1:5]==stake[1:5]
+                and re.findall(r"[a-z]+"," ".join(line).lower())==["near","wallet","staking"]):continue
+            if (abs(int(wallet[7])-int(stake[7]))<=8
+                and 0<=int(stake[6])-int(wallet[6])-int(wallet[8])<=160):
+                pairs.append({"Wallet":(int(wallet[6])+int(wallet[8])//2,int(wallet[7])+int(wallet[9])//2),
+                              "Staking":(int(stake[6])+int(stake[8])//2,int(stake[7])+int(stake[9])//2)})
+    return pairs[0] if len(pairs)==1 else None
+
 def near_navigation_state(rows):
     # Inspect only fixed public markers, never retain the OCR payload. A Copy
     # address button on another wallet is insufficient: require NEAR's own
@@ -2082,12 +2558,11 @@ def near_navigation_state(rows):
     # punctuation only, preserving all three exact words on one OCR line.
     heading=any(re.findall(r"[a-z]+"," ".join(line).lower())==["near","mainnet","near"]
                 for line in lines.values())
-    wallet=public_words_position("Wallet",content)
-    staking=public_words_position("Staking",content)
-    state={"mainAccount":"Account group" in visible,
+    sections=near_section_targets(content)
+    state={"mainAccount":account_overview_visible(content),
            "nearHeading":heading,
-           "copyAddress":"Account group" not in visible and public_words_position("Receive address",content) is not None,
-           "nearSections":bool(wallet and staking and abs(wallet[1]-staking[1])<=8),
+           "copyAddress":not account_overview_visible(content) and public_words_position("Receive address",content) is not None,
+           "nearSections":sections is not None,
            "validator":public_words_position("AstroStakers",content) is not None,
            "contract":public_words_position("astro-stakers.poolv1.near",content) is not None}
     state["wallet"]=state["nearHeading"] and state["copyAddress"] and state["nearSections"]
@@ -2193,7 +2668,7 @@ def wait_near_navigation(target, seconds=45):
         if allowed and time.monotonic()>=next_click:
             _,main_y,_,_=desktop.geometry(desktop.wait("CryptoWallet")[0])
             content=[row for row in rows if int(row[7])>main_y+145]
-            point=public_words_position("NEAR" if target=="wallet" else "Staking",content)
+            point=public_words_position("NEAR",content) if target=="wallet" else (near_section_targets(content) or {}).get("Staking")
             if point:
                 # One pointer event from this guarded observation, not click()'s
                 # independent multi-OCR retry loop inside another deadline.
@@ -2246,16 +2721,24 @@ def settings_subtab_rows(rows,geometry):
     # the complete ordered, same-baseline Settings navigation before input.
     x,y,w,h=geometry
     if min(x,y)<0 or x+w>1600 or y+h>1100:raise RuntimeError("Settings navigation exceeds the owned display")
-    candidates={}
-    for title in ("Wallet","Networks","Exchange","Appearance"):
-        matching=[row for row in rows if row[11]==title and x<int(row[6])<int(row[6])+int(row[8])<x+w and y+145<int(row[7])<y+240]
-        if len(matching)!=1:raise RuntimeError("Settings subtab was not uniquely visible: "+title)
-        candidates[title]=matching[0]
-    if max(int(row[7]) for row in candidates.values())-min(int(row[7]) for row in candidates.values())>8:
-        raise RuntimeError("Settings tab labels did not share a navigation row")
-    positions=[int(row[6]) for row in candidates.values()]
-    if positions!=sorted(set(positions)):raise RuntimeError("Settings navigation order was ambiguous")
-    return candidates
+    titles=("Wallet","Networks","Exchange","Appearance")
+    candidates={title:[row for row in rows if row[11]==title
+        and x<int(row[6])<int(row[6])+int(row[8])<x+w
+        and y+145<int(row[7])<min(y+520,y+h-40)] for title in titles}
+    for title in titles:
+        if not candidates[title]:raise RuntimeError("Settings subtab was not uniquely visible: "+title)
+    matches=[]
+    for wallet in candidates["Wallet"]:
+        same={title:[row for row in candidates[title] if abs(int(row[7])-int(wallet[7]))<=8] for title in titles}
+        if any(not value for value in same.values()):continue
+        if any(len(value)!=1 for value in same.values()):raise RuntimeError("Settings subtabs were not uniquely visible on their navigation row")
+        complete={title:value[0] for title,value in same.items()}
+        positions=[int(row[6]) for row in complete.values()]
+        if positions!=sorted(set(positions)):raise RuntimeError("Settings navigation order was ambiguous")
+        matches.append(complete)
+    if not matches:raise RuntimeError("Settings tab labels did not share a navigation row")
+    if len(matches)!=1:raise RuntimeError("Settings subtabs were not uniquely visible on one complete row")
+    return matches[0]
 
 def click_settings_subtab(title):
     rows,_,geometry=public_rows(with_picture=True,with_geometry=True)
@@ -2308,7 +2791,7 @@ def unlock_with_enter(secret):
     # the footer: this verifies the ordinary Enter form path end to end.
     desktop.key("Return")
     wait(lambda:not desktop.secret_window(),30)
-    wait(lambda:"Account group" in text() and "Unlock local wallet" not in text(),30)
+    wait(lambda:account_overview_visible() and "Unlock local wallet" not in text(),30)
 
 def appearance_campaign(installation, home, secret):
     global appearance
@@ -2469,26 +2952,17 @@ def ethereum_tokens(expected_address=None):
         except RuntimeError as error:
             geometry_errors.append(str(error))
     else:raise RuntimeError("Amount/Max outlines could not be verified: "+"; ".join(geometry_errors))
-    # Recipient remains empty: typing a public amount cannot request a quote,
-    # approval or mutation. Restore the draft used by the existing Max guard.
+    # Recipient is empty: the complete measured Max control must have its
+    # disabled fill. A click on that observed disabled label must stay inert;
+    # no synthetic error, quote or confirmation is needed to demonstrate it.
+    stage("Check disabled Max requires a valid recipient without approval or invented amount")
+    report["disabledMaxFreshGeometry"]=click_disabled_max()
+    if desktop.secret_window() or "Prepared payment" in text():
+        raise RuntimeError("Disabled blank-recipient Max requested authority or prepared a payment")
+    report["maxRecipientGuard"]={"asset":"USDT","requiresRecipient":True,"disabledUntilValidRecipient":True,"preparedOrSent":False}
     desktop.click(amount_position[0],amount_position[1]+40)
     desktop.key("a",ctrl=True);desktop.key("BackSpace")
-    desktop.click(*heading_position)
-    desktop.park_pointer()
-    time.sleep(.15)
-    cleared_rows=public_rows()
-    report["maxAfterClearedAmount"]={"matches":[[int(row[index]) for index in (6,7,8,9)] for row in cleared_rows if row[11]=="Max"],"privateDialog":False}
-    if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Amount alignment inspection requested payment authority")
-    stage("Check compact Max requires recipient without opening approval or inventing an amount")
-    click("Max")
-    # Leave the native explanatory tooltip before the existing private-window
-    # guard captures public status pixels. Unknown windows remain forbidden.
-    desktop.park_pointer()
-    wait(lambda:not desktop.secret_window(),5)
-    wait(lambda:public_status_contains("Enter a valid recipient first"))
-    if desktop.secret_window() or "Prepared payment" in text():
-        raise RuntimeError("Blank-recipient Max requested authority or prepared a payment")
-    report["maxRecipientGuard"]={"asset":"USDT","requiresRecipient":True,"preparedOrSent":False}
+    desktop.click(*heading_position);desktop.park_pointer();time.sleep(.15)
     if request_receive_copy()!=expected_address:
         raise RuntimeError("USDT selection replaced the owned Ethereum receive address")
     click("Send")
@@ -2697,7 +3171,7 @@ def confirm_ton_recovery(prefix,expected):
 
 def ton_wallet_tab_count():
     _,y,_,_=desktop.geometry(desktop.wait("CryptoWallet")[0])
-    return sum(row[11]=="GRAM" and y+77<int(row[7])<y+145 for row in public_rows())
+    return sum(row[11]=="GRAM" and y+115<int(row[7])<y+205 for row in public_rows())
 
 def ton_contract_page():
     oracle=ton_profile_oracles()
@@ -2771,7 +3245,7 @@ def staking_page():
     stage("Open actual NEAR wallet Staking page")
     click("Main account",top=True)
     scroll_public(4,35)
-    wait(lambda:"Account group" in text())
+    wait(account_overview_visible)
     stage("Select NEAR wallet row before staking")
     wait_near_navigation("wallet")
     scroll_public(4,35)
@@ -2834,12 +3308,14 @@ def staking_page():
     passed("Actual staking form uses whole NEAR and its disabled Withdraw remains inert when pool state is unknown")
     stage("Return from staking to ordinary NEAR Wallet and all-network table")
     scroll_public(4,35)
-    click("Wallet")
+    sections=near_section_targets(public_rows())
+    if not sections:raise RuntimeError("NEAR section navigation was not uniquely visible before returning to Wallet")
+    desktop.click(*sections["Wallet"]);desktop.park_pointer()
     wait(lambda:"Send" in text() and "Receive" in text())
     if "Validator:" in text():raise RuntimeError("Wallet section retained staking controls")
     click("Main account",top=True)
     scroll_public(4,35)
-    wait(lambda:"Account group" in text() and "Ethereum" in text())
+    wait(lambda:account_overview_visible() and "Ethereum" in text())
     passed("Returning from Staking restores the ordinary NEAR Wallet and all-network overview without preparing or approving a transaction")
 
 save()
@@ -2880,7 +3356,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only or args.account_layout_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -2918,6 +3394,8 @@ try:
                 observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
                 report["mainRowCopy"]["matchesIndependentFixture"]=True
                 passed("Actual main-row icon copies the exact independently derived public-fixture Ethereum address")
+            if args.account_layout_only:
+                account_layout_campaign(different_password,installations[0],home)
             if args.clipboard_only:
                 observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
                 clipboard_campaign(observed,different_password)

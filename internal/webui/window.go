@@ -317,6 +317,44 @@ func validEvent(v View, e Event, modal bool) bool {
 		}
 		return false
 	}
+	contextAction := e.ID == "addNextAccount"
+	for _, kind := range []string{"renameWallet/", "deleteWallet/", "renameGroup/", "deleteGroup/"} {
+		contextAction = contextAction || strings.HasPrefix(e.ID, kind)
+	}
+	var contextButton func([]Node) bool
+	contextButton = func(nodes []Node) bool {
+		for _, n := range nodes {
+			if n.Disabled || n.Kind == "transactionTable" || n.Kind == "explorer" {
+				continue
+			}
+			if n.Kind == "button" && n.ID == e.ID {
+				return true
+			}
+			if contextButton(n.Children) {
+				return true
+			}
+		}
+		return false
+	}
+	if contextAction {
+		if e.Value != "" {
+			return false
+		}
+		for _, p := range v.Pages {
+			allowed := e.ID == "addNextAccount" && p.ID == v.AccountGroupID
+			for _, prefix := range []string{"renameWallet/", "deleteWallet/"} {
+				allowed = allowed || strings.HasPrefix(p.ID, "wallet/") && e.ID == prefix+strings.TrimPrefix(p.ID, "wallet/")
+			}
+			for _, prefix := range []string{"renameGroup/", "deleteGroup/"} {
+				allowed = allowed || validGroupID(p.ID) && e.ID == prefix+strings.TrimPrefix(p.ID, "group/")
+			}
+			if allowed && contextButton(p.Nodes) {
+				return true
+			}
+		}
+
+		return false
+	}
 	for _, p := range v.Pages {
 		if p.ID == v.Active {
 			return match(p.Nodes)

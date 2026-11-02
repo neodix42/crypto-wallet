@@ -44,7 +44,7 @@ func TestTP041AllHandlersRejectNonObjectBodiesWithoutStartingSigner(t *testing.T
 }
 
 func TestTP043NativeCompletionsCannotReactivateChangedSession(t *testing.T) {
-	for _, method := range []string{"create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery"} {
+	for _, method := range []string{"create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addAccount", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "hideAccount", "discoverAccounts", "cancelPrepared", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery"} {
 		t.Run(method, func(t *testing.T) {
 			c, path := fakeCoordinator(t, &publicAdapter{}, nil)
 			state := readPublicState(t, path)

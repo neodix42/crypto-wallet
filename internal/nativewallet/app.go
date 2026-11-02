@@ -27,6 +27,7 @@ import (
 	"localwallet/internal/webui"
 	"os"
 	"os/signal"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,15 +53,17 @@ type backend interface {
 	SendActivity() error
 }
 type snapshot struct {
-	Locked            bool            `json:"locked"`
-	WalletExists      bool            `json:"walletExists"`
-	VaultState        string          `json:"vaultState"`
-	Environment       string          `json:"environment"`
-	RecoveryConfirmed bool            `json:"recoveryConfirmed"`
-	Accounts          []model.Account `json:"accounts"`
-	AccountsCursor    string          `json:"accountsCursor"`
-	TotalAccounts     int             `json:"totalAccounts"`
-	Revision          string          `json:"revision"`
+	Locked            bool                      `json:"locked"`
+	WalletExists      bool                      `json:"walletExists"`
+	VaultState        string                    `json:"vaultState"`
+	Environment       string                    `json:"environment"`
+	RecoveryConfirmed bool                      `json:"recoveryConfirmed"`
+	Accounts          []model.Account           `json:"accounts"`
+	Presentation      model.AccountPresentation `json:"presentation"`
+	NextAccountIndex  *uint32                   `json:"nextAccountIndex,omitempty"`
+	AccountsCursor    string                    `json:"accountsCursor"`
+	TotalAccounts     int                       `json:"totalAccounts"`
+	Revision          string                    `json:"revision"`
 }
 type journalPage struct {
 	Operations []journal.Operation `json:"operations"`
@@ -91,6 +94,7 @@ type App struct {
 	fields                                map[string]string
 	active                                string
 	tabs                                  []string
+	latestAccountIndex                    *uint32
 	sendForms                             map[string]bool
 	plan                                  *model.Plan
 	planIsStaking                         bool
@@ -515,6 +519,11 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 		return first, nil
 	}
 	all := append([]model.Account(nil), first.Accounts...)
+	var presentation model.AccountPresentation
+	presentationGroups := map[string]bool{}
+	if err := mergePresentation(&presentation, first.Presentation, first.Accounts, presentationGroups); err != nil {
+		return snapshot{}, err
+	}
 	seen := map[string]bool{}
 	cursors := map[string]bool{}
 	for _, account := range all {
@@ -533,8 +542,11 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 		if err := core.CallAt(g, "accounts", map[string]string{"cursor": cursor}, &page); err != nil {
 			return snapshot{}, err
 		}
-		if page.Locked || page.Revision != first.Revision || page.TotalAccounts != first.TotalAccounts {
+		if page.Locked || page.Revision != first.Revision || page.TotalAccounts != first.TotalAccounts || !reflect.DeepEqual(page.NextAccountIndex, first.NextAccountIndex) {
 			return snapshot{}, errors.New("account generation changed")
+		}
+		if err := mergePresentation(&presentation, page.Presentation, page.Accounts, presentationGroups); err != nil {
+			return snapshot{}, err
 		}
 		for _, account := range page.Accounts {
 			if account.ID == "" || seen[account.ID] {
@@ -548,6 +560,7 @@ func readAccounts(core backend, g uint64) (snapshot, error) {
 	if len(all) != first.TotalAccounts || len(all) > 10000 {
 		return snapshot{}, errors.New("incomplete account page")
 	}
+	first.Presentation = presentation
 	first.Accounts = all
 	first.AccountsCursor = ""
 	return first, nil
@@ -560,6 +573,13 @@ func (a *App) applySnapshot(state snapshot, networks []model.Network) {
 	a.stopBalanceRefresh(false)
 	a.stopPaymentQuote()
 	a.paymentQuote = paymentQuoteState{}
+	a.latestAccountIndex = nil
+	for _, account := range state.Accounts {
+		if a.latestAccountIndex == nil || account.Index > *a.latestAccountIndex {
+			index := account.Index
+			a.latestAccountIndex = &index
+		}
+	}
 	activeAccounts := make([]model.Account, 0, len(state.Accounts))
 	for _, account := range state.Accounts {
 		if !chains.IsRetiredNetwork(account.Network) {
@@ -713,7 +733,41 @@ func (a *App) mutation(method string, body any) {
 		if !state.Locked {
 			err = a.callAt(g, "networks", struct{}{}, &networks)
 		}
-		return func() { a.applySnapshot(state, networks) }, err
+		return func() {
+			if (method == "deleteWallet" || method == "deleteGroup") && strings.HasPrefix(a.active, "wallet/") {
+				id := strings.TrimPrefix(a.active, "wallet/")
+				for _, account := range state.Accounts {
+					if account.ID == id && account.Hidden {
+						a.active = "group/" + strconv.FormatUint(uint64(account.Index), 10)
+						break
+					}
+				}
+			}
+			a.applySnapshot(state, networks)
+			if method == "addNextAccount" {
+				var latest uint32
+				for _, account := range a.state.Accounts {
+					if account.Index > latest {
+						latest = account.Index
+					}
+				}
+				a.active = "group/" + strconv.FormatUint(uint64(latest), 10)
+				a.fields["group"] = strconv.FormatUint(uint64(latest), 10)
+			}
+			if method == "deleteWallet" || method == "deleteGroup" {
+				remaining := a.tabs[:0]
+				for _, id := range a.tabs {
+					account, ok := a.account(id)
+					if ok && !account.Hidden {
+						remaining = append(remaining, id)
+					} else {
+						delete(a.sendForms, id)
+					}
+				}
+				a.tabs = remaining
+				a.active = a.view().Active
+			}
+		}, err
 	}, feedback)
 }
 
@@ -934,7 +988,12 @@ func (a *App) event(e webui.Event) {
 					break
 				}
 			}
-			a.active = "group/0"
+			if a.active == e.Value {
+				if account, ok := a.account(id); ok {
+					a.active = "group/" + strconv.FormatUint(uint64(account.Index), 10)
+					a.fields["group"] = strconv.FormatUint(uint64(account.Index), 10)
+				}
+			}
 			a.render()
 		}
 		return
@@ -975,7 +1034,7 @@ func (a *App) event(e webui.Event) {
 			a.plan = nil
 			a.planRevision++
 			a.invalidatePaymentQuote()
-			if hadPlan {
+			if hadPlan || strings.HasPrefix(key, "recipient/") || strings.HasPrefix(key, "amount/") {
 				a.render()
 			}
 		}
@@ -1005,6 +1064,9 @@ func (a *App) event(e webui.Event) {
 			a.fields["exchangeAsset"] = ""
 			a.quote = nil
 			a.ensureExchangeSelection()
+			a.render()
+		}
+		if key == "exchangeAmount" {
 			a.render()
 		}
 		if key == "exchangeAsset" || key == "side" || key == "slippage" {
@@ -1050,6 +1112,8 @@ func (a *App) event(e webui.Event) {
 			profile = ton.ProfileSubwallet42
 		}
 		a.recoverTONProfile(uint32(index), profile)
+	case "addNextAccount":
+		a.mutation("addNextAccount", struct{}{})
 	case "addAccount":
 		index, err := strconv.ParseUint(a.fields["index"], 10, 32)
 		if err != nil {
@@ -1126,6 +1190,9 @@ func (a *App) walletEvent(action string) {
 	if a.stakingEvent(kind, id) {
 		return
 	}
+	if a.accountPresentationEvent(kind, id) {
+		return
+	}
 	if kind == "open" {
 		a.invalidatePaymentQuote()
 		if _, ok := a.account(id); !ok {
@@ -1150,6 +1217,18 @@ func (a *App) walletEvent(action string) {
 		}
 		a.queueWalletHistory(id, "initial")
 		a.render()
+		return
+	}
+	if kind == "prevGroupPage" || kind == "nextGroupPage" {
+		for _, account := range a.state.Accounts {
+			if strconv.FormatUint(uint64(account.Index), 10) == id {
+				a.active = "group/" + id
+				a.fields["group"] = id
+				a.invalidatePaymentQuote()
+				a.render()
+				return
+			}
+		}
 		return
 	}
 	if kind == "nextRows" || kind == "prevRows" {
@@ -1389,6 +1468,17 @@ func (a *App) ensureExchangeSelection() {
 	}
 }
 func (a *App) exchangeAction(method string, body any) {
+	if method == "exchangeSwap" || method == "exchangeDeposit" || method == "exchangeWithdraw" {
+		request, ok := body.(map[string]string)
+		if !ok {
+			a.notice("The exchange request no longer matches the selected inputs.")
+			a.render()
+			return
+		}
+		if !a.validateExchangeAmountAction(method, request) {
+			return
+		}
+	}
 	revision := a.exchangeRevision
 	selected := a.selectedExchangeProvider().ID
 	if request, ok := body.(map[string]string); ok && method == "exchangeSelect" {
@@ -1486,22 +1576,6 @@ func (a *App) check(key, title string) webui.Node {
 	n.Disabled = a.busy
 	return n
 }
-func (a *App) groupSelector() webui.Node {
-	seen := map[uint32]bool{}
-	var ids []int
-	for _, account := range a.state.Accounts {
-		if !seen[account.Index] {
-			seen[account.Index] = true
-			ids = append(ids, int(account.Index))
-		}
-	}
-	sort.Ints(ids)
-	options := make([]webui.Option, 0, len(ids))
-	for _, index := range ids {
-		options = append(options, webui.Option{ID: strconv.Itoa(index), Text: groupName(uint32(index))})
-	}
-	return a.combo("group", "Account group", options)
-}
 func groupName(index uint32) string {
 	if index == 0 {
 		return "Main account"
@@ -1530,6 +1604,7 @@ func (a *App) view() webui.View {
 		default:
 			nodes = append(nodes, label("Wallet storage is unavailable. Creation and restoration are blocked until its state can be read safely."))
 		}
+		view.AccountGroupID = "group/0"
 		view.Pages = []webui.Page{{ID: "group/0", Title: "Wallet", Nodes: nodes}, {ID: "addressbook", Title: "Address book", Nodes: a.addressBookPage()}, {ID: "settings", Title: "Settings", Nodes: a.settingsPage()}}
 		if view.Active != "settings" && view.Active != "addressbook" {
 			view.Active = "group/0"
@@ -1539,13 +1614,27 @@ func (a *App) view() webui.View {
 	seen := map[uint32]bool{}
 	var indexes []uint32
 	for _, account := range a.state.Accounts {
-		if !seen[account.Index] {
+		if !seen[account.Index] && (!a.groupDeleted(account.Index) || a.fields["showHidden"] == "true") {
 			seen[account.Index] = true
 			indexes = append(indexes, account.Index)
 		}
 	}
+	emptyGroups := len(indexes) == 0
+	if emptyGroups {
+		if len(a.state.Accounts) > 0 {
+			indexes = append(indexes, a.state.Accounts[0].Index)
+		} else {
+			indexes = append(indexes, 0)
+		}
+	}
 	sort.Slice(indexes, func(i, j int) bool { return indexes[i] < indexes[j] })
 	activeGroup := a.fields["group"]
+	if strings.HasPrefix(a.active, "wallet/") {
+		if account, ok := a.account(strings.TrimPrefix(a.active, "wallet/")); ok {
+			activeGroup = strconv.FormatUint(uint64(account.Index), 10)
+			a.fields["group"] = activeGroup
+		}
+	}
 	if strings.HasPrefix(a.active, "group/") {
 		activeGroup = strings.TrimPrefix(a.active, "group/")
 		a.fields["group"] = activeGroup
@@ -1557,13 +1646,29 @@ func (a *App) view() webui.View {
 			break
 		}
 	}
+	if len(indexes) > 0 {
+		activeGroup = strconv.FormatUint(uint64(indexes[position]), 10)
+		a.fields["group"] = activeGroup
+		view.AccountGroupID = "group/" + activeGroup
+	}
 	start := position / 8 * 8
 	end := start + 8
 	if end > len(indexes) {
 		end = len(indexes)
 	}
 	for _, index := range indexes[start:end] {
-		view.Pages = append(view.Pages, a.groupPage(index))
+		page := a.groupPage(index)
+		if emptyGroups {
+			page.Title = "Accounts"
+			page.Nodes = []webui.Node{a.accountMenuNodes(index)[0], a.button("lock", "Lock wallet", false), node("label", "networkCount", "0 networks", ""), label("No visible accounts. Use + to add an account, or Settings → Wallet → Show hidden wallets to restore archived wallets.")}
+		}
+		if start > 0 {
+			page.Nodes = append(page.Nodes, a.button("prevGroupPage/"+strconv.FormatUint(uint64(indexes[start-8]), 10), "Previous accounts", false))
+		}
+		if end < len(indexes) {
+			page.Nodes = append(page.Nodes, a.button("nextGroupPage/"+strconv.FormatUint(uint64(indexes[end]), 10), "Next accounts", false))
+		}
+		view.Pages = append(view.Pages, page)
 	}
 	for _, id := range a.tabs {
 		if account, ok := a.account(id); ok && (!account.Hidden || a.fields["showHidden"] == "true") {
@@ -1576,12 +1681,13 @@ func (a *App) view() webui.View {
 		found = found || page.ID == view.Active
 	}
 	if !found && len(view.Pages) > 0 {
-		view.Active = view.Pages[0].ID
+		view.Active = view.AccountGroupID
 	}
 	return view
 }
 func (a *App) groupPage(index uint32) webui.Page {
-	page := webui.Page{ID: "group/" + strconv.FormatUint(uint64(index), 10), Title: groupName(index), Nodes: []webui.Node{a.groupSelector(), row(a.button("refresh", "Refresh wallet state", false), a.button("lock", "Lock wallet", false))}}
+	page := webui.Page{ID: "group/" + strconv.FormatUint(uint64(index), 10), Title: a.groupTitle(index), Nodes: []webui.Node{a.button("refresh", "Refresh wallet state", false), a.button("lock", "Lock wallet", false)}}
+	page.Nodes = append(page.Nodes, a.accountMenuNodes(index)...)
 	if !a.state.RecoveryConfirmed {
 		page.Nodes = append(page.Nodes, label("Record and confirm the recovery phrase to enable receiving and spending."), a.button("confirmRecovery", "Record and confirm recovery phrase", false))
 	}
@@ -1590,24 +1696,27 @@ func (a *App) groupPage(index uint32) webui.Page {
 	value.Value, value.Tooltip = valuation.State, valuation.Detail
 	switch valuation.State {
 	case "loading":
-		value.Text = "USDT"
+		value.Text = "Balance:"
 	case "ready":
-		value.Text = "~" + valuation.USDT + " USDT"
+		value.Text = "Balance: " + valuation.USDT + "$"
 	case "partial":
-		value.Text = "~" + valuation.USDT + " USDT (partial)"
+		value.Text = "Balance: " + valuation.USDT + "$ (partial)"
 	case "testnet":
-		value.Text = "Testnet — no USDT value"
+		value.Text = "Balance: unavailable (testnet)"
 	default:
-		value.Text = "USDT value unavailable"
+		value.Text = "Balance: unavailable"
 	}
 	page.Nodes = append(page.Nodes, value)
 	page.Nodes = append(page.Nodes, row(heading("Network"), heading("Native balance"), heading("Receive address")))
 	count := 0
+	networks := map[string]bool{}
 	for _, account := range a.state.Accounts {
 		if account.Index == index && (!account.Hidden || a.fields["showHidden"] == "true") {
 			count++
+			networks[account.Network] = true
 		}
 	}
+	page.Nodes = append(page.Nodes, node("label", "networkCount", fmt.Sprintf("%d networks", len(networks)), ""))
 	key := "rows/" + strconv.FormatUint(uint64(index), 10)
 	offset, _ := strconv.Atoi(a.fields[key])
 	if offset < 0 || offset >= count {
@@ -1655,8 +1764,13 @@ func (a *App) walletPage(account model.Account) webui.Page {
 		asset = network.Assets[0]
 	}
 	value, _ := a.balance(account, asset)
-	page := webui.Page{ID: "wallet/" + account.ID, Title: asset.Symbol + " · " + network.Name}
-	page.Nodes = []webui.Node{heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉")), heading(value + " " + asset.Symbol)}
+	page := webui.Page{ID: "wallet/" + account.ID, Title: a.walletTitle(account), ParentID: "group/" + strconv.FormatUint(uint64(account.Index), 10)}
+	page.Nodes = []webui.Node{a.button("renameWallet/"+account.ID, "Rename", !a.state.RecoveryConfirmed), a.button("deleteWallet/"+account.ID, "Delete", account.Hidden || !a.state.RecoveryConfirmed), heading(network.Name + " · " + asset.Symbol), row(node("address", "", "Receive address", account.Address), a.addressCopyButton(account, "⧉")), heading(value + " " + asset.Symbol)}
+	if account.Family != "near" || a.fields["walletSection/"+account.ID] != "Staking" {
+		actions := row(a.button("sendForm/"+account.ID, "Send", false), a.button("receive/"+account.ID, "Receive", false), a.button("saveQR/"+account.ID, "Save receive QR", !a.state.RecoveryConfirmed), a.button("refresh", "Refresh", false), a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false))
+		actions.ID = "walletActions/" + account.ID
+		page.Nodes = append(page.Nodes, actions)
+	}
 	if account.Family == "ton" {
 		page.Nodes = append(page.Nodes, a.tonNodes(account)...)
 	}
@@ -1671,23 +1785,29 @@ func (a *App) walletPage(account model.Account) webui.Page {
 		if section == "Staking" {
 			page.Nodes = append(page.Nodes, a.stakingNodes(account)...)
 			page.Nodes = append(page.Nodes, a.walletHistoryNodes(account)...)
+			page.Nodes = collectWalletActions(page.Nodes, account.ID)
 			return page
 		}
 	}
 	if !a.state.RecoveryConfirmed {
 		page.Nodes = append(page.Nodes, label("Receiving and spending require recorded-word confirmation."), a.button("confirmRecovery", "Record and confirm recovery phrase", false))
 	}
-	page.Nodes = append(page.Nodes, row(a.button("sendForm/"+account.ID, "Send", false), a.button("receive/"+account.ID, "Receive", false), a.button("saveQR/"+account.ID, "Save receive QR", !a.state.RecoveryConfirmed), a.button("refresh", "Refresh", false)))
+
 	if a.sendForms[account.ID] {
-		recipient := row(a.entry("recipient/"+account.ID, "Recipient address"), a.button("addressBookLoad/"+account.ID, "Load from address book", !a.state.RecoveryConfirmed), a.button("addressBookSave/"+account.ID, "Save address to address book", !a.state.RecoveryConfirmed))
+		validation := a.paymentValidation(account, a.paymentDraft(account))
+		recipientEntry := a.entry("recipient/"+account.ID, "Recipient address")
+		recipientEntry.Error = validation.RecipientError
+		recipient := row(recipientEntry, a.button("addressBookLoad/"+account.ID, "Load from address book", !a.state.RecoveryConfirmed), a.button("addressBookSave/"+account.ID, "Save address to address book", !a.state.RecoveryConfirmed))
 		recipient.ID = "recipientField/" + account.ID
-		maximum := a.button("max/"+account.ID, "Max", !a.state.RecoveryConfirmed)
+		maximum := a.button("max/"+account.ID, "Max", !a.state.RecoveryConfirmed || !validation.RecipientValid)
 		maximum.Tooltip = "Use the full spendable balance after estimated fees and required storage reserves. Token fees use the network's native gas balance. Fee changes or refunds can leave a remainder. Enter the recipient first."
-		amountRow := row(a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")"), maximum)
+		amountEntry := a.entry("amount/"+account.ID, "Amount (1 means 1 "+asset.Symbol+")")
+		amountEntry.Error, amountEntry.InputMode = validation.AmountError, "decimal"
+		amountRow := row(amountEntry, maximum)
 		amountRow.ID = "sendAmount/" + account.ID
 		page.Nodes = append(page.Nodes, heading("Send "+asset.Symbol), recipient, amountRow, a.entry("memo/"+account.ID, "Memo / tag (when required)"))
 		page.Nodes = append(page.Nodes, a.paymentFeeNodes(account)...)
-		page.Nodes = append(page.Nodes, a.button("prepare/"+account.ID, "Send payment", !a.state.RecoveryConfirmed))
+		page.Nodes = append(page.Nodes, a.button("prepare/"+account.ID, "Send payment", !a.state.RecoveryConfirmed || !validation.RecipientValid || !validation.AmountValid))
 		if a.hasPendingPayment(account) {
 			page.Nodes = append(page.Nodes, a.button("pendingPayment/"+account.ID, "Check pending payment", !a.state.RecoveryConfirmed))
 		}
@@ -1698,7 +1818,6 @@ func (a *App) walletPage(account model.Account) webui.Page {
 	if account.Family == "near" {
 		page.Nodes = append(page.Nodes, a.nearTokenNodes(account, asset)...)
 	}
-	page.Nodes = append(page.Nodes, a.button("hideAccount/"+account.ID, map[bool]string{true: "Show wallet", false: "Hide wallet"}[account.Hidden], false))
 	if account.Family == "near" || account.Family == "aptos" {
 		page.Nodes = append(page.Nodes, a.entry("associate/"+account.ID, "Named / rotated on-chain account address"), a.button("associate/"+account.ID, "Verify and associate on-chain account", false))
 	}
@@ -1709,6 +1828,7 @@ func (a *App) walletPage(account model.Account) webui.Page {
 		page.Nodes = append(page.Nodes, label(a.result))
 	}
 	page.Nodes = append(page.Nodes, a.walletHistoryNodes(account)...)
+	page.Nodes = collectWalletActions(page.Nodes, account.ID)
 	return page
 }
 func (a *App) settingsPage() []webui.Node {
@@ -1744,7 +1864,7 @@ func (a *App) settingsPage() []webui.Node {
 		}
 		nodes = append(nodes, a.exchangeProviderSelector(), heading(provider.Name+" connection"), a.combo("region", "Official API region", options), label(credentialText), row(a.button("exchangeConnect", "Connect "+provider.Name, false), a.button("exchangeDisconnect", "Disconnect "+provider.Name, false), a.button("exchangeStatus", "Refresh connection", false)), label(exchangeConnectionSummary(a.exchange)))
 	default:
-		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed), a.button("lock", "Lock wallet", false)), a.check("showHidden", "Show hidden wallets"), row(a.entry("index", "Additional account index"), a.button("addAccount", "Add deterministic account", false)), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels, the address book or local payment and exchange history."))
+		nodes = append(nodes, row(a.button("password", "Change app password", false), a.button("backupPhrase", "Back up recovery phrase", !a.state.RecoveryConfirmed)), a.check("showHidden", "Show hidden wallets"), row(a.entry("from", "Recover indexes from"), a.entry("count", "Number of indexes"), a.button("discoverAccounts", "Recover deterministic accounts", false)), label("The phrase restores canonical wallets, with any original optional BIP39 passphrase. It does not restore RPC credentials, named/rotated associations, labels, the address book or local payment and exchange history."))
 		if a.fields["tonProfile"] == "" {
 			a.fields["tonProfile"] = ton.ProfileSubwallet42
 		}
@@ -1768,7 +1888,7 @@ func (a *App) exchangePage() []webui.Node {
 	var accounts []webui.Option
 	for _, account := range a.state.Accounts {
 		if !account.Hidden {
-			accounts = append(accounts, webui.Option{ID: account.ID, Text: a.network(account.Network).Name + " · " + groupName(account.Index)})
+			accounts = append(accounts, webui.Option{ID: account.ID, Text: a.network(account.Network).Name + " · " + a.groupTitle(account.Index)})
 		}
 	}
 	var assets []webui.Option
@@ -1793,13 +1913,24 @@ func (a *App) exchangePage() []webui.Node {
 	if contract != "" {
 		nodes = append(nodes, node("address", "", "Token contract (not your receive address)", contract))
 	}
-	nodes = append(nodes, row(a.combo("side", "Spot direction", []webui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}, {ID: "SellUSDC", Text: "Sell asset for USDC"}, {ID: "BuyUSDC", Text: "Buy asset with USDC"}}), a.entry("exchangeAmount", "Amount to spend / withdraw"), a.entry("slippage", "Slippage limit (%)")), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled))
+	validation := a.exchangeAmountValidation()
+	spend := a.entry("exchangeAmount", validation.InputLabel)
+	spend.Error, spend.InputMode = validation.InputError, "decimal"
+	slippage := a.entry("slippage", "Slippage limit (%)")
+	slippage.Error, slippage.InputMode = validation.SlippageError, "decimal"
+	nodes = append(nodes, row(a.combo("side", "Spot direction", []webui.Option{{ID: "Sell", Text: "Sell asset for USDT"}, {ID: "Buy", Text: "Buy asset with USDT"}, {ID: "SellUSDC", Text: "Sell asset for USDC"}, {ID: "BuyUSDC", Text: "Buy asset with USDC"}}), spend, slippage), a.button("exchangeQuote", "Refresh market / withdrawal network", disabled))
 	nodes = append(nodes, exchangeQuoteNodes(a.quote)...)
 	var market struct {
 		Symbol string `json:"symbol"`
 	}
 	marketUnavailable := json.Unmarshal(a.quote, &market) != nil || market.Symbol == ""
-	nodes = append(nodes, row(a.button("exchangeDeposit", "Deposit", disabled), a.button("exchangeSwap", "Swap", disabled || marketUnavailable), a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled)), a.button("exchangeStatus", "Refresh "+provider.Name+" status", false))
+	deposit := a.button("exchangeDeposit", "Deposit", disabled || !validation.DepositValid)
+	deposit.Tooltip = validation.DepositError
+	swap := a.button("exchangeSwap", "Swap", disabled || marketUnavailable || !validation.SwapValid)
+	swap.Tooltip = validation.SwapError
+	withdraw := a.button("exchangeWithdraw", "Withdraw to owned wallet", disabled || !validation.WithdrawValid)
+	withdraw.Tooltip = validation.WithdrawError
+	nodes = append(nodes, row(deposit, swap, withdraw), a.button("exchangeStatus", "Refresh "+provider.Name+" status", false))
 	if !connection.Connected {
 		nodes = append(nodes, label("Connect your "+provider.Name+" account in Settings → Exchange to enable these actions."))
 	}

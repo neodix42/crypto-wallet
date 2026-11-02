@@ -1,5 +1,19 @@
 # Implementation and release evidence
 
+## Account layout and Send validation — 2026-11-02
+
+Account groups own a separate wallet subtab row; utilities retain parent context. Header icons/count, table refresh, one-row actions and concise balance formatting replace the prior layout. The account-row `+` chooses the next stored index; encrypted parent/wallet names and reversible archive actions use tab context menus. Exchange inputs use exact token/venue amount rules. Local exact-network and asset-precision validation gates quotes/preparation without changing signing authority. [Behavior and checklist](ACCOUNT_LAYOUT_AND_VALIDATION.md).
+
+| State | Evidence |
+|---|---|
+| PASS, local controllers/frontend | Full affected races, eight-network/nineteen-default validation, two compiling semantic controls, 145 frontend checks and shared actual Go JSON contract pass. Source-specific logs and retained failed attempts are linked in the checklist. |
+| PASS, aggregate/build/helpers | Complete local aggregate, portable build/installation and 200 desktop helpers pass. |
+| HISTORICAL CHECKPOINT, earlier targeted layout | Seven source-stable checks pass on an earlier binary: header/table, two-group nesting and addresses, ETH/Base/TON action rows, validation/Max alignment and Lock/Enter unlock. Earlier locator failures remain separate. |
+| NOT_RUN, extended aggregate/build/graphical | The additional `+`, rename/archive, Exchange amount validation and all-field error alignment require final build/aggregate and actual app acceptance. Earlier scoped checks are not acceptance for the new candidate. |
+| PASS, encrypted backend and controls | Full affected backend races/vet, signed UNKNOWN preservation/restart, scoped/paged metadata and four compiling input-validation controls pass. Source-bound logs are linked in the checklist. |
+| NOT_RUN, hosted CI/publication | Exact-source hosted results and next release are pending. |
+| NOT_RUN, external gates | Funded public operations, full physical OS/Wayland matrix and independent review. |
+
 ## Arbitrum history and header controls — 2026-11-01
 
 The reported Arbitrum index failure is reproduced as HTTP 403. A fixed-host, bounded Arbiscan candidate fallback now loads native ETH, USDT0 and USDC through the existing configured-chain transaction/receipt/effect checks. Index coverage stays explicitly incomplete. Utility navigation moves to header icons, wallets keep a separate tab row, token tracking uses a popup, trusted RPC configuration moves to Settings → Networks, and history scope uses Info beside icon-only Refresh. [Behavior and evidence checklist](ARBITRUM_HISTORY_AND_NAVIGATION.md).
@@ -789,7 +803,7 @@ The scoped report is [x11-diagnostics.json](evidence/x11-diagnostics.json). Earl
 
 | Status | Measured scope and limit |
 | --- | --- |
-| PASS | **132 frontend tests**, zero skipped; all eight shipped JS files have **100% statement coverage**. Renderer branches **98.38%**, main **98.41%**, other six files **100%**. Component checks cover main-window Settings order/navigation, journal isolation, fixed-position dismissible notices, token/owned-address labels, HyperCore/EVM identifier isolation, cancellation and sanitized stale/error handling. |
+| PASS | **145 frontend tests**, zero skipped; all eight shipped JS files have **100% statement coverage**. Renderer branches **98.38%**, main **98.41%**, other six files **100%**. Component checks cover main-window Settings order/navigation, journal isolation, fixed-position dismissible notices, token/owned-address labels, HyperCore/EVM identifier isolation, cancellation and sanitized stale/error handling. |
 | PASS | Full Go package tests and all **25** measured package floors; native-input regressions, actual TON V5R1 emulator and actual isolated USDT execution also pass. The retained GTK input tests describe unshipped legacy code. |
 | FAIL / BLOCKED | The full Go coverage wrapper reports **FAIL** because its required pinned **dcrd v1.10.9** executable is unavailable. Its Decred simnet gate is **BLOCKED**; eight optional cases are explicitly NOT_RUN. Decred provisioning is deferred by the owner. No floor, prerequisite or aggregate requirement was removed to obtain a pass. |
 | PASS | **16** bounded local fuzz targets at **three seconds each**, source stable; **five** Exchange signer policy mutants killed. These do not establish long-duration stress or independent review. |

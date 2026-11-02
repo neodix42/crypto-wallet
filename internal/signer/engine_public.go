@@ -70,6 +70,9 @@ func (e *Engine) SnapshotPage(cursor string) (SnapshotPage, error) {
 		page.VaultState = "unavailable"
 	}
 	page.Environment, page.RecoveryConfirmed = e.data.Environment, e.data.RecoveryConfirmed
+	if next, ok := e.nextAccountIndex(); ok {
+		page.NextAccountIndex = &next
+	}
 	page.Accounts = []model.Account{}
 	page.Revision = strconv.FormatUint(e.data.Generation, 10)
 	accounts := e.activeAccounts()
@@ -81,9 +84,11 @@ func (e *Engine) SnapshotPage(cursor string) (SnapshotPage, error) {
 	used := 0
 	for offset+used < len(accounts) && used < PublicPageRecords {
 		page.Accounts = append(page.Accounts, accounts[offset+used])
+		page.Presentation = e.data.AccountPresentation.ForAccounts(page.Accounts)
 		raw, err := json.Marshal(page)
 		if err != nil || len(raw) > PublicPageBytes-4096 {
 			page.Accounts = page.Accounts[:len(page.Accounts)-1]
+			page.Presentation = e.data.AccountPresentation.ForAccounts(page.Accounts)
 			break
 		}
 		used++

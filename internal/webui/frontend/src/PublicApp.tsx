@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import type { Node, Page, View, WalletEvent } from './types';
-import { applyAppearance, isAssetTable, isWalletRow, validView } from './protocol';
+import { applyAppearance, inputWithinLimit, isAssetTable, isWalletRow, validView } from './protocol';
 import { DialogHost } from './Dialog';
 import { ExplorerLink, TransactionTable } from './TransactionTable';
-import { AddressBookIcon, CopyIcon, ExchangeIcon, InfoIcon, Mark, RefreshIcon, SaveAddressIcon, SettingsIcon } from './icons';
+import { AddressBookIcon, CopyIcon, ExchangeIcon, InfoIcon, LockIcon, Mark, PlusIcon, RefreshIcon, SaveAddressIcon, SettingsIcon } from './icons';
 
 type Emit = (id: string, value?: string) => void;
 const publicFieldLimit = 4096;
+const inputRejectedEvent = 'wallet:input-rejected';
+const inputRejectedMessage = 'Input is too long or contains unsupported characters. The previous value was kept.';
 const blank: View = { Title: 'CryptoWallet', Status: '', StatusRevision: 0, Active: '', Pages: [] };
 
 function HistoryInformation({ node }: { node: Node }) {
@@ -49,7 +51,9 @@ export function AssetTable({ node, emit }: { node: Node; emit: Emit }) {
   })}</tbody></table></div>;
 }
 
-export function Field({ node, emit }: { node: Node; emit: Emit }) {
+function fieldErrorID(node: Node): string { return 'wallet-' + node.ID + '-error'; }
+
+export function Field({ node, emit, hideInlineError = false }: { node: Node; emit: Emit; hideInlineError?: boolean }) {
   const [value, setValue] = useState(node.Value);
   const previous = useRef({ id: node.ID, value: node.Value });
   const pending = useRef<string[]>([]), input = useRef<HTMLInputElement>(null);
@@ -68,6 +72,14 @@ export function Field({ node, emit }: { node: Node; emit: Emit }) {
     previous.current = { id: node.ID, value: node.Value };
   }, [node.ID, node.Kind, node.Value, node.Disabled]);
   const update = (v: string) => {
+    // Apply the same UTF-8/NUL bound as Go before changing the controlled
+    // draft or its pending echoes. A rejected edit must never look newer
+    // than the value the coordinator will use for a later action.
+    if (!inputWithinLimit(v)) {
+      if (input.current) input.current.value = value;
+      window.dispatchEvent(new Event(inputRejectedEvent));
+      return;
+    }
     if (node.Kind === 'entry') {
       // Public draft values only. Bound echoes retained while a field is
       // focused; unknown Go values and explicit busy/reset views still win.
@@ -76,11 +88,11 @@ export function Field({ node, emit }: { node: Node; emit: Emit }) {
     }
     setValue(v); emit(node.ID, v);
   };
-  const id = 'wallet-' + node.ID;
+  const id = 'wallet-' + node.ID, errorID = fieldErrorID(node);
   if (node.Kind === 'check') return <label className="check-field" title={node.Tooltip}><input type="checkbox" checked={value === 'true'} disabled={node.Disabled} onChange={event => update(String(event.target.checked))}/>{node.Text}</label>;
   return <label className="field" htmlFor={id} title={node.Tooltip}><span>{node.Text}</span>{node.Kind === 'combo'
     ? <select id={id} value={value} disabled={node.Disabled} onChange={event => update(event.target.value)}>{!(node.Options || []).some(option => option.ID === value) && <option value="" disabled>Select…</option>}{(node.Options || []).map(option => <option key={option.ID} value={option.ID}>{option.Text}</option>)}</select>
-    : <input ref={input} id={id} value={value} disabled={node.Disabled} autoComplete="off" spellCheck={false} maxLength={publicFieldLimit} onBlur={() => { pending.current = []; }} onChange={event => update(event.target.value)}/>}</label>;
+    : <input ref={input} id={id} value={value} disabled={node.Disabled} autoComplete="off" spellCheck={false} inputMode={node.InputMode || undefined} pattern={node.InputMode === 'decimal' ? '[0-9]+(\\.[0-9]+)?' : undefined} aria-invalid={node.Error ? true : undefined} aria-describedby={node.Error ? errorID : undefined} maxLength={publicFieldLimit} onBlur={() => { pending.current = []; }} onChange={event => update(event.target.value)}/>}{node.Error && !hideInlineError && <span className="field-error" id={errorID} role="alert">{node.Error}</span>}</label>;
 }
 
 export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
@@ -94,49 +106,145 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
-      if (node.ID.startsWith('sendAmount/')) return <div className="send-amount-field">{children()}</div>;
-      if (node.ID.startsWith('recipientField/')) return <div className="recipient-field">{children()}</div>;
+      if (node.ID.startsWith('sendAmount/')) {
+        const [amount, maximum] = node.Children || [], owner = node.ID.slice('sendAmount/'.length);
+        if ((node.Children || []).length === 2 && owner && amount.Kind === 'entry' && amount.ID === 'field/amount/' + owner && maximum.Kind === 'button' && maximum.ID === 'max/' + owner) {
+          return <div className="send-amount-field"><Field node={amount} emit={emit} hideInlineError/><PublicNode node={maximum} emit={emit}/>{amount.Error && <span className="field-error send-amount-error" id={fieldErrorID(amount)} role="alert">{amount.Error}</span>}</div>;
+        }
+        return <div className="node-row" title={node.Tooltip}>{children()}</div>;
+      }
+      if (node.ID.startsWith('recipientField/')) {
+        const [recipient, load, save] = node.Children || [], owner = node.ID.slice('recipientField/'.length);
+        if ((node.Children || []).length === 3 && owner && recipient.Kind === 'entry' && recipient.ID === 'field/recipient/' + owner && load.Kind === 'button' && load.ID === 'addressBookLoad/' + owner && save.Kind === 'button' && save.ID === 'addressBookSave/' + owner) {
+          return <div className="recipient-field"><Field node={recipient} emit={emit} hideInlineError/><PublicNode node={load} emit={emit}/><PublicNode node={save} emit={emit}/>{recipient.Error && <span className="field-error recipient-error" id={fieldErrorID(recipient)} role="alert">{recipient.Error}</span>}</div>;
+        }
+        return <div className="node-row" title={node.Tooltip}>{children()}</div>;
+      }
+      if (node.ID.startsWith('walletActions/')) return <div className="wallet-actions">{children()}</div>;
       if (node.ID.startsWith('historyToolbar/')) return <div className="history-toolbar">{children()}</div>;
-      return <div className="node-row" title={node.Tooltip}>{children()}</div>;
+      const entryErrors = (node.Children || []).filter(child => child.Kind === 'entry' && child.Error);
+      const rowClass = (node.Children || []).some(child => child.Kind === 'entry') && (node.Children || []).some(child => child.Kind === 'button') ? 'node-row entry-action-row' : 'node-row';
+      if (entryErrors.length) return <div className={rowClass} title={node.Tooltip}>{(node.Children || []).map((child, index) => child.Kind === 'entry' ? <Field key={child.ID || index} node={child} emit={emit} hideInlineError/> : <PublicNode key={child.ID || index} node={child} emit={emit}/>)}{entryErrors.map(field => <span className="field-error node-row-error" key={field.ID} id={fieldErrorID(field)} role="alert">{field.Error}</span>)}</div>;
+      return <div className={rowClass} title={node.Tooltip}>{children()}</div>;
     }
     case 'address': return <div className={`address-field ${/^(Receive address|Owned wallet receive address)$/.test(node.Text) ? 'receive-address-line' : ''}`} title={node.Tooltip}>{node.Text && <span className="address-label">{node.Text}{/^(Receive address|Owned wallet receive address)$/.test(node.Text) ? ':' : ''}</span>}<code className="address">{node.Value}</code></div>;
     case 'entry': case 'combo': case 'check': return <Field node={node} emit={emit}/>;
     case 'button': {
+      if (node.ID === 'addNextAccount' || /^(?:renameWallet|deleteWallet|renameGroup|deleteGroup)\//.test(node.ID)) return null;
       const copy = node.ID.startsWith('copyReceive/');
       const refreshHistory = node.ID.startsWith('walletHistory/');
+      const refreshState = node.ID === 'refresh', lock = node.ID === 'lock';
+      const icon = copy ? 'Copy address' : refreshHistory ? 'Refresh history' : refreshState ? 'Refresh wallet state' : lock ? 'Lock wallet' : '';
       const loadAddress = node.ID.startsWith('addressBookLoad/'), saveAddress = node.ID.startsWith('addressBookSave/');
       const primary = /^(create12|unlock|confirmRecovery|send\/|prepare\/|stakingSend\/|exchangeConnect|exchangeSwap)/.test(node.ID);
-      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button icon-button' : refreshHistory ? 'icon-button' : ''} ${primary ? 'primary' : ''} ${loadAddress || saveAddress ? 'addressbook-action' : ''}`} disabled={node.Disabled} title={copy ? 'Copy address' : refreshHistory ? 'Refresh history' : node.Tooltip || (loadAddress || saveAddress ? node.Text : undefined)} aria-label={copy ? 'Copy address' : refreshHistory ? 'Refresh history' : loadAddress || saveAddress ? node.Text : undefined} onClick={() => copy ? emit(node.ID, node.Value) : emit(node.ID)}>{copy ? <CopyIcon/> : refreshHistory ? <RefreshIcon/> : loadAddress ? <AddressBookIcon/> : saveAddress ? <SaveAddressIcon/> : node.Text}</button>;
+      return <button type="button" autoFocus={node.ID === 'unlock'} data-action={node.ID} className={`${copy ? 'copy-button icon-button' : icon ? 'icon-button' : ''} ${primary ? 'primary' : ''} ${loadAddress || saveAddress ? 'addressbook-action' : ''}`} disabled={node.Disabled} title={icon || node.Tooltip || (loadAddress || saveAddress ? node.Text : undefined)} aria-label={icon || (loadAddress || saveAddress ? node.Text : undefined)} onClick={() => copy ? emit(node.ID, node.Value) : emit(node.ID)}>{copy ? <CopyIcon/> : refreshHistory || refreshState ? <RefreshIcon/> : lock ? <LockIcon/> : loadAddress ? <AddressBookIcon/> : saveAddress ? <SaveAddressIcon/> : node.Text}</button>;
     }
   }
 }
 
+function findPublicNode(nodes: Node[] | null | undefined, id: string): Node | undefined {
+  for (const node of nodes || []) {
+    if (node.ID === id) return node;
+    const nested = findPublicNode(node.Children, id);
+    if (nested) return nested;
+  }
+}
+
+function portfolioBody(nodes: Node[]): Node[] {
+  return nodes.flatMap(node => {
+    if (['field/group', 'group', 'refresh', 'lock', 'networkCount'].includes(node.ID)) return [];
+    if (node.Children && (node.Kind === 'row' || node.Kind === 'column')) {
+      const children = portfolioBody(node.Children);
+      return children.length ? [{ ...node, Children: children }] : [];
+    }
+    return [node];
+  });
+}
+
 function Portfolio({ page, emit }: { page: Page; emit: Emit }) {
-  const nodes = page.Nodes || [], rows = nodes.filter(isWalletRow);
+  const original = page.Nodes || [], refresh = findPublicNode(original, 'refresh');
+  const nodes = portfolioBody(original), rows = nodes.filter(isWalletRow);
   const headingRow = (node: Node) => node.Kind === 'row' && node.Children?.[0]?.Kind === 'heading' && node.Children[0].Text === 'Network';
   const selectingRow = (row: HTMLTableRowElement) => {
     const selection = window.getSelection();
     return !!selection && !selection.isCollapsed && (row.contains(selection.anchorNode) || row.contains(selection.focusNode));
   };
   const first = nodes.findIndex(isWalletRow), last = nodes.reduce((found, node, index) => isWalletRow(node) ? index : found, -1);
-  return <><div className="page-heading"><div><p className="eyebrow">YOUR WALLETS</p><h1>{page.Title}</h1>{nodes.filter(node => node.ID === 'portfolioValuation').map(node => <PublicNode key={node.ID} node={node} emit={emit}/>)}</div><span className="network-count">{rows.length} networks</span></div><div className="portfolio-toolbar">{nodes.slice(0, first < 0 ? nodes.length : first).filter(node => !headingRow(node) && node.ID !== 'portfolioValuation').map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</div>{rows.length > 0 && <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Network</th><th>Native balance</th><th>Receive address</th><th><span className="sr-only">Copy</span></th></tr></thead><tbody>{rows.map(row => <tr key={row.ID} tabIndex={0} onClick={event => { if (!(event.target as HTMLElement).closest('button,input,select,.address-field') && !selectingRow(event.currentTarget)) emit(row.ID); }} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); emit(row.ID); } }}>{(row.Children || []).map((node, index) => <td key={node.ID || index}>{index === 0 ? <div className="network-name"><span className="network-avatar" aria-hidden="true">{node.Text.slice(0, 1)}</span><PublicNode node={node} emit={emit}/></div> : <PublicNode node={node} emit={emit}/>}</td>)}</tr>)}</tbody></table></div>}{last >= 0 && nodes.slice(last + 1).map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</>;
+  return <><div className="page-heading"><div><p className="eyebrow">YOUR WALLETS</p><h1>{page.Title}</h1>{nodes.filter(node => node.ID === 'portfolioValuation').map(node => <PublicNode key={node.ID} node={node} emit={emit}/>)}</div></div><div className="portfolio-toolbar">{nodes.slice(0, first < 0 ? nodes.length : first).filter(node => !headingRow(node) && node.ID !== 'portfolioValuation').map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</div><div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Network</th><th>Native balance</th><th>Receive address</th><th className="wallet-refresh-cell">{refresh ? <PublicNode node={refresh} emit={emit}/> : <span className="sr-only">Copy</span>}</th></tr></thead><tbody>{rows.map(row => <tr key={row.ID} tabIndex={0} onClick={event => { if (!(event.target as HTMLElement).closest('button,input,select,.address-field') && !selectingRow(event.currentTarget)) emit(row.ID); }} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); emit(row.ID); } }}>{(row.Children || []).map((node, index) => <td key={node.ID || index}>{index === 0 ? <div className="network-name"><span className="network-avatar" aria-hidden="true">{node.Text.slice(0, 1)}</span><PublicNode node={node} emit={emit}/></div> : <PublicNode node={node} emit={emit}/>}</td>)}</tr>)}</tbody></table></div>{last >= 0 && nodes.slice(last + 1).map((node, index) => <PublicNode key={node.ID || index} node={node} emit={emit}/>)}</>;
 }
 
 export function PublicContent({ page, emit }: { page: Page; emit: Emit }) {
   const nodes = page.Nodes || [];
-  const portfolio = page.ID.startsWith('group/') && nodes.some(isWalletRow);
+  const portfolio = page.ID.startsWith('group/') && (nodes.some(isWalletRow) || nodes.some(node => node.ID === 'networkCount'));
   if (portfolio) return <Portfolio page={page} emit={emit}/>;
-  const onboarding = page.ID.startsWith('group/') && !nodes.some(isWalletRow);
+  const onboarding = page.ID.startsWith('group/') && !portfolio;
   return <div className={onboarding ? 'welcome-card' : 'content-card'}>{onboarding && <div className="welcome-symbol"><Mark/></div>}{nodes.map((node, index) => <PublicNode key={node.ID || `${node.Kind}-${index}`} node={node} emit={emit}/>)}</div>;
 }
 
+function pageMenuActions(page: Page): Node[] {
+  const kind = page.ID.startsWith('group/') ? 'Group' : page.ID.startsWith('wallet/') ? 'Wallet' : '';
+  if (!kind) return [];
+  const id = page.ID.slice(kind === 'Group' ? 6 : 7);
+  return ['rename', 'delete'].flatMap(action => {
+    const item = findPublicNode(page.Nodes, action + kind + '/' + id);
+    return item?.Kind === 'button' ? [item] : [];
+  });
+}
+function menuBinding(page: Page, view: View): string {
+  return JSON.stringify([view.Active, view.AccountGroupID || '', page.ID, page.Title, page.ParentID || '', pageMenuActions(page).map(item => [item.ID, item.Text, item.Tooltip, item.Disabled])]);
+}
+type TabMenu = { pageID: string; binding: string; left: number; top: number };
+
 export function WalletShell({ view, status, emit }: { view: View; status: string; emit: Emit }) {
   const sourcePages = view.Pages || [], utilityIDs = ['exchange', 'addressbook', 'settings'];
-  const pages = sourcePages.filter(page => !utilityIDs.includes(page.ID));
+  const [menu, setMenu] = useState<TabMenu | null>(null), menuElement = useRef<HTMLDivElement>(null), menuOwner = useRef<HTMLButtonElement | null>(null);
+  const menuPage = menu ? sourcePages.find(page => page.ID === menu.pageID && menuBinding(page, view) === menu.binding) : undefined;
+  const menuActions = menuPage ? pageMenuActions(menuPage) : [];
+  const menuValid = !!menu && !!menuPage && menuActions.length > 0;
+  useEffect(() => {
+    if (!menu) return;
+    if (!menuValid) { setMenu(null); return; }
+    const first = menuElement.current?.querySelector<HTMLButtonElement>('button:not(:disabled)');
+    if (first) first.focus(); else menuElement.current?.focus();
+    const outside = (event: PointerEvent) => { if (event.target instanceof window.Node && !menuElement.current?.contains(event.target)) setMenu(null); };
+    const reposition = () => setMenu(null);
+    document.addEventListener('pointerdown', outside); document.addEventListener('scroll', reposition, true); window.addEventListener('resize', reposition);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('scroll', reposition, true); window.removeEventListener('resize', reposition); };
+  }, [menu, menuValid]);
+  const openMenu = (page: Page, owner: HTMLButtonElement, left: number, top: number) => {
+    if (!pageMenuActions(page).length) return false;
+    menuOwner.current = owner;
+    setMenu({ pageID: page.ID, binding: menuBinding(page, view), left: Math.max(12, Math.min(left, window.innerWidth - 212)), top: Math.max(12, Math.min(top, window.innerHeight - 112)) });
+    return true;
+  };
+  const contextMenu = (event: ReactMouseEvent<HTMLButtonElement>, page: Page) => { if (openMenu(page, event.currentTarget, event.clientX, event.clientY)) event.preventDefault(); };
+  const contextKey = (event: ReactKeyboardEvent<HTMLButtonElement>, page: Page) => {
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (openMenu(page, event.currentTarget, bounds.left, bounds.bottom + 4)) event.preventDefault();
+  };
+  const menuKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') { event.preventDefault(); setMenu(null); if (menuOwner.current?.isConnected) menuOwner.current.focus(); return; }
+    if (event.key === 'Tab') { setMenu(null); return; }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const items = [...(menuElement.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])];
+    if (!items.length) return;
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    const index = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowUp' ? (current - 1 + items.length) % items.length : (current + 1) % items.length;
+    items[index].focus();
+  };
+  const groups = sourcePages.filter(page => page.ID.startsWith('group/'));
   const utilities = utilityIDs.flatMap(id => sourcePages.filter(page => page.ID === id));
-  const active = sourcePages.find(page => page.ID === view.Active) || pages[0] || utilities[0];
+  const active = sourcePages.find(page => page.ID === view.Active) || groups[0] || utilities[0];
+  const parentID = active?.ID.startsWith('group/') ? active.ID : active?.ParentID || view.AccountGroupID || groups[0]?.ID;
+  const group = groups.find(page => page.ID === parentID) || groups[0];
+  const wallets = sourcePages.filter(page => page.ID.startsWith('wallet/') && (page.ParentID || groups[0]?.ID) === parentID);
   const metadata = view.Title.split(' · ').slice(1).join(' · ');
-  const portfolio = active?.ID.startsWith('group/') && active.Nodes?.some(isWalletRow);
+  const networkCount = findPublicNode(group?.Nodes, 'networkCount');
+  const countText = networkCount?.Text || (group?.Nodes?.some(isWalletRow) ? `${group.Nodes.filter(isWalletRow).length} networks` : '');
+  const lock = findPublicNode(group?.Nodes, 'lock'), addAccount = findPublicNode(group?.Nodes, 'addNextAccount');
+  const portfolio = active?.ID.startsWith('group/') && (active.Nodes?.some(isWalletRow) || active.Nodes?.some(node => node.ID === 'networkCount'));
   const unlock = active?.ID.startsWith('group/') && active.Nodes?.some(node => node.Kind === 'button' && node.ID === 'unlock' && !node.Disabled);
   useEffect(() => {
     if (!unlock) return;
@@ -148,7 +256,7 @@ export function WalletShell({ view, status, emit }: { view: View; status: string
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
   }, [unlock, emit]);
-  return <div className="wallet-shell"><header className="app-header"><div className="app-identity"><a className="brand" href="#" onClick={event => { event.preventDefault(); const first = pages.find(page => page.ID.startsWith('group/')); if (first) emit('tab', first.ID); }}><Mark/><span>CryptoWallet</span></a><span className="build-metadata">{metadata}</span></div><nav className="utility-navigation" role="tablist" aria-label="Application pages">{utilities.map(page => <button key={page.ID} type="button" role="tab" className="icon-button" title={page.Title} aria-label={page.Title} aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" onClick={() => emit('tab', page.ID)}>{page.ID === 'exchange' ? <ExchangeIcon/> : page.ID === 'addressbook' ? <AddressBookIcon/> : <SettingsIcon/>}</button>)}</nav></header><nav className="tabs" role="tablist" aria-label="Wallet tabs">{pages.map(page => <div className={`tab ${active?.ID === page.ID ? 'active' : ''}`} key={page.ID} onAuxClick={event => { if (event.button === 1 && page.ID.startsWith('wallet/')) { event.preventDefault(); emit('closeTab', page.ID); } }}><button type="button" role="tab" aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" onClick={() => emit('tab', page.ID)}>{page.Title}</button>{page.ID.startsWith('wallet/') && <button className="close-tab" type="button" aria-label={`Close ${page.Title}`} onClick={() => emit('closeTab', page.ID)}>×</button>}</div>)}</nav><main className={`workspace ${portfolio ? 'portfolio-workspace' : active?.ID.startsWith('group/') ? 'welcome-workspace' : ''}`} id="wallet-panel" role="tabpanel" aria-label={active?.Title}>{active ? <PublicContent page={active} emit={emit}/> : <div className="connecting"><Mark/><p>Opening your encrypted wallet…</p></div>}</main><footer className="status-bar" aria-live="polite" aria-atomic="true"><span className={status ? 'status-dot visible' : 'status-dot'} aria-hidden="true"/><span>{status}</span></footer></div>;
+  return <div className="wallet-shell"><header className="app-header"><div className="app-identity"><a className="brand" href="#" onClick={event => { event.preventDefault(); if (group) emit('tab', group.ID); }}><Mark/><span>CryptoWallet</span></a><span className="build-metadata">{metadata}</span></div><nav className="utility-navigation" role="tablist" aria-label="Application pages">{countText && <span className="network-count">{countText}</span>}{utilities.map(page => <span className="utility-item" key={page.ID}>{page.ID === 'settings' && lock && <PublicNode node={lock} emit={emit}/>}<button type="button" role="tab" className="icon-button" title={page.Title} aria-label={page.Title} aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" onClick={() => emit('tab', page.ID)}>{page.ID === 'exchange' ? <ExchangeIcon/> : page.ID === 'addressbook' ? <AddressBookIcon/> : <SettingsIcon/>}</button></span>)}</nav></header><nav className="tabs account-tabs" role="tablist" aria-label="Account groups">{groups.map(page => <div className={`tab ${page.ID === parentID ? 'active' : ''}`} key={page.ID}><button type="button" role="tab" aria-selected={page.ID === parentID} aria-controls="wallet-panel" aria-haspopup={pageMenuActions(page).length ? 'menu' : undefined} onContextMenu={event => contextMenu(event, page)} onKeyDown={event => contextKey(event, page)} onClick={() => emit('tab', page.ID)}>{page.Title}</button></div>)}{addAccount?.Kind === 'button' && <button type="button" className="account-add icon-button" data-action={addAccount.ID} title="Add deterministic account" aria-label="Add deterministic account" disabled={addAccount.Disabled} onClick={() => emit(addAccount.ID)}><PlusIcon/></button>}</nav>{wallets.length > 0 && <nav className="wallet-subtabs" role="tablist" aria-label={`${group?.Title || 'Account'} wallets`}>{wallets.map(page => <div className={`tab ${active?.ID === page.ID ? 'active' : ''}`} key={page.ID} onAuxClick={event => { if (event.button === 1) { event.preventDefault(); emit('closeTab', page.ID); } }}><button type="button" role="tab" aria-selected={active?.ID === page.ID} aria-controls="wallet-panel" aria-haspopup={pageMenuActions(page).length ? 'menu' : undefined} onContextMenu={event => contextMenu(event, page)} onKeyDown={event => contextKey(event, page)} onClick={() => emit('tab', page.ID)}>{page.Title}</button><button className="close-tab" type="button" aria-label={`Close ${page.Title}`} onClick={() => emit('closeTab', page.ID)}>×</button></div>)}</nav>}<main className={`workspace ${portfolio ? 'portfolio-workspace' : active?.ID.startsWith('group/') ? 'welcome-workspace' : ''}`} id="wallet-panel" role="tabpanel" aria-label={active?.Title}>{active ? <PublicContent page={active} emit={emit}/> : <div className="connecting"><Mark/><p>Opening your encrypted wallet…</p></div>}</main>{menuValid && menu && <div className="tab-context-menu" role="menu" tabIndex={-1} aria-label={`${menuPage!.Title} actions`} ref={menuElement} style={{ left: menu.left, top: menu.top }} onKeyDown={menuKey}>{menuActions.map(action => <button key={action.ID} type="button" role="menuitem" tabIndex={-1} disabled={action.Disabled} title={action.Tooltip || undefined} onClick={() => { const target = sourcePages.find(page => page.ID === menu.pageID && menuBinding(page, view) === menu.binding); const current = target && pageMenuActions(target).find(item => item.ID === action.ID && !item.Disabled); setMenu(null); if (current) emit(current.ID); }}>{action.ID.startsWith('rename') ? 'Rename' : 'Delete'}</button>)}</div>}<footer className="status-bar" aria-live="polite" aria-atomic="true"><span className={status ? 'status-dot visible' : 'status-dot'} aria-hidden="true"/><span>{status}</span></footer></div>;
 }
 
 export function PublicApp() {
@@ -205,8 +313,9 @@ export function PublicApp() {
     else setStatus('The wallet connection is unavailable. Close and reopen CryptoWallet.');
     let lastActivity = 0;
     const activity = () => { const now = Date.now(); if (now - lastActivity >= 1000) { lastActivity = now; emit('activity'); } };
-    window.addEventListener('pointerdown', activity); window.addEventListener('keydown', activity);
-    return () => { disposed = true; live.current = false; copyRequest.current++; copyTarget.current = null; unsubscribe?.(); window.removeEventListener('pointerdown', activity); window.removeEventListener('keydown', activity); };
+    const rejectedInput = () => { if (!disposed) copyFeedback(inputRejectedMessage); };
+    window.addEventListener('pointerdown', activity); window.addEventListener('keydown', activity); window.addEventListener(inputRejectedEvent, rejectedInput);
+    return () => { disposed = true; live.current = false; copyRequest.current++; copyTarget.current = null; unsubscribe?.(); window.removeEventListener('pointerdown', activity); window.removeEventListener('keydown', activity); window.removeEventListener(inputRejectedEvent, rejectedInput); };
   }, []);
   useEffect(() => { setStatus(view.Status); }, [view.Status, view.StatusRevision]);
   useEffect(() => { if (!status) return; const timer = window.setTimeout(() => setStatus(''), 7000); return () => window.clearTimeout(timer); }, [status, view.StatusRevision, copyFeedbackRevision]);

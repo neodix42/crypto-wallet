@@ -3,10 +3,11 @@ export interface Node {
   Kind: 'label' | 'heading' | 'separator' | 'row' | 'column' | 'button' | 'entry' | 'combo' | 'check' | 'address' | 'transactionTable' | 'explorer';
   ID: string; Text: string; Value: string; Tooltip: string; Disabled: boolean;
   Options: Option[] | null; Children: Node[] | null;
+  Error?: string; InputMode?: '' | 'decimal';
 }
-export interface Page { ID: string; Title: string; Nodes: Node[] | null }
+export interface Page { ID: string; Title: string; Nodes: Node[] | null; ParentID?: string }
 export interface Appearance { theme: 'light' | 'dark'; fontSize: number }
-export interface View { Title: string; Status: string; StatusRevision: number; Active: string; Pages: Page[] | null; Appearance?: Appearance }
+export interface View { Title: string; Status: string; StatusRevision: number; Active: string; Pages: Page[] | null; Appearance?: Appearance; AccountGroupID?: string }
 export interface WalletEvent { ID: string; Value: string }
 export interface Prompt {
   id: string; kind: 'input' | 'publicInput' | 'confirm' | 'notice' | 'receive' | 'recovery' | 'recoveryBackup' | 'pending';

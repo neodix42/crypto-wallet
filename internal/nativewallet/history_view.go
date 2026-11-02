@@ -529,9 +529,6 @@ func (a *App) walletHistoryNodes(account model.Account) []webui.Node {
 	if state.ChainFailed {
 		nodes = append(nodes, label("Chain history is unavailable. Displayed local payments do not establish complete incoming history."))
 	}
-	if state.ChainPaused {
-		nodes = append(nodes, label("Chain history loading was paused for your action. Refresh history when ready."))
-	}
 	if state.LocalFailed {
 		nodes = append(nodes, label("Local payment history is unavailable. Chain observations cannot recover locally pending operations."))
 	}

@@ -97,6 +97,9 @@ func (c *core) publicAccountsAt(epoch uint64, session, cursor string) (snapshot,
 	if err != nil {
 		return snapshot{}, err
 	}
+	if !s.Presentation.ValidFor(s.Accounts) {
+		return snapshot{}, errors.New("invalid account presentation page")
+	}
 	s.Operations = nil
 	s.AccountsCursor, err = c.retainPublicPage(epoch, session, "accounts", "", s.AccountsCursor, s.Revision)
 	return s, err
@@ -155,6 +158,9 @@ func (c *core) publicSnapshotResultAt(epoch uint64, session string, raw json.Raw
 	var state snapshot
 	if json.Unmarshal(raw, &state) != nil {
 		return snapshot{}, errors.New("invalid wallet state response")
+	}
+	if !state.Presentation.ValidFor(state.Accounts) {
+		return snapshot{}, errors.New("invalid account presentation page")
 	}
 	state.Operations = nil
 	var err error

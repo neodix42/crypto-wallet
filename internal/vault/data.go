@@ -30,15 +30,16 @@ type Data struct {
 	Birthday    int64  `json:"birthday"`
 	// DeprecatedBackupVerified exists solely to read existing v1 vaults. It is
 	// never an authority to reveal a phrase, receive funds or sign a payment.
-	DeprecatedBackupVerified bool                     `json:"backupVerified,omitempty"`
-	RecoveryConfirmed        bool                     `json:"recoveryConfirmed,omitempty"`
-	Accounts                 []model.Account          `json:"accounts"`
-	Operations               []journal.Operation      `json:"operations"`
-	Endpoints                map[string]Endpoint      `json:"endpoints"`
-	Exchange                 *ExchangeData            `json:"exchange,omitempty"`
-	ERC20Tokens              []model.ERC20Token       `json:"erc20Tokens,omitempty"`
-	NEP141Tokens             []model.NEP141Token      `json:"nep141Tokens,omitempty"`
-	AddressBook              []model.AddressBookEntry `json:"addressBook,omitempty"`
+	DeprecatedBackupVerified bool                      `json:"backupVerified,omitempty"`
+	RecoveryConfirmed        bool                      `json:"recoveryConfirmed,omitempty"`
+	AccountPresentation      model.AccountPresentation `json:"accountPresentation,omitempty,omitzero"`
+	Accounts                 []model.Account           `json:"accounts"`
+	Operations               []journal.Operation       `json:"operations"`
+	Endpoints                map[string]Endpoint       `json:"endpoints"`
+	Exchange                 *ExchangeData             `json:"exchange,omitempty"`
+	ERC20Tokens              []model.ERC20Token        `json:"erc20Tokens,omitempty"`
+	NEP141Tokens             []model.NEP141Token       `json:"nep141Tokens,omitempty"`
+	AddressBook              []model.AddressBookEntry  `json:"addressBook,omitempty"`
 }
 
 func (d *Data) Destroy() {
@@ -47,6 +48,7 @@ func (d *Data) Destroy() {
 	d.Entropy = nil
 	d.Passphrase = nil
 	d.Accounts = nil
+	d.AccountPresentation = model.AccountPresentation{}
 	d.Operations = nil
 	d.Endpoints = nil
 	d.ERC20Tokens = nil
@@ -90,6 +92,9 @@ func (d *Data) Validate() error {
 			return ErrFormat
 		}
 		seen[a.ID] = true
+	}
+	if !d.AccountPresentation.ValidFor(d.Accounts) {
+		return ErrFormat
 	}
 	ids := map[string]bool{}
 	for _, o := range d.Operations {
@@ -155,23 +160,25 @@ func VerifyRecovery(a, b *Data) error {
 		return errors.New("backup discovery birthday differs")
 	}
 	x, _ := json.Marshal(struct {
-		Accounts    []model.Account
-		Operations  []journal.Operation
-		Endpoints   map[string]Endpoint
-		Exchange    *ExchangeData
-		Tokens      []model.ERC20Token
-		NEARTokens  []model.NEP141Token
-		AddressBook []model.AddressBookEntry
-	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens, a.NEP141Tokens, a.AddressBook})
+		Accounts     []model.Account
+		Operations   []journal.Operation
+		Endpoints    map[string]Endpoint
+		Exchange     *ExchangeData
+		Tokens       []model.ERC20Token
+		NEARTokens   []model.NEP141Token
+		AddressBook  []model.AddressBookEntry
+		Presentation model.AccountPresentation
+	}{a.Accounts, a.Operations, a.Endpoints, a.Exchange, a.ERC20Tokens, a.NEP141Tokens, a.AddressBook, a.AccountPresentation})
 	y, _ := json.Marshal(struct {
-		Accounts    []model.Account
-		Operations  []journal.Operation
-		Endpoints   map[string]Endpoint
-		Exchange    *ExchangeData
-		Tokens      []model.ERC20Token
-		NEARTokens  []model.NEP141Token
-		AddressBook []model.AddressBookEntry
-	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens, b.NEP141Tokens, b.AddressBook})
+		Accounts     []model.Account
+		Operations   []journal.Operation
+		Endpoints    map[string]Endpoint
+		Exchange     *ExchangeData
+		Tokens       []model.ERC20Token
+		NEARTokens   []model.NEP141Token
+		AddressBook  []model.AddressBookEntry
+		Presentation model.AccountPresentation
+	}{b.Accounts, b.Operations, b.Endpoints, b.Exchange, b.ERC20Tokens, b.NEP141Tokens, b.AddressBook, b.AccountPresentation})
 	if sha256.Sum256(x) != sha256.Sum256(y) {
 		return errors.New("backup public descriptors differ")
 	}

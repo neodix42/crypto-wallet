@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"localwallet/internal/webui"
 )
@@ -22,10 +23,12 @@ func TestSpotDirectionsSendExactUSDTOrUSDCAndInvalidateChangedQuotes(t *testing.
 				if a.quote != nil {
 					t.Fatal("changing quote currency retained stale market")
 				}
-				a.fields["exchangeAmount"] = "1.25"
+				a.fields["exchangeAmount"] = "10.25"
 				body := map[string]string{"provider": "bybit", "accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"], "side": side, "quoteCoin": quote}
 				if method == "exchangeSwap" {
-					body["amount"], body["slippage"] = "1.25", "0.5"
+					body["amount"], body["slippage"] = "10.25", "0.5"
+					account, asset := selectedExchangeValidationAsset(t, a)
+					setExchangeValidationQuote(a, exchangeValidationQuote(a, account, asset, side, quote, time.Now()))
 				}
 				routeFixture(t, a, core, method, body, json.RawMessage(`{"state":"UNKNOWN"}`))
 				a.event(webui.Event{ID: method})

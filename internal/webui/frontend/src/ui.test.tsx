@@ -149,7 +149,8 @@ describe('public React renderer', () => {
     expect(emit).toHaveBeenCalledWith('closeTab', 'wallet/a');
     await click(host.querySelector('.utility-navigation [aria-label="Settings"]'));
     expect(emit).toHaveBeenCalledWith('tab', 'settings');
-    expect([...host.querySelectorAll('.tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account', 'ETH · Ethereum']);
+    expect([...host.querySelectorAll('.tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account']);
+    expect([...host.querySelectorAll('.wallet-subtabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['ETH · Ethereum']);
     expect(host.querySelector('.utility-navigation [aria-label="Settings"] svg')).not.toBeNull();
     expect(host.querySelector('.utility-navigation')!.textContent).toBe('');
   });
@@ -233,7 +234,7 @@ describe('public React renderer', () => {
     const events: WalletEvent[] = [];
     window.go = { webui: { PublicBridge: { Snapshot: () => snapshot, Event: vi.fn(async event => { events.push(event); return true; }) } } };
     await mount(<PublicApp/>);
-    const fresh = view(); fresh.Pages![0].Nodes = [node('button', 'refresh', 'Fresh view')];
+    const fresh = view(); fresh.Pages![0].Nodes = [node('label', '', 'Fresh view'), node('button', 'refresh', 'Refresh wallet state')];
     await act(async () => { push(fresh); resolve(view()); });
     expect(host.textContent).toContain('Fresh view');
     await click(host.querySelector('[data-action="refresh"]')); expect(events).toEqual([{ ID: 'refresh', Value: '' }]);
@@ -381,10 +382,10 @@ describe('indicative USDT account subtotal', () => {
     expect(html).toContain('role="status"');
   });
   it('labels a partial subtotal and keeps its explanation in a tooltip', () => {
-    const valuation = node('label', 'portfolioValuation', '~3,564.23 USDT (partial)', 'partial');
+    const valuation = node('label', 'portfolioValuation', 'Balance: 3,564.23$ (partial)', 'partial');
     valuation.Tooltip = '1 asset has no fresh quote';
     const html = renderToStaticMarkup(<PublicNode node={valuation} emit={() => {}}/>);
-    expect(html).toContain('~3,564.23 USDT (partial)');
+    expect(html).toContain('Balance: 3,564.23$ (partial)');
     expect(html).toContain('title="1 asset has no fresh quote"');
     expect(html).not.toContain('price-spinner');
   });

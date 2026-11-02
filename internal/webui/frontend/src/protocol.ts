@@ -16,7 +16,11 @@ export function applyAppearance(value?: Appearance): void {
   document.documentElement.dataset.theme = appearance.theme;
   document.documentElement.dataset.fontSize = String(appearance.fontSize);
 }
+function accountGroup(value: unknown): value is string {
+  return typeof value === 'string' && /^group\/(?:0|[1-9][0-9]{0,9})$/.test(value) && Number(value.slice(6)) <= 4294967295;
+}
 export function validView(value: unknown): value is View {
+  if (object(value) && value.AccountGroupID !== undefined && value.AccountGroupID !== '' && !accountGroup(value.AccountGroupID)) return false;
   if (object(value) && value.Appearance !== undefined && !validAppearance(value.Appearance)) return false;
   if (!object(value) || !boundedText(value.Title, 256) || !boundedText(value.Status, 65536) || !boundedText(value.Active, 256) || !Number.isSafeInteger(value.StatusRevision) || Number(value.StatusRevision) < 0 || !list(value.Pages, 1000)) return false;
   let remaining = 20000;
@@ -24,16 +28,20 @@ export function validView(value: unknown): value is View {
     if (depth > 32 || !list(values, 20000)) return false;
     return (values || []).every(n => {
       if (--remaining < 0 || !object(n) || !kinds.has(String(n.Kind)) || !boundedText(n.ID, 256) || !boundedText(n.Text, 65536) || !boundedText(n.Tooltip, 65536) || !boundedText(n.Value, 4096) || typeof n.Disabled !== 'boolean' || !list(n.Options, 10000) || !list(n.Children, 20000)) return false;
+      if (n.Error !== undefined && (!boundedText(n.Error, 1024) || n.Error !== '' && n.Kind !== 'entry')) return false;
+      if (n.InputMode !== undefined && n.InputMode !== '' && (n.Kind !== 'entry' || n.InputMode !== 'decimal')) return false;
       if (n.Kind === 'entry' && /password|phrase|mnemonic|secret|apikey|api_key|credential|passphrase/i.test(n.ID)) return false;
       if (n.Kind === 'transactionTable' && !validTransactionRows(n.Children as Node[] | null)) return false;
       return (n.Options || []).every(option => object(option) && boundedText(option.ID, 4096) && boundedText(option.Text, 4096)) && nodes(n.Children, depth + 1);
     });
   }
   const seen = new Set<string>();
-  return (value.Pages || []).every(page => {
+  const pagesValid = (value.Pages || []).every(page => {
     if (!object(page) || !boundedText(page.ID, 256, false) || seen.has(page.ID) || !boundedText(page.Title, 256) || !list(page.Nodes, 20000) || !nodes(page.Nodes, 0)) return false;
+    if (page.ParentID !== undefined && page.ParentID !== '' && (!String(page.ID).startsWith('wallet/') || !accountGroup(page.ParentID))) return false;
     seen.add(page.ID); return true;
   });
+  return pagesValid && (value.AccountGroupID === undefined || value.AccountGroupID === '' || accountGroup(value.AccountGroupID) && seen.has(value.AccountGroupID));
 }
 function validTransactionRows(rows: Node[] | null): boolean {
   return (rows || []).every(row => object(row) && row.Kind === 'row' && Array.isArray(row.Children) && row.Children.length === transactionCells.length && row.Children.every((cell, index) => object(cell) && cell.Kind === transactionCells[index] && (cell.Children === null || Array.isArray(cell.Children) && cell.Children.length === 0)));

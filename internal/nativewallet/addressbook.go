@@ -306,7 +306,7 @@ func (a *App) addressBookPage() []webui.Node {
 	options := []webui.Option{}
 	for _, account := range a.state.Accounts {
 		if !account.Hidden || account.ID == a.fields["bookAccount"] {
-			options = append(options, webui.Option{ID: account.ID, Text: groupName(account.Index) + " · " + a.network(account.Network).Name})
+			options = append(options, webui.Option{ID: account.ID, Text: a.groupTitle(account.Index) + " · " + a.network(account.Network).Name})
 		}
 	}
 	nodes = append(nodes, a.combo("bookAccount", "Wallet / network", options))

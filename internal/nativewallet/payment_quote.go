@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"localwallet/internal/amount"
-	"localwallet/internal/chains"
 	"localwallet/internal/chains/ton"
 	"localwallet/internal/ipc"
 	"localwallet/internal/model"
@@ -58,20 +57,6 @@ func (a *App) invalidatePaymentQuote() {
 		a.historyCancel()
 	}
 	a.paymentQuote = paymentQuoteState{Due: time.Now().Add(time.Second), Revision: a.planRevision}
-}
-
-func paymentRecipientValid(account model.Account, recipient string) bool {
-	if recipient == "" || strings.TrimSpace(recipient) != recipient {
-		return false
-	}
-	for _, adapter := range chains.All() {
-		for _, network := range adapter.Networks() {
-			if network.ID == account.Network {
-				return adapter.ValidateAddress(account.Network, recipient) == nil
-			}
-		}
-	}
-	return false
 }
 
 func quoteRecipientEqual(account model.Account, requested, planned string) bool {
@@ -137,11 +122,8 @@ func (a *App) nextPaymentQuote() bool {
 		return false
 	}
 	draft := a.paymentDraft(account)
-	if !paymentRecipientValid(account, draft.Recipient) {
-		return false
-	}
-	atomic, err := amount.Parse(draft.Amount, a.asset(account).Decimals)
-	if err != nil || atomic == "0" {
+	validation := a.paymentValidation(account, draft)
+	if !validation.RecipientValid || !validation.AmountValid {
 		return false
 	}
 	q := a.paymentQuote
@@ -201,9 +183,11 @@ func (a *App) nextPaymentQuote() bool {
 }
 
 func (a *App) paymentFeeNodes(account model.Account) []webui.Node {
-	text := "Enter a valid recipient and amount to estimate the transaction fee."
+	text := ""
 	q := a.paymentQuote
-	if q.Draft == a.paymentDraft(account) && q.Revision == a.planRevision {
+	draft := a.paymentDraft(account)
+	validation := a.paymentValidation(account, draft)
+	if validation.RecipientValid && validation.AmountValid && q.Draft == draft && q.Revision == a.planRevision {
 		switch {
 		case q.Loading:
 			text = "Estimating transaction fee…"

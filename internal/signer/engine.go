@@ -53,13 +53,15 @@ type Engine struct {
 	exchangeAuthorizations map[string]string
 }
 type Snapshot struct {
-	Locked            bool                `json:"locked"`
-	WalletExists      bool                `json:"walletExists"`
-	VaultState        string              `json:"vaultState"`
-	Environment       string              `json:"environment"`
-	RecoveryConfirmed bool                `json:"recoveryConfirmed"`
-	Accounts          []model.Account     `json:"accounts"`
-	Operations        []journal.Operation `json:"operations"`
+	Locked            bool                      `json:"locked"`
+	WalletExists      bool                      `json:"walletExists"`
+	VaultState        string                    `json:"vaultState"`
+	Environment       string                    `json:"environment"`
+	RecoveryConfirmed bool                      `json:"recoveryConfirmed"`
+	NextAccountIndex  *uint32                   `json:"nextAccountIndex,omitempty"`
+	Presentation      model.AccountPresentation `json:"presentation,omitempty,omitzero"`
+	Accounts          []model.Account           `json:"accounts"`
+	Operations        []journal.Operation       `json:"operations"`
 }
 
 func New(f *vault.Files, ui UI, adapters []model.Adapter) *Engine {
@@ -114,6 +116,10 @@ func (e *Engine) Snapshot() Snapshot {
 		return s
 	}
 	s.Environment, s.RecoveryConfirmed, s.Accounts = e.data.Environment, e.data.RecoveryConfirmed, e.activeAccounts()
+	s.Presentation = e.data.AccountPresentation.ForAccounts(s.Accounts)
+	if next, ok := e.nextAccountIndex(); ok {
+		s.NextAccountIndex = &next
+	}
 	for _, op := range e.data.Operations {
 		op.Signed = nil
 		s.Operations = append(s.Operations, op)
@@ -566,10 +572,13 @@ func (e *Engine) HideAccount(id string, hidden bool) error {
 	}
 	for i := range e.data.Accounts {
 		if e.data.Accounts[i].ID == id {
-			if e.data.Accounts[i].Hidden == hidden {
+			if e.data.Accounts[i].Hidden == hidden && (hidden || !e.data.AccountPresentation.DeletedGroups[model.AccountGroupKey(e.data.Accounts[i].Index)]) {
 				return nil
 			}
 			e.data.Accounts[i].Hidden = hidden
+			if !hidden {
+				delete(e.data.AccountPresentation.DeletedGroups, model.AccountGroupKey(e.data.Accounts[i].Index))
+			}
 			return e.persist()
 		}
 	}

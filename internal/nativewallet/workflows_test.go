@@ -465,6 +465,8 @@ func TestExchangeRequestContractsAndResponsesRemainSeparateFromWalletResults(t *
 			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT"}
 		case "exchangeSwap":
 			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT", "amount": "1.25", "slippage": "0.5"}
+			selectedAccount, selectedAsset := selectedExchangeValidationAsset(t, a)
+			setExchangeValidationQuote(a, exchangeValidationQuote(a, selectedAccount, selectedAsset, "Sell", "USDT", time.Now()))
 		default:
 			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "amount": "1.25"}
 		}

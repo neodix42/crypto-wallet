@@ -59,6 +59,37 @@ describe('transaction table and expanded main pages', () => {
       await click(host.querySelector('button')!); expect(emit).toHaveBeenCalledTimes(1);
     } finally { style.remove(); }
   });
+  it('keeps an invalid Amount input aligned with Max and places its single accessible error below both controls', async () => {
+    const style = document.createElement('style'); style.textContent = styles; document.head.append(style);
+    try {
+      const amount = { ...node('entry', 'field/amount/owned', 'Amount', '1e3'), Error: 'Use a positive decimal amount. <img src=x>', InputMode: 'decimal' as const };
+      const row = node('row', 'sendAmount/owned'); row.Children = [amount, node('button', 'max/owned', 'Max')];
+      const emit = vi.fn(); await mount(<PublicNode node={row} emit={emit}/>);
+      const container = host.querySelector('.send-amount-field')!, field = container.querySelector('label')!, input = field.querySelector('input')!, button = container.querySelector('button')!;
+      const error = container.querySelector('.send-amount-error')!;
+      expect([...container.children]).toEqual([field, button, error]);
+      expect(field.querySelector('.field-error')).toBeNull(); expect(container.querySelectorAll('[role="alert"]')).toHaveLength(1);
+      expect(input.getAttribute('aria-invalid')).toBe('true'); expect(input.getAttribute('aria-describedby')).toBe(error.id);
+      expect(document.getElementById(error.id)).toBe(error); expect(error.textContent).toBe(amount.Error); expect(error.querySelector('img')).toBeNull();
+      expect(getComputedStyle(container).alignItems).toBe('end'); expect(getComputedStyle(button).alignSelf).toBe('end');
+      expect(getComputedStyle(error).gridColumn).toBe('1 / -1'); expect(input.value).toBe('1e3');
+      await click(button); expect(emit.mock.calls).toEqual([['max/owned']]);
+      amount.Error = ''; amount.Value = '1.25'; await rerender(<PublicNode node={row} emit={emit}/>);
+      expect(container.children).toHaveLength(2); expect(container.querySelector('[role="alert"]')).toBeNull();
+      expect(input.hasAttribute('aria-describedby')).toBe(false); expect(input.hasAttribute('aria-invalid')).toBe(false); expect(input.value).toBe('1.25');
+    } finally { style.remove(); }
+  });
+  it('falls back to ordinary fields with their inline errors for malformed or foreign-owner Amount/Max row shapes', async () => {
+    const amount = { ...node('entry', 'field/amount/owned', 'Amount', 'bad'), Error: 'Invalid amount' }, maximum = node('button', 'max/owned', 'Max');
+    const row = node('row', 'sendAmount/owned');
+    for (const children of [[amount], [maximum, amount], [amount, { ...maximum, ID: 'max/another' }], [amount, maximum, node('label', '', 'Extra')]]) {
+      row.Children = children; if (!root) await mount(<PublicNode node={row} emit={() => {}}/>); else await rerender(<PublicNode node={row} emit={() => {}}/>);
+      expect(host.querySelector('.send-amount-field')).toBeNull(); expect(host.querySelector('.node-row')).not.toBeNull();
+      const input = host.querySelector('input')!, error = host.querySelector('.field-error')!;
+      expect(error.parentElement!.tagName).toBe('LABEL'); expect(input.getAttribute('aria-describedby')).toBe(error.id);
+      expect(host.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(input.value).toBe('bad');
+    }
+  });
   it('renders every transfer field exactly as inert text with complete selectable addresses', async () => {
     const table = history(), emit = vi.fn();
     await mount(<PublicNode node={table} emit={emit}/>);
@@ -119,7 +150,8 @@ describe('transaction table and expanded main pages', () => {
     state.Pages!.unshift({ ID: 'settings', Title: 'Settings', Nodes: [] });
     state.Pages!.push({ ID: 'addressbook', Title: 'Address book', Nodes: [] }, { ID: 'wallet/eth', Title: 'ETH', Nodes: [] }, { ID: 'exchange', Title: 'Exchange', Nodes: [] });
     const emit = vi.fn(); await mount(<WalletShell view={state} status="" emit={emit}/>);
-    expect([...host.querySelectorAll('.tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account', 'ETH']);
+    expect([...host.querySelectorAll('.tabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['Main account']);
+    expect([...host.querySelectorAll('.wallet-subtabs [role="tab"]')].map(tab => tab.textContent)).toEqual(['ETH']);
     expect([...host.querySelectorAll('.app-header [role="tab"]')].map(tab => tab.getAttribute('aria-label'))).toEqual(['Exchange', 'Address book', 'Settings']);
     expect(host.querySelector('.utility-navigation')!.textContent).toBe('');
     expect(host.querySelector('[role="tab"][aria-selected="true"]')!.getAttribute('aria-label')).toBe('Settings');

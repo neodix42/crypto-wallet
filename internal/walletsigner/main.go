@@ -213,6 +213,65 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err == nil {
 			out, err = e.SnapshotPage("")
 		}
+
+	case "addNextAccount":
+		var b struct{}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			err = e.AddNextAccount()
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
+	case "renameWallet":
+		var b struct {
+			AccountID strictjson.Text `json:"accountId"`
+			Name      strictjson.Text `json:"name"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			err = e.RenameWallet(string(b.AccountID), string(b.Name))
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
+	case "renameGroup":
+		var b struct {
+			Index *uint32         `json:"index"`
+			Name  strictjson.Text `json:"name"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			if b.Index == nil {
+				err = signer.ErrDenied
+			} else {
+				err = e.RenameGroup(*b.Index, string(b.Name))
+			}
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
+	case "deleteWallet":
+		var b struct {
+			AccountID strictjson.Text `json:"accountId"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			err = e.DeleteWallet(string(b.AccountID))
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
+	case "deleteGroup":
+		var b struct {
+			Index *uint32 `json:"index"`
+		}
+		if err = signer.DecodeBody(m.Body, &b); err == nil {
+			if b.Index == nil {
+				err = signer.ErrDenied
+			} else {
+				err = e.DeleteGroup(*b.Index)
+			}
+		}
+		if err == nil {
+			out, err = e.SnapshotPage("")
+		}
 	case "cancelPrepared":
 		var b struct {
 			ID string `json:"id"`

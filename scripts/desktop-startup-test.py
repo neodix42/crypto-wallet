@@ -524,7 +524,7 @@ class WailsPrivateStartup(unittest.TestCase):
 class WailsMainRowCopy(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('main_row_copy_target','request_main_row_copy','main_row_copy','reveal_main_row_copy','receive_dialog_state','reset_public_clipboard','public_copy_feedback','public_words_position','palette','public_icon_rectangles')
+        names=('main_row_copy_target','request_main_row_copy','main_row_copy','reveal_main_row_copy','receive_dialog_state','reset_public_clipboard','public_copy_feedback','public_words_position','palette','public_icon_rectangles','account_overview_visible','address_phrase_bounds')
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
         self.folder=tempfile.TemporaryDirectory(prefix='wallet-main-row-')
         self.addCleanup(self.folder.cleanup)
@@ -561,7 +561,7 @@ class WailsMainRowCopy(unittest.TestCase):
         return ['5','1',str(line),'1','1','1',str(x),str(y),'95','14','99',word]
 
     def overview(self):
-        return [self.row('Account',180,300,1),self.row('group',240,300,1),self.row('Ethereum',178,552,2)]
+        return [self.row('Network',160,500),self.row('Native',320,500),self.row('balance',420,500),self.row('Receive',550,500),self.row('address',655,500),self.row('Ethereum',178,552,2)]
 
     def button_picture(self,button_x=1400,button_y=542,state='enabled',size=34):
         picture=Image.new('RGB',(1600,1100),'white')
@@ -587,7 +587,7 @@ class WailsMainRowCopy(unittest.TestCase):
 
     def test_new_window_offset_and_width_remeasure_actual_row_and_button(self):
         self.geometry=(20,60,1540,950)
-        rows=[self.row('Account',120,260),self.row('group',180,260),self.row('Ethereum',118,512,2)]
+        rows=[self.row('Network',100,450),self.row('Native',260,450),self.row('balance',360,450),self.row('Receive',490,450),self.row('address',595,450),self.row('Ethereum',118,512,2)]
         picture=self.button_picture(1470,502)
         self.assertEqual(self.scope['main_row_copy_target'](rows,picture,self.geometry),(1486,518))
 
@@ -740,7 +740,7 @@ class WailsMainRowCopy(unittest.TestCase):
         self.assertEqual(button.call_count,2)
 
     def test_exact_fixture_address_is_required_from_the_direct_ack_without_clipboard_reread(self):
-        self.scope.update(request_main_row_copy=mock.Mock(return_value=self.address),text=lambda:'Account group',
+        self.scope.update(request_main_row_copy=mock.Mock(return_value=self.address),account_overview_visible=mock.Mock(return_value=True),
                           wait=lambda predicate:predicate())
         self.report['mainRowCopy']={}
         for expected,succeeds in [('0x1111111111111111111111111111111111111111',True),('0x2222222222222222222222222222222222222222',False)]:
@@ -755,7 +755,7 @@ class WailsMainRowCopy(unittest.TestCase):
         self.clipboard.assert_not_called()
 
     def test_malformed_direct_ack_or_wallet_navigation_cannot_pass_the_main_row_check(self):
-        self.scope.update(request_main_row_copy=mock.Mock(),wait=lambda predicate:predicate(),passed=mock.Mock())
+        self.scope.update(request_main_row_copy=mock.Mock(),wait=lambda predicate:predicate(),passed=mock.Mock(),account_overview_visible=mock.Mock(return_value=True))
         self.report['mainRowCopy']={}
         for value in ('','0x1111','not-an-address','0x'+'1'*41):
             with self.subTest(value=value):
@@ -764,6 +764,7 @@ class WailsMainRowCopy(unittest.TestCase):
                     self.scope['main_row_copy']()
         self.scope['request_main_row_copy'].return_value=self.address
         self.status.return_value='Receive address Send Receive'
+        self.scope['account_overview_visible'].return_value=False
         with self.assertRaisesRegex(RuntimeError,'opened a wallet page'):
             self.scope['main_row_copy']()
         self.scope['passed'].assert_not_called()
@@ -773,7 +774,7 @@ class WailsMainRowCopy(unittest.TestCase):
 class WailsPublicKeyboardCopy(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('address_phrase_bounds','address_selection_target','native_copy_shortcut','public_words_position','wallet_page_visible')
+        names=('address_phrase_bounds','address_selection_target','native_copy_shortcut','public_words_position','wallet_page_visible','account_overview_visible')
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
         self.desktop=SimpleNamespace(d=object())
         self.clock=SimpleNamespace(sleep=mock.Mock())
@@ -890,6 +891,29 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
             self.target('overview',rows,self.geometry)
 
+    def test_only_exact_short_suffix_at_the_complete_prefix_right_edge_is_retired(self):
+        for context in ('overview','wallet','receive'):
+            rows,point=self.fixture(context)
+            root=rows[-1];top=int(root[7]);right=int(root[6])+int(root[8])
+            suffix=self.word(self.address[-6:],right-62,top-2,64,line=20);suffix[9]='22'
+            diagnostic={}
+            self.assertEqual(self.target(context,rows+[suffix],self.geometry,diagnostic),point)
+            self.assertEqual(diagnostic['containedExactSuffixBoxesRetired'],1)
+            self.assertNotIn(self.address,json.dumps(diagnostic))
+            for kind in ('contradictory','long','left','right','baseline','wide','nonhex','prefix'):
+                extra=list(suffix)
+                if kind=='contradictory':extra[11]='2'*6
+                if kind=='long':extra[11]=self.address[-9:]
+                if kind=='left':extra[6]=str(right-100)
+                if kind=='right':extra[6]=str(right-60)
+                if kind=='baseline':extra[7]=str(top+3)
+                if kind=='wide':extra[6]=str(right-400);extra[8]='400'
+                if kind=='nonhex':extra[11]='l'*6
+                if kind=='prefix':extra=list(root)
+                with self.subTest(context=context,kind=kind),self.assertRaisesRegex(RuntimeError,'ambiguous|not uniquely'):
+                    self.target(context,rows+[extra],self.geometry)
+        self.events.assert_not_called()
+
     def test_duplicate_headers_labels_and_overlapping_body_boxes_fail_closed(self):
         for context in ('overview','wallet','receive'):
             rows,_=self.fixture(context)
@@ -900,7 +924,7 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
         for extra in ([self.word('Receive',900,500,75),self.word('address',985,500,80)],
                       [self.word('Ethereum',178,616)],
                       [self.word('Network',160,450,90),self.word('Native',320,450,70),self.word('balance',400,450,75),self.word('Receive',500,450,75),self.word('address',585,450,80)]):
-            with self.subTest(extra=extra[0][11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible'):
+            with self.subTest(extra=extra[0][11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible|left the account overview'):
                 self.target('overview',rows+extra,self.geometry)
 
     def test_chunk_fallback_cannot_cross_address_column_or_copy_button(self):
@@ -1090,7 +1114,7 @@ class WailsNearTokenPresentation(unittest.TestCase):
 
     def test_near_token_mode_cannot_silently_combine_with_another_acceptance_mode(self):
         parser,_=self.actual_parser_and_targeted_route()
-        for flag in ('--tokens-only','--staking-only','--clipboard-only'):
+        for flag in ('--tokens-only','--staking-only','--clipboard-only','--account-layout-only'):
             with self.subTest(flag=flag),contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
                 parser.parse_args(['--near-tokens-only',flag])
 
@@ -1098,7 +1122,7 @@ class WailsNearTokenPresentation(unittest.TestCase):
 class WailsNearNavigation(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('near_navigation_state','wait_near_navigation','public_words_position')
+        names=('near_navigation_state','near_section_targets','wait_near_navigation','public_words_position','account_overview_visible','address_phrase_bounds')
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
         self.clock=SimpleNamespace(now=0)
         self.clock.monotonic=lambda:self.clock.now
@@ -1122,7 +1146,7 @@ class WailsNearNavigation(unittest.TestCase):
                 for i,word in enumerate(words.split())]
 
     def overview(self):
-        return self.row('Account group',280,1)+self.row('Receive address',590,3)+self.row('NEAR',650,2)
+        return self.row('Network Native balance Receive address',590,3)+self.row('NEAR',650,2)
 
     def wallet(self,network='NEAR'):
         return (self.row(network+' mainnet · '+network,280,1)+self.row('Receive address',400,2)
@@ -1151,6 +1175,29 @@ class WailsNearNavigation(unittest.TestCase):
         self.assertFalse(state['copyAddress'])
         self.assertFalse(state['wallet'])
 
+    def test_management_hide_wallet_does_not_replace_complete_near_section_navigation(self):
+        rows=self.wallet()+self.row('Hide wallet',450,20)
+        state=self.scope['near_navigation_state'](rows)
+        self.assertTrue(state['nearSections']);self.assertTrue(state['wallet'])
+        targets=self.scope['near_section_targets'](rows)
+        self.assertEqual(targets['Wallet'],(137,560))
+        self.assertEqual(targets['Staking'],(177,560))
+        for extra in (self.row('Wallet Staking',650,21),self.row('Wallet',550,22)):
+            with self.subTest(extra=extra):self.assertIsNone(self.scope['near_section_targets'](rows+extra))
+        missing=[row for row in rows if not (row[11]=='Wallet' and int(row[7])==550)]
+        self.assertIsNone(self.scope['near_section_targets'](missing))
+    def test_complete_near_wallet_staking_heading_never_becomes_a_second_navigation_row(self):
+        for separator in ('·','-','•','.'):
+            heading=self.row('NEAR Wallet '+separator+' Staking',650,20)
+            with self.subTest(separator=separator):
+                targets=self.scope['near_section_targets'](self.wallet()+heading)
+                self.assertEqual(targets['Wallet'],(137,560))
+                self.assertIsNone(self.scope['near_section_targets'](heading))
+        # Ignore only the exact known title: an unidentified or second real
+        # navigation row cannot be silently hidden as if it were that title.
+        for extra in (self.row('Wallet Staking',650,21),self.row('Other Wallet Staking',650,22)):
+            with self.subTest(extra=extra):
+                self.assertIsNone(self.scope['near_section_targets'](self.wallet()+extra))
     def test_dropped_first_wallet_selection_is_reobserved_and_retried_without_other_actions(self):
         self.rows.side_effect=[self.overview()]*9+[self.wallet()]
         self.scope['wait_near_navigation']('wallet',seconds=2)
@@ -2256,18 +2303,19 @@ class WailsAddressBookPublicObservation(unittest.TestCase):
 class WailsSendAmountGeometry(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('palette','send_amount_geometry')
+        names=('palette','send_amount_geometry','click_disabled_max')
         self.scope={'appearance':{'theme':'light','fontSize':18}}
         exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names],type_ignores=[]),'amount-geometry-fixture','exec'),self.scope)
         self.bounds=(0,0,1600,1100)
-    def rows(self):
+    def rows(self,value='1.25'):
         def row(word,x,y,w,h):return ['5','1','1','1','1','1',str(x),str(y),str(w),str(h),'99',word]
-        return [row('Amount',100,300,65,18),row('1.25',113,354,36,18),row('Max',1345,354,35,18)]
-    def picture(self,shift=0,focused=False):
+        return [row('Amount',100,300,65,18),row(value,113,354,36,18),row('Max',1345,354,35,18)]
+    def picture(self,shift=0,focused=False,disabled=False,invalid=False):
         colors=self.scope['palette']()
         picture=Image.new('RGB',(1600,1100),colors['surface']);draw=ImageDraw.Draw(picture)
-        draw.rectangle((100,340,1320,385),outline=colors['primary'] if focused else colors['border'],width=1)
-        draw.rectangle((1330,340+shift,1395,385+shift),fill=colors['button'],outline=colors['border'],width=1)
+        draw.rectangle((100,340,1320,385),outline=colors['error'] if invalid else colors['primary'] if focused else colors['border'],width=1)
+        border=tuple(round(.45*a+.55*b) for a,b in zip(colors['border'],colors['surface'])) if disabled else colors['border']
+        draw.rectangle((1330,340+shift,1395,385+shift),fill=colors['disabled'] if disabled else colors['button'],outline=border,width=1)
         return picture
     def test_actual_input_and_button_outlines_require_equal_bottom_edges(self):
         for theme in ('light','dark'):
@@ -2275,6 +2323,47 @@ class WailsSendAmountGeometry(unittest.TestCase):
             for focused in (False,True):
                 result=self.scope['send_amount_geometry'](self.rows(),self.picture(focused=focused),self.bounds)
                 self.assertEqual(result,{'input':[100,340,1320,385],'max':[1330,340,1395,385],'bottomDifference':0,'sameRow':True})
+    def test_disabled_max_retains_complete_distinct_outlines_in_both_themes(self):
+        for theme in ('light','dark'):
+            self.scope['appearance']['theme']=theme
+            with self.subTest(theme=theme):
+                result=self.scope['send_amount_geometry'](self.rows(),self.picture(disabled=True),self.bounds)
+                self.assertEqual(result['max'],[1330,340,1395,385])
+    def test_invalid_amount_feedback_keeps_max_aligned_and_cannot_supply_an_input_outline(self):
+        rows=self.rows(value='1e3')
+        rows.append(['5','1','2','1','1','1','100','401','500','18','99','Enter a positive decimal amount'])
+        result=self.scope['send_amount_geometry'](rows,self.picture(disabled=True,invalid=True),self.bounds,value_text='1e3')
+        self.assertEqual(result['bottomDifference'],0)
+        self.assertEqual(result['input'],[100,340,1320,385])
+        # Simulate the regression: Max is aligned to the error block rather
+        # than its input. An explanatory label cannot repair that geometry.
+        moved=[list(row) for row in rows];moved[2][7]='405'
+        with self.assertRaisesRegex(RuntimeError,'not beside'):
+            self.scope['send_amount_geometry'](moved,self.picture(shift=51,disabled=True,invalid=True),self.bounds,value_text='1e3')
+    def test_disabled_max_click_uses_fresh_contrast_borders_fill_and_current_owned_window(self):
+        desktop=SimpleNamespace(secret_window=mock.Mock(return_value=False),wait=mock.Mock(return_value=(17,'CryptoWallet')),
+                                geometry=mock.Mock(return_value=self.bounds),focus=mock.Mock(),click=mock.Mock(),park_pointer=mock.Mock())
+        capture=mock.Mock(return_value=(self.rows(),self.picture(disabled=True),self.bounds))
+        self.scope.update(desktop=desktop,public_rows=capture,time=SimpleNamespace(sleep=mock.Mock()),
+                          PrivateWindowVisible=type('PrivateWindowVisible',(RuntimeError,),{}))
+        result=self.scope['click_disabled_max']()
+        self.assertEqual(capture.call_args_list,[mock.call(contrast=True,with_picture=True,with_geometry=True)]*2)
+        self.assertEqual(result['max'],[1330,340,1395,385])
+        desktop.click.assert_called_once_with(1362,362)
+        desktop.click.reset_mock()
+        for kind in ('enabled','private','moved','clipped','ambiguous'):
+            picture=self.picture(disabled=kind!='enabled')
+            if kind=='clipped':ImageDraw.Draw(picture).rectangle((1394,340,1396,385),fill=self.scope['palette']()['surface'])
+            rows=self.rows()+([self.rows()[2]] if kind=='ambiguous' else [])
+            capture.return_value=(rows,picture,self.bounds)
+            desktop.secret_window.return_value=kind=='private'
+            desktop.geometry.return_value=(0,0,1500,1100) if kind=='moved' else self.bounds
+            with self.subTest(kind=kind),self.assertRaises(RuntimeError):self.scope['click_disabled_max']()
+            desktop.click.assert_not_called()
+        desktop.secret_window.return_value=False;desktop.geometry.return_value=self.bounds
+        capture.side_effect=[(self.rows(),self.picture(disabled=True),self.bounds),(self.rows(value='4.56'),self.picture(disabled=True),self.bounds)]
+        with self.assertRaisesRegex(RuntimeError,'labels are not unique'):self.scope['click_disabled_max']()
+        desktop.click.assert_called_once_with(1362,362)
     def test_max_below_or_unrelated_label_cannot_pass(self):
         rows=self.rows();rows[2][7]='405'
         with self.assertRaisesRegex(RuntimeError,'not beside'):
@@ -2476,7 +2565,7 @@ class WailsExactPhraseObservation(unittest.TestCase):
 class WailsIconControls(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('palette','public_icon_rectangles','address_icon_target','address_phrase_bounds','utility_icon_targets','wallet_page_visible','public_words_position','history_icon_targets','settings_subtab_rows','click_settings_subtab','dismiss_receive_copy_hover','wait')
+        names=('palette','public_icon_rectangles','address_icon_target','address_phrase_bounds','utility_icon_targets','wallet_page_visible','account_overview_visible','public_words_position','history_icon_targets','settings_subtab_rows','click_settings_subtab','dismiss_receive_copy_hover','wait')
         self.scope={'appearance':{'theme':'light'},'re':re}
         exec(compile(ast.Module(body=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names],type_ignores=[]),'observed-public-icons','exec'),self.scope)
         self.geometry=(80,32,1440,1036)
@@ -2528,15 +2617,15 @@ class WailsIconControls(unittest.TestCase):
         picture=self.picture([(1010,538,1051,579)])
         self.assertEqual(self.scope['address_icon_target'](rows,picture,self.geometry),((1030,558),(1010,538,1051,579)))
 
-    def test_header_utilities_require_three_actual_buttons_in_a_row(self):
+    def test_header_utilities_require_four_actual_buttons_in_a_row(self):
         rows=[self.word('CryptoWallet',150,55,140)]
-        rects=[(1260,43,1301,84),(1320,43,1361,84),(1380,43,1421,84)]
-        self.assertEqual(self.scope['utility_icon_targets'](rows,self.picture(rects),self.geometry),dict(zip(('Exchange','Address book','Settings'),rects)))
-        with self.assertRaisesRegex(RuntimeError,'exactly three'):
+        rects=[(1200,43,1241,84),(1260,43,1301,84),(1320,43,1361,84),(1380,43,1421,84)]
+        self.assertEqual(self.scope['utility_icon_targets'](rows,self.picture(rects),self.geometry),dict(zip(('Exchange','Address book','Lock wallet','Settings'),rects)))
+        with self.assertRaisesRegex(RuntimeError,'exactly four'):
             self.scope['utility_icon_targets'](rows,self.picture(rects[:2]),self.geometry)
     def test_selected_utility_retains_its_independently_colored_border_in_both_themes(self):
         rows=[self.word('CryptoWallet',150,55,140)]
-        rects=[(1260,43,1301,84),(1320,43,1361,84),(1380,43,1421,84)]
+        rects=[(1200,43,1241,84),(1260,43,1301,84),(1320,43,1361,84),(1380,43,1421,84)]
         for theme in ('light','dark'):
             self.scope['appearance']['theme']=theme
             colors=self.scope['palette']()
@@ -2544,7 +2633,7 @@ class WailsIconControls(unittest.TestCase):
                 picture=self.picture(rects)
                 ImageDraw.Draw(picture).rounded_rectangle(selected,radius=7,fill=colors['selected'],outline=colors['selectedBorder'])
                 with self.subTest(theme=theme,selected=selected):
-                    self.assertEqual(self.scope['utility_icon_targets'](rows,picture,self.geometry),dict(zip(('Exchange','Address book','Settings'),rects)))
+                    self.assertEqual(self.scope['utility_icon_targets'](rows,picture,self.geometry),dict(zip(('Exchange','Address book','Lock wallet','Settings'),rects)))
 
     def test_history_controls_are_two_measured_icons_after_the_section_heading(self):
         rows=[self.word('Transaction',150,550,120),self.word('history',280,550,80)]
@@ -2569,6 +2658,16 @@ class WailsIconControls(unittest.TestCase):
         swapped=[list(row) for row in rows];swapped[1][6],swapped[2][6]=swapped[2][6],swapped[1][6]
         with self.assertRaisesRegex(RuntimeError,'order was ambiguous'):
             self.scope['settings_subtab_rows'](swapped,self.geometry)
+    def test_nested_wallet_tabs_shift_settings_row_without_authorizing_later_prose(self):
+        rows=[list(row) for row in self.settings_rows()]
+        for row in rows:row[7]='303'
+        prose=[self.word('Wallet',150,371),self.word('Exchange',150,500)]
+        actual=self.scope['settings_subtab_rows'](rows+prose,self.geometry)
+        self.assertEqual(actual,{row[11]:row for row in rows})
+        repeat=[list(row) for row in rows]
+        for row in repeat:row[7]='410'
+        with self.assertRaisesRegex(RuntimeError,'uniquely visible'):
+            self.scope['settings_subtab_rows'](rows+repeat,self.geometry)
     def test_settings_navigation_clicks_the_observed_label_and_rejects_geometry_drift(self):
         self.scope['public_rows']=mock.Mock(return_value=(self.settings_rows(),object(),self.geometry))
         desktop=SimpleNamespace(secret_window=mock.Mock(return_value=False),wait=mock.Mock(return_value=(1,'CryptoWallet')),
@@ -2616,14 +2715,161 @@ class WailsIconControls(unittest.TestCase):
     def test_wallet_marker_uses_owned_address_label_and_excludes_overview(self):
         rows=[self.word('Receive',150,280,75),self.word('address',235,280,75)]
         self.assertTrue(self.scope['wallet_page_visible'](rows))
-        self.assertFalse(self.scope['wallet_page_visible']([self.word('Account',150,200,75),self.word('group',235,200,75)]+rows))
+        headers=[self.word('Network',150,200,90),self.word('Native',320,200,80),self.word('balance',410,200,80),self.word('Receive',600,200,75),self.word('address',685,200,75)]
+        self.assertFalse(self.scope['wallet_page_visible'](headers+rows))
+        self.assertTrue(self.scope['account_overview_visible'](headers))
+        self.assertFalse(self.scope['account_overview_visible'](headers+headers))
+        self.assertFalse(self.scope['account_overview_visible']([self.word('Account',150,200,75),self.word('group',235,200,75)]+rows))
+
+
+
+class WailsAccountLayout(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('account_overview_visible','address_phrase_bounds','action_row_targets','account_header_observation','table_refresh_target','wallet_child_tab_observation','utility_icon_targets','palette','public_icon_rectangles','public_label_boxes','account_add_target','public_tab_point','tab_menu_targets','recipient_input_geometry','native_tab_menu_shortcut','observe_invalid_recipient_geometry')
+        self.scope={'appearance':{'theme':'light'},'re':re}
+        exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names],type_ignores=[]),'account-layout-observations','exec'),self.scope)
+        self.bounds=(80,32,1440,1036)
+    def row(self,text,x,y,width=70):
+        return ['5','1','1','1','1','1',str(x),str(y),str(width),'18','99',text]
+    def headers(self):
+        return [self.row('Network',150,300,90),self.row('Native',320,300,70),self.row('balance',400,300,75),self.row('Receive',550,300,75),self.row('address',635,300,80)]
+    def picture(self,rects):
+        colors=self.scope['palette']();picture=Image.new('RGB',(1600,1100),colors['surface'])
+        for rect in rects:ImageDraw.Draw(picture).rounded_rectangle(rect,radius=7,fill=colors['button'],outline=colors['border'])
+        return picture
+    def test_account_overview_needs_unique_ordered_same_baseline_headers_without_group_dropdown(self):
+        headers=self.headers()
+        self.assertTrue(self.scope['account_overview_visible'](headers))
+        for rows in (headers+headers,headers[1:],[self.row('Account',150,300),self.row('group',230,300)],
+                     [self.row(r[11],int(r[6]),int(r[7])+(40 if r[11]=='Receive' else 0),int(r[8])) for r in headers]):
+            with self.subTest(rows=rows):self.assertFalse(self.scope['account_overview_visible'](rows))
+    def test_header_network_count_requires_exact_value_before_four_independent_icons(self):
+        rects=[(1200,43,1241,84),(1260,43,1301,84),(1320,43,1361,84),(1380,43,1421,84)]
+        rows=[self.row('CryptoWallet',150,55,140),self.row('8',1070,55,12),self.row('networks',1090,55,90)]
+        result=self.scope['account_header_observation'](rows,self.picture(rects),self.bounds)
+        self.assertEqual(list(result['icons']),['Exchange','Address book','Lock wallet','Settings'])
+        for changed in ([*rows[:-2],self.row('7',1070,55,12),rows[-1]],
+                        [*rows[:-2],self.row('8',1250,55,12),self.row('networks',1270,55,90)],
+                        [*rows[:-1],self.row('networks',1090,400,90)]):
+            with self.subTest(rows=changed),self.assertRaisesRegex(RuntimeError,'count was not uniquely'):
+                self.scope['account_header_observation'](changed,self.picture(rects),self.bounds)
+    def test_action_phrases_require_one_send_baseline_and_reject_wrapping_or_duplicate_controls(self):
+        rows=[self.row('Receive',150,220,75),self.row('address',235,220,80)]
+        words=(('Send',150,360),('Receive',250,360),('Track',390,360),('new',470,360),('token',515,360),('Hide',650,360),('wallet',700,360))
+        rows += [self.row(word,x,y,40 if word in ('new','Hide') else 70) for word,x,y in words]
+        labels=('Send','Receive','Track new token','Hide wallet')
+        targets=self.scope['action_row_targets'](rows,labels)
+        self.assertEqual(set(targets),set(labels));self.assertEqual(len({p[1] for p in targets.values()}),1)
+        wrapped=[list(row) for row in rows];wrapped[-1][7]='410'
+        for bad in (wrapped,rows+[self.row('Send',900,360,70)]):
+            with self.subTest(rows=bad),self.assertRaisesRegex(RuntimeError,'one row'):
+                self.scope['action_row_targets'](bad,labels)
+    def test_receive_action_excludes_address_label_and_the_bounded_save_receive_qr_phrase(self):
+        words=(('Receive',150,220,75),('address',235,220,80),('Send',150,360,70),('Receive',250,360,70),
+               ('Hide',650,360,40),('wallet',700,360,70),('Save',880,360,40),('receive',930,360,70),('QR',1010,360,30))
+        rows=[self.row(*word) for word in words]
+        targets=self.scope['action_row_targets'](rows,('Send','Receive','Hide wallet'))
+        self.assertEqual(targets['Receive'],(285,369))
+        missing=[row for row in rows if row[11]!='Receive' or int(row[7])!=360]
+        with self.assertRaisesRegex(RuntimeError,'one row'):
+            self.scope['action_row_targets'](missing,('Send','Receive','Hide wallet'))
+        # A lookalike or detached phrase cannot hide a second candidate.
+        for attribute,value in ((11,'QO'),(7,'410')):
+            changed=[list(row) for row in rows];changed[-1][attribute]=value
+            with self.subTest(attribute=attribute),self.assertRaisesRegex(RuntimeError,'one row'):
+                self.scope['action_row_targets'](changed,('Send','Receive','Hide wallet'))
+    def test_table_refresh_needs_its_complete_icon_on_the_receive_header_baseline(self):
+        point,rect=self.scope['table_refresh_target'](self.headers(),self.picture([(1380,288,1421,329)]),self.bounds)
+        self.assertEqual(point,(1400,308));self.assertEqual(rect,(1380,288,1421,329))
+        for rects in ([],[(1380,388,1421,429)],[(1280,288,1321,329),(1380,288,1421,329)]):
+            with self.subTest(rects=rects),self.assertRaisesRegex(RuntimeError,'uniquely complete'):
+                self.scope['table_refresh_target'](self.headers(),self.picture(rects),self.bounds)
+    def test_wallet_child_is_below_account_row_and_never_a_table_body_or_main_tab(self):
+        row=self.row('Ethereum',300,180,100)
+        self.assertFalse(self.scope['wallet_child_tab_observation']([row],self.bounds)['mainRowContainsWallet'])
+        for rows in ([self.row('Ethereum',300,140,100)],[self.row('Ethereum',300,450,100)],[row,row]):
+            with self.subTest(rows=rows),self.assertRaisesRegex(RuntimeError,'account tab row|uniquely visible'):
+                self.scope['wallet_child_tab_observation'](rows,self.bounds)
+
+    def test_account_plus_requires_one_complete_owned_icon_above_child_controls(self):
+        rows=[self.row('Main',150,130,45),self.row('account',203,130,75)]
+        point,rect=self.scope['account_add_target'](rows,self.picture([(300,114,341,155),(450,170,491,211)]),self.bounds)
+        self.assertEqual(point,(320,134));self.assertEqual(rect,(300,114,341,155))
+        for rects in ([],[(300,114,341,155),(400,114,441,155)],[(300,150,341,191)],[(300,95,341,136)]):
+            with self.subTest(rects=rects),self.assertRaisesRegex(RuntimeError,r'Account \+ icon'):
+                self.scope['account_add_target'](rows,self.picture(rects),self.bounds)
+    def test_tab_name_bounds_are_exact_in_owning_row_and_support_punctuation_separator(self):
+        rows=[self.row('Main',150,130,45),self.row('account',203,130,75),self.row('ETH',150,180,35),self.row('·',192,180,5),self.row('Ethereum',205,180,100)]
+        self.assertEqual(self.scope['public_tab_point']('Main account','group',rows,self.bounds),(214,139))
+        self.assertEqual(self.scope['public_tab_point']('ETH · Ethereum','wallet',rows,self.bounds),(227,189))
+        self.assertIsNone(self.scope['public_tab_point']('Ethereum','group',rows,self.bounds))
+        self.assertIsNone(self.scope['public_tab_point']('Ethereum','wallet',[self.row('Ethereum',150,400,100)],self.bounds))
+        with self.assertRaisesRegex(RuntimeError,'ambiguous'):
+            self.scope['public_tab_point']('Ethereum','wallet',rows+[self.row('Ethereum',450,180,100)],self.bounds)
+    def menu_fixture(self,duplicate=False):
+        rows=[self.row('Rename',230,162,70),self.row('Delete',230,205,60)]
+        if duplicate:rows += [self.row('Rename',330,162,70),self.row('Delete',330,205,60)]
+        picture=self.picture([])
+        ImageDraw.Draw(picture).rounded_rectangle((210,144,409,243),radius=7,fill=self.scope['palette']()['surface'],outline=self.scope['palette']()['border'])
+        return rows,picture
+    def test_context_menu_requires_complete_outer_border_and_unique_ordered_actions(self):
+        rows,picture=self.menu_fixture()
+        self.assertEqual(self.scope['tab_menu_targets'](rows,picture,self.bounds,(215,139)),{'Rename':(265,171),'Delete':(260,214)})
+        for kind in ('duplicate','missing','reordered','clipped','unowned'):
+            words,image=self.menu_fixture(duplicate=kind=='duplicate');anchor=(215,139)
+            if kind=='missing':words=words[:1]
+            if kind=='reordered':words[0][7],words[1][7]=words[1][7],words[0][7]
+            if kind=='clipped':ImageDraw.Draw(image).line((409,145,409,243),fill=self.scope['palette']()['surface'])
+            if kind=='unowned':anchor=(215,400)
+            with self.subTest(kind=kind),self.assertRaisesRegex(RuntimeError,'pair|outline|anchor'):
+                self.scope['tab_menu_targets'](words,image,self.bounds,anchor)
+    def recipient_fixture(self,shift=0,duplicate=False):
+        rows=[self.row('Recipient',150,300,80),self.row('address',240,300,75)]
+        rows += [self.row(word,150+i*42,410,35) for i,word in enumerate(('Enter','a','valid','recipient','address'))]
+        colors=self.scope['palette']();picture=self.picture([(1300,340+shift,1344,384+shift),(1354,340+shift,1398,384+shift)])
+        ImageDraw.Draw(picture).rounded_rectangle((150,340,1291,384),radius=6,fill=colors['input'],outline=colors['error'])
+        if duplicate:rows += [self.row('Recipient',450,300,80),self.row('address',540,300,75)]
+        return rows,picture
+    def test_recipient_inline_error_keeps_input_and_both_book_buttons_aligned(self):
+        rows,picture=self.recipient_fixture()
+        result=self.scope['recipient_input_geometry'](rows,picture,self.bounds)
+        self.assertEqual(result['input'],[150,340,1291,384]);self.assertEqual(result['bottomDifferences'],[0,0])
+        for kind in ('lowered','duplicate','clipped','error-above'):
+            words,image=self.recipient_fixture(shift=25 if kind=='lowered' else 0,duplicate=kind=='duplicate')
+            if kind=='clipped':ImageDraw.Draw(image).line((1291,340,1291,384),fill=self.scope['palette']()['input'])
+            if kind=='error-above':
+                for row in words[2:]:row[7]='320'
+            with self.subTest(kind=kind),self.assertRaisesRegex(RuntimeError,'aligned|below|unique'):
+                self.scope['recipient_input_geometry'](words,image,self.bounds)
+    def test_recipient_geometry_blurs_only_through_observed_public_heading_then_recaptures(self):
+        desktop=SimpleNamespace(secret_window=mock.Mock(return_value=False),click=mock.Mock(),park_pointer=mock.Mock())
+        heading=mock.Mock(return_value=(240,530));capture=mock.Mock(return_value=([],None,self.bounds));geometry=mock.Mock(return_value={'bottomDifferences':[0,0]})
+        order=mock.Mock();order.attach_mock(desktop.click,'click');order.attach_mock(desktop.park_pointer,'park');order.attach_mock(capture,'capture')
+        self.scope.update(desktop=desktop,public_words_position=heading,public_rows=capture,recipient_input_geometry=geometry,PrivateWindowVisible=RuntimeError,time=SimpleNamespace(sleep=mock.Mock()))
+        self.assertEqual(self.scope['observe_invalid_recipient_geometry'](),{'bottomDifferences':[0,0]})
+        self.assertEqual(order.mock_calls,[mock.call.click(240,530),mock.call.park(),mock.call.capture(with_picture=True,with_geometry=True)])
+        for private,point in ((True,(240,530)),(False,None)):
+            desktop.secret_window.return_value=private;heading.return_value=point;desktop.click.reset_mock();capture.reset_mock()
+            with self.assertRaises(RuntimeError):self.scope['observe_invalid_recipient_geometry']()
+            desktop.click.assert_not_called();capture.assert_not_called()
+
+    def test_context_keyboard_chord_requires_all_keycodes_and_releases_in_reverse(self):
+        events=mock.Mock();keyboard=SimpleNamespace(XStringToKeysym=lambda name:name,XKeysymToKeycode=mock.Mock(side_effect=[50,76]),XFlush=mock.Mock())
+        self.scope.update(desktop=SimpleNamespace(d=17),mod=SimpleNamespace(X=keyboard,T=SimpleNamespace(XTestFakeKeyEvent=events)),time=SimpleNamespace(sleep=mock.Mock()))
+        self.scope['native_tab_menu_shortcut']()
+        self.assertEqual(events.call_args_list,[mock.call(17,50,1,0),mock.call(17,76,1,0),mock.call(17,76,0,0),mock.call(17,50,0,0)])
+        events.reset_mock();keyboard.XKeysymToKeycode.side_effect=[50,0]
+        with self.assertRaisesRegex(RuntimeError,'lacks'):
+            self.scope['native_tab_menu_shortcut']()
+        events.assert_not_called()
 
 
 def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation, WailsIconControls):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation, WailsIconControls, WailsAccountLayout):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

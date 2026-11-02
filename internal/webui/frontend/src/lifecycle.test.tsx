@@ -23,7 +23,7 @@ async function mount(value: ReactNode) {
 async function rerender(value: ReactNode) { await act(async () => { root!.render(value); }); }
 async function dispatch(target: EventTarget, event: Event) { await act(async () => { target.dispatchEvent(event); }); }
 async function click(text: string) {
-  const button = [...host.querySelectorAll('button')].find(item => item.textContent === text);
+  const button = [...host.querySelectorAll('button')].find(item => item.textContent === text || item.getAttribute('aria-label') === text);
   expect(button, text).toBeDefined();
   await dispatch(button!, new MouseEvent('click', { bubbles: true }));
 }
@@ -122,7 +122,7 @@ describe('public renderer interaction and asynchronous lifetime', () => {
     const state = view(); state.Pages![0].Nodes = [node('button', 'refresh', 'Refresh')];
     const bridge = publicBridge(state), pending = deferred<boolean>();
     bridge.Event.mockImplementationOnce(() => pending.promise);
-    await mount(<PublicApp/>); await click('Refresh'); await click('Refresh');
+    await mount(<PublicApp/>); await click('Refresh wallet state'); await click('Refresh wallet state');
     expect(bridge.Event).toHaveBeenCalledTimes(1);
     await act(async () => { pending.resolve(false); });
     expect(bridge.Event).toHaveBeenCalledTimes(2);

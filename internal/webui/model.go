@@ -3,6 +3,7 @@
 package webui
 
 import (
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -10,19 +11,20 @@ import (
 type Option struct{ ID, Text string }
 type Node struct {
 	Kind, ID, Text, Value, Tooltip string
+	Error, InputMode               string
 	Disabled                       bool
 	Options                        []Option
 	Children                       []Node
 }
 type Page struct {
-	ID, Title string
-	Nodes     []Node
+	ID, Title, ParentID string
+	Nodes               []Node
 }
 type View struct {
-	Title, Status, Active string
-	StatusRevision        uint64
-	Pages                 []Page
-	Appearance            Appearance
+	Title, Status, Active, AccountGroupID string
+	StatusRevision                        uint64
+	Pages                                 []Page
+	Appearance                            Appearance
 }
 type Event struct{ ID, Value string }
 
@@ -56,7 +58,7 @@ func validateView(v View) bool {
 	if v.Appearance != (Appearance{}) && !v.Appearance.Valid() {
 		return false
 	}
-	if !plain(v.Title, 256) || !plain(v.Status, 65536) || !plain(v.Active, 256) || len(v.Pages) > 1000 {
+	if !plain(v.Title, 256) || !plain(v.Status, 65536) || !plain(v.Active, 256) || v.AccountGroupID != "" && !validGroupID(v.AccountGroupID) || len(v.Pages) > 1000 {
 		return false
 	}
 	remaining := 20000
@@ -67,7 +69,7 @@ func validateView(v View) bool {
 		}
 		for _, n := range list {
 			remaining--
-			if remaining < 0 || !plain(n.ID, 256) || !plain(n.Text, 65536) || !plain(n.Tooltip, 65536) || !plain(n.Value, 4096) || len(n.Options) > 10000 {
+			if remaining < 0 || !plain(n.ID, 256) || !plain(n.Text, 65536) || !plain(n.Tooltip, 65536) || !plain(n.Value, 4096) || !plain(n.Error, 1024) || n.InputMode != "" && (n.Kind != "entry" || n.InputMode != "decimal") || n.Error != "" && n.Kind != "entry" || len(n.Options) > 10000 {
 				return false
 			}
 			switch n.Kind {
@@ -99,12 +101,21 @@ func validateView(v View) bool {
 	}
 	ids := map[string]bool{}
 	for _, page := range v.Pages {
-		if page.ID == "" || ids[page.ID] || !plain(page.ID, 256) || !plain(page.Title, 256) || !nodes(page.Nodes, 0) {
+		if page.ID == "" || ids[page.ID] || !plain(page.ID, 256) || !plain(page.Title, 256) || page.ParentID != "" && (!strings.HasPrefix(page.ID, "wallet/") || !validGroupID(page.ParentID)) || !nodes(page.Nodes, 0) {
 			return false
 		}
 		ids[page.ID] = true
 	}
-	return true
+	return v.AccountGroupID == "" || ids[v.AccountGroupID]
+}
+
+func validGroupID(id string) bool {
+	if len(id) < 7 || len(id) > 16 || !strings.HasPrefix(id, "group/") {
+		return false
+	}
+	raw := strings.TrimPrefix(id, "group/")
+	n, err := strconv.ParseUint(raw, 10, 32)
+	return err == nil && strconv.FormatUint(n, 10) == raw
 }
 
 func validTransactionRows(rows []Node) bool {

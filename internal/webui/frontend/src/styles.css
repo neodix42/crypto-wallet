@@ -77,6 +77,7 @@
 .send-amount-field{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin:13px 0}
 .send-amount-field>.field{min-width:0;margin:0}
 .send-amount-field>button{min-height:45px;align-self:end;white-space:nowrap}
+.send-amount-error{grid-column:1 / -1}
 
 .pending-choices { border: 0; padding: 0; margin: 0; min-width: 0; }
 .pending-choices legend { margin-bottom: 0.5rem; }
@@ -99,3 +100,26 @@
 .receive-address-label{margin-bottom:7px}
 @media(max-width:800px){.app-identity{gap:12px}.build-metadata{font-size:.889rem}}
 @media(max-width:500px){.app-header{padding:10px 14px;min-height:76px;height:auto;gap:10px}.app-identity{align-items:flex-start;flex-direction:column;gap:4px}.build-metadata{max-width:none;text-align:left;font-size:.778rem}.utility-navigation{gap:5px}.utility-navigation .icon-button{width:38px;min-width:38px;height:38px;min-height:38px;padding:8px}.receive-address .copy-button{width:42px;min-width:42px}}
+
+/* Account groups own the first tab row; their wallets are nested below it. */
+.account-tabs{min-height:46px}
+.wallet-subtabs{display:flex;align-items:stretch;gap:5px;flex:none;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:thin;min-height:45px;padding-top:5px;padding-left:44px;background:var(--page)}
+.wallet-subtabs .tab>button{min-height:39px;padding-top:8px;padding-bottom:8px}
+.wallet-actions{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;margin:18px 0;padding:4px 3px 7px;scrollbar-width:thin}
+.wallet-actions>button{flex:none;white-space:nowrap}
+.utility-item{display:inline-flex;align-items:center;gap:8px}
+.utility-navigation .network-count{margin:0 10px 0 0;white-space:nowrap}
+.wallet-table .wallet-refresh-cell{padding-top:8px;padding-bottom:8px;text-align:right}
+.wallet-table .wallet-refresh-cell button{vertical-align:middle}
+.field-error{color:var(--error-text);font-size:.889rem;line-height:1.4}
+.field input[aria-invalid="true"]{border-color:var(--error-text)}
+@media(max-width:800px){.wallet-subtabs{padding-left:28px}.utility-navigation .network-count{font-size:.778rem;padding:5px 7px;margin-right:2px}}
+
+.recipient-error{grid-column:1 / -1}
+.node-row-error{flex-basis:100%;width:100%;margin:0}
+.account-add{align-self:center;margin-left:7px;margin-bottom:5px}
+.tab-context-menu{position:fixed;z-index:60;display:flex;flex-direction:column;gap:3px;width:200px;padding:6px;border:1px solid var(--border);border-radius:7px;background:var(--surface);box-shadow:0 6px 22px var(--shadow)}
+.tab-context-menu>button{justify-content:flex-start;background:transparent;border-color:transparent;min-height:40px}
+.tab-context-menu>button:hover,.tab-context-menu>button:focus{background:var(--hover)}
+
+.entry-action-row>.field{margin:0}

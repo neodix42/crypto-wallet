@@ -1,0 +1,128 @@
+[
+  {
+    "Title": "CryptoWallet",
+    "Status": "",
+    "Active": "group/0",
+    "AccountGroupID": "",
+    "StatusRevision": 0,
+    "Pages": [
+      {
+        "ID": "group/0",
+        "Title": "Main account",
+        "ParentID": "",
+        "Nodes": [
+          {
+            "Kind": "label",
+            "ID": "networkCount",
+            "Text": "8 networks",
+            "Value": "",
+            "Tooltip": "",
+            "Error": "",
+            "InputMode": "",
+            "Disabled": false,
+            "Options": null,
+            "Children": null
+          },
+          {
+            "Kind": "button",
+            "ID": "lock",
+            "Text": "Lock wallet",
+            "Value": "",
+            "Tooltip": "",
+            "Error": "",
+            "InputMode": "",
+            "Disabled": false,
+            "Options": null,
+            "Children": null
+          }
+        ]
+      },
+      {
+        "ID": "wallet/ethereum",
+        "Title": "Ethereum",
+        "ParentID": "",
+        "Nodes": [
+          {
+            "Kind": "entry",
+            "ID": "field/amount/ethereum",
+            "Text": "Amount",
+            "Value": "1e3",
+            "Tooltip": "",
+            "Error": "",
+            "InputMode": "",
+            "Disabled": false,
+            "Options": null,
+            "Children": null
+          }
+        ]
+      }
+    ],
+    "Appearance": {
+      "theme": "light",
+      "fontSize": 18
+    }
+  },
+  {
+    "Title": "CryptoWallet",
+    "Status": "",
+    "Active": "group/0",
+    "AccountGroupID": "group/0",
+    "StatusRevision": 0,
+    "Pages": [
+      {
+        "ID": "group/0",
+        "Title": "Main account",
+        "ParentID": "",
+        "Nodes": [
+          {
+            "Kind": "label",
+            "ID": "networkCount",
+            "Text": "8 networks",
+            "Value": "",
+            "Tooltip": "",
+            "Error": "",
+            "InputMode": "",
+            "Disabled": false,
+            "Options": null,
+            "Children": null
+          },
+          {
+            "Kind": "button",
+            "ID": "lock",
+            "Text": "Lock wallet",
+            "Value": "",
+            "Tooltip": "",
+            "Error": "",
+            "InputMode": "",
+            "Disabled": false,
+            "Options": null,
+            "Children": null
+          }
+        ]
+      },
+      {
+        "ID": "wallet/ethereum",
+        "Title": "Ethereum",
+        "ParentID": "group/0",
+        "Nodes": [
+          {
+            "Kind": "entry",
+            "ID": "field/amount/ethereum",
+            "Text": "Amount",
+            "Value": "1e3",
+            "Tooltip": "",
+            "Error": "Enter a positive decimal amount.",
+            "InputMode": "decimal",
+            "Disabled": false,
+            "Options": null,
+            "Children": null
+          }
+        ]
+      }
+    ],
+    "Appearance": {
+      "theme": "light",
+      "fontSize": 18
+    }
+  }
+]

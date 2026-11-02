@@ -60,6 +60,19 @@ func (a *App) preparePaymentDraft(account model.Account, draft model.Transfer, r
 	if a.state.Locked || !a.state.RecoveryConfirmed || a.planRevision != revision || a.active != "wallet/"+account.ID || a.paymentDraft(account) != draft {
 		return
 	}
+	validation := a.paymentValidation(account, draft)
+	if !validation.RecipientValid || !validation.AmountValid {
+		message := validation.RecipientError
+		if validation.RecipientValid {
+			message = validation.AmountError
+		}
+		if message == "" {
+			message = "Enter a valid recipient and a positive amount using the selected asset’s decimal precision."
+		}
+		a.notice(message)
+		a.render()
+		return
+	}
 	a.stopPaymentQuote()
 	ready := false
 	invalidPlan := false
