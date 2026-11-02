@@ -23,7 +23,11 @@ def check_go_policy():
     # This policy is deliberately independent of the implementation's method list:
     # public state can describe recovery completion, never a recovery secret. A new
     # DTO field needs explicit review here as well as its actual dispatch tests.
-    expected_snapshot = {'locked', 'walletExists', 'vaultState', 'environment', 'recoveryConfirmed', 'accounts', 'operations'}
+    # Reviewed account presentation is local public metadata, separate from
+    # immutable descriptors and secrets. Check its exact nested shape and types
+    # as well as explicitly allowing these two snapshot fields.
+    expected_snapshot = {'locked', 'walletExists', 'vaultState', 'environment', 'recoveryConfirmed',
+                         'accounts', 'operations', 'nextAccountIndex', 'presentation'}
     page_metadata = {'accountsCursor','totalAccounts','totalOperations','revision'}
     for name, typename, expected in [
         ('internal/signer/engine.go', 'Snapshot', expected_snapshot),
@@ -32,11 +36,18 @@ def check_go_policy():
         ('internal/signer/engine_public.go', 'JournalPage', {'operations','nextCursor','complete','revision','total'}),
         ('internal/walletcore/public_pages.go', 'journalPage', {'operations','nextCursor','complete','revision','total'}),
         ('internal/model/model.go', 'HistoryPage', {'entries','nextCursor','complete','scope'}),
+        ('internal/model/account_presentation.go', 'AccountPresentation', {'walletLabels','groupLabels','deletedGroups'}),
     ]:
         source = (root / name).read_text()
         dto = re.search(r'type ' + typename + r' struct\s*\{([^}]+)\}', source)
         assert dto, (name, 'missing public DTO')
         assert set(re.findall(r'json:"([^",]+)', dto.group(1))) == expected, (name, 'unreviewed public state fields')
+        if typename in ('Snapshot', 'snapshot'):
+            assert re.search(r'\bNextAccountIndex\s+\*uint32\s+`json:', dto.group(1)), (name, 'unreviewed next-index type')
+            assert re.search(r'\bPresentation\s+model\.AccountPresentation\s+`json:', dto.group(1)), (name, 'unreviewed presentation type')
+        if typename == 'AccountPresentation':
+            for field, value in [('WalletLabels','string'), ('GroupLabels','string'), ('DeletedGroups','bool')]:
+                assert re.search(r'\b'+field+r'\s+map\[string\]'+value+r'\s+`json:', dto.group(1)), (name, 'unreviewed presentation value type')
 
 
 def check_legacy_desktop():

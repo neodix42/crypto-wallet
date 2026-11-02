@@ -15,6 +15,33 @@ spec.loader.exec_module(surface)
 
 
 class SurfaceRouting(unittest.TestCase):
+    def test_reviewed_public_account_metadata_passes_exact_policy(self):
+        surface.check_go_policy()
+
+    def test_public_metadata_policy_rejects_secret_fields_and_changed_value_types(self):
+        files=('internal/walletsigner/main.go','internal/walletcore/main.go',
+               'internal/signer/engine.go','internal/signer/engine_public.go',
+               'internal/walletcore/public_pages.go','internal/model/model.go',
+               'internal/model/account_presentation.go')
+        mutations=(
+            ('internal/signer/engine.go','type Snapshot struct {','type Snapshot struct {\nSeed []byte `json:"seed"`'),
+            ('internal/model/account_presentation.go','type AccountPresentation struct {','type AccountPresentation struct {\nPassword string `json:"password"`'),
+            ('internal/walletcore/main.go','Presentation      model.AccountPresentation','Presentation      vault.Data'),
+            ('internal/signer/engine.go','NextAccountIndex  *uint32','NextAccountIndex  []byte'),
+            ('internal/model/account_presentation.go','map[string]string','map[string][]byte'),
+        )
+        for name, before, after in mutations:
+            with self.subTest(name=name,mutation=after), tempfile.TemporaryDirectory(prefix='surface-metadata-policy-') as temporary:
+                root=Path(temporary)
+                for source in files:
+                    destination=root/source;destination.parent.mkdir(parents=True,exist_ok=True)
+                    shutil.copy2(surface.root/source,destination)
+                target=root/name;source=target.read_text()
+                self.assertIn(before,source)
+                target.write_text(source.replace(before,after,1))
+                with mock.patch.object(surface,'root',root), self.assertRaisesRegex(AssertionError,'unreviewed'):
+                    surface.check_go_policy()
+
     def test_default_retains_legacy_and_current_mode_never_calls_it(self):
         for arguments, current in [([], False), (['--current-ui'], True)]:
             with self.subTest(arguments=arguments), mock.patch.object(surface, 'check_go_policy') as shared, \
