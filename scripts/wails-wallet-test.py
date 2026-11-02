@@ -1387,6 +1387,45 @@ def x11_selection_state():
             for name in ("CLIPBOARD","PRIMARY")}
     return {"focusWindow":focus.value,"selectionOwners":owners}
 
+def address_selection_single_line(context,rows,geometry,diagnostics,picture):
+    # PSM11 occasionally emits overlapping boxes over one rendered address.
+    # Decode only this already guard-checked, immutable public capture again
+    # as a single line. No expected clipboard value, glyph repair, fresh
+    # screen capture or ignored locator assertion enters this retry.
+    if context not in ("overview","wallet"):
+        raise RuntimeError("Single-line address retry requires a public context")
+    if diagnostics.get("window")!=list(geometry):
+        raise RuntimeError("Single-line address retry window changed")
+    x,y,w,h=geometry
+    column=diagnostics.get("column",[]);center=diagnostics.get("rowCenter")
+    if (len(column)!=2 or not isinstance(center,int) or picture is None
+        or not x<column[0]<column[1]<x+w or column[1]-column[0]<80
+        or not y<center-20<center+20<y+h or not 0<=x<x+w<=picture.width or not 0<=y<y+h<=picture.height):
+        raise RuntimeError("Single-line address retry bounds were invalid")
+    left,right=column;top,bottom=center-20,center+20
+    data=io.BytesIO()
+    crop=picture.crop((left,top,right,bottom))
+    crop.resize((crop.width*3,crop.height*3),Image.Resampling.LANCZOS).save(data,format="PNG")
+    raw=subprocess.check_output(["tesseract","stdin","stdout","--psm","7","tsv"],input=data.getvalue(),stderr=subprocess.DEVNULL)
+    decoded=[]
+    for line in raw.decode().splitlines()[1:]:
+        fields=line.split("\t")
+        if len(fields)!=12 or not fields[11].strip():continue
+        xx,yy,ww,hh=(int(fields[i])//3 for i in (6,7,8,9))
+        if not 0<=xx<xx+ww<=right-left or not 0<=yy<yy+hh<=40 or not 8<=hh<=36:
+            raise RuntimeError("Single-line address retry token exceeded its bounds")
+        fields[6:10]=[str(left+xx),str(top+yy),str(ww),str(hh)]
+        decoded.append(fields)
+    if len(decoded)!=1 or not re.fullmatch(r"0x[0-9a-fA-F]{40}",decoded[0][11]):
+        raise RuntimeError("Single-line address retry did not locate a unique complete token")
+    retained=[]
+    for row in rows:
+        xx,yy,ww,hh=(int(row[i]) for i in (6,7,8,9))
+        if left<xx+ww and xx<right and top<=yy+hh//2<=bottom:continue
+        retained.append(row)
+    diagnostics["singleLineRetry"]={"psm":7,"crop":[left,top,right,bottom],"capturedPixelsOnly":True}
+    return retained+decoded
+
 def selected_address_copy(context,expected_address):
     stage("Locate actual "+context+" public address before selecting it")
     sentinel=reset_public_clipboard()
@@ -1404,7 +1443,7 @@ def selected_address_copy(context,expected_address):
         for row in rows:
             row[6]=str(int(row[6])+x);row[7]=str(int(row[7])+y)
     else:
-        rows,_,geometry=public_rows(with_picture=True,with_geometry=True)
+        rows,captured,geometry=public_rows(with_picture=True,with_geometry=True)
         window,_=desktop.wait("CryptoWallet")
     locator={}
     if context!="overview":
@@ -1413,7 +1452,12 @@ def selected_address_copy(context,expected_address):
         picture=desktop.image().convert("RGB") if context=="receive" else public_picture()
         _,rect=address_icon_target(rows,picture,geometry)
         locator["copyIcon"]=list(rect)
-    try:point=address_selection_target(context,rows,geometry,locator)
+    try:
+        try:point=address_selection_target(context,rows,geometry,locator)
+        except RuntimeError as error:
+            if context=="receive" or str(error)!="Overlapping public address OCR chunks were ambiguous":raise
+            rows=address_selection_single_line(context,rows,geometry,locator,captured)
+            point=address_selection_target(context,rows,geometry,locator)
     finally:report.setdefault("addressSelectionLocator",[]).append(locator)
     report.setdefault("addressSelectionGeometry",[]).append({"view":context,"window":list(geometry),"point":list(point),
         "publicCodeBoxes":[[int(row[index]) for index in (6,7,8,9)] for row in rows if re.match(r"[0Oo][xX]",row[11])]})

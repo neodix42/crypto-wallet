@@ -18,7 +18,8 @@ HyperCore. Per-step operation IDs resume from encrypted storage without replay.
 | PASS, final scoped graphical | Six actual X11 Appearance/Bybit-cancellation/navigation/wizard checks on binary `19cd18aa…`, source-stable. `reports/exchange-wizard-final-appearance.json`. |
 | PASS, earlier full checkpoint | All 37 full graphical workflows and 26 measured fuzz targets pass before the final UI preview/driver follow-up. `reports/exchange-wizard-full-v2.json`, `reports/exchange-wizard-fuzz.log`. |
 | PASS, final portable recovery/execution | Final binary restores 24 descriptors independently and passes nine private-geth checks. `reports/exchange-wizard-recovery-final.log`, `reports/exchange-wizard-geth-final.log`. |
-| NOT_RUN | Exact-source hosted checks/publication for this wizard; authenticated real Bybit account/region/IP/whitelist and funded deposit/transfer/spot/withdrawal acceptance. Physical OS/Wayland matrix and independent review remain external. |
+| PASS, first publication | Normal release 0.1.43/build 41496791072, authenticated archive/source/version and six actual published-executable checks. The first hosted Wails job in run 41496791295 is FAIL on an overlapping public OCR locator; the separately documented driver fix retains all exact clipboard assertions. |
+| NOT_RUN | Hosted acceptance for the graphical-driver follow-up; real Bybit account/region/IP/whitelist and funded acceptance. Physical OS/Wayland and independent review remain external. |
 
 ## Exchange tab and independent deposit preflight — 2026-11-02
 

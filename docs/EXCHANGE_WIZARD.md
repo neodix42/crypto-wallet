@@ -110,6 +110,25 @@ Official contracts checked on 2026-11-02:
 [internal transfer](https://bybit-exchange.github.io/docs/v5/asset/transfer/create-inter-transfer),
 [safe account balances](https://bybit-exchange.github.io/docs/v5/asset/balance/account-coin-balance).
 
+## Hosted graphical-driver correction
+
+The first hosted wizard run (`7c40510`, run 41496791295) failed at public address
+selection: PSM11 produced a complete address box plus overlapping internal word
+boxes. Seven earlier steps passed, but that job is FAIL, not acceptance.
+The same issue was retained in the first local full attempt.
+
+The driver now retries that specific overlap using PSM7 on the already captured,
+guard-checked public address row. It requires one complete token in valid bounds
+and reruns the original strict locator. It cannot recapture a private window,
+change a glyph to the expected value, use an expected SDK address to locate text,
+or bypass any clipboard assertion. Every shortcut must still replace a fresh
+sentinel in an independent OS client with the independently derived full address.
+The original overlap, clipping, wrong-row and private-window guards remain.
+Three added decoder/capture tests bring the current helper suite to 217 passing
+checks; the actual seven-check clipboard campaign also passes source-stable.
+`reports/exchange-wizard-ocr-helper-tests.log`,
+`reports/exchange-wizard-ocr-clipboard.json`, `reports/exchange-wizard-ocr-test-ci.log`.
+
 ## Evidence checklist
 
 | State | Scope |
@@ -124,7 +143,7 @@ Official contracts checked on 2026-11-02:
 | PASS | Six actual X11 Appearance, masked Bybit cancellation, Exchange navigation and wizard draft checks on final binary `19cd18aa819256a9f38938c2ea44e52213f7e5d1d3bb1d1c912c5510fb5faed9`, stable sources. The wizard check is now included in the default hosted graphical path. `reports/exchange-wizard-final-appearance.json`. |
 | PASS, earlier checkpoint | All 37 full generated-root/fresh-copy graphical workflows and 26 executed fuzz targets pass source-stable before the final UI preview/driver follow-up. Final exact-source hosted full workflows remain separate below. `reports/exchange-wizard-full-v2.json`, `reports/exchange-wizard-fuzz.log`. |
 | PASS | Final binary independently restores all 24 wallet descriptors and passes nine actual private-geth checks, including unchanged-nonce/zero-approval refusal of an unrecorded quote. `reports/exchange-wizard-recovery-final.log`, `reports/exchange-wizard-geth-final.log`. |
-| NOT_RUN | Exact-source hosted checks and release publication for this wizard. |
+| PASS, first publication | Normal release 0.1.43 and build 41496791072 match `7c40510`; publisher/source/tag/version/archive inventory and downloaded bytes verify. Six actual checks on that authenticated published executable pass. This does not turn its failed hosted graphical run into acceptance. `reports/exchange-wizard-release/summary.json`, `reports/exchange-wizard-published.json`. The graphical-driver follow-up requires its own hosted result. |
 | NOT_RUN | Private Bybit account/region/IP/whitelist acceptance and funded deposit/transfer/spot/withdrawal. Physical OS/Wayland matrix and independent review. No real user secrets or automatic mainnet funds are used. |
 
 Development failures remain distinct in their logs: earlier UI assertions

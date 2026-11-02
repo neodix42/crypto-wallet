@@ -774,7 +774,7 @@ class WailsMainRowCopy(unittest.TestCase):
 class WailsPublicKeyboardCopy(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
-        names=('address_phrase_bounds','address_selection_target','native_copy_shortcut','public_words_position','wallet_page_visible','account_overview_visible')
+        names=('address_phrase_bounds','address_selection_target','address_selection_single_line','native_copy_shortcut','public_words_position','wallet_page_visible','account_overview_visible')
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
         self.desktop=SimpleNamespace(d=object())
         self.clock=SimpleNamespace(sleep=mock.Mock())
@@ -926,6 +926,59 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
                       [self.word('Network',160,450,90),self.word('Native',320,450,70),self.word('balance',400,450,75),self.word('Receive',500,450,75),self.word('address',585,450,80)]):
             with self.subTest(extra=extra[0][11]),self.assertRaisesRegex(RuntimeError,'not uniquely visible|left the account overview'):
                 self.target('overview',rows+extra,self.geometry)
+
+    def single_line(self,rows,context='overview',response=None,diagnostic=None):
+        diagnostic={} if diagnostic is None else diagnostic
+        if not diagnostic:
+            try:self.target(context,rows,self.geometry,diagnostic)
+            except RuntimeError:pass
+        # Original source pixels remain in memory. No expected address is
+        # supplied to the retry; this is only a coordinate/decoder fixture.
+        picture=Image.new('RGB',(1600,1100),(255,255,255))
+        if response is None:
+            response='header\n5\t1\t1\t1\t1\t1\t24\t33\t2100\t54\t99\t'+self.address+'\n'
+        def decode(command,**options):
+            self.assertEqual(command,['tesseract','stdin','stdout','--psm','7','tsv'])
+            with Image.open(io.BytesIO(options['input'])) as image:
+                left,right=diagnostic['column']
+                self.assertEqual(image.size,((right-left)*3,120))
+            return response.encode()
+        decoder=mock.Mock(side_effect=decode)
+        self.scope.update(io=io,Image=Image,subprocess=SimpleNamespace(check_output=decoder,DEVNULL=subprocess.DEVNULL))
+        result=self.scope['address_selection_single_line'](context,rows,self.geometry,diagnostic,picture)
+        decoder.assert_called_once()
+        self.assertNotIn(self.address,json.dumps(diagnostic))
+        return result,diagnostic
+
+    def test_single_line_retry_redecodes_the_captured_row_then_reuses_strict_locator(self):
+        rows,point=self.fixture('overview')
+        # PSM11 can produce one complete box and overlapping interior/suffix
+        # chunks with OCR-confused glyphs. The original locator still rejects
+        # them. A separate PSM7 decode must produce a unique complete token.
+        extra=[self.word('OOlI11',900,550,90),self.word('111l11I1',1000,550,120)]
+        with self.assertRaisesRegex(RuntimeError,'ambiguous'):self.target('overview',rows+extra,self.geometry)
+        retried,diagnostic=self.single_line(rows+extra)
+        self.assertEqual(self.target('overview',retried,self.geometry),point)
+        self.assertEqual(diagnostic['singleLineRetry']['psm'],7)
+        self.assertEqual(rows[-1][11],self.address)
+
+    def test_single_line_retry_does_not_accept_missing_foreign_or_duplicate_prefixes(self):
+        rows,_=self.fixture('overview')
+        for tokens in ([],['0x12'],['not-an-address'],[self.address,self.address],['0x'+'g'*40]):
+            response='header\n'+''.join('5\t1\t1\t1\t1\t1\t24\t33\t2100\t54\t99\t'+token+'\n' for token in tokens)
+            with self.subTest(tokens=len(tokens)),self.assertRaisesRegex(RuntimeError,'unique complete'):
+                self.single_line(rows,response=response)
+
+    def test_single_line_retry_rejects_changed_window_private_context_and_clipped_tokens(self):
+        rows,_=self.fixture('overview');diagnostic={};self.target('overview',rows,self.geometry,diagnostic)
+        self.scope.update(io=io,Image=Image,subprocess=SimpleNamespace(check_output=mock.Mock(side_effect=AssertionError('decoder must not run')),DEVNULL=subprocess.DEVNULL))
+        for context,change in (('receive',{}),('overview',{'window':[1,2,3,4]}),('overview',{'column':[20,1700]}),('overview',{'rowCenter':100})):
+            bad=dict(diagnostic);bad.update(change)
+            with self.subTest(context=context,change=change),self.assertRaisesRegex(RuntimeError,'bounds|context|window'):
+                self.scope['address_selection_single_line'](context,rows,self.geometry,bad,Image.new('RGB',(1600,1100)))
+        response='header\n5\t1\t1\t1\t1\t1\t-3\t33\t2100\t54\t99\t'+self.address+'\n'
+        with self.assertRaisesRegex(RuntimeError,'bounds'):
+            self.single_line(rows,response=response)
 
     def test_chunk_fallback_cannot_cross_address_column_or_copy_button(self):
         for context in ('overview','wallet','receive'):
