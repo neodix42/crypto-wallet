@@ -12,9 +12,25 @@ checks, complete affected-package races, vet and portable build; all 81 mutants
 in ten stable-source campaigns killed. Actual stable-source GUI campaigns pass
 three dedicated and six appearance checks, including both stablecoin selections
 in steps 2/4/5 and all five available-balance tables. The earlier failed viewport
-assumption is retained separately. Exact-source hosted CI and publication for
-this amendment remain NOT_RUN until recorded. Live authenticated funded Bybit
-acceptance remains NOT_RUN.
+assumption is retained separately.
+[Build/release 41712718781](https://github.com/neodix42/crypto-wallet/actions/runs/41712718781)
+and [release 0.1.53](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.53)
+pass publisher/source/tag/version/archive verification for
+`616e87183d19eb5ae932f4884b5c7d9157c28a42`. The authenticated downloaded binary
+passes three actual stable-source X11 checks, including all five stablecoin
+tables and six independent selections.
+Wails job 126184658919 in [tests 41712718680](https://github.com/neodix42/crypto-wallet/actions/runs/41712718680)
+passes all steps. Independently verified artifact 13271180032 contains nine
+source/binary-bound reports: 38 full GUI, five TON, seven recovery and nine
+actual private-geth checks. All five stablecoin tables and six USDT/USDC
+selections are explicitly recorded. Both jobs and every step in that exact-source
+test run succeeded. Backend artifact 13270987195 independently verifies all
+30 report gates, 81 mutants/ten campaigns, 26 measured fuzz targets, 13 local
+integrations and 24 recovered descriptors/eight networks. All 8,952 reported
+source-hash comparisons match 1,704 unique exact-Git files, with zero mismatches.
+`reports/exchange-stablecoin-hosted-checks/verification.json`,
+`reports/exchange-stablecoin-hosted-checks/summary.json`.
+Live authenticated funded Bybit acceptance remains NOT_RUN.
 
 ## Available-funds Exchange actions without old-operation waits — 2026-11-03
 
