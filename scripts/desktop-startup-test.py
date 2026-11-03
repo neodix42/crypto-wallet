@@ -2822,6 +2822,93 @@ class WailsIconControls(unittest.TestCase):
 
 
 
+class WailsExchangeStepNavigation(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
+        names=('exchange_step_target','click_exchange_step')
+        self.scope={'re':re}
+        exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names],type_ignores=[]),'exchange-step-navigation','exec'),self.scope)
+        self.bounds=(80,32,1440,1036)
+    def row(self,text,x,y,width=70):
+        return ['5','1','1','1','1','1',str(x),str(y),str(width),'22','99',text]
+    def fixture(self,separator='→'):
+        rows=[self.row('Bybit',140,240,65),self.row('Exchange',218,240,120),
+              self.row('Network',140,420,90),self.row('/',236,420,10),self.row('source',256,420,70),self.row('account',335,420,85),
+              self.row('Deposit',180,320,90),self.row('Funding',400,320,90),self.row(separator,496,320,20),self.row('Unified',525,320,90),
+              self.row('Swap',725,320,70),self.row('Unified',925,320,90),self.row(separator,1021,320,20),self.row('Funding',1050,320,90),
+              self.row('Withdraw',1270,320,110)]
+        return rows
+    def target(self,step,rows=None,diagnostics=None):
+        return self.scope['exchange_step_target'](step,self.fixture() if rows is None else rows,self.bounds,diagnostics)
+    def test_all_five_steps_use_owned_labels_without_numbered_circle_ocr(self):
+        for step,expected in ((1,(225,331)),(2,(507,331)),(3,(760,331)),(4,(1032,331)),(5,(1325,331))):
+            diagnostic={}
+            self.assertEqual(self.target(step,diagnostics=diagnostic),expected)
+            self.assertEqual(diagnostic['region'],[92,264,1508,418])
+            self.assertFalse(diagnostic['digitRequired'])
+    def test_arrow_digit_or_punctuation_does_not_change_direction(self):
+        for separator in ('→','->','>','=','4','?'):
+            with self.subTest(separator=separator):
+                self.assertEqual(self.target(2,self.fixture(separator)),(507,331))
+                self.assertEqual(self.target(4,self.fixture(separator)),(1032,331))
+        rows=self.fixture();rows=[r for r in rows if r[11]!='→']
+        self.assertEqual(self.target(4,rows),(1032,331))
+        rows=[r for r in rows if int(r[6]) not in (925,1050)]+[self.row('4Unified→Funding',925,320,215)]
+        self.assertEqual(self.target(4,rows),(1032,331))
+    def test_reversed_or_foreign_words_cannot_select_the_other_direction(self):
+        for mode in ('reversed','foreign','wrapped','distant'):
+            rows=[r for r in self.fixture() if not (int(r[6]) in (925,1021,1050))]
+            if mode=='reversed':rows += [self.row('Funding',925,320,90),self.row('Unified',1050,320,90)]
+            if mode=='foreign':rows += [self.row('Unified',925,320,90),self.row('Trade',1018,320,27),self.row('Funding',1050,320,90)]
+            if mode=='wrapped':rows += [self.row('Unified',925,320,90),self.row('Funding',1050,355,90)]
+            if mode=='distant':rows += [self.row('Unified',925,320,90),self.row('Funding',1350,320,90)]
+            # A correct economic heading below the source fields is never navigation.
+            rows += [self.row('Move',140,500,60),self.row('Unified',210,500,90),self.row('Funding',335,500,90)]
+            with self.subTest(mode=mode),self.assertRaisesRegex(RuntimeError,'direction was not uniquely'):
+                self.target(4,rows)
+    def test_duplicate_step_labels_are_ambiguous_but_economic_controls_outside_band_are_ignored(self):
+        rows=self.fixture()+[self.row('Swap',180,500),self.row('Unified',210,540,90),self.row('Funding',335,540,90)]
+        self.assertEqual(self.target(3,rows),(760,331))
+        self.assertEqual(self.target(4,rows),(1032,331))
+        for extra in ([self.row('Unified',925,365,90),self.row('Funding',1050,365,90)],[self.row('Swap',725,365,70)]):
+            with self.subTest(step=4 if len(extra)==2 else 3),self.assertRaisesRegex(RuntimeError,'direction was not uniquely'):
+                self.target(4 if len(extra)==2 else 3,rows+extra)
+    def test_anchors_must_be_unique_complete_ordered_and_inside_owned_geometry(self):
+        rows=self.fixture()
+        for bad in ([r for r in rows if r[11]!='Bybit'],[r for r in rows if r[11]!='account'],
+                    rows+[self.row('Bybit',140,200,65),self.row('Exchange',218,200,120)],
+                    rows+[self.row('Network/source',140,465,185),self.row('account',335,465,85)]):
+            with self.subTest(rows=len(bad)),self.assertRaisesRegex(RuntimeError,'anchors were not uniquely'):
+                self.target(4,bad)
+        for index,value in ((7,'200'),(6,'10')):
+            bad=[list(r) for r in rows]
+            for row in bad:
+                if row[11] in ('Network','/','source','account'):row[index]=value
+            with self.subTest(index=index),self.assertRaisesRegex(RuntimeError,'anchors|band'):
+                self.target(4,bad)
+        for step in (0,6,True,'4'):
+            with self.subTest(step=step),self.assertRaisesRegex(RuntimeError,'Unknown Exchange'):
+                self.target(step)
+        with self.assertRaisesRegex(RuntimeError,'owned public display'):
+            self.scope['exchange_step_target'](4,rows,(80,32,1600,1100))
+    def test_stepper_can_wrap_as_whole_buttons_and_source_slash_can_share_a_word(self):
+        rows=[list(r) for r in self.fixture()]
+        for row in rows:
+            if int(row[6])>=925 and int(row[7])==320:row[7]='365'
+        rows=[r for r in rows if r[11] not in ('Network','/','source')]+[self.row('Network/source',140,420,185)]
+        self.assertEqual(self.target(4,rows),(1032,376))
+    def test_click_rechecks_owned_geometry_and_private_guard_before_input(self):
+        clicks=mock.Mock();desktop=SimpleNamespace(wait=mock.Mock(return_value=(7,'CryptoWallet')),secret_window=mock.Mock(return_value=False),geometry=mock.Mock(return_value=self.bounds),focus=mock.Mock(),click=clicks,park_pointer=mock.Mock())
+        self.scope.update(public_rows=mock.Mock(return_value=(self.fixture(),object(),self.bounds)),desktop=desktop,time=SimpleNamespace(sleep=mock.Mock()),text=mock.Mock(return_value='4. Move Unified to Funding'),wait=lambda condition: self.assertTrue(condition()),PrivateWindowVisible=RuntimeError,report={})
+        self.scope['click_exchange_step'](4,'Move Unified to Funding')
+        clicks.assert_called_once_with(1032,331)
+        self.assertEqual(self.scope['report']['exchangeStepNavigation'][0]['step'],4)
+        clicks.reset_mock();desktop.geometry.return_value=(81,32,1440,1036)
+        with self.assertRaisesRegex(RuntimeError,'moved before'):self.scope['click_exchange_step'](4,'Move Unified to Funding')
+        clicks.assert_not_called();desktop.geometry.return_value=self.bounds;desktop.secret_window.return_value=True
+        with self.assertRaisesRegex(RuntimeError,'Private dialog'):self.scope['click_exchange_step'](4,'Move Unified to Funding')
+        clicks.assert_not_called()
+
 class WailsAccountLayout(unittest.TestCase):
     def setUp(self):
         tree=ast.parse((ROOT/'scripts/wails-wallet-test.py').read_text())
@@ -3029,7 +3116,7 @@ def load_tests(loader, tests, pattern):
     if not CURRENT_UI:
         return tests
     current = unittest.TestSuite()
-    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation, WailsIconControls, WailsAccountLayout, WailsOperationalErrorDialogs):
+    for case in (WailsDisplayStartup, WailsInWindowDialogs, WailsPrivateStartup, WailsMainRowCopy, WailsPublicKeyboardCopy, WailsNearTokenPresentation, WailsNearNavigation, WailsPublicContractOCR, WailsAppearanceCapture, WailsOwnedServerGuard, WailsPrivateCopyNavigation, WailsEVMAssetSelector, WailsEVMContractTooltip, WailsEVMContractDecoder, WailsHostedFontFamilies, WailsAddressBookPublicObservation, WailsPrivatePhraseGrid, WailsSendAmountGeometry, WailsTONProfileRecovery, WailsExactPhraseObservation, WailsIconControls, WailsExchangeStepNavigation, WailsAccountLayout, WailsOperationalErrorDialogs):
         current.addTests(loader.loadTestsFromTestCase(case))
     return current
 

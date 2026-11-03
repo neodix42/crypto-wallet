@@ -2388,6 +2388,73 @@ def exchange_tab_campaign():
     report["exchangeTabNavigation"]={"accountRow":True,"singleTab":True,"preservedAcrossNavigation":True,"middleClose":True,"keyboardClose":True,"returnedToAccount":True,"credentialsOrPayments":False}
     passed("Actual middle-click and keyboard close remove Exchange, return to its remembered account and permit reopening without credentials or funds")
 
+def exchange_step_target(number,rows,geometry,diagnostics=None):
+    # Static words locate navigation only. OCR may omit the numbered circle or
+    # render the arrow as punctuation/a digit; neither supplies its identity.
+    # Direction, unique page anchors and owned geometry remain mandatory.
+    labels={1:("deposit",),2:("funding","unified"),3:("swap",),4:("unified","funding"),5:("withdraw",)}
+    if type(number) is not int or number not in labels:
+        raise RuntimeError("Unknown Exchange navigation step")
+    x,y,w,h=geometry
+    if min(x,y)<0 or min(w,h)<200 or x+w>1600 or y+h>1100:
+        raise RuntimeError("Exchange navigation exceeds the owned public display")
+    def phrases(wanted,region):
+        left,top,right,bottom=region
+        lines=[]
+        for index,row in enumerate(rows):
+            if len(row)!=12:continue
+            xx,yy,ww,hh=(int(row[i]) for i in (6,7,8,9))
+            if not (ww>0 and 8<=hh<=36 and left<xx<xx+ww<right and top<yy<yy+hh<bottom):continue
+            words=re.findall(r"[^\W\d_]+",row[11].casefold())
+            if not words:continue
+            center=yy+hh/2
+            line=next((line for line in lines if abs(line[0]-center)<=6),None)
+            if line is None:line=[center,[]];lines.append(line)
+            line[1].append((xx,yy,ww,hh,index,words))
+        found=[]
+        for _,line in lines:
+            tokens=[(word,box) for box in sorted(line,key=lambda value:value[0]) for word in box[5]]
+            for start in range(len(tokens)-len(wanted)+1):
+                match=tokens[start:start+len(wanted)]
+                if tuple(word for word,_ in match)!=wanted:continue
+                boxes=[]
+                for _,box in match:
+                    if not boxes or box[4]!=boxes[-1][4]:boxes.append(box)
+                if any(not 0<=after[0]-before[0]-before[2]<=max(64,after[3]*3)
+                       or abs(after[1]+after[3]/2-before[1]-before[3]/2)>6
+                       for before,after in zip(boxes,boxes[1:])):continue
+                found.append((boxes[0][0],min(box[1] for box in boxes),boxes[-1][0]+boxes[-1][2],max(box[1]+box[3] for box in boxes)))
+        return found
+    owned=(x,y,x+w,y+h-31)
+    titles=phrases(("bybit","exchange"),owned)
+    sources=phrases(("network","source","account"),owned)
+    if len(titles)!=1 or len(sources)!=1:
+        raise RuntimeError("Exchange navigation anchors were not uniquely visible")
+    title,source=titles[0],sources[0]
+    region=(x+12,title[3]+2,x+w-12,source[1]-2)
+    if not 30<=region[3]-region[1]<=300:
+        raise RuntimeError("Exchange navigation band was incomplete or ambiguous")
+    matches=phrases(labels[number],region)
+    if len(matches)!=1:
+        raise RuntimeError("Exchange navigation direction was not uniquely visible")
+    rect=matches[0]
+    if diagnostics is not None:
+        diagnostics.update(step=number,window=list(geometry),region=list(region),label=list(rect),digitRequired=False)
+    return ((rect[0]+rect[2])//2,(rect[1]+rect[3])//2)
+
+def click_exchange_step(number,heading):
+    rows,_,geometry=public_rows(with_geometry=True)
+    observed={}
+    point=exchange_step_target(number,rows,geometry,observed)
+    window,_=desktop.wait("CryptoWallet")
+    if desktop.secret_window():raise PrivateWindowVisible("Private dialog appeared before Exchange navigation")
+    if desktop.geometry(window)!=geometry:
+        raise RuntimeError("Exchange window moved before navigation")
+    desktop.focus(window);desktop.click(*point);desktop.park_pointer();time.sleep(.25)
+    wait(lambda:heading in text())
+    if desktop.secret_window():raise RuntimeError("Exchange navigation requested private approval")
+    report.setdefault("exchangeStepNavigation",[]).append(observed)
+
 def exchange_wizard_draft_campaign():
     click("Exchange",top=True);scroll_public(4,35)
     wait(lambda:"Bybit Exchange" in text() and "Connect your Bybit account in Settings" in text())
@@ -2406,9 +2473,8 @@ def exchange_wizard_draft_campaign():
     wait(lambda:"Enter a positive ETH amount" not in text())
     if "Bybit deposit address:" in text():raise RuntimeError("Disconnected wizard invented an exchange deposit address")
     navigation=[]
-    for number,control,heading in ((3,"Swap","Swap on Spot"),(2,"Funding","Move Funding to Unified"),(4,"4","Move Unified to Funding"),(5,"Withdraw","Withdraw to wallet"),(1,"Deposit","Deposit to Funding")):
-        click(control)
-        wait(lambda heading=heading:heading in text())
+    for number,heading in ((3,"Swap on Spot"),(2,"Move Funding to Unified"),(4,"Move Unified to Funding"),(5,"Withdraw to wallet"),(1,"Deposit to Funding")):
+        click_exchange_step(number,heading)
         if desktop.secret_window():raise RuntimeError("Exchange step navigation requested private approval")
         navigation.append(number)
     if "Connect your Bybit account in Settings" not in text():raise RuntimeError("Disconnected navigation invented an authenticated exchange session")
@@ -2417,8 +2483,8 @@ def exchange_wizard_draft_campaign():
 
 def exchange_input_campaign():
     exchange_wizard_draft_campaign()
-    click("Swap")
-    wait(lambda:"Swap on Spot" in text() and "Amount to spend" in text())
+    click_exchange_step(3,"Swap on Spot")
+    wait(lambda:"Amount to spend" in text())
     if "Manage existing Bybit funds" in text():raise RuntimeError("Removed legacy Bybit controls remain reachable")
     def fill(label,value):
         point=wait(lambda:public_words_position(label))
