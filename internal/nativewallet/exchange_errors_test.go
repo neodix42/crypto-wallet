@@ -27,3 +27,14 @@ func TestExchangeReadDialogsShowExactStageCodeAndReasonWithoutSecretText(t *test
 		}
 	}
 }
+
+func TestDepositCreditErrorsShowSpecificFixedReasonWithoutPrivateValues(t *testing.T) {
+	for cause, hint := range map[string]string{"DEPOSIT_RECORD_ID": "unique record ID", "DEPOSIT_RECORD_TRANSACTION": "transaction identity", "DEPOSIT_RECORD_REVIEW": "Travel Rule review", "CREDIT_ADDRESS": "receiving address", "CREDIT_SOURCE": "sender", "CREDIT_MEMO": "memo", "CREDIT_FEE": "fee"} {
+		a, _, _ := fixture(t)
+		a.reportError("Move to Unified", fmt.Errorf("PRIVATE_PROVIDER_BODY_CANARY: %w", ipc.NewExchangeReadError("DEPOSIT_CREDIT", cause)))
+		view := a.view()
+		if view.ErrorNotice == nil || !strings.Contains(view.ErrorNotice.Message, hint) || strings.Contains(viewText(view), "CANARY") || view.Status != "" {
+			t.Fatal("deposit reason was generic, leaked private data or entered status bar", cause, view.ErrorNotice)
+		}
+	}
+}

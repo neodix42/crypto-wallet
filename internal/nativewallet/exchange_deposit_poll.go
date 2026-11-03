@@ -37,7 +37,7 @@ func (a *App) notifyWizardDepositConfirmed(u *exchangeWizardUI, check *wizardDep
 		return
 	}
 	if u.state != nil && u.state.TransferOperation == "" && check.Ready && check.ReportedAmount != "" {
-		value, limit := a.fields["wizardTransferAmount"], wizardTransferLimit(check)
+		value, limit := a.fields["wizardTransferAmount"], a.wizardSuggestedTransfer(check)
 		if value == "" || value == u.state.DepositAmount || !wizardAtMost(value, limit) {
 			a.fields["wizardTransferAmount"] = limit
 		}

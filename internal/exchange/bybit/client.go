@@ -472,38 +472,13 @@ func (c *Client) WithdrawalRecords(ctx context.Context, coin, id, cursor string)
 	return r, nil
 }
 func (c *Client) DepositRecords(ctx context.Context, coin, txID, cursor string) (DepositPage, error) {
-	var raw struct {
-		Rows           []json.RawMessage `json:"rows"`
-		NextPageCursor string            `json:"nextPageCursor"`
-	}
+	var raw map[string]json.RawMessage
 	r := DepositPage{Rows: []DepositRecord{}}
 	q := url.Values{"coin": {coin}, "txID": {txID}, "limit": {"50"}}
 	if e := c.get(ctx, "/v5/asset/deposit/query-record", cursorQuery(q, cursor), true, &raw); e != nil {
-		return r, e
+		return r, depositRecordResponseError(e)
 	}
-	r.NextPageCursor = raw.NextPageCursor
-	if raw.Rows == nil || len(raw.Rows) > 50 || !validCursor(r.NextPageCursor) || (r.NextPageCursor != "" && r.NextPageCursor == cursor) {
-		return DepositPage{}, ErrInvalidResponse
-	}
-	seen := map[string]bool{}
-	for _, row := range raw.Rows {
-		var d DepositRecord
-		if !required(row, "id", "coin", "chain", "amount", "txID", "status", "toAddress", "tag", "depositType") || json.Unmarshal(row, &d) != nil {
-			return DepositPage{}, ErrInvalidResponse
-		}
-		var fields map[string]json.RawMessage
-		_ = json.Unmarshal(row, &fields)
-		_, d.TravelRuleStatusPresent = fields["travelRuleStatus"]
-		if d.TravelRuleStatusPresent && !required(row, "travelRuleStatus") {
-			return DepositPage{}, ErrInvalidResponse
-		}
-		if d.Coin != coin || !SameDepositTransactionHash(d.TxID, txID) || !identifier(d.ID, 128) || seen[d.ID] || !identifier(d.Chain, 40) || !decimal(d.Amount, true) || !boundedText(d.ToAddress, 256, false) || !boundedText(d.FromAddress, 256, true) || !boundedText(d.Tag, 120, true) || d.Status < 0 || d.Status > 100 || (d.DepositFee != "" && !decimal(d.DepositFee, false)) || !boundedText(d.SuccessAt, 32, true) || !boundedText(d.Confirmations, 64, true) || !boundedText(d.DepositType, 16, true) || d.TravelRuleStatus < 0 || d.TravelRuleStatus > 3 {
-			return DepositPage{}, ErrInvalidResponse
-		}
-		seen[d.ID] = true
-		r.Rows = append(r.Rows, d)
-	}
-	return r, nil
+	return parseDepositRecords(raw, coin, txID, cursor)
 }
 
 // Some TON APIs return a 32-byte transaction hash as hex and others as base64.

@@ -342,7 +342,7 @@ func (a *App) exchangeWizardPage() []webui.Node {
 			}
 		}
 		if len(u.balances) > 0 && !exchangeInputAtLeast(wizardAvailable(u.balances, "FUND", asset.Symbol), a.fields["wizardTransferAmount"]) {
-			nodes = append(nodes, label("Funding does not yet have enough available funds. If Bybit auto-transferred the deposit to Unified, change that setting or move the funds back to Funding in Bybit before continuing."))
+			nodes = append(nodes, label("The amount to move exceeds the current Funding availability. Receiving or deposit fees can make this lower than the on-chain amount. Once credit is verified, the suggested amount uses the available Funding balance."))
 		}
 		field := a.entry("wizardTransferAmount", "Amount to move ("+asset.Symbol+")")
 		field.InputMode = "decimal"
@@ -354,6 +354,8 @@ func (a *App) exchangeWizardPage() []webui.Node {
 		valid := wizardPositive(field.Value, asset.Decimals) && wizardAtMost(field.Value, ceiling)
 		if field.Value != "" && !valid {
 			field.Error = "Enter a positive amount no greater than the credited deposit."
+		} else if field.Value != "" && wizardAvailable(u.balances, "FUND", asset.Symbol) != "" && !exchangeInputAtLeast(wizardAvailable(u.balances, "FUND", asset.Symbol), field.Value) {
+			field.Error = "Amount exceeds the currently available Funding balance."
 		}
 		nodes = append(nodes, field, a.button("wizardRefreshFunding", "Refresh Funding / Unified balances", disabled))
 		if w.TransferOperation == "" {
@@ -690,6 +692,35 @@ func (a *App) wizardSetWithdrawalDefault() {
 	if e == nil {
 		a.fields["wizardWithdrawAmount"] = trimDecimal(formatted)
 	}
+}
+
+// The authenticated Funding balance can be smaller than the original chain
+// amount after receiving fees. It limits the suggested debit, never proves
+// deposit credit and never changes a recorded transfer.
+func (a *App) wizardSuggestedTransfer(check *wizardDepositCredit) string {
+	if check == nil {
+		return ""
+	}
+	limit := wizardTransferLimit(check)
+	_, asset, ok := a.wizardSource()
+	if !ok || asset.Decimals > 36 {
+		return limit
+	}
+	available := wizardAvailable(check.Balances, "FUND", asset.Symbol)
+	if available == "" || !wizardAtMost(available, limit) {
+		return limit
+	}
+	value, err := exchangeInputAtomic(available)
+	if err != nil {
+		return limit
+	}
+	step := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(36-asset.Decimals)), nil)
+	value.Quo(value, step).Mul(value, step)
+	formatted, err := amount.Format(value.String(), 36)
+	if err != nil {
+		return limit
+	}
+	return trimDecimal(formatted)
 }
 
 func (a *App) wizardField(key string) bool {

@@ -470,7 +470,11 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 		if check.ReadError == "" {
 			check.ReadError = ipc.PublicErrorCode(exchangeReadFailure(stage, err))
 		}
-		check.Message = "The original deposit is confirmed on-chain, but Bybit credit or account balances could not be verified (" + check.ReadError + "). Checking again does not send another deposit or authorize an exchange transfer."
+		reason := exchangeDepositCreditReason(check.ReadError)
+		if reason == "" {
+			reason = "Bybit credit or account balances could not be verified."
+		}
+		check.Message = "The original deposit is confirmed on-chain. " + reason + " (" + check.ReadError + ") Checking again does not send another deposit or authorize an exchange transfer."
 		return check, nil
 	}
 	// Show both actual account balances after delivery, independently of how
@@ -511,7 +515,7 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 			}
 		}
 		if len(identities) == 0 {
-			return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+			return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "TRANSACTION"})
 		}
 		check.TransactionID = identities[0]
 	}
@@ -532,11 +536,23 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 				if !sameTx {
 					continue
 				}
-				if record.Coin != asset.Symbol || record.Chain != chain.Chain || !exchangeSameAddress(account.Network, record.ToAddress, op.Plan.Recipient) || record.Tag != op.Plan.Memo || record.FromAddress != "" && !exchangeSameAddress(account.Network, record.FromAddress, account.Address) {
-					return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+				if record.Coin != asset.Symbol {
+					return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "COIN"})
+				}
+				if record.Chain != chain.Chain {
+					return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "CHAIN"})
+				}
+				if !exchangeSameAddress(account.Network, record.ToAddress, op.Plan.Recipient) {
+					return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "ADDRESS"})
+				}
+				if record.Tag != op.Plan.Memo {
+					return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "MEMO"})
+				}
+				if record.FromAddress != "" && !exchangeSameAddress(account.Network, record.FromAddress, account.Address) {
+					return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "SOURCE"})
 				}
 				if matched != nil {
-					return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+					return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "DUPLICATE"})
 				}
 				copy := record
 				matched = &copy
@@ -545,7 +561,7 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 				break
 			}
 			if seen[result.NextPageCursor] || page == 9 {
-				return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+				return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "PAGINATION"})
 			}
 			seen[result.NextPageCursor] = true
 			cursor = result.NextPageCursor
@@ -565,11 +581,11 @@ func (c *core) exchangeDepositCheckAt(epoch uint64, ctx context.Context, client 
 	check.ReportedAmount, check.DepositFee = matched.Amount, matched.DepositFee
 	credited, creditErr := exchangeAtomic(matched.Amount)
 	if creditErr != nil || credited.Sign() <= 0 || !exchangeAtLeast(deposited, matched.Amount) {
-		return readFailure("DEPOSIT_CREDIT", bybit.ErrInvalidResponse)
+		return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "AMOUNT"})
 	}
 	budget, budgetErr := exchangeDepositTransferBudget(deposited, matched.Amount, matched.DepositFee, asset.Decimals)
 	if budgetErr != nil {
-		return readFailure("DEPOSIT_CREDIT", budgetErr)
+		return readFailure("DEPOSIT_CREDIT", &exchangeDepositCreditError{Field: "FEE"})
 	}
 	if matched.Status != 3 || matched.DepositType != "0" || matched.TravelRuleStatus != 0 {
 		check.Message = "Bybit reports this deposit pending, restricted or under review. Complete any required checks with Bybit; no transfer is authorized."

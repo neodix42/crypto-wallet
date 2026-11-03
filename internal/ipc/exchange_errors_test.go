@@ -35,3 +35,22 @@ func TestExchangeReadDiagnosticsRejectTextAndKeepCanonicalNumericCodes(t *testin
 		}
 	}
 }
+
+func TestDepositCreditDiagnosticsOnlyAdmitFixedFieldsAtCreditStage(t *testing.T) {
+	causes := []string{"DEPOSIT_RECORD_RESPONSE", "DEPOSIT_RECORD_PAGE", "DEPOSIT_RECORD_CURSOR", "DEPOSIT_RECORD_ID", "DEPOSIT_RECORD_COIN", "DEPOSIT_RECORD_TRANSACTION", "DEPOSIT_RECORD_CHAIN", "DEPOSIT_RECORD_AMOUNT", "DEPOSIT_RECORD_ADDRESS", "DEPOSIT_RECORD_SOURCE", "DEPOSIT_RECORD_MEMO", "DEPOSIT_RECORD_STATUS", "DEPOSIT_RECORD_FEE", "DEPOSIT_RECORD_TIME", "DEPOSIT_RECORD_CONFIRMATIONS", "DEPOSIT_RECORD_TYPE", "DEPOSIT_RECORD_REVIEW", "CREDIT_TRANSACTION", "CREDIT_COIN", "CREDIT_CHAIN", "CREDIT_ADDRESS", "CREDIT_SOURCE", "CREDIT_MEMO", "CREDIT_DUPLICATE", "CREDIT_PAGINATION", "CREDIT_AMOUNT", "CREDIT_FEE"}
+	for _, cause := range causes {
+		code := PublicErrorCode(NewExchangeReadError("DEPOSIT_CREDIT", cause))
+		stage, field, ok := ExchangeReadErrorParts(code)
+		if !ok || stage != "DEPOSIT_CREDIT" || field != cause || SafeErrorCode(code) != code {
+			t.Fatal("fixed deposit diagnostic was lost", code)
+		}
+		if PublicErrorCode(NewExchangeReadError("KEY", cause)) != "REQUEST_FAILED_STATE_UNKNOWN" {
+			t.Fatal("deposit diagnostic admitted for unrelated endpoint", cause)
+		}
+	}
+	for _, cause := range []string{"DEPOSIT_RECORD_API_KEY_CANARY", "CREDIT_PRIVATE_RESPONSE_CANARY", "DEPOSIT_RECORD_MEMO/secret", "CREDIT_FEE\nsecret"} {
+		if PublicErrorCode(NewExchangeReadError("DEPOSIT_CREDIT", cause)) != "REQUEST_FAILED_STATE_UNKNOWN" {
+			t.Fatal("provider text entered deposit diagnostic", cause)
+		}
+	}
+}

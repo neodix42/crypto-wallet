@@ -1,5 +1,22 @@
 # Implementation and release evidence
 
+## Bybit credit-record diagnostics and Funding defaults — 2026-11-03
+
+The wizard distinguishes a readable Funding balance from a verified original
+deposit record. Suggested Funding debits now also respect safe availability
+and wallet precision. Deposit IDs follow the documented opaque-string contract;
+fixed field/matching diagnostics replace the generic invalid-response reason.
+Identity/status/memo/fee and duplicate-send guards remain intact.
+[Behavior, exact private-response limitation and checklist](BYBIT_CREDIT_RECORD_DIAGNOSTICS.md).
+
+PASS: focused native/IPC/client checks, client and core races, all ten core
+matching failures and 17 parser categories with fixed reasons and no debit.
+Final portable build, affected aggregate races/vet, five client semantic
+mutants and six actual stable-source X11 checks also pass.
+Hosted acceptance/publication is NOT_RUN until recorded.
+The actual private record's rejected field remains BLOCKED pending the
+non-secret record or updated reason; no credential/profile access is performed.
+
 ## Original Bybit deposit confirmation — 2026-11-03
 
 The reported 6 GRAM transfer is linked and confirmed by public TON BOCs. The

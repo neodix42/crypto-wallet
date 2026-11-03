@@ -275,6 +275,51 @@ func TestWizardConfirmedCreditDefaultsTransferToExactNetCreditAndPreservesUserCh
 	}
 }
 
+func TestWizardGRAMTransferDefaultUsesActualSafeFundingAndKeepsCreditGate(t *testing.T) {
+	for _, typed := range []string{"", "6", "5.999985661", "5"} {
+		t.Run("typed-"+typed, func(t *testing.T) {
+			a, _, core, _ := depositPollFixture(t)
+			var source model.Account
+			for _, account := range a.state.Accounts {
+				if account.Network == "ton-mainnet" {
+					source = account
+				}
+			}
+			if source.ID == "" {
+				t.Fatal("TON fixture missing")
+			}
+			a.wizard.state.SourceAccount, a.wizard.state.SourceAsset, a.wizard.state.Step = source.ID, "ton-mainnet:TON", 2
+			a.fields["wizardTransferAmount"] = typed
+			core.handler = func(_ uint64, method string, _, _ any) error {
+				t.Error("suggesting a Funding amount requested authority", method)
+				return errors.New("unexpected backend call")
+			}
+			check := &wizardDepositCredit{Ready: true, ChainConfirmed: true, ChainState: "CONFIRMED", Coin: "GRAM", DepositedAmount: "6", ReportedAmount: "6", TransferBudget: "6", Balances: []wizardBalance{{AccountType: "FUND", Coin: "GRAM", Available: "5.99998566", WalletBalance: "5.99998566"}, {AccountType: "UNIFIED", Coin: "GRAM", Available: "0", WalletBalance: "0"}}}
+			a.wizard.credit, a.wizard.balances = check, check.Balances
+			a.notifyWizardDepositConfirmed(a.wizard, check)
+			want := "5.99998566"
+			if typed == "5" {
+				want = typed
+			}
+			if a.fields["wizardTransferAmount"] != want {
+				t.Fatal("default exceeded actual safe Funding balance or changed a valid user amount", a.fields["wizardTransferAmount"], want)
+			}
+			if move, ok := findNode(a.exchangePage(), "wizardMove"); !ok || move.Disabled {
+				t.Fatal("verified GRAM credit and affordable amount stayed disabled")
+			}
+			check.Ready = false
+			if move, ok := findNode(a.exchangePage(), "wizardMove"); !ok || !move.Disabled {
+				t.Fatal("Funding balance alone authorized an unverified deposit")
+			}
+			check.Ready = true
+			check.Balances[0].Available = "5.999985660999"
+			if got := a.wizardSuggestedTransfer(check); got != "5.99998566" {
+				t.Fatal("extra exchange precision rounded a GRAM debit upward", got)
+			}
+		})
+	}
+}
+
 func TestWizardPendingDepositFilterRetainsUnsignedAndUnrelatedOperations(t *testing.T) {
 	a, _, _, w := depositPollFixture(t)
 	operation := journal.Operation{Plan: model.Plan{ID: w.DepositOperation, Account: model.Account{ID: w.SourceAccount}, Asset: w.SourceAsset}}
