@@ -30,6 +30,11 @@ type exchangeFreeUI struct {
 	outputCoin, outputAmount, outputAccount string
 	transferDefaults                        map[string]string
 	transferEdited                          map[string]bool
+	assetEdited                             map[string]bool
+	balanceChecking                         bool
+	balanceCheckedAt                        time.Time
+	balanceScope                            string
+	balanceVersion                          uint64
 }
 
 type freeExchangeOperation struct {
@@ -110,6 +115,87 @@ func (a *App) freeSource() (model.Account, model.Asset, bool) {
 	return account, model.Asset{}, false
 }
 
+type freeOwnedAsset struct {
+	account model.Account
+	asset   model.Asset
+}
+
+func (v freeOwnedAsset) id() string { return v.account.ID + "|" + v.asset.ID }
+
+// Exchange custody coins are independent of the wallet used for the deposit.
+// Every option still carries one exact owned, reviewed ledger descriptor.
+func (a *App) freeOwnedAssets() []freeOwnedAsset {
+	source, sourceAsset, ok := a.freeSource()
+	if !ok {
+		return nil
+	}
+	out := []freeOwnedAsset{{source, sourceAsset}}
+	seen := map[string]bool{sourceAsset.Symbol: true}
+	appendAccount := func(account model.Account) {
+		if account.Index != source.Index || account.Hidden && account.ID != source.ID {
+			return
+		}
+		for _, asset := range a.network(account.Network).Assets {
+			asset = exchange.LedgerAsset(asset)
+			if !seen[asset.Symbol] && exchangeAssetAllowed(account, asset) {
+				seen[asset.Symbol] = true
+				out = append(out, freeOwnedAsset{account, asset})
+			}
+		}
+	}
+	appendAccount(source)
+	for _, account := range a.state.Accounts {
+		appendAccount(account)
+	}
+	return out
+}
+
+func (a *App) freeSelectedAsset(key string) (model.Account, model.Asset, bool) {
+	choices := a.freeOwnedAssets()
+	if a.fields[key] == "" && len(choices) > 0 {
+		a.fields[key] = choices[0].id()
+	}
+	for _, choice := range choices {
+		if choice.id() == a.fields[key] {
+			return choice.account, choice.asset, true
+		}
+	}
+	return model.Account{}, model.Asset{}, false
+}
+
+func (a *App) freeAssetSelector(key, title string) webui.Node {
+	a.freeSelectedAsset(key)
+	var options []webui.Option
+	for _, choice := range a.freeOwnedAssets() {
+		options = append(options, webui.Option{ID: choice.id(), Text: choice.asset.Symbol})
+	}
+	return a.combo(key, title, options)
+}
+
+func (a *App) freeRefreshTransferDrafts() {
+	for _, field := range []struct{ asset, amount, from string }{{"freeMoveAsset", "freeMoveAmount", "FUND"}, {"freeReturnAsset", "freeReturnAmount", "UNIFIED"}} {
+		if _, asset, ok := a.freeSelectedAsset(field.asset); ok {
+			a.freeTransferDraft(field.amount, a.freeBalances(), field.from, asset)
+		}
+	}
+}
+
+func (a *App) freeStablecoinBalances() webui.Node {
+	rows := []webui.Node{row(label("Asset"), label("Funding available"), label("Unified available"))}
+	for _, coin := range []string{"USDT", "USDC"} {
+		values := []webui.Node{label(coin)}
+		for _, kind := range []string{"FUND", "UNIFIED"} {
+			value := wizardAvailable(a.freeBalances(), kind, coin)
+			if _, err := exchangeInputAtomic(value); err != nil {
+				value = "Not yet verified"
+			}
+			values = append(values, label(value))
+		}
+		rows = append(rows, row(values...))
+	}
+	return webui.Node{Kind: "column", ID: "freeStablecoinBalances", Children: rows}
+}
+
 func (a *App) freeExchangeField(key string) bool {
 	if !strings.HasPrefix(key, "free") {
 		return false
@@ -122,10 +208,25 @@ func (a *App) freeExchangeField(key string) bool {
 		}
 		u.transferEdited[key] = true
 	}
+	if key == "freeMoveAsset" || key == "freeReturnAsset" || key == "freeWithdrawAsset" {
+		if u.assetEdited == nil {
+			u.assetEdited = map[string]bool{}
+		}
+		u.assetEdited[key] = true
+		amountField := map[string]string{"freeMoveAsset": "freeMoveAmount", "freeReturnAsset": "freeReturnAmount", "freeWithdrawAsset": "freeWithdrawAmount"}[key]
+		delete(a.fields, amountField)
+		delete(u.transferDefaults, amountField)
+		delete(u.transferEdited, amountField)
+		if key == "freeWithdrawAsset" {
+			u.destinations = nil
+			delete(a.fields, "freeDestination")
+		}
+	}
 	if key == "freeAccount" || key == "freeAsset" {
 		u.preview, u.balances, u.pairs, u.quote, u.destinations = nil, nil, nil, nil, nil
 		u.outputCoin, u.outputAmount, u.outputAccount = "", "", ""
 		u.transferDefaults, u.transferEdited = nil, nil
+		u.assetEdited = nil
 		if account, ok := a.account(a.fields["freeAccount"]); ok && key == "freeAccount" {
 			for _, asset := range a.network(account.Network).Assets {
 				if exchangeAssetAllowed(account, asset) {
@@ -134,7 +235,7 @@ func (a *App) freeExchangeField(key string) bool {
 				}
 			}
 		}
-		for _, field := range []string{"freeDepositAmount", "freeMoveAmount", "freeReturnAmount", "freeTradeAmount", "freeWithdrawAmount", "freePair", "freeDestination"} {
+		for _, field := range []string{"freeDepositAmount", "freeMoveAmount", "freeReturnAmount", "freeTradeAmount", "freeWithdrawAmount", "freePair", "freeDestination", "freeMoveAsset", "freeReturnAsset", "freeWithdrawAsset"} {
 			delete(a.fields, field)
 		}
 	}
@@ -169,11 +270,26 @@ func (a *App) freePair() (wizardPair, bool) {
 
 func (a *App) freeDestination() (wizardDestination, bool) {
 	for _, d := range a.freeData().destinations {
-		if d.AccountID+"|"+d.AssetID == a.fields["freeDestination"] {
+		if d.AccountID+"|"+d.AssetID == a.fields["freeDestination"] && a.freeDestinationAllowed(d) {
 			return d, true
 		}
 	}
 	return wizardDestination{}, false
+}
+
+func (a *App) freeDestinationAllowed(d wizardDestination) bool {
+	source, _, sourceOK := a.freeSource()
+	_, selected, selectedOK := a.freeSelectedAsset("freeWithdrawAsset")
+	account, owned := a.account(d.AccountID)
+	if !sourceOK || !selectedOK || !owned || account.Index != source.Index || d.Address != account.Address || d.Coin != selected.Symbol {
+		return false
+	}
+	for _, asset := range a.network(account.Network).Assets {
+		if asset.ID == d.AssetID && exchangeAssetAllowed(account, asset) && exchange.LedgerAsset(asset).Symbol == d.Coin {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) freeBalances() []wizardBalance {
@@ -295,7 +411,10 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 	if step == 1 {
 		assetLabel = "Asset to deposit"
 	}
-	nodes := []webui.Node{row(a.combo("freeAccount", "Network / source account", accounts), a.combo("freeAsset", assetLabel, assets))}
+	nodes := []webui.Node{a.freeStablecoinBalances(), a.button("freeRefreshBalances", "Refresh balances", disabled || !sourceOK || a.busy)}
+	if step == 1 || step == 3 {
+		nodes = append(nodes, row(a.combo("freeAccount", "Network / source account", accounts), a.combo("freeAsset", assetLabel, assets)))
+	}
 	blocked := disabled || !sourceOK || a.busy
 	switch step {
 	case 1:
@@ -324,12 +443,15 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		nodes = append(nodes, field, a.button("freeDeposit", "Deposit", blocked || !valid || !a.freePreviewCurrent() || a.freeHasPending(1, account.ID, asset.ID)))
 	case 2, 4:
 		from, fieldID, actionID := "FUND", "freeMoveAmount", "freeMove"
+		assetID := "freeMoveAsset"
 		title, buttonText, sourceName := "2. Move Funding to Unified", "Move to Unified", "Funding"
 		if step == 4 {
 			from, fieldID, actionID = "UNIFIED", "freeReturnAmount", "freeReturn"
+			assetID = "freeReturnAsset"
 			title, buttonText, sourceName = "4. Move Unified to Funding", "Move to Funding", "Unified"
 		}
-		nodes = append(nodes, heading(title), label("Move available "+sourceName+" funds between your Bybit accounts."))
+		nodes = append(nodes, heading(title), a.freeAssetSelector(assetID, "Asset to move"), label("Move available "+sourceName+" funds between your Bybit accounts."))
+		_, asset, selected := a.freeSelectedAsset(assetID)
 		balances := a.freeBalances()
 		a.freeTransferDraft(fieldID, balances, from, asset)
 		for _, kind := range []string{"FUND", "UNIFIED"} {
@@ -346,7 +468,7 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		}
 		field := a.entry(fieldID, "Amount to move ("+asset.Symbol+")")
 		field.InputMode = "decimal"
-		valid := sourceOK && wizardPositive(field.Value, asset.Decimals) && exchangeInputAtLeast(wizardAvailable(balances, from, asset.Symbol), field.Value)
+		valid := selected && wizardPositive(field.Value, asset.Decimals) && exchangeInputAtLeast(wizardAvailable(balances, from, asset.Symbol), field.Value)
 		if field.Value != "" && !valid {
 			field.Error = "Enter a positive amount within the verified " + sourceName + " balance and asset precision."
 		}
@@ -394,9 +516,12 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		button.Tooltip = validation.SwapError
 		nodes = append(nodes, field, slippage, button)
 	case 5:
-		nodes = append(nodes, heading("5. Withdraw to wallet"), label("Withdraw from Funding only. Move Unified funds in step 4 first. Choose a supported owned-wallet destination; the total debit includes the withdrawal fee."), a.button("freeRefreshWithdraw", "Refresh withdrawal networks and balances", blocked))
+		nodes = append(nodes, heading("5. Withdraw to wallet"), a.freeAssetSelector("freeWithdrawAsset", "Asset to withdraw"), label("Withdraw from Funding only. Move Unified funds in step 4 first. Choose a supported owned-wallet destination; the total debit includes the withdrawal fee."), a.button("freeRefreshWithdraw", "Refresh withdrawal networks and balances", blocked))
 		var destinations []webui.Option
 		for _, d := range u.destinations {
+			if !a.freeDestinationAllowed(d) {
+				continue
+			}
 			destinations = append(destinations, webui.Option{ID: d.AccountID + "|" + d.AssetID, Text: d.NetworkName + " · " + d.Coin + " · " + a.groupTitle(d.Index)})
 		}
 		nodes = append(nodes, a.combo("freeDestination", "Withdrawal network / wallet", destinations))
@@ -404,7 +529,8 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		if chosen {
 			nodes = append(nodes, row(node("address", "", "Owned receiving address", d.Address), node("button", "copyReceive/exchange-free-withdrawal", "Copy address", d.Address)), label("Withdrawal fee: "+d.Fee+" "+d.Coin+" · Percentage fee: "+d.PercentageFee+" · Minimum: "+d.Minimum+" · Decimals: "+d.Precision))
 		}
-		field := a.entry("freeWithdrawAmount", "Total withdrawal debit ("+asset.Symbol+")")
+		_, withdrawAsset, _ := a.freeSelectedAsset("freeWithdrawAsset")
+		field := a.entry("freeWithdrawAmount", "Total withdrawal debit ("+withdrawAsset.Symbol+")")
 		field.InputMode = "decimal"
 		precision, err := strconv.ParseUint(d.Precision, 10, 8)
 		available := a.freeWithdrawalAvailable(d.Coin)
@@ -465,6 +591,7 @@ func (a *App) freeTransferDraft(field string, balances []wizardBalance, from str
 // in the displayed quote. It never renews the instrument/price timestamp.
 func (a *App) setFreeBalances(balances []wizardBalance) {
 	u := a.freeData()
+	u.balanceVersion++
 	u.balances = balances
 	var quote map[string]json.RawMessage
 	if json.Unmarshal(u.quote, &quote) != nil || quote == nil {
@@ -531,26 +658,27 @@ func (a *App) freeSelectOutput() {
 	if !ok {
 		return
 	}
-	var chosenAccount, chosenAsset string
-	for _, owned := range a.state.Accounts {
-		if owned.Index != source.Index {
+	current, _, ok := a.freeSource()
+	if !ok || current.Index != source.Index {
+		return
+	}
+	for _, choice := range a.freeOwnedAssets() {
+		if choice.asset.Symbol != u.outputCoin {
 			continue
 		}
-		for _, asset := range a.network(owned.Network).Assets {
-			if exchange.LedgerAsset(asset).Symbol == u.outputCoin && exchangeAssetAllowed(owned, asset) {
-				if chosenAccount == "" || owned.ID == source.ID {
-					chosenAccount, chosenAsset = owned.ID, asset.ID
+		for key, amountField := range map[string]string{"freeReturnAsset": "freeReturnAmount", "freeWithdrawAsset": "freeWithdrawAmount"} {
+			if !u.assetEdited[key] && a.fields[key] != choice.id() {
+				a.fields[key] = choice.id()
+				delete(a.fields, amountField)
+				delete(u.transferDefaults, amountField)
+				delete(u.transferEdited, amountField)
+				if key == "freeWithdrawAsset" {
+					u.destinations = nil
+					delete(a.fields, "freeDestination")
 				}
 			}
 		}
-	}
-	if chosenAccount != "" && (a.fields["freeAccount"] != chosenAccount || a.fields["freeAsset"] != chosenAsset) {
-		a.fields["freeAccount"], a.fields["freeAsset"] = chosenAccount, chosenAsset
-		u.preview, u.balances, u.pairs, u.quote, u.destinations = nil, nil, nil, nil, nil
-		delete(a.fields, "freeDestination")
-		delete(a.fields, "freeWithdrawAmount")
-		delete(a.fields, "freeReturnAmount")
-		u.transferDefaults, u.transferEdited = nil, nil
+		return
 	}
 }
 
@@ -570,6 +698,10 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 	u := a.freeData()
 	revision := a.exchangeRevision
 	u.writing = writing
+	if writing {
+		u.balanceVersion++  // A read started before this write cannot refresh funds.
+		u.balanceScope = "" // Refresh custody pools promptly after this action.
+	}
 	var update freeExchangeUpdate
 	var saved struct {
 		Wizard             *exchange.WizardState
@@ -646,11 +778,7 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 		}
 		if update.balances != nil {
 			a.setFreeBalances(update.balances)
-			_, asset, ok := a.freeSource()
-			if ok {
-				a.freeTransferDraft("freeMoveAmount", u.balances, "FUND", asset)
-				a.freeTransferDraft("freeReturnAmount", u.balances, "UNIFIED", asset)
-			}
+			a.freeRefreshTransferDrafts()
 		}
 		if update.pairs != nil {
 			u.pairs = update.pairs
@@ -668,7 +796,12 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 			u.quote = update.quote
 		}
 		if update.destinations != nil {
-			u.destinations = update.destinations
+			u.destinations = []wizardDestination{}
+			for _, destination := range update.destinations {
+				if a.freeDestinationAllowed(destination) {
+					u.destinations = append(u.destinations, destination)
+				}
+			}
 			if len(u.destinations) > 0 {
 				selected := false
 				for _, d := range u.destinations {
@@ -727,9 +860,27 @@ func (a *App) freeExchangeAction(id string) bool {
 		a.errorText("Exchange action", "Select a supported owned wallet and asset.")
 		return true
 	}
+	sourceAccount := account
 	fields := map[string]string{}
 	for key, value := range a.fields {
 		fields[key] = value
+	}
+	// Capture one selected descriptor before asynchronous work begins. A later
+	// selector edit cannot change the coin or wallet bound to this approval.
+	if id == "freeMove" || id == "freeReturn" || id == "freeRefreshFunding" || id == "freeRefreshBalances" || id == "freeRefreshWithdraw" {
+		key := "freeMoveAsset"
+		if id == "freeReturn" || id == "freeRefreshFunding" && a.exchangeWizardData().viewStep == 4 || id == "freeRefreshBalances" && a.exchangeWizardData().viewStep == 4 {
+			key = "freeReturnAsset"
+		}
+		if id == "freeRefreshWithdraw" || id == "freeRefreshBalances" && a.exchangeWizardData().viewStep == 5 {
+			key = "freeWithdrawAsset"
+		}
+		var selected bool
+		account, asset, selected = a.freeSelectedAsset(key)
+		if !selected {
+			a.errorText("Exchange action", "Select a supported asset owned by the current account group.")
+			return true
+		}
 	}
 	pair, pairOK := a.freePair()
 	destination, destinationOK := a.freeDestination()
@@ -769,7 +920,7 @@ func (a *App) freeExchangeAction(id string) bool {
 		a.errorText("Exchange action", "Refresh the selected balances or market and enter a valid affordable amount.")
 		return true
 	}
-	titles := map[string]string{"freeRefreshDeposit": "Reading Bybit deposit address", "freeDeposit": "Preparing a new deposit to Bybit", "freeRefreshFunding": "Reading Funding / Unified balances", "freeMove": "Moving available Funding to Unified", "freeReturn": "Moving available Unified to Funding", "freeRefreshPairs": "Reading available spot pairs", "freeRefreshMarket": "Reading current spot market", "freeSwap": "Preparing swap from Unified funds", "freeRefreshWithdraw": "Reading owned withdrawal routes", "freeWithdraw": "Preparing withdrawal to owned wallet"}
+	titles := map[string]string{"freeRefreshDeposit": "Reading Bybit deposit address", "freeDeposit": "Preparing a new deposit to Bybit", "freeRefreshFunding": "Reading Funding / Unified balances", "freeRefreshBalances": "Reading Funding / Unified balances", "freeMove": "Moving available Funding to Unified", "freeReturn": "Moving available Unified to Funding", "freeRefreshPairs": "Reading available spot pairs", "freeRefreshMarket": "Reading current spot market", "freeSwap": "Preparing swap from Unified funds", "freeRefreshWithdraw": "Reading owned withdrawal routes", "freeWithdraw": "Preparing withdrawal to owned wallet"}
 	title, known := titles[id]
 	var checking *freeExchangeOperation
 	if strings.HasPrefix(id, "freeCheck/") {
@@ -800,7 +951,7 @@ func (a *App) freeExchangeAction(id string) bool {
 			}
 		case "freeDeposit":
 			err = a.callAt(g, "exchangeDeposit", map[string]string{"accountId": account.ID, "assetId": asset.ID, "amount": fields["freeDepositAmount"], "expectedAddress": preview.Address, "expectedMemo": preview.Memo}, &raw)
-		case "freeRefreshFunding":
+		case "freeRefreshFunding", "freeRefreshBalances":
 			var b struct{ Balances []wizardBalance }
 			err = a.callAt(g, "exchangeFundingBalances", map[string]string{"accountId": account.ID, "assetId": asset.ID}, &b)
 			out.balances = b.Balances
@@ -818,11 +969,14 @@ func (a *App) freeExchangeAction(id string) bool {
 		case "freeSwap":
 			err = a.callAt(g, "exchangeSwap", map[string]any{"provider": "bybit", "accountId": pair.AccountID, "assetId": pair.AssetID, "side": pair.Side, "quoteCoin": pair.QuoteCoin, "amount": fields["freeTradeAmount"], "slippage": fields["slippage"], "unifiedOnly": true}, &raw)
 		case "freeRefreshWithdraw":
-			err = a.callAt(g, "exchangeWithdrawOptions", map[string]any{"coin": asset.Symbol, "existingFunds": true, "sourceAccountId": account.ID}, &out.destinations)
+			err = a.callAt(g, "exchangeWithdrawOptions", map[string]any{"coin": asset.Symbol, "existingFunds": true, "sourceAccountId": sourceAccount.ID}, &out.destinations)
 			if err == nil {
 				var b struct{ Balances []wizardBalance }
 				err = a.callAt(g, "exchangeFundingBalances", map[string]string{"accountId": account.ID, "assetId": asset.ID}, &b)
 				out.balances = b.Balances
+				if err != nil || b.Balances == nil {
+					out.balances = []wizardBalance{}
+				}
 			}
 		case "freeWithdraw":
 			err = a.callAt(g, "exchangeWithdraw", map[string]any{"provider": "bybit", "accountId": destination.AccountID, "assetId": destination.AssetID, "amount": fields["freeWithdrawAmount"], "existingFunds": true, "fundingOnly": true}, &raw)
@@ -894,6 +1048,7 @@ func (a *App) nextFreeExchangeCheck() bool {
 	}
 	u.checking, u.checkedAt = true, time.Now()
 	epoch, generation := a.epoch, a.core.Generation()
+	balanceRevision := a.exchangeRevision
 	connection, _, connectionValid := a.freeTrackingStatus()
 	publicOriginal, publicOriginalPresent := a.freePublicOperationSnapshot(original.ID)
 	go func() {
@@ -957,13 +1112,11 @@ func (a *App) nextFreeExchangeCheck() bool {
 					}
 				}
 			}
-			if balancesRead && a.fields["freeAccount"] == original.AccountID && a.fields["freeAsset"] == original.AssetID {
+			selectedAccount, _, selected := a.freeSource()
+			originalAccount, ownedOriginal := a.account(original.AccountID)
+			if balancesRead && a.exchangeRevision == balanceRevision && selected && ownedOriginal && selectedAccount.Index == originalAccount.Index {
 				a.setFreeBalances(balances)
-				_, asset, ok := a.freeSource()
-				if ok {
-					a.freeTransferDraft("freeMoveAmount", balances, "FUND", asset)
-					a.freeTransferDraft("freeReturnAmount", balances, "UNIFIED", asset)
-				}
+				a.freeRefreshTransferDrafts()
 			}
 			if original.Stage >= 2 {
 				var status map[string]json.RawMessage
@@ -990,6 +1143,66 @@ func (a *App) nextFreeExchangeCheck() bool {
 					a.wizard.viewStep = 2
 				}
 			}
+			a.render()
+		})
+	}()
+	return true
+}
+
+// Custody overview reads are independent of economic chronology. They never
+// block navigation, request a password, extend activity, or send an action.
+func (a *App) nextFreeBalanceRefresh() bool {
+	if a.closed || a.state.Locked || !a.state.RecoveryConfirmed || a.busy || a.background || a.active != "exchange" || a.wizard == nil || a.wizard.free == nil || a.selectedExchangeProvider().ID != "bybit" {
+		return false
+	}
+	u := a.wizard.free
+	connection, _, valid := a.freeTrackingStatus()
+	if !valid || !connection.Connected || connection.Provider != "bybit" || u.balanceChecking {
+		return false
+	}
+	account, asset, ok := a.freeSource()
+	if !ok {
+		return false
+	}
+	step := a.wizard.viewStep
+	key := map[int]string{2: "freeMoveAsset", 4: "freeReturnAsset", 5: "freeWithdrawAsset"}[step]
+	if key != "" {
+		account, asset, ok = a.freeSelectedAsset(key)
+		if !ok {
+			return false
+		}
+	}
+	scope := account.ID + "|" + asset.ID + "|" + strconv.Itoa(step)
+	if u.balanceScope == scope && time.Since(u.balanceCheckedAt) < 15*time.Second {
+		return false
+	}
+	u.balanceChecking, u.balanceScope, u.balanceCheckedAt = true, scope, time.Now()
+	epoch, generation, revision, version := a.epoch, a.core.Generation(), a.exchangeRevision, u.balanceVersion
+	go func() {
+		var out struct{ Balances []wizardBalance }
+		err := a.callAt(generation, "exchangeFundingBalances", map[string]string{"accountId": account.ID, "assetId": asset.ID}, &out)
+		a.ui.Dispatch(func() {
+			u.balanceChecking = false
+			if a.closed || a.epoch != epoch || a.wizard == nil || a.wizard.free != u || a.selectedExchangeProvider().ID != "bybit" {
+				return
+			}
+			if a.core.Generation() != generation {
+				a.lock()
+				return
+			}
+			current, _, currentValid := a.freeTrackingStatus()
+			if !currentValid || current != connection {
+				return
+			}
+			if a.exchangeRevision != revision || u.balanceVersion != version || a.active != "exchange" || a.wizard.viewStep != step {
+				u.balanceScope = "" // Discard and retry the newly selected view later.
+				return
+			}
+			if err != nil || out.Balances == nil {
+				out.Balances = []wizardBalance{}
+			}
+			a.setFreeBalances(out.Balances)
+			a.freeRefreshTransferDrafts()
 			a.render()
 		})
 	}()

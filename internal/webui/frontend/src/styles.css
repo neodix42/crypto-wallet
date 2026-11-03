@@ -28,6 +28,13 @@
 .asset-table th:last-child{border-top-right-radius:7px;width:22%}
 .asset-table tr:last-child td{border-bottom:0}
 .asset-table td>.node-label{margin:0;color:var(--text);font-variant-numeric:tabular-nums}
+.exchange-balances-wrap{max-width:100%;overflow-x:auto;margin:10px 0;border:1px solid var(--border);border-radius:8px;scrollbar-width:thin}
+.exchange-balances{width:100%;border-collapse:collapse;text-align:left;font-size:1rem}
+.exchange-balances th,.exchange-balances td{padding:6px 12px;border-bottom:1px solid var(--border);line-height:1.4;overflow-wrap:anywhere}
+.exchange-balances thead th{background:var(--chrome);color:var(--muted);font-weight:580}
+.exchange-balances tbody th{width:15%;font-weight:600}
+.exchange-balances td{font-variant-numeric:tabular-nums;user-select:text;-webkit-user-select:text}
+.exchange-balances tbody tr:last-child>*{border-bottom:0}
 .asset-selector{display:inline-flex;position:relative;max-width:100%}
 .asset-selector>button{max-width:100%;overflow-wrap:anywhere}
 .asset-selector:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:7px}

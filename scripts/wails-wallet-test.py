@@ -38,6 +38,7 @@ mode.add_argument("--ton-only", action="store_true", help="Actual offline TON co
 mode.add_argument("--history-layout-only", action="store_true", help="Actual offline transaction-table headers, header utility icons, Info/Refresh controls, Settings Networks RPC cancellation and acknowledged exchange selection on a disposable public profile; no credentials or funds")
 mode.add_argument("--arbitrum-copy-only", action="store_true", help="Targeted repeated Arbitrum receive-copy diagnostics after disposable public-fixture import; no spending or public RPC")
 mode.add_argument("--appearance-only", action="store_true", help="Targeted actual appearance persistence, Enter unlock and private Bybit credential layout; cancels custody confirmation without connecting")
+mode.add_argument("--exchange-only", action="store_true", help="Actual disconnected five-step Bybit stablecoin summaries, independent selectors and amount validation using a disposable public fixture; no credentials or funds")
 mode.add_argument("--recovery-layout-only", action="store_true", help="Targeted actual 24-word authenticated backup, initial Copy phrase visibility and small-workarea layout after public-fixture import")
 mode.add_argument("--main-row-copy-only", action="store_true", help="Targeted actual main-account Ethereum row icon and direct address copy using a public disposable phrase; no wallet opening, RPC service or payment")
 mode.add_argument("--account-layout-only", action="store_true", help="Actual account/header/wallet-child-tab layout and recipient/amount validation on a disposable public profile; no funding, successful RPC response or approval")
@@ -72,6 +73,9 @@ if args.arbitrum_copy_only:
 if args.appearance_only:
     report["scope"]="Targeted actual Light/18 px defaults, selected Settings tabs, Dark/24 px rendering and persistence after graceful restart, Enter-only unlock, and private two-field Bybit/footer layout. Disposable public fixture and API canaries only; custody confirmation is cancelled before encrypted credentials or any Bybit observation. No private pixels or values are retained."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (appearance-only mode)")
+if args.exchange_only:
+    report["scope"]="Actual uninstrumented offline X11 Bybit wizard on a disposable public phrase: all five steps show USDT/USDC Funding and Unified columns; independent stablecoin transfer/withdraw selectors, invalid drafts and free navigation are exercised. No API credential, successful exchange response, balance, route or payment is fabricated."
+    report["notRun"].extend(["Authenticated exchange balances, transfers, orders and withdrawals", "Generated-root all-wallet recovery (targeted Exchange mode)"])
 if args.main_row_copy_only:
     report["scope"]="Targeted actual Ethereum main-account copy icon, measured public button geometry and direct native copying of the displayed public address using the disposable abandon/about phrase. The icon must keep the account overview open, avoid wallet confirmation and copy the exact independent fixture address. No RPC response, private phrase or transaction is mocked."
     report["notRun"].append("Generated-root setup, backup and exact eight-wallet address comparison (main-row-copy-only mode)")
@@ -2427,11 +2431,17 @@ def exchange_step_target(number,rows,geometry,diagnostics=None):
         return found
     owned=(x,y,x+w,y+h-31)
     titles=phrases(("bybit","exchange"),owned)
-    sources=phrases(("network","source","account"),owned)
-    if len(titles)!=1 or len(sources)!=1:
+    funding=phrases(("funding","available"),owned)
+    unified=phrases(("unified","available"),owned)
+    # Every page starts with the same stablecoin table. Source-network fields
+    # exist only where relevant and cannot anchor independent transfer pages.
+    headers=[(left[0],min(left[1],right[1]),right[2],max(left[3],right[3]))
+             for left in funding for right in unified
+             if left[2]<right[0] and abs((left[1]+left[3])-(right[1]+right[3]))<=12]
+    if len(titles)!=1 or len(headers)!=1:
         raise RuntimeError("Exchange navigation anchors were not uniquely visible")
-    title,source=titles[0],sources[0]
-    region=(x+12,title[3]+2,x+w-12,source[1]-2)
+    title,header=titles[0],headers[0]
+    region=(x+12,title[3]+2,x+w-12,header[1]-2)
     if not 30<=region[3]-region[1]<=300:
         raise RuntimeError("Exchange navigation band was incomplete or ambiguous")
     matches=phrases(labels[number],region)
@@ -2455,14 +2465,26 @@ def click_exchange_step(number,heading):
     if desktop.secret_window():raise RuntimeError("Exchange navigation requested private approval")
     report.setdefault("exchangeStepNavigation",[]).append(observed)
 
+def exchange_public_field(label):
+    # Scroll only the owned public page until both the label and its input/error
+    # area fit. A taller valid form is not a reason to click outside its viewport.
+    for _ in range(8):
+        rows,_,geometry=public_rows(with_geometry=True)
+        point=public_words_position(label,rows)
+        if point and point[1]+140<geometry[1]+geometry[3]-31:return point
+        scroll_public(5,2)
+    raise RuntimeError("Exchange field did not fit the owned public viewport: "+label)
+
 def exchange_wizard_draft_campaign():
+    stage("Locate the disconnected Bybit deposit page and stablecoin overview")
     click("Exchange",top=True);scroll_public(4,35)
     wait(lambda:"Bybit Exchange" in text() and "Connect your Bybit account in Settings" in text())
     wait(lambda:"Deposit to Funding" in text() and "Asset to deposit" in text())
     choose_public_option("Network / source account",0)
     choose_public_option("Asset to deposit",0)
     def fill_deposit(value):
-        point=wait(lambda:public_words_position("Deposit amount"))
+        stage("Validate the visible disconnected deposit amount")
+        point=exchange_public_field("Deposit amount")
         desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True)
         desktop.type(value);desktop.park_pointer();time.sleep(.25)
     for value in ("-1","1e3","0","NaN"):
@@ -2473,21 +2495,39 @@ def exchange_wizard_draft_campaign():
     wait(lambda:"Enter a positive ETH amount" not in text())
     if "Bybit deposit address:" in text():raise RuntimeError("Disconnected wizard invented an exchange deposit address")
     navigation=[]
+    stablecoin_pages=[]
+    stablecoin_selections=[]
     for number,heading in ((3,"Swap on Spot"),(2,"Move Funding to Unified"),(4,"Move Unified to Funding"),(5,"Withdraw to wallet"),(1,"Deposit to Funding")):
+        stage("Inspect stablecoin funds and selectors in Exchange step "+str(number))
+        scroll_public(4,35)
         click_exchange_step(number,heading)
         if desktop.secret_window():raise RuntimeError("Exchange step navigation requested private approval")
+        visible=text()
+        if any(label not in visible for label in ("Funding available","Unified available","USDT","USDC")):
+            raise RuntimeError("Exchange page omitted its stablecoin Funding/Unified summary")
+        stablecoin_pages.append(number)
+        if number in (2,4,5):
+            label="Asset to withdraw" if number==5 else "Asset to move"
+            amount="Total withdrawal debit" if number==5 else "Amount to move"
+            for index,coin in ((1,"USDT"),(2,"USDC")):
+                choose_public_option(label,index)
+                exchange_public_field(amount)
+                wait(lambda:amount+" ("+coin+")" in text())
+                if desktop.secret_window():raise RuntimeError("Stablecoin selection requested private approval")
+                stablecoin_selections.append({"step":number,"coin":coin})
+            scroll_public(4,35)
         navigation.append(number)
     if "Connect your Bybit account in Settings" not in text():raise RuntimeError("Disconnected navigation invented an authenticated exchange session")
-    report["exchangeWizardDraft"]={"sequentialSteps":5,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
+    report["exchangeWizardDraft"]={"sequentialSteps":5,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"stablecoinSummarySteps":stablecoin_pages,"independentStablecoinSelections":stablecoin_selections,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
     passed("Actual disconnected Exchange steps navigate freely, validate deposit drafts and create no address, approval or payment")
 
 def exchange_input_campaign():
     exchange_wizard_draft_campaign()
     click_exchange_step(3,"Swap on Spot")
-    wait(lambda:"Amount to spend" in text())
+    exchange_public_field("Amount to spend")
     if "Manage existing Bybit funds" in text():raise RuntimeError("Removed legacy Bybit controls remain reachable")
     def fill(label,value):
-        point=wait(lambda:public_words_position(label))
+        point=exchange_public_field(label)
         desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True)
         if value:desktop.type(value)
         else:desktop.key("BackSpace")
@@ -3672,7 +3712,7 @@ try:
         xvfb = subprocess.Popen([server, display, "-screen", "0", "1600x1100x24", "-nolisten", "tcp"], env=base_environment, stdout=display_log, stderr=display_log)
         wait(lambda: pathlib.Path("/tmp/.X11-unix/X"+display[1:]).exists(), 10)
         desktop = Desktop(display.encode())
-        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only or args.account_layout_only or args.recovery_errors_only:
+        if args.quick_import or args.staking_only or args.tokens_only or args.near_tokens_only or args.ton_only or args.history_layout_only or args.arbitrum_copy_only or args.appearance_only or args.exchange_only or args.main_row_copy_only or args.recovery_layout_only or args.clipboard_only or args.account_layout_only or args.recovery_errors_only:
             recorded=b" ".join([b"abandon"]*23+[b"art"]) if args.recovery_layout_only else b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
             home=folder/"machine-a/home"
             launch(installations[0],home)
@@ -3706,6 +3746,8 @@ try:
                 passed("Three repeated actual Arbitrum direct copies completed with fresh native clipboard acknowledgments")
             if args.appearance_only:
                 appearance_campaign(installations[0],home,different_password)
+            if args.exchange_only:
+                exchange_input_campaign()
             if args.main_row_copy_only:
                 observed=main_row_copy("0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
                 report["mainRowCopy"]["matchesIndependentFixture"]=True

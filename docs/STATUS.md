@@ -1,18 +1,44 @@
 # Implementation and release evidence
 
+## Stablecoin balances and independent Exchange assets — 2026-11-04
+
+The current owner update adds an always-visible USDT/USDC Funding/Unified
+available-balance table and independent transfer/withdrawal asset selections.
+A GRAM deposit must not prevent moving or withdrawing existing stablecoins.
+Exact owned routes, safe available funds, fees and separate approvals remain.
+[Behavior and evidence checklist](BYBIT_STABLECOIN_FUNDS.md).
+PASS: full local aggregate/security, 163 frontend tests, 229 developer GUI-driver
+checks, complete affected-package races, vet and portable build; all 81 mutants
+in ten stable-source campaigns killed. Actual stable-source GUI campaigns pass
+three dedicated and six appearance checks, including both stablecoin selections
+in steps 2/4/5 and all five available-balance tables. The earlier failed viewport
+assumption is retained separately. Exact-source hosted CI and publication for
+this amendment remain NOT_RUN until recorded. Live authenticated funded Bybit
+acceptance remains NOT_RUN.
+
 ## Available-funds Exchange actions without old-operation waits — 2026-11-03
 
 Latest owner policy: steps 2–5 use fresh safe available funds for each new
 independently approved request. Older UNKNOWN/PENDING records remain intact
 internally and do not block these actions. Removed original-deposit/pending-status
-panels and manual checks; restored read-only tracking and amount suggestions are
-being corrected. [Behavior and evidence](BYBIT_CURRENT_FUNDS.md).
+panels and manual checks; restored read-only tracking and amount suggestions
+are corrected. [Behavior and evidence](BYBIT_CURRENT_FUNDS.md).
 PASS: reported GRAM forms, draft/balance refresh and private current-funds
 signer/backend/dispatch/vault tests, complete local regression/security suites,
 full affected-package races, vet, build and six actual stable-source X11 checks.
-All 81 semantic mutants pass in ten stable-source campaigns. Exact-source hosted
-CI and publication verification are NOT_RUN until recorded. Live authenticated
-funded Bybit acceptance remains NOT_RUN.
+All 81 semantic mutants pass in ten stable-source campaigns.
+Both jobs/all steps in [tests 41706173377](https://github.com/neodix42/crypto-wallet/actions/runs/41706173377)
+pass for `823477d4a729571e2d8094121bc16c8d26c0c6d8`. Independently verified
+GUI artifact 13267682261 contains nine source/binary-bound reports, including
+38 full GUI, five TON, seven recovery and nine actual private-geth checks.
+Backend artifact 13266274349 verifies all 30 gates, 81 mutants, 26 measured fuzz
+targets, 13 local integrations and 24 recovered descriptors/eight networks;
+8,937 source-hash comparisons match 1,701 exact-Git files without mismatch.
+[Build/release 41706173409](https://github.com/neodix42/crypto-wallet/actions/runs/41706173409)
+and [release 0.1.52](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.52)
+pass publisher/source/tag/version/archive verification and six actual checks on
+the authenticated downloaded binary. These results precede the stablecoin
+selection amendment. Live authenticated funded Bybit acceptance remains NOT_RUN.
 
 
 ## Five-step Exchange and route-independent spot candidates — 2026-11-03

@@ -1,6 +1,9 @@
 # Exchange
 
-Current Bybit interface: [four-step wizard, deposit preview and evidence](EXCHANGE_WIZARD.md).
+Current Bybit interface: [five independent steps](BYBIT_FREE_STEPS.md),
+[current-funds actions without older-operation waits](BYBIT_CURRENT_FUNDS.md)
+and [USDT/USDC balances and independent asset selections](BYBIT_STABLECOIN_FUNDS.md).
+The [four-step wizard](EXCHANGE_WIZARD.md) records the earlier implementation.
 Earlier deposit/navigation correction: [Exchange tabs and deposit diagnostics](EXCHANGE_DEPOSIT_DIAGNOSTICS.md).
 The header icon opens a tab beside account names. On-chain deposits use their
 own authenticated network/address preflight and wallet approval; they do not

@@ -102,7 +102,10 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 			}
 			return c.exchangeSwapOptionsAt(ctx, client, account, asset)
 		}
-		balances, err := exchangeBalances(ctx, client, asset.Symbol)
+		// Stablecoin custody balances are independent of the original deposit
+		// asset and wallet network. Every wizard page needs both pools even
+		// when its selected source remains GRAM; no route or payment is implied.
+		balances, err := exchangeBalances(ctx, client, asset.Symbol, "USDC", "USDT")
 		if err != nil {
 			return nil, exchangeReadFailure("BALANCE", err)
 		}

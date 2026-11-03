@@ -377,6 +377,9 @@ func (a *App) tick() {
 	if a.nextFreeExchangeCheck() {
 		return
 	}
+	if a.nextFreeBalanceRefresh() {
+		return
+	}
 	if a.nextWizardDepositCheck() {
 		return
 	}

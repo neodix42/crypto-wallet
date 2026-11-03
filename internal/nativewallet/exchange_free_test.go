@@ -207,7 +207,11 @@ func TestFreeExchangeSwapUsesUnifiedFundsRatherThanOldTransferBudget(t *testing.
 			if request["existingFunds"] != true || request["coin"] != "USDT" || request["sourceAccountId"] != source.ID {
 				t.Error("withdrawal discovery did not follow the received asset/owned group", request)
 			}
-			return answer(out, []wizardDestination{{AccountID: source.ID, AssetID: a.fields["freeAsset"], Address: source.Address, Coin: "USDT", NetworkName: "Ethereum", Precision: "6", Minimum: "1", Fee: "1", PercentageFee: "0", Index: source.Index}})
+			_, output, ok := a.freeSelectedAsset("freeWithdrawAsset")
+			if !ok {
+				t.Fatal("owned output descriptor missing")
+			}
+			return answer(out, []wizardDestination{{AccountID: source.ID, AssetID: output.ID, Address: source.Address, Coin: "USDT", NetworkName: "Ethereum", Precision: "6", Minimum: "1", Fee: "1", PercentageFee: "0", Index: source.Index}})
 		case "exchangeFundingBalances":
 			return answer(out, map[string]any{"balances": []wizardBalance{{AccountType: "FUND", Coin: "USDT", Available: "1000"}, {AccountType: "UNIFIED", Coin: "USDT", Available: "500"}}})
 		case "exchangeWizardLoad":
@@ -229,8 +233,8 @@ func TestFreeExchangeSwapUsesUnifiedFundsRatherThanOldTransferBudget(t *testing.
 		t.Fatal("confirmed swap did not retain exact received-asset fees/net output")
 	}
 	a.event(webui.Event{ID: "wizardStep/5"})
-	_, receivedAsset, exists := a.freeSource()
-	if !exists || a.fields["freeAccount"] != source.ID || receivedAsset.Symbol != "USDT" {
+	_, receivedAsset, exists := a.freeSelectedAsset("freeWithdrawAsset")
+	if !exists || a.fields["freeAccount"] != source.ID || a.fields["freeAsset"] != saved.SourceAsset || receivedAsset.Symbol != "USDT" {
 		t.Fatal("Withdraw did not select the owned received asset", a.fields["freeAccount"], receivedAsset)
 	}
 	a.wizardAction("freeRefreshWithdraw")
@@ -643,8 +647,8 @@ func TestFreeExchangeAsyncSwapRemembersOriginalPairAndNetWithdrawalAsset(t *test
 				t.Fatal("async fill lost exact original output coin/net fees")
 			}
 			a.event(webui.Event{ID: "wizardStep/5"})
-			_, output, exists := a.freeSource()
-			if !exists || output.Symbol != "USDT" || a.fields["freeAccount"] != source.ID {
+			_, output, exists := a.freeSelectedAsset("freeWithdrawAsset")
+			if !exists || output.Symbol != "USDT" || a.fields["freeAccount"] != source.ID || a.fields["freeAsset"] != saved.SourceAsset {
 				t.Fatal("async completed swap did not select its owned withdrawal asset")
 			}
 		})
