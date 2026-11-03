@@ -101,8 +101,24 @@ with Funding as the source.
 | PASS | Complete aggregate `make test-ci` after the final event-guard/test-fixture correction; complete affected races including signer, final native races, vet and portable build. `reports/exchange-five-ci-final2.log`, `reports/exchange-five-race-complete.log`, `reports/exchange-five-native-race-final.log`, `reports/exchange-five-vet-complete.log`, `reports/exchange-five-build-final.log`. |
 | PASS | Six actual stable-source X11 checks. All five pages are clicked in order 3 → 2 → 4 → 5 → 1, without credentials or a financial request. `reports/exchange-five-appearance-complete.json`. |
 | PASS | Actual unauthenticated Bybit spot-instrument GETs for GRAMUSDT, ETHUSDT, ETHUSDC and USDCUSDT returned exact Trading listings and current rules. `reports/exchange-five-public-instruments.json`; this is no claim of authenticated funded acceptance. |
-| RUNNING | Complete final security/mutation campaign, `reports/exchange-five-security-complete.log`; exact-source hosted tests and publication are not yet recorded. |
-| NOT_RUN | Authenticated real Bybit orders/transfers/withdrawals. No user credentials or automatic mainnet funds used. |
+| PASS | Complete security suite with all 81 semantic mutants killed across ten source-stable campaigns. 4,125 recorded source hashes were independently compared. `reports/exchange-five-security-complete.log`, `reports/exchange-five-local-summary.json`. |
+| PASS | Fixed the hosted GUI locator's address crop, which previously included part of the adjacent Copy icon. All 220 current-UI helper tests (23 focused locator cases), a nine-copy graphical clipboard campaign and the full 38-check generated-root campaign pass. Exact clipboard equality, private-pixel guards and independent eight-wallet phrase recovery remain required. `reports/exchange-five-clipboard-fix.json`, `reports/exchange-five-full-gui-fix.json`. |
+| PASS | Final hosted Wails job for `17d2a32` in [tests 41634158286](https://github.com/neodix42/crypto-wallet/actions/runs/41634158286): all nine source/binary-bound reports, 38 full UI, five TON, seven recovery and nine actual private-geth checks. Artifact 13230848136 SHA256 `594ce49edfbe0bd0b113014e421b2ee7a4e31ac4206a075c9f5f6a727b7ca399`. `reports/exchange-navigation-hosted-gui/summary.json`. |
+| PASS | All 227 current-UI helper tests, including seven directional-stepper cases. The actual step bar is bounded by its unique page/source anchors, matches both directional words, and rejects reversed/ambiguous/out-of-section text. Hosted and published checks click all five steps without depending on circled-number OCR. `reports/exchange-direction-helper-all.log`, `reports/exchange-direction-appearance.json`. |
+| PASS | [Build/release 41634158316](https://github.com/neodix42/crypto-wallet/actions/runs/41634158316) and normal [release 0.1.50](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.50): exact source `17d2a32a7e86becca0e2d53d8097e2f9d1e12657`, publisher/tag/version/inventory and byte integrity verified. Archive SHA256 `fab860270c9235ecba951314abf2e8b130fbbce18914a71a4305b112db85d31b`. The authenticated downloaded executable passed six actual stable-source X11 checks; binary SHA256 `47e9166f2f05ba49e508aa5849a6df1d4ce29586cf04040d9ee631a4687ab2cf`. `reports/exchange-navigation-release/summary.json`, `reports/exchange-navigation-published.json`. |
+| PASS | Both jobs in [tests 41634158286](https://github.com/neodix42/crypto-wallet/actions/runs/41634158286) succeeded for `17d2a32`. Independently verified backend artifact 13231532327 SHA256 `495b32956566a168f3dd6b235e92ee8875fbe36247c50d7b9e32d20d641f92d0`: all 30 JSON gates, 81 mutants/ten campaigns, 26 measured fuzz targets, 13 local integrations and 24 recovered descriptors/eight networks. All 8,870 hash comparisons matched 1,692 unique source files, with zero mismatches. `reports/exchange-navigation-hosted-checks/verification.json`, `reports/exchange-navigation-hosted-checks/summary.json`. |
+| NOT_RUN | Authenticated real Bybit deposits, transfers, trades and withdrawals; public funded acceptance, physical installed Ubuntu/X11/Wayland matrix and independent external security review. No user credentials or automatic mainnet funds used. |
+
+The earlier hosted run for `3d9f5e8` failed at an address-selection OCR locator
+before Exchange and its backend job was cancelled during integrations after the
+helper fix was pushed. It is not a complete hosted PASS. The next `61ee558`
+GUI run passed 25 checks and then failed at a bare `4` OCR lookup. Its complete
+backend artifact independently passed all 30 gates, but that overall workflow
+remains FAIL. The directional-label fix in `17d2a32` preserves exact post-click
+page checks, private-pixel guards and all recovery/copy assertions. A separate local
+simultaneous-display start and one private phrase OCR observation were also
+rejected; they are preserved as failed observations. The accepted fresh full run
+retained every word/ordinal/checksum and exact-copy assertion.
 
 Earlier aggregate fixtures which expected the removed Bybit controls were updated
 to exercise the shared direct UI through Binance. Separate five-step tests retain

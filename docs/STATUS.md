@@ -9,15 +9,41 @@ network metadata. Withdrawal route identity remains strict. Old economic step
 numbers are preserved and mapped separately to visible navigation.
 [Behavior and acceptance checklist](BYBIT_FREE_STEPS.md).
 
-PASS: 160 frontend checks, complete aggregate suite, affected full races including
-signer, final native races, vet, portable build and six actual stable-source X11
-checks including five-page navigation 3 → 2 → 4 → 5 → 1. Controller/backend and
-real signer tests cover reverse transfer, Funding-only limits, original-ID
-tracking, old-state mapping and blocked stale Bybit controls. Actual public
-instrument reads confirmed GRAMUSDT, ETHUSDT, ETHUSDC and USDCUSDT listings.
-Final security/mutation campaign is RUNNING; new exact-source hosted checks and
-publication are NOT_RUN until recorded. Authenticated funded Bybit acceptance is
-NOT_RUN; no real secrets or automatic mainnet funds used.
+PASS: 160 frontend checks, complete local aggregate/security suites, affected
+full races including signer, vet and portable build. Current driver tests total
+227; exact clipboard checks and directional step navigation retain strict
+owned-window bounds. Actual public instrument reads confirmed GRAMUSDT,
+ETHUSDT, ETHUSDC and USDCUSDT. Real signer tests verify exact independent
+Unified → Funding approval, password failures, encrypted UNKNOWN recovery and
+refusal to reuse transfer approval for withdrawal.
+
+The final Wails job in [tests 41634158286](https://github.com/neodix42/crypto-wallet/actions/runs/41634158286)
+passes for `17d2a32a7e86becca0e2d53d8097e2f9d1e12657`.
+Artifact 13230848136 verifies all nine source/binary-bound reports: 38 full GUI,
+five TON, seven recovery and nine actual private-geth checks. All five Exchange
+steps are selected by directional labels, without requiring OCR of digits.
+`reports/exchange-navigation-hosted-gui/summary.json`.
+Both jobs and all steps in this exact-source test run succeeded. Backend
+artifact 13231532327 SHA256
+`495b32956566a168f3dd6b235e92ee8875fbe36247c50d7b9e32d20d641f92d0`
+independently verifies all 30 report gates, 81 mutants in ten campaigns,
+26 measured fuzz targets, 13 local integrations and recovery of 24 descriptors
+across eight networks. All 8,870 source-hash comparisons matched 1,692 unique
+files with zero mismatches. `reports/exchange-navigation-hosted-checks/verification.json`,
+`reports/exchange-navigation-hosted-checks/summary.json`.
+The preceding `61ee558` backend independently passed all 30 gates, but its
+workflow remains FAIL from the later GUI number locator; the earlier `3d9f5e8`
+workflow remains failed/cancelled. Neither is substituted for a full latest-run
+PASS.
+
+[Build/release 41634158316](https://github.com/neodix42/crypto-wallet/actions/runs/41634158316)
+and normal [release 0.1.50](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.50)
+pass publisher/source/tag/version/archive verification. Six actual checks on the
+authenticated downloaded binary also pass with stable source and no financial
+request. `reports/exchange-navigation-release/summary.json`,
+`reports/exchange-navigation-published.json`.
+Authenticated funded Bybit acceptance, full installed OS matrix and independent
+external review remain NOT_RUN. No real secrets or automatic mainnet funds used.
 
 ## Free Exchange steps and review-state compatibility — 2026-11-03
 
