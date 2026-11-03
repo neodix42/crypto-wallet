@@ -50,6 +50,7 @@ func TestSpotDirectionsSendExactUSDTOrUSDCAndInvalidateChangedQuotes(t *testing.
 
 func TestExchangeHumanReadableStatusQuoteAndOriginalReconcileWithoutJSONDump(t *testing.T) {
 	a, _, _ := fixture(t)
+	a.fields["exchangeProvider"] = "binance" // The shared legacy controls belong to other providers.
 	a.exchange = json.RawMessage(`{"connected":true,"endpoint":"https://api.bybit.com","message":"Public connected","operations":[{"id":"original-id","kind":"spot","state":"UNKNOWN"}],"debugDump":"must-not-render"}`)
 	a.quote = json.RawMessage(`{"symbol":"ETHUSDC","coin":"ETH","quoteCoin":"USDC","side":"Buy","lastPrice":"2500.123456","bidPrice":"2500","askPrice":"2501","feeRate":"0.001","observedAt":"public-time","balances":[{"accountType":"UNIFIED","coin":"USDC","available":"50.25"}],"route":{"supported":true,"chain":"ETH","minWithdraw":"0.001","withdrawFee":"0.0001","withdrawPercentageFee":"0"}}`)
 	// Shared legacy formatting remains used by other exchange providers.

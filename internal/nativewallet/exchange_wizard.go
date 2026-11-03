@@ -481,7 +481,11 @@ func (a *App) exchangePendingOperationNodes() []webui.Node {
 	for _, o := range status.Operations {
 		switch o.State {
 		case "UNKNOWN", "SUBMITTED", "SUBMITTING", "PENDING", "PARTIALLY_FILLED", "ACCEPTED":
-			nodes = append(nodes, a.button("exchangeReconcile/"+o.ID, "Check original "+o.Kind+" · "+o.ID, false))
+			if a.selectedExchangeProvider().ID == "bybit" {
+				nodes = append(nodes, label("Exchange "+o.Kind+": "+o.State+" · checking automatically"))
+			} else {
+				nodes = append(nodes, a.button("exchangeReconcile/"+o.ID, "Check original "+o.Kind+" · "+o.ID, false))
+			}
 		case "PREPARED", "AUTHORIZED":
 			nodes = append(nodes, a.button("freeCancel/"+o.ID, "Cancel original unsigned "+o.Kind+" · "+o.ID, false))
 		}
