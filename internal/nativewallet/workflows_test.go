@@ -745,14 +745,27 @@ func TestAllWalletFamiliesAndExchangeRecoveryStatesStayVisible(t *testing.T) {
 	if !strings.Contains(viewText(a.settingsPage()), "Official API region") {
 		t.Fatal("Bybit settings unavailable")
 	}
-	a.exchange = json.RawMessage(`{"connected":true,"operations":[{"id":"original-one","state":"UNKNOWN","kind":"withdrawal"},{"id":"original-two","state":"PARTIALLY_FILLED","kind":"spot"},{"id":"original-three","state":"PENDING","kind":"transfer"}]}`)
+	a.exchange = json.RawMessage(`{"provider":"bybit","connected":true,"operations":[{"id":"original-one","state":"UNKNOWN","kind":"withdrawal"},{"id":"original-two","state":"PARTIALLY_FILLED","kind":"spot"},{"id":"original-three","state":"PENDING","kind":"transfer"}]}`)
 	a.result, a.resultOwner = "public-exchange-result", "exchange"
-	text := viewText(a.exchangePage())
-	for _, value := range []string{"original-one", "original-two", "original-three", a.result} {
-		if !strings.Contains(text, value) {
-			t.Fatal("exchange unresolved identity disappeared")
+	a.adoptExchangeWizard(a.exchange)
+	a.wizard.viewStep = 3 // Exercise the actual current Bybit screen, not its historical formatter.
+	retained := string(a.exchange)
+	page := a.exchangePage()
+	text := viewText(page)
+	for _, value := range []string{"original-one", "original-two", "original-three", "UNKNOWN", "PARTIALLY_FILLED", "PENDING", a.result} {
+		if strings.Contains(text, value) {
+			t.Fatal("original-operation history reappeared on the current-funds wizard", value)
 		}
 	}
+	for _, id := range []string{"freeCheck/original-one", "exchangeReconcile/original-two", "exchangeReconcile/original-three"} {
+		if _, exists := findNode(page, id); exists {
+			t.Fatal("manual original-operation check reappeared", id)
+		}
+	}
+	if string(a.exchange) != retained {
+		t.Fatal("hiding original status cards discarded durable operation metadata")
+	}
+
 	a.fields["asset/"+a.state.Accounts[0].ID] = "missing-asset"
 	if a.asset(a.state.Accounts[0]).ID == "missing-asset" {
 		t.Fatal("unregistered asset bypassed pinned selection")

@@ -329,7 +329,7 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 			from, fieldID, actionID = "UNIFIED", "freeReturnAmount", "freeReturn"
 			title, buttonText, sourceName = "4. Move Unified to Funding", "Move to Funding", "Unified"
 		}
-		nodes = append(nodes, heading(title), label("Move the selected asset's currently available "+sourceName+" funds between your Bybit accounts. This is a separately approved transfer. This action does not certify the credit of a particular wallet deposit."))
+		nodes = append(nodes, heading(title), label("Move available "+sourceName+" funds between your Bybit accounts."))
 		balances := a.freeBalances()
 		a.freeTransferDraft(fieldID, balances, from, asset)
 		for _, kind := range []string{"FUND", "UNIFIED"} {
@@ -350,24 +350,18 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		if field.Value != "" && !valid {
 			field.Error = "Enter a positive amount within the verified " + sourceName + " balance and asset precision."
 		}
-		pending := a.freeHasPending(step, account.ID, asset.ID)
 		reason := ""
-		if pending {
-			reason = "Checking the previous exchange operation automatically. This action becomes available when its outcome is verified."
-		} else if !valid && sourceOK {
+		if !valid && sourceOK {
 			reason = "Enter an amount within the available " + sourceName + " balance."
 			if wizardAvailable(balances, from, asset.Symbol) == "" {
 				reason = "Refresh balances to verify the available " + sourceName + " funds."
 			}
 		}
-		button := a.button(actionID, buttonText, blocked || !valid || pending)
+		button := a.button(actionID, buttonText, blocked || !valid)
 		button.Tooltip = reason
 		nodes = append(nodes, field, a.button("freeRefreshFunding", "Refresh Funding / Unified balances", blocked), button)
 		if reason != "" && !blocked {
 			nodes = append(nodes, label(reason))
-		}
-		if step == 2 && a.wizard.credit != nil && a.wizard.state != nil && a.wizard.state.SourceAccount == account.ID && a.wizard.state.SourceAsset == asset.ID {
-			nodes = append(nodes, heading("Original deposit status"), label(a.wizard.credit.Message))
 		}
 	case 3:
 		nodes = append(nodes, heading("3. Swap on Spot"), label("Spend currently available Unified funds. Visiting this step does not deposit or move Funding funds."), a.button("freeRefreshPairs", "Refresh available pairs", blocked))
@@ -393,16 +387,12 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		if field.Error == "" && field.Value != "" && !validation.SwapValid {
 			field.Error = validation.SwapError
 		}
-		pair, chosen := a.freePair()
+		_, chosen := a.freePair()
 		slippage := a.entry("slippage", "Maximum slippage (%)")
 		slippage.InputMode, slippage.Error = "decimal", validation.SlippageError
-		pending := a.freeHasPending(3, pair.AccountID, pair.AssetID)
-		button := a.button("freeSwap", "Swap", blocked || !chosen || !validation.SwapValid || pending)
+		button := a.button("freeSwap", "Swap", blocked || !chosen || !validation.SwapValid)
 		button.Tooltip = validation.SwapError
 		nodes = append(nodes, field, slippage, button)
-		if pending {
-			nodes = append(nodes, label("Checking the previous exchange operation automatically. Swap becomes available when its outcome is verified."))
-		}
 	case 5:
 		nodes = append(nodes, heading("5. Withdraw to wallet"), label("Withdraw from Funding only. Move Unified funds in step 4 first. Choose a supported owned-wallet destination; the total debit includes the withdrawal fee."), a.button("freeRefreshWithdraw", "Refresh withdrawal networks and balances", blocked))
 		var destinations []webui.Option
@@ -425,14 +415,8 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		if field.Value != "" && !valid {
 			field.Error = "Use the selected network's minimum and precision, within the verified available balance."
 		}
-		nodes = append(nodes, field, a.button("freeWithdraw", "Withdraw", blocked || !valid || a.freeHasPending(5, d.AccountID, d.AssetID)))
+		nodes = append(nodes, field, a.button("freeWithdraw", "Withdraw", blocked || !valid))
 	}
-	for _, op := range u.operations {
-		if op.Stage == step {
-			nodes = append(nodes, label(exchangeResultSummary(mustFreeResult(op.wizardResult))))
-		}
-	}
-	nodes = append(nodes, a.exchangePendingOperationNodes()...)
 	nodes = append(nodes, a.button("exchangeStatus", "Refresh Bybit status", a.busy))
 	return nodes
 }
@@ -475,12 +459,6 @@ func (a *App) freeTransferDraft(field string, balances []wizardBalance, from str
 	}
 	value := a.freeTransferDefault(balances, from, asset)
 	a.fields[field], u.transferDefaults[field] = value, value
-}
-
-func (a *App) resetFreeTransferDrafts() {
-	u := a.freeData()
-	u.transferDefaults, u.transferEdited = nil, nil
-	a.fields["freeMoveAmount"], a.fields["freeReturnAmount"], a.fields["freeWithdrawAmount"] = "", "", ""
 }
 
 // A fresh custody observation may update the corresponding spending balance
@@ -648,8 +626,16 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 			u.quote = nil
 			a.freeRememberOutput(*update.result)
 		}
-		if update.result != nil && (update.result.Stage == 2 || update.result.Stage == 4) && update.result.State == "CONFIRMED" {
-			a.resetFreeTransferDrafts()
+		if writing && update.result != nil && (update.result.Stage == 2 || update.result.Stage == 4) {
+			field := "freeMoveAmount"
+			if update.result.Stage == 4 {
+				field = "freeReturnAmount"
+			}
+			if u.transferDefaults == nil {
+				u.transferDefaults = map[string]string{}
+			}
+			u.transferDefaults[field] = a.fields[field]
+			delete(u.transferEdited, field)
 		}
 		if update.result != nil && update.result.Stage == 5 && update.result.State == "EXCHANGE_COMPLETED" {
 			u.balances = []wizardBalance{}
@@ -759,7 +745,7 @@ func (a *App) freeExchangeAction(id string) bool {
 	if stage == 5 {
 		opAccount, opAsset = destination.AccountID, destination.AssetID
 	}
-	if stage > 0 && a.freeHasPending(stage, opAccount, opAsset) {
+	if stage == 1 && a.freeHasPending(stage, opAccount, opAsset) {
 		a.notice("The previous exchange operation is being checked automatically. No new operation was sent.")
 		return true
 	}
@@ -818,7 +804,7 @@ func (a *App) freeExchangeAction(id string) bool {
 			var b struct{ Balances []wizardBalance }
 			err = a.callAt(g, "exchangeFundingBalances", map[string]string{"accountId": account.ID, "assetId": asset.ID}, &b)
 			out.balances = b.Balances
-			if err != nil {
+			if err != nil || b.Balances == nil {
 				out.balances = []wizardBalance{}
 			}
 		case "freeMove":
@@ -973,9 +959,6 @@ func (a *App) nextFreeExchangeCheck() bool {
 			}
 			if balancesRead && a.fields["freeAccount"] == original.AccountID && a.fields["freeAsset"] == original.AssetID {
 				a.setFreeBalances(balances)
-				if !original.restored {
-					a.resetFreeTransferDrafts()
-				}
 				_, asset, ok := a.freeSource()
 				if ok {
 					a.freeTransferDraft("freeMoveAmount", balances, "FUND", asset)
@@ -1000,7 +983,9 @@ func (a *App) nextFreeExchangeCheck() bool {
 				}
 			}
 			if !freePending(result.State) && freePending(original.State) {
-				a.notice("Original exchange operation: " + result.State + ".")
+				if !original.restored {
+					a.notice("Exchange operation: " + result.State + ".")
+				}
 				if original.Stage == 1 && result.State == "CONFIRMED" && a.wizard.viewStep == 1 && a.fields["freeAccount"] == original.AccountID && a.fields["freeAsset"] == original.AssetID {
 					a.wizard.viewStep = 2
 				}

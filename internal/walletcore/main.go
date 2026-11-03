@@ -184,7 +184,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize", "exchangeWizardCancel":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangePrepareCurrentFunds", "exchangeAuthorize", "exchangeWizardCancel":
 		interactive = true
 	}
 	if interactive {

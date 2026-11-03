@@ -138,7 +138,7 @@ func TestGRAMSwapPendingOriginalIsSeparateFromNumericEligibility(t *testing.T) {
 	if result := a.freeTradeValidation(); !result.SwapValid {
 		t.Fatal("pending original corrupted numeric market eligibility", result)
 	}
-	if button, _ := findNode(a.exchangePage(), "freeSwap"); !button.Disabled {
-		t.Fatal("unresolved exchange write allowed another trade")
+	if button, _ := findNode(a.exchangePage(), "freeSwap"); button.Disabled {
+		t.Fatal("older exchange record blocked independently available funds")
 	}
 }

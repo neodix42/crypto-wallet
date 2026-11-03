@@ -34,7 +34,7 @@ const exchangeChildBranches = `
   output={'wizard':wizard,'operations':state.get('exchangeOps',[])}
  elif method=='exchangeConnect':state['exchangeConnected']=True;state['exchangeEndpoint']=body['endpoint'];output={}
  elif method=='exchangeDisconnect':state['exchangeConnected']=False;output={}
- elif method=='exchangePrepare':
+ elif method in ['exchangePrepare','exchangePrepareCurrentFunds']:
   kind=body['kind'];key={'swap':'order','transfer':'transfer','withdraw':'withdrawal'}[kind]
   ident=format(len(state.get('exchangeOps',[]))+1,'032x')
   payload=dict(body[key])
@@ -42,6 +42,8 @@ const exchangeChildBranches = `
   elif kind=='transfer':payload['transferId']=ident[:8]+'-'+ident[8:12]+'-'+ident[12:16]+'-'+ident[16:20]+'-'+ident[20:]
   else:payload['requestId']=ident;payload['timestamp']=int(time.time()*1000)
   output={'id':ident,'kind':kind,'endpoint':state.get('exchangeEndpoint','https://api.bybit.com'),'credentialId':'fixture-credential','accountId':body['accountId'],'assetId':body['assetId'],'payload':json.dumps(payload,separators=(',',':')),'state':'PREPARED','createdAt':int(time.time()),'expiresAt':int(time.time())+300,'digest':'fixture-only'}
+  state.setdefault('exchangePreparationMethods',[]).append(method)
+  if method=='exchangePrepareCurrentFunds':output['currentFunds']=True
   for field in ['lastPrice','fee','feeCoin','chainType','contractAddress']:
    if field in body:output[field]=body[field]
   state.setdefault('exchangeOps',[]).append(output)
@@ -185,7 +187,7 @@ func (a *fixtureExchangeAPI) post(ctx context.Context, path string, payload any)
 		state := readExchangeFixtureState(a.path)
 		var count int
 		for _, op := range state["exchangeOps"].([]any) {
-			if op.(map[string]any)["state"] == "SUBMITTING" {
+			if op.(map[string]any)["state"] == "SUBMITTING" && op.(map[string]any)["payload"] == string(b) {
 				count++
 			}
 		}

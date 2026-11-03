@@ -1,5 +1,20 @@
 # Implementation and release evidence
 
+## Available-funds Exchange actions without old-operation waits — 2026-11-03
+
+Latest owner policy: steps 2–5 use fresh safe available funds for each new
+independently approved request. Older UNKNOWN/PENDING records remain intact
+internally and do not block these actions. Removed original-deposit/pending-status
+panels and manual checks; restored read-only tracking and amount suggestions are
+being corrected. [Behavior and evidence](BYBIT_CURRENT_FUNDS.md).
+PASS: reported GRAM forms, draft/balance refresh and private current-funds
+signer/backend/dispatch/vault tests, complete local regression/security suites,
+full affected-package races, vet, build and six actual stable-source X11 checks.
+All 81 semantic mutants pass in ten stable-source campaigns. Exact-source hosted
+CI and publication verification are NOT_RUN until recorded. Live authenticated
+funded Bybit acceptance remains NOT_RUN.
+
+
 ## Five-step Exchange and route-independent spot candidates — 2026-11-03
 
 The current amendment adds an explicit Unified → Funding step 4 and a

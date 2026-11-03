@@ -148,7 +148,7 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 	switch m.Method {
 	case "addressBook", "saveAddress", "removeAddress":
 		return handleAddressBook(e, m.Method, m.Body)
-	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangePrepare", "exchangeAuthorize", "exchangeOperation", "exchangeCancel", "exchangeCancelConfirmed", "exchangeAuth", "exchangeUpdate", "exchangeReject", "exchangeWizardSave", "exchangeWizardCancel", "exchangeWizardDepositConfirmed":
+	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangePrepare", "exchangePrepareCurrentFunds", "exchangeAuthorize", "exchangeOperation", "exchangeCancel", "exchangeCancelConfirmed", "exchangeAuth", "exchangeUpdate", "exchangeReject", "exchangeWizardSave", "exchangeWizardCancel", "exchangeWizardDepositConfirmed":
 		return handleExchange(e, m.Method, m.Body)
 	case "create", "import":
 		var b struct {

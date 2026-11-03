@@ -72,10 +72,14 @@ func handleExchange(e *signer.Engine, method string, raw json.RawMessage) (json.
 		if err == nil {
 			out, err = e.ExchangeStatus()
 		}
-	case "exchangePrepare":
+	case "exchangePrepare", "exchangePrepareCurrentFunds":
 		var in signer.ExchangeIntent
 		if err = signer.DecodeBody(raw, &in); err == nil {
-			out, err = e.PrepareExchange(in)
+			if method == "exchangePrepareCurrentFunds" {
+				out, err = e.PrepareExchangeCurrentFunds(in)
+			} else {
+				out, err = e.PrepareExchange(in)
+			}
 		}
 	case "exchangeAuthorize", "exchangeOperation", "exchangeCancel", "exchangeCancelConfirmed":
 		var in struct {

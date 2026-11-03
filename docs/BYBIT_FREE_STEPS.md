@@ -1,3 +1,5 @@
+> The latest [current-funds update](BYBIT_CURRENT_FUNDS.md) supersedes the earlier global waiting rule and original-deposit/status panels below. New steps 2–5 use fresh safe balances with distinct exact/password-approved IDs, even while an older exchange request is UNKNOWN. Historical test evidence remains scoped to its recorded source.
+
 # Independent Exchange steps and Travel Rule response formats
 
 The owner requested freely selectable Exchange steps on 2026-11-03. Deposit,

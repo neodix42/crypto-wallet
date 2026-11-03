@@ -163,8 +163,8 @@ func TestFreeExchangeFundingUsesActualAvailabilityWithoutCertifyingOldCredit(t *
 	if button, _ := findNode(a.exchangePage(), "freeMove"); button.Disabled {
 		t.Fatal("an unrelated old credit read blocked explicitly selected custody funds")
 	}
-	if !strings.Contains(viewText(a.exchangePage()), "does not certify the credit") || !strings.Contains(viewText(a.exchangePage()), "Original deposit review is unresolved") {
-		t.Fatal("independent transfer silently certified an old deposit")
+	if strings.Contains(viewText(a.exchangePage()), "does not certify the credit") || strings.Contains(viewText(a.exchangePage()), "Original deposit review is unresolved") || strings.Contains(viewText(a.exchangePage()), "Original deposit status") {
+		t.Fatal("historical deposit attribution reappeared on the current-funds transfer form")
 	}
 	a.wizardAction("freeMove")
 	ui.apply(t)
@@ -417,28 +417,43 @@ func TestFreeExchangeWriteRetainsOriginalOutcomeAfterSourceEdit(t *testing.T) {
 	}
 }
 
-func TestFreeExchangeRestoredUnknownMoveStaysBlockedAndOffersOriginalCheck(t *testing.T) {
-	a, _, backend, source, saved := freeNativeFixture(t)
-	status := map[string]any{"provider": "bybit", "connected": true, "wizard": saved, "wizardDepositState": "CONFIRMED", "operations": []any{map[string]string{"provider": "bybit", "id": "restored-original-transfer", "kind": "transfer", "state": "UNKNOWN", "accountId": source.ID, "assetId": saved.SourceAsset}}}
-	a.exchange, _ = json.Marshal(status)
+func TestFreeExchangeRestoredUnknownMoveDoesNotGateFreshFundingAction(t *testing.T) {
+	a, ui, backend, source, saved := freeNativeFixture(t)
+	oldID := "restored-original-transfer"
+	operations := []any{map[string]string{"provider": "bybit", "id": oldID, "kind": "transfer", "state": "UNKNOWN", "accountId": source.ID, "assetId": saved.SourceAsset}}
+	a.exchange, _ = json.Marshal(map[string]any{"provider": "bybit", "connected": true, "wizard": saved, "wizardDepositState": "CONFIRMED", "operations": operations})
 	a.fields["freeMoveAmount"] = "1"
-	a.freeData().balances = []wizardBalance{{AccountType: "FUND", Coin: "ETH", Available: "5"}}
-	backend.handler = func(_ uint64, method string, _, _ any) error {
-		t.Error("an unresolved original allowed replacement authority", method)
-		return errors.New("unexpected replacement")
+	a.freeData().balances = []wizardBalance{{AccountType: "FUND", Coin: "ETH", Available: "5"}, {AccountType: "UNIFIED", Coin: "ETH", Available: "0"}}
+	moves := 0
+	backend.handler = func(_ uint64, method string, body, out any) error {
+		switch method {
+		case "exchangeFundingMove":
+			f := freeRequestFields(t, body)
+			if f["accountId"] != source.ID || f["assetId"] != saved.SourceAsset || f["amount"] != "1" || f["id"] != nil || f["wizardId"] != nil {
+				t.Error("new action reused old identity or different source", f)
+			}
+			moves++
+			return answer(out, wizardResult{ID: "separately-approved-current-funds-move", Kind: "transfer", State: "PENDING"})
+		case "exchangeWizardLoad":
+			return freeSavedAnswer(out, saved, operations)
+		default:
+			t.Error("current funds action requested original check or unexpected authority", method)
+			return errors.New("unexpected current-funds request")
+		}
 	}
 	page := a.exchangePage()
-	if button, _ := findNode(page, "freeMove"); !button.Disabled {
-		t.Fatal("restored UNKNOWN operation allowed another Funding move")
+	if button, _ := findNode(page, "freeMove"); button.Disabled {
+		t.Fatal("old unknown transfer gated an affordable current Funding action")
 	}
-	_, freeCheck := findNode(page, "freeCheck/restored-original-transfer")
-	_, originalCheck := findNode(page, "exchangeReconcile/restored-original-transfer")
-	if !freeCheck && !originalCheck {
-		t.Fatal("restored original has no explicit read-only check")
+	for _, id := range []string{"freeCheck/" + oldID, "exchangeReconcile/" + oldID} {
+		if _, exists := findNode(page, id); exists {
+			t.Fatal("manual original check remained visible", id)
+		}
 	}
 	a.wizardAction("freeMove")
-	if a.busy || a.view().ErrorNotice == nil {
-		t.Fatal("forged replacement click did not remain blocked")
+	ui.apply(t)
+	if moves != 1 || a.wizard.state.DepositOperation != saved.DepositOperation || !strings.Contains(string(a.exchange), oldID) || !strings.Contains(string(a.exchange), "UNKNOWN") || a.view().ErrorNotice != nil {
+		t.Fatal("current funds action waited for or discarded its older original", moves, a.exchange)
 	}
 }
 
@@ -644,6 +659,7 @@ func TestFreeExchangeAsyncTransferRefreshesOnlyItsSelectedOriginalPools(t *testi
 			u.balances = []wizardBalance{{AccountType: "FUND", Coin: "ETH", Available: "5"}, {AccountType: "UNIFIED", Coin: "ETH", Available: "0"}}
 			u.operations = []freeExchangeOperation{{Stage: 2, AccountID: source.ID, AssetID: saved.SourceAsset, wizardResult: wizardResult{ID: "async-original-transfer", Kind: "transfer", State: "PENDING"}}}
 			a.fields["freeMoveAmount"] = "5"
+			u.transferDefaults = map[string]string{"freeMoveAmount": "5"} // Untouched amount consumed by its original explicit submission.
 			var calls []string
 			backend.handler = func(_ uint64, method string, body, out any) error {
 				calls = append(calls, method)

@@ -86,5 +86,5 @@ func (c *core) exchangeCustodyMoveAt(epoch uint64, ctx context.Context, client e
 		return exchangeResult{}, ipc.NewRequestError(code)
 	}
 	request := bybit.TransferRequest{Coin: asset.Symbol, Amount: value, FromAccountType: from, ToAccountType: to}
-	return c.executeExchangeAt(epoch, client, exchangeIntent{Kind: "transfer", AccountID: accountID, AssetID: assetID, Transfer: &request, Fee: "0", FeeCoin: asset.Symbol})
+	return c.executeExchangeCurrentFundsAt(epoch, client, exchangeIntent{Kind: "transfer", AccountID: accountID, AssetID: assetID, Transfer: &request, Fee: "0", FeeCoin: asset.Symbol})
 }

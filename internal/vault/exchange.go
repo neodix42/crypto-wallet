@@ -30,6 +30,9 @@ type ExchangeCredentials struct {
 	KeyVersion int    `json:"keyVersion,omitempty"`
 }
 type ExchangeOperation struct {
+	// CurrentFunds is an independently approved request backed by a fresh
+	// selected-account balance observation. Absent preserves legacy digests.
+	CurrentFunds    bool   `json:"currentFunds,omitempty"`
 	ID              string `json:"id"`
 	Kind            string `json:"kind"`
 	Endpoint        string `json:"endpoint"`
@@ -181,7 +184,7 @@ func validateExchange(d *ExchangeData, accounts map[string]bool) error {
 	seen := map[string]bool{}
 	for _, o := range d.Operations {
 		provider, known := exchange.ProviderForEndpoint(o.Endpoint)
-		if !known {
+		if !known || o.CurrentFunds && provider.ID != "bybit" {
 			return ErrFormat
 		}
 		if !exchangeHex(o.ID, 32) || seen[o.ID] || !accounts[o.AccountID] || !exchangeText(o.AssetID, 256, false) || !exchangeText(o.Endpoint, 128, false) || !exchangeHex(o.CredentialID, 64) || len(o.Payload) == 0 || len(o.Payload) > 8192 || !utf8.ValidString(o.Payload) || o.CreatedAt <= 0 || o.ExpiresAt <= o.CreatedAt || o.ExpiresAt-o.CreatedAt > 600 || !exchangeText(o.ExternalID, 128, true) || !exchangeText(o.LastPrice, 80, true) || !exchangeText(o.Fee, 80, true) || !exchangeText(o.FeeCoin, 24, true) || !exchangeText(o.ChainType, 80, true) || !exchangeText(o.ContractAddress, 256, true) || o.Digest != ExchangeDigest(o) {

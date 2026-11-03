@@ -341,13 +341,27 @@ func exchangeWithdrawalNetwork(a model.Account, asset model.Asset, w bybit.Withd
 	return exchange.ValidateProviderRoute(provider, a, asset, w.Chain, chainType, contract) == nil
 }
 func (e *Engine) PrepareExchange(in ExchangeIntent) (vault.ExchangeOperation, error) {
+	return e.prepareExchange(in, false)
+}
+
+// PrepareExchangeCurrentFunds is only exposed on the trusted core/signer pipe.
+// The core selects it after fresh current-balance, permissions and venue rules
+// checks. It grants no reuse, retry, cancellation or modification of old IDs.
+func (e *Engine) PrepareExchangeCurrentFunds(in ExchangeIntent) (vault.ExchangeOperation, error) {
+	return e.prepareExchange(in, true)
+}
+
+func (e *Engine) prepareExchange(in ExchangeIntent, currentFunds bool) (vault.ExchangeOperation, error) {
 	x, err := e.exchangeData()
 	if err != nil || x.Credential(x.Selected()) == nil || e.data.Environment != "mainnet" || len(x.Operations) >= 1000 {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
 	credential := x.Credential(x.Selected())
+	if currentFunds && (x.Selected() != "bybit" || in.WizardID != "") {
+		return vault.ExchangeOperation{}, ErrDenied
+	}
 	for _, o := range x.Operations {
-		if exchangeUnresolved(o.State) || o.State == "AUTHORIZED" {
+		if e.exchangePreparationBlocked(o, currentFunds) {
 			return vault.ExchangeOperation{}, ErrDenied
 		}
 	}
@@ -446,8 +460,8 @@ func (e *Engine) PrepareExchange(in ExchangeIntent) (vault.ExchangeOperation, er
 	// and integers; JSON encoding cannot fail for these types.
 	b, _ := json.Marshal(payload)
 	now := time.Now().Unix()
-	o := vault.ExchangeOperation{ID: id, Kind: in.Kind, Endpoint: credential.Endpoint, CredentialID: vault.ExchangeCredentialID(credential), AccountID: a.ID, AssetID: asset.ID, Payload: string(b), State: "PREPARED", CreatedAt: now, ExpiresAt: now + 300, LastPrice: in.LastPrice, Fee: in.Fee, FeeCoin: in.FeeCoin, ChainType: in.ChainType, ContractAddress: in.ContractAddress}
-	if _, err = exchangeOperationRequest(o, time.Now().UnixMilli()); err != nil {
+	o := vault.ExchangeOperation{CurrentFunds: currentFunds, ID: id, Kind: in.Kind, Endpoint: credential.Endpoint, CredentialID: vault.ExchangeCredentialID(credential), AccountID: a.ID, AssetID: asset.ID, Payload: string(b), State: "PREPARED", CreatedAt: now, ExpiresAt: now + 300, LastPrice: in.LastPrice, Fee: in.Fee, FeeCoin: in.FeeCoin, ChainType: in.ChainType, ContractAddress: in.ContractAddress}
+	if _, err = exchangeOperationRequest(o, time.Now().UnixMilli()); err != nil || currentFunds && !exchangeCurrentFundsPolicy(o, asset) {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
 	o.Digest = vault.ExchangeDigest(o)
@@ -571,6 +585,12 @@ func exchangeApproval(o vault.ExchangeOperation, a model.Account, asset model.As
 	default:
 		return "", ErrDenied
 	}
+	if o.CurrentFunds {
+		if !exchangeCurrentFundsPolicy(o, asset) {
+			return "", ErrDenied
+		}
+		return summary + "Only this new operation is authorized.", nil
+	}
 	return summary + "Only this operation is authorized. A timeout requires reconciliation of this original request before another operation.", nil
 }
 func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
@@ -578,10 +598,30 @@ func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
 	if err != nil || o.State != "PREPARED" || o.Digest != vault.ExchangeDigest(*o) || o.ExpiresAt <= time.Now().Unix() || e.data.Exchange.Credential(e.data.Exchange.Selected()) == nil || o.CredentialID != vault.ExchangeCredentialID(e.data.Exchange.Credential(e.data.Exchange.Selected())) {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
-	for _, other := range e.data.Exchange.Operations {
-		if other.ID != id && (exchangeUnresolved(other.State) || other.State == "AUTHORIZED") {
-			return vault.ExchangeOperation{}, ErrDenied
+	owner, generation, exchangeState := e.data, e.data.Generation, e.data.Exchange
+	digest, credentialID := o.Digest, o.CredentialID
+	current := func() bool {
+		if !e.canAuthorize() || e.data != owner || owner.Generation != generation || e.data.Exchange != exchangeState {
+			return false
 		}
+		credential := exchangeState.Credential(exchangeState.Selected())
+		if credential == nil || vault.ExchangeCredentialID(credential) != credentialID {
+			return false
+		}
+		operation, lookupErr := e.exchangeOperation(id)
+		if lookupErr != nil || operation.State != "PREPARED" || operation.Digest != digest || operation.Digest != vault.ExchangeDigest(*operation) || operation.ExpiresAt <= time.Now().Unix() || operation.Endpoint != credential.Endpoint {
+			return false
+		}
+		for _, other := range exchangeState.Operations {
+			if other.ID != id && e.exchangePreparationBlocked(other, operation.CurrentFunds) {
+				return false
+			}
+		}
+		o = operation
+		return true
+	}
+	if !current() {
+		return vault.ExchangeOperation{}, ErrDenied
 	}
 	a, asset, err := e.exchangeAsset(o.AccountID, o.AssetID)
 	if err != nil {
@@ -592,7 +632,11 @@ func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
 		return vault.ExchangeOperation{}, err
 	}
 	service, _ := exchange.ProviderForEndpoint(o.Endpoint)
-	if !e.UI.Confirm("Authorize exact "+service.Name+" operation", summary) {
+	accepted := e.UI.Confirm("Authorize exact "+service.Name+" operation", summary)
+	if !current() {
+		return vault.ExchangeOperation{}, ErrDenied
+	}
+	if !accepted {
 		o.State = "CANCELLED"
 		if err = e.persist(); err != nil {
 			return vault.ExchangeOperation{}, err
@@ -603,7 +647,7 @@ func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
 	if err = e.exchangePassword("Reauthenticate this " + service.Name + " operation"); err != nil {
-		if e.canAuthorize() {
+		if current() {
 			o.State = "CANCELLED"
 			if pErr := e.persist(); pErr != nil {
 				return vault.ExchangeOperation{}, pErr
@@ -611,7 +655,7 @@ func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
 		}
 		return vault.ExchangeOperation{}, err
 	}
-	if o.ExpiresAt <= time.Now().Unix() || o.Digest != vault.ExchangeDigest(*o) || o.CredentialID != vault.ExchangeCredentialID(e.data.Exchange.Credential(e.data.Exchange.Selected())) {
+	if !current() {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
 	if o.Kind == "withdraw" {

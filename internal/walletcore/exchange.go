@@ -1109,7 +1109,11 @@ func (c *core) exchangeSwapWithFundsAt(epoch uint64, client exchangeAPI, account
 			return *transfer, nil
 		}
 	}
-	return c.executeExchangeAt(epoch, client, exchangeIntent{WizardID: wizardID, Kind: "swap", AccountID: accountID, AssetID: assetID, Order: &order, LastPrice: quote.LastPrice, Fee: fee, FeeCoin: feeCoin})
+	intent := exchangeIntent{WizardID: wizardID, Kind: "swap", AccountID: accountID, AssetID: assetID, Order: &order, LastPrice: quote.LastPrice, Fee: fee, FeeCoin: feeCoin}
+	if unifiedOnly {
+		return c.executeExchangeCurrentFundsAt(epoch, client, intent)
+	}
+	return c.executeExchangeAt(epoch, client, intent)
 }
 
 func exchangeIOCOrder(quote exchangeQuote, order bybit.SpotOrder) (bybit.SpotOrder, string, string, error) {
@@ -1299,7 +1303,11 @@ func (c *core) exchangeWithdrawWithPolicyAt(epoch uint64, client exchangeAPI, ac
 		w.FeeType = 0
 		w.FeeMode = "kucoin-external"
 	}
-	return c.executeExchangeAt(epoch, client, exchangeIntent{WizardID: wizardID, Kind: "withdraw", AccountID: accountID, AssetID: assetID, Withdrawal: &w, Fee: fee, FeeCoin: asset.Symbol, ChainType: chain.ChainType, ContractAddress: chain.ContractAddress})
+	intent := exchangeIntent{WizardID: wizardID, Kind: "withdraw", AccountID: accountID, AssetID: assetID, Withdrawal: &w, Fee: fee, FeeCoin: asset.Symbol, ChainType: chain.ChainType, ContractAddress: chain.ContractAddress}
+	if fundingOnly {
+		return c.executeExchangeCurrentFundsAt(epoch, client, intent)
+	}
+	return c.executeExchangeAt(epoch, client, intent)
 }
 
 func exchangeNativeWithdrawalFee(value, fixed, percentage string, precision uint8) (string, error) {
@@ -1354,8 +1362,20 @@ func (c *core) updateExchangeAt(epoch uint64, id, state, externalID string) (vau
 	return operation, err
 }
 func (c *core) executeExchangeAt(epoch uint64, client exchangeAPI, intent exchangeIntent) (exchangeResult, error) {
+	return c.executeExchangeModeAt(epoch, client, intent, false)
+}
+
+func (c *core) executeExchangeCurrentFundsAt(epoch uint64, client exchangeAPI, intent exchangeIntent) (exchangeResult, error) {
+	return c.executeExchangeModeAt(epoch, client, intent, true)
+}
+
+func (c *core) executeExchangeModeAt(epoch uint64, client exchangeAPI, intent exchangeIntent, currentFunds bool) (exchangeResult, error) {
+	prepareMethod := "exchangePrepare"
+	if currentFunds {
+		prepareMethod = "exchangePrepareCurrentFunds"
+	}
 	var operation vault.ExchangeOperation
-	if err := c.childCallAt(epoch, "exchangePrepare", intent, &operation); err != nil {
+	if err := c.childCallAt(epoch, prepareMethod, intent, &operation); err != nil {
 		return exchangeResult{}, err
 	}
 	if err := c.childCallAt(epoch, "exchangeAuthorize", struct {
@@ -1417,6 +1437,9 @@ func (c *core) executeExchangeAt(epoch uint64, client exchangeAPI, intent exchan
 	updated, persistErr := c.updateExchangeAt(epoch, operation.ID, state, externalID)
 	if persistErr != nil {
 		return exchangeResult{}, persistErr
+	}
+	if state == "UNKNOWN" && operation.CurrentFunds {
+		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The service did not return a confirmed result. This separate request remains in local history and is not retried automatically."}, nil
 	}
 	if state == "UNKNOWN" {
 		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The request result is unknown. Its original operation is retained and new exchange writes are blocked. Reconcile it; never create a replacement after a timeout. A missing acknowledgement can only be recovered when the selected service exposes the exact original request identity."}, nil

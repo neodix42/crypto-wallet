@@ -133,6 +133,7 @@ func TestFiveStepExchangePendingReturnReconcilesOriginalAndRefreshesFunding(t *t
 	u := a.freeData()
 	u.operations = []freeExchangeOperation{{Stage: 4, AccountID: source.ID, AssetID: saved.SourceAsset, wizardResult: wizardResult{ID: "pending-return", Kind: "transfer", State: "PENDING"}}}
 	a.fields["freeReturnAmount"], a.fields["freeWithdrawAmount"] = "5", "1"
+	u.transferDefaults = map[string]string{"freeReturnAmount": "5"} // Submitted amount remains managed until edited.
 	calls := []string{}
 	backend.handler = func(_ uint64, method string, body, out any) error {
 		calls = append(calls, method)
@@ -153,7 +154,7 @@ func TestFiveStepExchangePendingReturnReconcilesOriginalAndRefreshesFunding(t *t
 		t.Fatal("pending return was not tracked")
 	}
 	ui.apply(t)
-	if strings.Join(calls, ",") != "exchangeReconcile,exchangeFundingBalances" || u.operations[0].State != "CONFIRMED" || a.fields["freeReturnAmount"] != "0" || a.fields["freeWithdrawAmount"] != "" || a.freeWithdrawalAvailable("ETH") != "5" {
+	if strings.Join(calls, ",") != "exchangeReconcile,exchangeFundingBalances" || u.operations[0].State != "CONFIRMED" || a.fields["freeReturnAmount"] != "0" || a.fields["freeWithdrawAmount"] != "1" || a.freeWithdrawalAvailable("ETH") != "5" {
 		t.Fatal("return completion failed to refresh source pools", calls, a.fields)
 	}
 }
