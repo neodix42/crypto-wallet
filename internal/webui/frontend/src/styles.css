@@ -131,5 +131,8 @@
 .exchange-steps{display:flex;align-items:center;gap:1rem;list-style:none;margin:1rem 0 1.5rem;padding:0;flex-wrap:wrap;width:100%}
 .exchange-steps li{display:flex;align-items:center;gap:.55rem;color:var(--muted);padding:.65rem .9rem;border-bottom:3px solid transparent;flex:1;white-space:nowrap}
 .exchange-steps li.current{color:var(--text);border-bottom-color:var(--accent);font-weight:650}
+.exchange-steps li.interactive{padding:0}
+.exchange-steps .exchange-step-button{width:100%;justify-content:flex-start;gap:.55rem;border:0;background:transparent;color:inherit;font-weight:inherit;padding:.65rem .9rem;white-space:nowrap}
+.exchange-steps .exchange-step-button:hover{background:var(--hover)}
 .exchange-steps .step-number{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:50%;width:1.8em;height:1.8em;flex-shrink:0}
 .exchange-steps li.current .step-number,.exchange-steps li.complete .step-number{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}

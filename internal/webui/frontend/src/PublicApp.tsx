@@ -96,6 +96,20 @@ export function Field({ node, emit, hideInlineError = false }: { node: Node; emi
     : <input ref={input} id={id} value={value} disabled={node.Disabled} autoComplete="off" spellCheck={false} inputMode={node.InputMode || undefined} pattern={node.InputMode === 'decimal' ? '[0-9]+(\\.[0-9]+)?' : undefined} aria-invalid={node.Error ? true : undefined} aria-describedby={node.Error ? errorID : undefined} maxLength={publicFieldLimit} onBlur={() => { pending.current = []; }} onChange={event => update(event.target.value)}/>}{node.Error && !hideInlineError && <span className="field-error" id={errorID} role="alert">{node.Error}</span>}</label>;
 }
 
+function ExchangeSteps({ node, emit }: { node: Node; emit: Emit }) {
+  const current = Number(node.Value);
+  return <ol className="exchange-steps" aria-label="Exchange steps">{(node.Children || []).map((step, index) => {
+    const number = index + 1, selected = number === current;
+    // Steps are navigation. An incorrectly authored child must never turn
+    // this control into a deposit, order or withdrawal action.
+    const interactive = step.Kind === 'button' && number <= 4 && step.ID === `wizardStep/${number}`;
+    const content = <><span className="step-number" aria-hidden="true">{!interactive && number < current ? '✓' : number}</span><span>{step.Text}</span></>;
+    return <li key={index} className={[selected ? 'current' : !interactive && number < current ? 'complete' : '', interactive ? 'interactive' : ''].filter(Boolean).join(' ')} aria-current={!interactive && selected ? 'step' : undefined}>{interactive
+      ? <button type="button" className="exchange-step-button" disabled={step.Disabled} data-action={step.ID} aria-current={selected ? 'step' : undefined} title={step.Tooltip} onClick={() => emit(step.ID)}>{content}</button>
+      : content}</li>;
+  })}</ol>;
+}
+
 export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
   const children = () => (node.Children || []).map((child, index) => <PublicNode key={child.ID || `${child.Kind}-${index}`} node={child} emit={emit}/>);
   switch (node.Kind) {
@@ -106,7 +120,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'explorer': return <ExplorerLink node={node}/>;
     case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : <div className="node-column">{children()}</div>;
     case 'row': {
-      if (node.ID === 'exchangeSteps') return <ol className="exchange-steps" aria-label="Exchange progress">{(node.Children || []).map((step, index) => <li key={index} className={index + 1 === Number(node.Value) ? 'current' : index + 1 < Number(node.Value) ? 'complete' : ''} aria-current={index + 1 === Number(node.Value) ? 'step' : undefined}><span className="step-number" aria-hidden="true">{index + 1 < Number(node.Value) ? '✓' : index + 1}</span><span>{step.Text}</span></li>)}</ol>;
+      if (node.ID === 'exchangeSteps') return <ExchangeSteps node={node} emit={emit}/>;
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;
       if (node.ID.startsWith('sendAmount/')) {
         const [amount, maximum] = node.Children || [], owner = node.ID.slice('sendAmount/'.length);

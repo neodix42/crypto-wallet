@@ -57,7 +57,7 @@ func TestDepositCreditRequiresDocumentedRestrictionStateAndCanonicalTransactionI
 	}
 	for _, bad := range []string{
 		strings.Replace(result, `"travelRuleStatus":0`, `"travelRuleStatus":null`, 1),
-		strings.Replace(result, `"travelRuleStatus":0`, `"travelRuleStatus":"0"`, 1),
+		strings.Replace(result, `"travelRuleStatus":0`, `"travelRuleStatus":"approved"`, 1),
 		strings.Replace(result, `"travelRuleStatus":0`, `"travelRuleStatus":4`, 1),
 		strings.Replace(result, `"tag":"",`, "", 1), strings.Replace(result, `"depositType":"0",`, "", 1),
 		strings.Replace(result, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", "EREREREREREREREREREREREREREREREREREREREREREQ=", 1),

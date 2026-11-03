@@ -48,6 +48,15 @@ func TestDepositCreditDiagnosticsOnlyAdmitFixedFieldsAtCreditStage(t *testing.T)
 			t.Fatal("deposit diagnostic admitted for unrelated endpoint", cause)
 		}
 	}
+	for _, shape := range []string{"NULL", "EMPTY", "TYPE", "VALUE", "SHADOW"} {
+		cause := "DEPOSIT_RECORD_REVIEW_" + shape
+		if code := PublicErrorCode(NewExchangeReadError("DEPOSIT_CREDIT", cause)); code != "EXCHANGE_READ_DEPOSIT_CREDIT__"+cause {
+			t.Fatal("safe review shape lost", code)
+		}
+		if code := PublicErrorCode(NewExchangeReadError("KEY", cause)); code != "REQUEST_FAILED_STATE_UNKNOWN" {
+			t.Fatal("review shape escaped credit stage", code)
+		}
+	}
 	for _, cause := range []string{"DEPOSIT_RECORD_API_KEY_CANARY", "CREDIT_PRIVATE_RESPONSE_CANARY", "DEPOSIT_RECORD_MEMO/secret", "CREDIT_FEE\nsecret"} {
 		if PublicErrorCode(NewExchangeReadError("DEPOSIT_CREDIT", cause)) != "REQUEST_FAILED_STATE_UNKNOWN" {
 			t.Fatal("provider text entered deposit diagnostic", cause)

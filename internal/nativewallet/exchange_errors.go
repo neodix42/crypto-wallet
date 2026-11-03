@@ -19,7 +19,9 @@ func exchangeReadReason(code string) (string, bool) {
 	if stage == "EXECUTIONS" {
 		name = "Verifying the original spot order's executed amounts and fees"
 	}
-	if strings.HasPrefix(cause, "DEPOSIT_RECORD_") {
+	if strings.HasPrefix(cause, "DEPOSIT_RECORD_REVIEW_") {
+		reason = map[string]string{"DEPOSIT_RECORD_REVIEW_NULL": "Bybit returned null instead of a review result. The original deposit's review remains unclassified.", "DEPOSIT_RECORD_REVIEW_EMPTY": "Bybit returned an empty review result. The original deposit's review remains unclassified.", "DEPOSIT_RECORD_REVIEW_TYPE": "Bybit's review result is neither an integer nor a canonical numeric string.", "DEPOSIT_RECORD_REVIEW_VALUE": "Bybit returned an unknown review state; it was not treated as approved.", "DEPOSIT_RECORD_REVIEW_SHADOW": "Bybit returned conflicting spellings of its review field."}[cause]
+	} else if strings.HasPrefix(cause, "DEPOSIT_RECORD_") {
 		field := map[string]string{"RESPONSE": "response envelope", "PAGE": "record list", "CURSOR": "pagination cursor", "ID": "unique record ID", "COIN": "asset", "TRANSACTION": "transaction identity", "CHAIN": "network", "AMOUNT": "amount", "ADDRESS": "receiving address", "SOURCE": "sender address", "MEMO": "memo", "STATUS": "credit status", "FEE": "reported fee", "TIME": "success time", "CONFIRMATIONS": "confirmation count", "TYPE": "deposit type", "REVIEW": "Travel Rule review"}[strings.TrimPrefix(cause, "DEPOSIT_RECORD_")]
 		reason = "Bybit's deposit response has a missing, invalid or inconsistent " + field + ". Its record could not be verified. The response body and credentials are not displayed."
 	} else if strings.HasPrefix(cause, "CREDIT_") {

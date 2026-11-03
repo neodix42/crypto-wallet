@@ -10,7 +10,12 @@ import (
 // DepositRecordError identifies a fixed validation category, never the provider
 // value, response body, request headers or credentials. Callers must allowlist
 // Field before including it in a public error code.
-type DepositRecordError struct{ Field string }
+type DepositRecordError struct {
+	Field string
+	// Reason is a fixed shape category for a review-field failure. It never
+	// contains the provider value; callers must allowlist it before display.
+	Reason string
+}
 
 func (e *DepositRecordError) Error() string { return "invalid Bybit deposit record" }
 func (e *DepositRecordError) Unwrap() error { return ErrInvalidResponse }
@@ -81,13 +86,51 @@ func depositRecordField(fields map[string]json.RawMessage, name, category string
 	return nil
 }
 
+// Review states have identical meaning whether encoded as an integer or a
+// canonical numeric string. Do not use truthiness, trim provider strings or
+// default malformed/unknown values to zero: zero means an approved review.
+func depositReviewStatus(fields map[string]json.RawMessage) (int, bool, error) {
+	for name := range fields {
+		if name != "travelRuleStatus" && strings.EqualFold(name, "travelRuleStatus") {
+			return 0, false, &DepositRecordError{Field: "REVIEW", Reason: "SHADOW"}
+		}
+	}
+	raw, present := fields["travelRuleStatus"]
+	if !present {
+		return 0, false, nil
+	}
+	raw = bytes.TrimSpace(raw)
+	if bytes.Equal(raw, []byte("null")) {
+		return 0, true, &DepositRecordError{Field: "REVIEW", Reason: "NULL"}
+	}
+	var status int
+	if len(raw) > 0 && raw[0] == '"' {
+		var value string
+		if json.Unmarshal(raw, &value) != nil {
+			return 0, true, &DepositRecordError{Field: "REVIEW", Reason: "TYPE"}
+		}
+		if value == "" {
+			return 0, true, &DepositRecordError{Field: "REVIEW", Reason: "EMPTY"}
+		}
+		if len(value) != 1 || value[0] < '0' || value[0] > '3' {
+			return 0, true, &DepositRecordError{Field: "REVIEW", Reason: "VALUE"}
+		}
+		status = int(value[0] - '0')
+	} else if json.Unmarshal(raw, &status) != nil {
+		return 0, true, &DepositRecordError{Field: "REVIEW", Reason: "TYPE"}
+	}
+	if status < 0 || status > 3 {
+		return 0, true, &DepositRecordError{Field: "REVIEW", Reason: "VALUE"}
+	}
+	return status, true, nil
+}
+
 func parseDepositRecord(row json.RawMessage, coin, txID string) (DepositRecord, error) {
 	var fields map[string]json.RawMessage
 	var d DepositRecord
 	if json.Unmarshal(row, &fields) != nil || fields == nil {
 		return d, &DepositRecordError{Field: "PAGE"}
 	}
-	_, d.TravelRuleStatusPresent = fields["travelRuleStatus"]
 	for _, field := range []struct {
 		name, category string
 		out            any
@@ -106,11 +149,15 @@ func parseDepositRecord(row json.RawMessage, coin, txID string) (DepositRecord, 
 		{"depositFee", "FEE", &d.DepositFee, false},
 		{"successAt", "TIME", &d.SuccessAt, false},
 		{"confirmations", "CONFIRMATIONS", &d.Confirmations, false},
-		{"travelRuleStatus", "REVIEW", &d.TravelRuleStatus, d.TravelRuleStatusPresent},
 	} {
 		if err := depositRecordField(fields, field.name, field.category, field.out, field.required); err != nil {
 			return DepositRecord{}, err
 		}
+	}
+	var reviewErr error
+	d.TravelRuleStatus, d.TravelRuleStatusPresent, reviewErr = depositReviewStatus(fields)
+	if reviewErr != nil {
+		return DepositRecord{}, reviewErr
 	}
 	for _, check := range []struct {
 		category string

@@ -24,6 +24,11 @@ func exchangeDepositCreditReason(code string) string {
 		return ""
 	}
 	return map[string]string{
+		"DEPOSIT_RECORD_REVIEW_NULL":   "Bybit returned null instead of a Travel Rule review result. The original deposit's review has not been classified.",
+		"DEPOSIT_RECORD_REVIEW_EMPTY":  "Bybit returned an empty Travel Rule review result. The original deposit's review has not been classified.",
+		"DEPOSIT_RECORD_REVIEW_TYPE":   "Bybit's Travel Rule result is neither an integer nor a canonical numeric string.",
+		"DEPOSIT_RECORD_REVIEW_VALUE":  "Bybit returned an unknown Travel Rule review state. It was not treated as approved.",
+		"DEPOSIT_RECORD_REVIEW_SHADOW": "Bybit returned conflicting spellings of its Travel Rule review field.",
 		"DEPOSIT_RECORD_RESPONSE":      "Bybit's deposit response has an invalid JSON envelope or result.",
 		"DEPOSIT_RECORD_PAGE":          "Bybit's deposit response has a missing or invalid record list.",
 		"DEPOSIT_RECORD_CURSOR":        "Bybit's deposit response has an invalid or repeated continuation cursor.",
@@ -72,6 +77,12 @@ func exchangeReadFailure(stage string, err error) error {
 		switch record.Field {
 		case "RESPONSE", "PAGE", "CURSOR", "ID", "COIN", "TRANSACTION", "CHAIN", "AMOUNT", "ADDRESS", "SOURCE", "MEMO", "STATUS", "FEE", "TIME", "CONFIRMATIONS", "TYPE", "REVIEW":
 			code = "DEPOSIT_RECORD_" + record.Field
+			if record.Field == "REVIEW" {
+				switch record.Reason {
+				case "NULL", "EMPTY", "TYPE", "VALUE", "SHADOW":
+					code += "_" + record.Reason
+				}
+			}
 		}
 	}
 	if stage == "DEPOSIT_CREDIT" && errors.As(err, &credit) && credit != nil {

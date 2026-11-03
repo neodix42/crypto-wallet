@@ -243,7 +243,8 @@ type DepositRecord struct {
 	DepositType      string `json:"depositType"`
 	TravelRuleStatus int    `json:"travelRuleStatus"`
 	// Bybit omits this field in non-compliance areas (including its public
-	// response example). An explicitly reported review state is never ignored.
+	// response example). The parser losslessly accepts known integer/numeric-
+	// string states; an explicitly reported review state is never ignored.
 	TravelRuleStatusPresent bool `json:"-"`
 }
 type DepositPage struct {

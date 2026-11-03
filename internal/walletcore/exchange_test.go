@@ -60,6 +60,10 @@ const exchangeChildBranches = `
   state.setdefault('exchangeAuthRequests',[]).append(body)
   output={'apiKey':'publicFixtureKey','signature':'0'*64}
  elif method=='exchangeOperation':output=next((o for o in state.get('exchangeOps',[]) if o['id']==body['id']),None)
+ elif method=='exchangeCancelConfirmed':
+  operation=next((o for o in state.get('exchangeOps',[]) if o['id']==body['id']),None)
+  if not operation or operation['state'] not in ['PREPARED','AUTHORIZED']:error='SYNTHETIC_DENIED'
+  else:operation['state']='CANCELLED';output={'connected':True,'endpoint':state.get('exchangeEndpoint','https://api.bybit.com'),'credentialId':'fixture-credential','wizard':state.get('wizard'),'operations':state.get('exchangeOps',[])}
  elif method=='exchangeUpdate':
   output=next(o for o in state.get('exchangeOps',[]) if o['id']==body['id']);output['state']=body['state'];output['externalId']=body['externalId']
  elif method=='exchangeReject':

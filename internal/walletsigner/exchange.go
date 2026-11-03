@@ -77,7 +77,7 @@ func handleExchange(e *signer.Engine, method string, raw json.RawMessage) (json.
 		if err = signer.DecodeBody(raw, &in); err == nil {
 			out, err = e.PrepareExchange(in)
 		}
-	case "exchangeAuthorize", "exchangeOperation", "exchangeCancel":
+	case "exchangeAuthorize", "exchangeOperation", "exchangeCancel", "exchangeCancelConfirmed":
 		var in struct {
 			ID strictjson.Text `json:"id"`
 		}
@@ -89,6 +89,11 @@ func handleExchange(e *signer.Engine, method string, raw json.RawMessage) (json.
 				out, err = e.ExchangeOperation(string(in.ID))
 			case "exchangeCancel":
 				err = e.CancelExchange(string(in.ID))
+				if err == nil {
+					out, err = e.ExchangeStatus()
+				}
+			case "exchangeCancelConfirmed":
+				err = e.CancelExchangeConfirmed(string(in.ID))
 				if err == nil {
 					out, err = e.ExchangeStatus()
 				}

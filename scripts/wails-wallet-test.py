@@ -2374,8 +2374,15 @@ def exchange_wizard_draft_campaign():
     fill_deposit("1")
     wait(lambda:"Enter a positive ETH amount" not in text())
     if "Bybit deposit address:" in text():raise RuntimeError("Disconnected wizard invented an exchange deposit address")
-    report["exchangeWizardDraft"]={"sequentialSteps":4,"initialStep":"Deposit to Funding","networkAndAssetSelectors":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
-    passed("Actual disconnected Bybit wizard starts at Deposit to Funding, validates network/asset amount drafts and invents no deposit address or payment")
+    navigation=[]
+    for number,control,heading in ((3,"Swap","Swap on Spot"),(2,"Funding","Move Funding to Unified"),(4,"Withdraw","Withdraw to wallet"),(1,"Deposit","Deposit to Funding")):
+        click(control)
+        wait(lambda heading=heading:heading in text())
+        if desktop.secret_window():raise RuntimeError("Exchange step navigation requested private approval")
+        navigation.append(number)
+    if "Connect your Bybit account in Settings" not in text():raise RuntimeError("Disconnected navigation invented an authenticated exchange session")
+    report["exchangeWizardDraft"]={"sequentialSteps":4,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
+    passed("Actual disconnected Exchange steps navigate freely, validate deposit drafts and create no address, approval or payment")
 
 def exchange_input_campaign():
     exchange_wizard_draft_campaign()

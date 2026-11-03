@@ -70,6 +70,16 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 	ctx, cancel := c.networkContextAt(90*time.Second, epoch)
 	defer cancel()
 	switch message.Method {
+	case "exchangeFundingMove":
+		var in struct {
+			AccountID strictjson.Text `json:"accountId"`
+			AssetID   strictjson.Text `json:"assetId"`
+			Amount    strictjson.Text `json:"amount"`
+		}
+		if strictjson.Decode(message.Body, &in) != nil {
+			return nil, ipc.NewRequestError("INVALID_ARGUMENT")
+		}
+		return c.exchangeFundingMoveAt(epoch, ctx, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
 	case "exchangeFundingBalances", "exchangeSwapOptions":
 		var in struct {
 			AccountID strictjson.Text `json:"accountId"`
@@ -95,10 +105,22 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 		}{asset.Symbol, balances}, nil
 	case "exchangeWithdrawOptions":
 		var in struct {
-			Coin strictjson.Text `json:"coin"`
+			Coin            strictjson.Text    `json:"coin"`
+			ExistingFunds   exchangeActionFlag `json:"existingFunds,omitempty"`
+			SourceAccountID strictjson.Text    `json:"sourceAccountId,omitempty"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil {
+		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "existingFunds") || !bool(in.ExistingFunds) && in.SourceAccountID != "" {
 			return nil, errExchange
+		}
+		if bool(in.ExistingFunds) {
+			if in.SourceAccountID == "" {
+				return nil, ipc.NewRequestError("INVALID_ARGUMENT")
+			}
+			source, err := c.account(string(in.SourceAccountID))
+			if err != nil {
+				return nil, err
+			}
+			return c.exchangeWithdrawalChoicesAt(ctx, client, string(in.Coin), source.Index)
 		}
 		if status.Wizard == nil || status.Wizard.Step != 4 || status.Wizard.OutputCoin != string(in.Coin) {
 			return nil, ipc.NewRequestError("EXCHANGE_WIZARD_STALE")

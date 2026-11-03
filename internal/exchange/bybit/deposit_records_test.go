@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -68,7 +69,7 @@ func TestDepositRecordDiagnosticsIdentifyRejectedFieldWithoutReturningProviderVa
 		{"confirmations-control", "CONFIRMATIONS", "confirmations", depositResponseCanary + "\n"},
 		{"type-bounds", "TYPE", "depositType", depositResponseCanary},
 		{"review-null", "REVIEW", "travelRuleStatus", nil},
-		{"review-type", "REVIEW", "travelRuleStatus", "0"},
+		{"review-type", "REVIEW", "travelRuleStatus", "approved"},
 		{"review-range", "REVIEW", "travelRuleStatus", 4},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
@@ -94,6 +95,73 @@ func TestDepositRecordDiagnosticsIdentifyRejectedFieldWithoutReturningProviderVa
 				assertDepositRecordDiagnostic(t, err, category)
 			})
 		}
+	}
+}
+
+func TestDepositReviewKnownNumericStringsPreserveEveryReportedState(t *testing.T) {
+	for state := 0; state <= 3; state++ {
+		for _, stringForm := range []bool{false, true} {
+			name := "integer-" + strconv.Itoa(state)
+			var value any = state
+			if stringForm {
+				name = "string-" + strconv.Itoa(state)
+				value = strconv.Itoa(state)
+			}
+			t.Run(name, func(t *testing.T) {
+				row := depositRecordDiagnosticFixture(t)
+				row["travelRuleStatus"] = value
+				page, err := depositRecordDiagnosticRead(t, map[string]any{"rows": []any{row}}, "")
+				if err != nil || len(page.Rows) != 1 || !page.Rows[0].TravelRuleStatusPresent || page.Rows[0].TravelRuleStatus != state {
+					t.Fatal("review state was rejected or changed during representation normalization", state, err)
+				}
+				if state != 0 && page.Rows[0].TravelRuleStatus == 0 {
+					t.Fatal("a pending, collecting or rejected review became approved")
+				}
+			})
+		}
+	}
+}
+
+func TestDepositReviewMalformedOrUnreportedRepresentationsNeverBecomeApproved(t *testing.T) {
+	for _, test := range []struct {
+		name, reason string
+		value        any
+	}{
+		{"null", "NULL", nil},
+		{"empty", "EMPTY", ""},
+		{"true", "TYPE", true},
+		{"false", "TYPE", false},
+		{"float", "TYPE", json.RawMessage("0.0")},
+		{"object", "TYPE", map[string]any{"status": 0}},
+		{"array", "TYPE", []int{0}},
+		{"unknown-number", "VALUE", 4},
+		{"negative-number", "VALUE", -1},
+		{"unknown-string", "VALUE", depositResponseCanary},
+		{"padded-string", "VALUE", "00"},
+		{"sign-string", "VALUE", "+0"},
+		{"negative-zero-string", "VALUE", "-0"},
+		{"float-string", "VALUE", "0.0"},
+		{"exponent-string", "VALUE", "0e0"},
+		{"space-string", "VALUE", " 0 "},
+		{"control-string", "VALUE", "0\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			row := depositRecordDiagnosticFixture(t)
+			row["travelRuleStatus"] = test.value
+			_, err := depositRecordDiagnosticRead(t, map[string]any{"rows": []any{row}}, "")
+			assertDepositRecordDiagnostic(t, err, "REVIEW")
+			var typed *DepositRecordError
+			if !errors.As(err, &typed) || typed.Reason != test.reason {
+				t.Fatal("review representation reason was lost", test.reason, err)
+			}
+		})
+	}
+	row := depositRecordDiagnosticFixture(t)
+	row["travelRuleStatus"], row["TravelRuleStatus"] = "2", "0"
+	_, err := depositRecordDiagnosticRead(t, map[string]any{"rows": []any{row}}, "")
+	var typed *DepositRecordError
+	if !errors.As(err, &typed) || typed.Field != "REVIEW" || typed.Reason != "SHADOW" {
+		t.Fatal("shadowed pending review was accepted or lost its fixed reason", err)
 	}
 }
 

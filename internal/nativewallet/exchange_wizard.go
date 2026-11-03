@@ -39,6 +39,8 @@ type wizardResult struct {
 	Fees                                                             map[string]string
 }
 type exchangeWizardUI struct {
+	viewStep          int
+	free              *exchangeFreeUI
 	state             *exchange.WizardState
 	depositState      string
 	preview           *wizardDepositPreview
@@ -69,6 +71,12 @@ func (a *App) adoptExchangeWizard(raw json.RawMessage) {
 	}
 	a.adoptWizardState(status.Wizard)
 	a.exchangeWizardData().depositState = status.WizardDepositState
+	if a.wizard.viewStep == 0 {
+		a.wizard.viewStep = 1
+		if status.Wizard != nil && status.Wizard.Step <= 4 {
+			a.wizard.viewStep = status.Wizard.Step
+		}
+	}
 }
 func (a *App) adoptWizardState(w *exchange.WizardState) {
 	u := a.exchangeWizardData()
@@ -213,6 +221,9 @@ func (a *App) exchangeWizardPage() []webui.Node {
 	if u.state != nil {
 		step = u.state.Step
 	}
+	if u.viewStep > 0 {
+		step = u.viewStep
+	}
 	var connection struct {
 		Connected bool
 		Provider  string
@@ -220,12 +231,17 @@ func (a *App) exchangeWizardPage() []webui.Node {
 	_ = json.Unmarshal(a.exchange, &connection)
 	disabled := a.state.Locked || !a.state.RecoveryConfirmed || !connection.Connected || connection.Provider != "" && connection.Provider != "bybit"
 	steps := node("row", "exchangeSteps", "Exchange steps", strconv.Itoa(step))
-	for _, text := range []string{"Deposit", "Funding → Unified", "Swap", "Withdraw"} {
-		steps.Children = append(steps.Children, label(text))
+	for index, text := range []string{"Deposit", "Funding → Unified", "Swap", "Withdraw"} {
+		button := node("button", "wizardStep/"+strconv.Itoa(index+1), text, "")
+		button.Disabled = a.busy && u.free != nil && u.free.writing
+		steps.Children = append(steps.Children, button)
 	}
 	nodes := []webui.Node{a.exchangeProviderSelector(), heading("Bybit Exchange"), steps}
 	if disabled {
 		nodes = append(nodes, label("Connect your Bybit account in Settings → Exchange to enable these actions."))
+	}
+	if u.viewStep > 0 {
+		return append(nodes, a.freeExchangePage(step, disabled)...)
 	}
 	account, asset, sourceOK := a.wizardSource()
 	switch step {
@@ -457,6 +473,8 @@ func (a *App) exchangePendingOperationNodes() []webui.Node {
 		switch o.State {
 		case "UNKNOWN", "SUBMITTED", "SUBMITTING", "PENDING", "PARTIALLY_FILLED", "ACCEPTED":
 			nodes = append(nodes, a.button("exchangeReconcile/"+o.ID, "Check original "+o.Kind+" · "+o.ID, false))
+		case "PREPARED", "AUTHORIZED":
+			nodes = append(nodes, a.button("freeCancel/"+o.ID, "Cancel original unsigned "+o.Kind+" · "+o.ID, false))
 		}
 	}
 	return nodes
@@ -724,6 +742,9 @@ func (a *App) wizardSuggestedTransfer(check *wizardDepositCredit) string {
 }
 
 func (a *App) wizardField(key string) bool {
+	if a.freeExchangeField(key) {
+		return true
+	}
 	if !strings.HasPrefix(key, "wizard") {
 		return false
 	}
@@ -739,6 +760,9 @@ func (a *App) wizardField(key string) bool {
 }
 
 func (a *App) wizardAction(id string) bool {
+	if a.freeNavigateStep(id) || a.freeExchangeAction(id) {
+		return true
+	}
 	if !strings.HasPrefix(id, "wizard") {
 		return false
 	}

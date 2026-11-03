@@ -1,5 +1,11 @@
 # Bybit wizard and deposit destination
 
+The owner's 2026-11-03 update makes the four step pages independently
+selectable and permits separately approved actions using existing custody
+balances. This supersedes the strict visible sequence described below, which
+remains the original workflow's historical/durable correlation model.
+[Current behavior, review compatibility and evidence](BYBIT_FREE_STEPS.md).
+
 The owner requested a sequential Deposit → Funding/Unified → Spot swap →
 owned-wallet withdrawal workflow on 2026-11-02. Bybit opens this wizard by
 default. Binance/KuCoin keep their existing provider-specific controls and

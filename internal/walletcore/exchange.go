@@ -408,6 +408,36 @@ func (c *core) exchangeProviderStatusAt(epoch uint64, status exchangePrivateStat
 }
 func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 	switch message.Method {
+	case "exchangeCancel":
+		var in struct {
+			ID       strictjson.Text `json:"id"`
+			Provider strictjson.Text `json:"provider,omitempty"`
+		}
+		if strictjson.Decode(message.Body, &in) != nil || len(in.ID) != 32 || !lowerHex(string(in.ID)) {
+			return nil, ipc.NewRequestError("INVALID_ARGUMENT")
+		}
+		var status exchangePrivateStatus
+		if err := c.childCallAt(epoch, "exchangeStatus", struct{}{}, &status); err != nil {
+			return nil, err
+		}
+		if !exchangeProviderMatches(string(in.Provider), status.Provider) || !status.Connected {
+			return nil, errExchange
+		}
+		var original vault.ExchangeOperation
+		if err := c.childCallAt(epoch, "exchangeOperation", struct {
+			ID string `json:"id"`
+		}{string(in.ID)}, &original); err != nil {
+			return nil, err
+		}
+		if original.ID != string(in.ID) || original.CredentialID != status.CredentialID || original.Endpoint != status.Endpoint || original.State != "PREPARED" && original.State != "AUTHORIZED" {
+			return nil, errExchange
+		}
+		if err := c.childCallAt(epoch, "exchangeCancelConfirmed", struct {
+			ID string `json:"id"`
+		}{string(in.ID)}, &status); err != nil {
+			return nil, err
+		}
+		return exchangeWizardSnapshot{status.Wizard, status.WizardDepositState, exchangePublicOperations(status.Operations)}, nil
 	case "exchangeWizardCancel":
 		var in struct {
 			ID strictjson.Text `json:"id"`
@@ -429,7 +459,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, err
 		}
 		return exchangeWizardSnapshot{status.Wizard, status.WizardDepositState, exchangePublicOperations(status.Operations)}, nil
-	case "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
+	case "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
 		return c.exchangeWizardAt(message, epoch)
 	case "exchangeWizardSave":
 		var in exchange.WizardState
@@ -547,15 +577,16 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		return quote, err
 	case "exchangeDeposit", "exchangeWithdraw":
 		var in struct {
-			Provider        strictjson.Text `json:"provider,omitempty"`
-			AccountID       strictjson.Text `json:"accountId"`
-			AssetID         strictjson.Text `json:"assetId"`
-			Amount          strictjson.Text `json:"amount"`
-			WizardID        strictjson.Text `json:"wizardId,omitempty"`
-			ExpectedAddress strictjson.Text `json:"expectedAddress,omitempty"`
-			ExpectedMemo    strictjson.Text `json:"expectedMemo,omitempty"`
+			Provider        strictjson.Text    `json:"provider,omitempty"`
+			AccountID       strictjson.Text    `json:"accountId"`
+			AssetID         strictjson.Text    `json:"assetId"`
+			Amount          strictjson.Text    `json:"amount"`
+			WizardID        strictjson.Text    `json:"wizardId,omitempty"`
+			ExpectedAddress strictjson.Text    `json:"expectedAddress,omitempty"`
+			ExpectedMemo    strictjson.Text    `json:"expectedMemo,omitempty"`
+			ExistingFunds   exchangeActionFlag `json:"existingFunds,omitempty"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil {
+		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "existingFunds") || bool(in.ExistingFunds) && (message.Method != "exchangeWithdraw" || in.WizardID != "") {
 			return nil, errExchange
 		}
 		client, status, err := c.exchangeClientAt(epoch)
@@ -572,19 +603,26 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		if in.ExpectedAddress != "" || in.ExpectedMemo != "" {
 			return nil, errExchange
 		}
+		if bool(in.ExistingFunds) {
+			if !exchangeProviderMatches("bybit", status.Provider) {
+				return nil, errExchange
+			}
+			return c.exchangeWithdrawWithFundsAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), "", true)
+		}
 		return c.exchangeWithdrawWizardAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), string(in.WizardID))
 	case "exchangeSwap":
 		var in struct {
-			Provider  strictjson.Text `json:"provider,omitempty"`
-			AccountID strictjson.Text `json:"accountId"`
-			AssetID   strictjson.Text `json:"assetId"`
-			Side      strictjson.Text `json:"side"`
-			Amount    strictjson.Text `json:"amount"`
-			Slippage  strictjson.Text `json:"slippage"`
-			QuoteCoin strictjson.Text `json:"quoteCoin,omitempty"`
-			WizardID  strictjson.Text `json:"wizardId,omitempty"`
+			Provider    strictjson.Text    `json:"provider,omitempty"`
+			AccountID   strictjson.Text    `json:"accountId"`
+			AssetID     strictjson.Text    `json:"assetId"`
+			Side        strictjson.Text    `json:"side"`
+			Amount      strictjson.Text    `json:"amount"`
+			Slippage    strictjson.Text    `json:"slippage"`
+			QuoteCoin   strictjson.Text    `json:"quoteCoin,omitempty"`
+			WizardID    strictjson.Text    `json:"wizardId,omitempty"`
+			UnifiedOnly exchangeActionFlag `json:"unifiedOnly,omitempty"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil {
+		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "unifiedOnly") || bool(in.UnifiedOnly) && in.WizardID != "" {
 			return nil, errExchange
 		}
 		client, status, err := c.exchangeClientAt(epoch)
@@ -594,6 +632,12 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		defer client.Close()
 		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
 			return nil, errExchange
+		}
+		if bool(in.UnifiedOnly) {
+			if !exchangeProviderMatches("bybit", status.Provider) {
+				return nil, errExchange
+			}
+			return c.exchangeSwapWithFundsAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage), "", true, string(in.QuoteCoin))
 		}
 		return c.exchangeSwapWizardAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.Amount), string(in.Slippage), string(in.WizardID), string(in.QuoteCoin))
 	}
@@ -795,6 +839,15 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 		}
 	}
 	account, asset, adapter, chain, deposit := target.account, target.asset, target.adapter, target.chain, target.deposit
+	if wizard == nil {
+		reservation, lookupErr := c.accountPaymentReservationAt(epoch, account)
+		if lookupErr != nil {
+			return exchangeResult{}, ipc.NewRequestError("PAYMENT_PENDING_UNAVAILABLE")
+		}
+		if reservation != nil {
+			return exchangeResult{}, ipc.NewRequestError("PAYMENT_PENDING")
+		}
+	}
 	atomic, err := amount.Parse(value, asset.Decimals)
 	if err != nil || atomic == "0" {
 		return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
@@ -1000,6 +1053,10 @@ func (c *core) exchangeSwapAt(epoch uint64, client exchangeAPI, accountID, asset
 }
 
 func (c *core) exchangeSwapWizardAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage string, wizardID string, selectedQuote ...string) (exchangeResult, error) {
+	return c.exchangeSwapWithFundsAt(epoch, client, accountID, assetID, side, value, slippage, wizardID, false, selectedQuote...)
+}
+
+func (c *core) exchangeSwapWithFundsAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage, wizardID string, unifiedOnly bool, selectedQuote ...string) (exchangeResult, error) {
 	quote, _, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, side, selectedQuote...)
 	if err != nil {
 		return exchangeResult{}, err
@@ -1022,10 +1079,19 @@ func (c *core) exchangeSwapWizardAt(epoch uint64, client exchangeAPI, accountID,
 			return exchangeResult{}, err
 		}
 	}
-	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, coin, value, "UNIFIED"); err != nil {
-		return exchangeResult{}, err
-	} else if transfer != nil {
-		return *transfer, nil
+	if unifiedOnly {
+		if quote.Provider != "bybit" || wizardID != "" || info.UTA != 1 {
+			return exchangeResult{}, ipc.NewRequestError("EXCHANGE_UNIFIED_REQUIRED")
+		}
+		if !exchangeAtLeast(exchangeAvailable(quote.Balances, "UNIFIED", coin), value) {
+			return exchangeResult{}, ipc.NewRequestError("EXCHANGE_UNIFIED_INSUFFICIENT")
+		}
+	} else {
+		if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, coin, value, "UNIFIED"); err != nil {
+			return exchangeResult{}, err
+		} else if transfer != nil {
+			return *transfer, nil
+		}
 	}
 	return c.executeExchangeAt(epoch, client, exchangeIntent{WizardID: wizardID, Kind: "swap", AccountID: accountID, AssetID: assetID, Order: &order, LastPrice: quote.LastPrice, Fee: fee, FeeCoin: feeCoin})
 }
@@ -1118,11 +1184,15 @@ func (c *core) exchangeWithdrawAt(epoch uint64, client exchangeAPI, accountID, a
 }
 
 func (c *core) exchangeWithdrawWizardAt(epoch uint64, client exchangeAPI, accountID, assetID, value string, wizardID string) (exchangeResult, error) {
+	return c.exchangeWithdrawWithFundsAt(epoch, client, accountID, assetID, value, wizardID, false)
+}
+
+func (c *core) exchangeWithdrawWithFundsAt(epoch uint64, client exchangeAPI, accountID, assetID, value, wizardID string, existingFunds bool) (exchangeResult, error) {
 	var quote exchangeQuote
 	var chain bybit.Chain
 	var info bybit.APIKeyInformation
 	var err error
-	if wizardID != "" {
+	if wizardID != "" || existingFunds {
 		quote, chain, info, err = c.exchangeWithdrawalQuoteAt(epoch, client, accountID, assetID)
 	} else {
 		quote, chain, info, err = c.exchangeQuoteAt(epoch, client, accountID, assetID, "Sell")

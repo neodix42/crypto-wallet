@@ -345,7 +345,7 @@ func (a *App) lock() {
 	a.active = "group/0"
 	for key := range a.fields {
 		lower := strings.ToLower(key)
-		if strings.Contains(lower, "recipient") || strings.Contains(lower, "amount") || strings.Contains(lower, "memo") || strings.HasPrefix(key, "wizard") || key == "exchangeMode" || strings.HasPrefix(key, "stakingAmount/") {
+		if strings.Contains(lower, "recipient") || strings.Contains(lower, "amount") || strings.Contains(lower, "memo") || strings.HasPrefix(key, "wizard") || strings.HasPrefix(key, "free") || key == "exchangeMode" || strings.HasPrefix(key, "stakingAmount/") {
 			delete(a.fields, key)
 		}
 	}
@@ -372,6 +372,9 @@ func (a *App) tick() {
 	}
 	a.refreshMarketPrices()
 	if a.busy || a.background || len(a.errorQueue) > 0 {
+		return
+	}
+	if a.nextFreeExchangeCheck() {
 		return
 	}
 	if a.nextWizardDepositCheck() {
@@ -1129,6 +1132,9 @@ func (a *App) event(e webui.Event) {
 			}
 			a.render()
 		}
+		return
+	}
+	if a.freeNavigateStep(e.ID) {
 		return
 	}
 	if a.busy {

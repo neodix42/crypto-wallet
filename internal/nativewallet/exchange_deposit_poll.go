@@ -15,6 +15,16 @@ func (a *App) wizardManagesPendingDeposit(operation journal.Operation) bool {
 	if a.wizard == nil {
 		return false
 	}
+	if a.wizard.free != nil {
+		for _, original := range a.wizard.free.operations {
+			if original.Stage == 1 && original.ID == operation.Plan.ID && original.AccountID == operation.Plan.Account.ID && original.AssetID == operation.Plan.Asset {
+				switch operation.State {
+				case "SUBMITTING", "SUBMITTED", "UNKNOWN", "REORGED":
+					return true
+				}
+			}
+		}
+	}
 	return wizardOwnsPendingDeposit(a.wizard.state, operation)
 }
 

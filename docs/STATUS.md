@@ -1,5 +1,26 @@
 # Implementation and release evidence
 
+## Free Exchange steps and review-state compatibility — 2026-11-03
+
+Deposit, Funding → Unified, Swap and Withdraw are independently selectable
+pages; navigation makes no economic request. Each action uses fresh verified
+source balances with its own exact approval and durable original ID. Swap
+spends Unified only; additional deposits keep old records and cannot replace
+unresolved account payments. Numeric-string review states preserve all integer
+0–3 meanings; unknown/null/empty states are not approved. Old original-deposit
+status remains separate from an explicitly selected existing-funds action.
+[Behavior, scope and evidence checklist](BYBIT_FREE_STEPS.md).
+
+PASS: backend/signing/persistence/recovery/UNKNOWN protection, all 16 independent
+controller cases and 160 frontend checks; complete aggregate/security, affected
+full races including signer, vet and portable build. All 81 semantic mutants
+in ten stable-source campaigns pass. Six actual stable-source X11 checks include
+Swap → Funding → Withdraw → Deposit navigation with no financial request.
+`reports/exchange-free-ci.log`, `reports/exchange-free-security.log`,
+`reports/exchange-free-race.log`, `reports/exchange-free-appearance.json`.
+Exact-source hosted acceptance and publication are NOT_RUN until recorded.
+Live private Bybit acceptance remains NOT_RUN; no real profile or secrets used.
+
 ## Bybit credit-record diagnostics and Funding defaults — 2026-11-03
 
 The wizard distinguishes a readable Funding balance from a verified original
