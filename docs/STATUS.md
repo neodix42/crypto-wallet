@@ -13,7 +13,22 @@ PASS: focused native/IPC/client checks, client and core races, all ten core
 matching failures and 17 parser categories with fixed reasons and no debit.
 Final portable build, affected aggregate races/vet, five client semantic
 mutants and six actual stable-source X11 checks also pass.
-Hosted acceptance/publication is NOT_RUN until recorded.
+Both jobs in [tests 41601762568](https://github.com/neodix42/crypto-wallet/actions/runs/41601762568)
+pass for `fc85271195b5f52fdfca818e6f719998fef8cccb`. Desktop artifact
+13214804818 verifies 38 full GUI, five TON, seven recovery and nine private-geth
+checks with all nine report/source/binary bindings. Backend artifact
+13216162374 verifies all 30 JSON gates, 81 mutants, full races/stress, 26 measured
+fuzz targets, 13 local integrations and 24-descriptor recovery; 1,681 source
+hashes match with zero mismatches.
+`reports/bybit-credit-diagnostics-hosted-gui/summary.json`,
+`reports/bybit-credit-diagnostics-hosted-checks/verification.json`.
+
+[Build/release 41601762413](https://github.com/neodix42/crypto-wallet/actions/runs/41601762413)
+and normal [release 0.1.46](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.46)
+pass publisher/source/tag/version/archive verification. Six actual stable-source
+checks on the authenticated downloaded executable also pass.
+`reports/bybit-credit-diagnostics-release/summary.json`,
+`reports/bybit-credit-diagnostics-published.json`.
 The actual private record's rejected field remains BLOCKED pending the
 non-secret record or updated reason; no credential/profile access is performed.
 
