@@ -1247,7 +1247,15 @@ def address_selection_target(context,rows,geometry,diagnostics=None):
                         headers.append((network,balance,receive))
         if len(headers)!=1:raise RuntimeError("Receive-address selection column was not uniquely visible")
         left_bound=headers[0][2][0]-8
-        right_bound=x+w-48 # Leave the icon column outside eligible text boxes.
+        # The icon column is content-sized, not fixed to the window edge.
+        # Its independently measured full rectangle bounds this address cell
+        # and the single-line retry; including even part of the icon can make
+        # Tesseract report a second, unrelated token beside the address.
+        icon=(diagnostics or {}).get("copyIcon")
+        if (not icon or len(icon)!=4 or not inside(icon)
+            or abs((icon[1]+icon[3])//2-center_y)>8):
+            raise RuntimeError("Public address Copy icon was not uniquely visible")
+        right_bound=icon[0]-8
     else:
         if context=="wallet" and not wallet_page_visible(rows):
             raise RuntimeError("Address selection left the wallet page")
@@ -1416,15 +1424,29 @@ def address_selection_single_line(context,rows,geometry,diagnostics,picture):
             raise RuntimeError("Single-line address retry token exceeded its bounds")
         fields[6:10]=[str(left+xx),str(top+yy),str(ww),str(hh)]
         decoded.append(fields)
-    if len(decoded)!=1 or not re.fullmatch(r"0x[0-9a-fA-F]{40}",decoded[0][11]):
-        raise RuntimeError("Single-line address retry did not locate a unique complete token")
+    # PSM7 may split one rendered address into adjacent words or read 0/1 as
+    # O/I/l. These bytes supply coordinates only; do not repair a glyph or
+    # compare OCR spelling with the expected address. Require one bounded,
+    # adjacent, nonoverlapping hex-like run, then reuse the normal locator.
+    ordered=sorted(decoded,key=lambda row:int(row[6]))
+    if not ordered:
+        raise RuntimeError("Single-line address retry did not locate a unique address run")
+    for before,after in zip(ordered,ordered[1:]):
+        bx,by,bw,bh=(int(before[i]) for i in (6,7,8,9))
+        ax,ay,aw,ah=(int(after[i]) for i in (6,7,8,9))
+        if not 0<=ax-(bx+bw)<=max(32,ah*2) or abs(ay+ah//2-(by+bh//2))>6:
+            raise RuntimeError("Single-line address retry did not locate a unique address run")
+    value="".join(row[11].strip(".,:;()[]{}<>\"'`|") for row in ordered)
+    if (not 6<=len(value)<=66
+        or not re.fullmatch(r"[0Oo][xX][0-9A-Fa-fOoIl]{4,64}|[0-9A-Fa-fOoIl]{8,64}",value)):
+        raise RuntimeError("Single-line address retry did not locate a unique address run")
     retained=[]
     for row in rows:
         xx,yy,ww,hh=(int(row[i]) for i in (6,7,8,9))
         if left<xx+ww and xx<right and top<=yy+hh//2<=bottom:continue
         retained.append(row)
-    diagnostics["singleLineRetry"]={"psm":7,"crop":[left,top,right,bottom],"capturedPixelsOnly":True}
-    return retained+decoded
+    diagnostics["singleLineRetry"]={"psm":7,"crop":[left,top,right,bottom],"capturedPixelsOnly":True,"adjacentTokenCount":len(ordered)}
+    return retained+ordered
 
 def selected_address_copy(context,expected_address):
     stage("Locate actual "+context+" public address before selecting it")
@@ -1446,7 +1468,16 @@ def selected_address_copy(context,expected_address):
         rows,captured,geometry=public_rows(with_picture=True,with_geometry=True)
         window,_=desktop.wait("CryptoWallet")
     locator={}
-    if context!="overview":
+    if context=="overview":
+        point=main_row_copy_target(rows,captured,geometry)
+        if point is None:
+            raise RuntimeError("Overview address selection requires its complete enabled Copy icon")
+        rectangles=report.get("mainRowCopy",{}).get("renderedRectangles",[])
+        matching=[rect for rect in rectangles if ((rect[0]+rect[2])//2,(rect[1]+rect[3])//2)==point]
+        if len(matching)!=1:
+            raise RuntimeError("Overview address Copy icon rectangle was ambiguous")
+        locator["copyIcon"]=list(matching[0])
+    else:
         # This is public receive material even inside its verified dialog.
         # Capture and geometry remain local and never become attachments.
         picture=desktop.image().convert("RGB") if context=="receive" else public_picture()

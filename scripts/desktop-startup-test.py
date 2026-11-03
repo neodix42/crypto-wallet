@@ -808,8 +808,8 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
 
     def target(self,context,rows,geometry,diagnostic=None):
         diagnostic={} if diagnostic is None else diagnostic
-        if context in ('wallet','receive'):
-            cy=499 if context=='wallet' else 529
+        if context in ('overview','wallet','receive'):
+            cy=561 if context=='overview' else 499 if context=='wallet' else 529
             diagnostic['copyIcon']=[1300,cy-17,1334,cy+17]
         return self.scope['address_selection_target'](context,rows,geometry,diagnostic)
 
@@ -954,7 +954,7 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
         rows,point=self.fixture('overview')
         # PSM11 can produce one complete box and overlapping interior/suffix
         # chunks with OCR-confused glyphs. The original locator still rejects
-        # them. A separate PSM7 decode must produce a unique complete token.
+        # them. A separate PSM7 decode must produce one bounded address run.
         extra=[self.word('OOlI11',900,550,90),self.word('111l11I1',1000,550,120)]
         with self.assertRaisesRegex(RuntimeError,'ambiguous'):self.target('overview',rows+extra,self.geometry)
         retried,diagnostic=self.single_line(rows+extra)
@@ -962,11 +962,54 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
         self.assertEqual(diagnostic['singleLineRetry']['psm'],7)
         self.assertEqual(rows[-1][11],self.address)
 
+    def test_overview_copy_icon_bounds_the_address_column_and_retry(self):
+        rows,point=self.fixture('overview')
+        # target() normally injects the fixture icon. Exercise the real helper
+        # with the hosted icon's inner position, rather than a window offset.
+        diagnostic={'copyIcon':[1250,544,1292,578]}
+        self.assertEqual(self.scope['address_selection_target']('overview',rows,self.geometry,diagnostic),point)
+        self.assertEqual(diagnostic['column'],[492,1242])
+        response='header\n5\t1\t1\t1\t1\t1\t24\t33\t2100\t54\t99\t'+self.address+'\n'
+        retried,diagnostic=self.single_line(rows,response=response,diagnostic=diagnostic)
+        self.assertEqual(diagnostic['singleLineRetry']['crop'][2],1242)
+        self.assertEqual(self.scope['address_selection_target']('overview',retried,self.geometry,diagnostic),point)
+        missing={}
+        with self.assertRaisesRegex(RuntimeError,'Copy icon'):
+            self.scope['address_selection_target']('overview',rows,self.geometry,missing)
+        bad={'copyIcon':[1250,610,1292,652]}
+        with self.assertRaisesRegex(RuntimeError,'Copy icon'):
+            self.scope['address_selection_target']('overview',rows,self.geometry,bad)
+
+    def test_single_line_retry_accepts_adjacent_lossless_chunks_and_hex_lookalikes(self):
+        rows,_=self.fixture('overview')
+        for tokens in (['0x','73410EA1','FcbE1b8b','CA883762dC56beF46403A469'],
+                       ['0','x','73410EA1FcbE1b8bCA883762dC56beF46403A469'],
+                       ['Ox734IOEA1FcbE1b8bCA883762dC56beF464O3A469']):
+            left=24;lines=[]
+            for token in tokens:
+                width=max(15,len(token)*30)
+                lines.append('5\t1\t1\t1\t1\t1\t'+str(left)+'\t33\t'+str(width)+'\t54\t99\t'+token)
+                left+=width+9
+            with self.subTest(chunks=len(tokens)):
+                retried,diagnostic=self.single_line(rows,response='header\n'+'\n'.join(lines)+'\n')
+                point=self.target('overview',retried,self.geometry,diagnostic)
+                self.assertTrue(500<=point[0]<1200)
+                self.assertEqual(diagnostic['singleLineRetry']['adjacentTokenCount'],len(tokens))
+                self.assertNotIn('73410EA1',json.dumps(diagnostic))
+
+    def test_single_line_retry_rejects_overlapping_distant_and_different_baseline_chunks(self):
+        rows,_=self.fixture('overview')
+        prefix='5\t1\t1\t1\t1\t1\t24\t33\t90\t54\t99\t0x1\n'
+        for x,y in ((100,33),(500,33),(123,66)):
+            response='header\n'+prefix+'5\t1\t1\t1\t1\t1\t'+str(x)+'\t'+str(y)+'\t90\t54\t99\taaaaaaaa\n'
+            with self.subTest(x=x,y=y),self.assertRaisesRegex(RuntimeError,'unique address run'):
+                self.single_line(rows,response=response)
+
     def test_single_line_retry_does_not_accept_missing_foreign_or_duplicate_prefixes(self):
         rows,_=self.fixture('overview')
         for tokens in ([],['0x12'],['not-an-address'],[self.address,self.address],['0x'+'g'*40]):
             response='header\n'+''.join('5\t1\t1\t1\t1\t1\t24\t33\t2100\t54\t99\t'+token+'\n' for token in tokens)
-            with self.subTest(tokens=len(tokens)),self.assertRaisesRegex(RuntimeError,'unique complete'):
+            with self.subTest(tokens=len(tokens)),self.assertRaisesRegex(RuntimeError,'unique address run'):
                 self.single_line(rows,response=response)
 
     def test_single_line_retry_rejects_changed_window_private_context_and_clipped_tokens(self):
@@ -997,7 +1040,7 @@ class WailsPublicKeyboardCopy(unittest.TestCase):
         self.assertEqual(diagnostic['prefixCandidates'],0)
         self.assertEqual(diagnostic['fallbackCandidates'],1)
         self.assertNotIn('a'*40,json.dumps(diagnostic))
-        self.assertEqual(diagnostic['column'],[492,1472])
+        self.assertEqual(diagnostic['column'],[492,1292])
 
     def test_ocr_spelling_never_proves_content_but_unique_anchored_geometry_can_locate_it(self):
         for context in ('overview','wallet','receive'):
