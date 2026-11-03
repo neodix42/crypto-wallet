@@ -1212,6 +1212,11 @@ func (a *App) event(e webui.Event) {
 	case "exchangeDisconnect":
 		a.exchangeAction("exchangeDisconnect", struct{}{})
 	case "exchangeQuote", "exchangeDeposit", "exchangeWithdraw", "exchangeSwap":
+		// Bybit economic/read controls belong to the five explicit pages.
+		// Ignore stale legacy events rather than reverting their funding policy.
+		if a.selectedExchangeProvider().ID == "bybit" {
+			return
+		}
 		body := map[string]string{"provider": a.selectedExchangeProvider().ID, "accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"]}
 		if e.ID == "exchangeQuote" || e.ID == "exchangeSwap" {
 			side, quote, ok := spotDirection(a.fields["side"])
@@ -1963,14 +1968,10 @@ func (a *App) settingsPage() []webui.Node {
 	return nodes
 }
 func (a *App) exchangePage() []webui.Node {
-	if a.selectedExchangeProvider().ID == "bybit" && a.fields["exchangeMode"] != "existing" {
+	if a.selectedExchangeProvider().ID == "bybit" {
 		return a.exchangeWizardPage()
 	}
-	nodes := a.legacyExchangePage()
-	if a.selectedExchangeProvider().ID == "bybit" {
-		nodes = append([]webui.Node{a.button("wizardReturn", "Return to exchange wizard", false)}, nodes...)
-	}
-	return nodes
+	return a.legacyExchangePage()
 }
 
 func (a *App) legacyExchangePage() []webui.Node {

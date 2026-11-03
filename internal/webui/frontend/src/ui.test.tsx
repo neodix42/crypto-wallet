@@ -25,11 +25,11 @@ afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); r
 describe('public React renderer', () => {
   it('renders freely selectable exchange steps and dispatches only navigation once per activation', async () => {
     const steps = node('row', 'exchangeSteps', 'Exchange steps', '2');
-    steps.Children = ['Deposit', 'Funding → Unified', 'Swap', 'Withdraw'].map((text, index) => node('button', `wizardStep/${index + 1}`, text));
+    steps.Children = ['Deposit', 'Funding → Unified', 'Swap', 'Unified → Funding', 'Withdraw'].map((text, index) => node('button', `wizardStep/${index + 1}`, text));
     const emit = vi.fn(), submitted = vi.fn((event: React.FormEvent) => event.preventDefault());
     await mount(<form onSubmit={submitted}><PublicNode node={steps} emit={emit}/></form>);
     const navigation = host.querySelector('ol[aria-label="Exchange steps"]')!, buttons = [...navigation.querySelectorAll('button')];
-    expect(buttons.map(button => button.textContent)).toEqual(['1Deposit', '2Funding → Unified', '3Swap', '4Withdraw']);
+    expect(buttons.map(button => button.textContent)).toEqual(['1Deposit', '2Funding → Unified', '3Swap', '4Unified → Funding', '5Withdraw']);
     expect(navigation.querySelectorAll('[aria-current="step"]')).toHaveLength(1);
     expect(buttons[1].getAttribute('aria-current')).toBe('step');
     expect(navigation.querySelector('.complete')).toBeNull();
@@ -40,16 +40,17 @@ describe('public React renderer', () => {
       expect(document.activeElement).toBe(button);
       await click(button);
     }
-    expect(emit.mock.calls).toEqual([['wizardStep/1'], ['wizardStep/2'], ['wizardStep/3'], ['wizardStep/4']]);
+    expect(emit.mock.calls).toEqual([['wizardStep/1'], ['wizardStep/2'], ['wizardStep/3'], ['wizardStep/4'], ['wizardStep/5']]);
     expect(submitted).not.toHaveBeenCalled();
     expect(emit.mock.calls.some(([id]) => ['wizardDeposit', 'wizardMove', 'wizardSwap', 'wizardWithdraw'].includes(id))).toBe(false);
   });
   it('preserves disabled navigation and keeps malformed or economic-action step IDs inert', async () => {
     const steps = node('row', 'exchangeSteps', 'Exchange steps', '3');
-    steps.Children = ['Deposit', 'Funding → Unified', 'Swap', 'Withdraw'].map((text, index) => node('button', `wizardStep/${index + 1}`, text));
+    steps.Children = ['Deposit', 'Funding → Unified', 'Swap', 'Unified → Funding', 'Withdraw'].map((text, index) => node('button', `wizardStep/${index + 1}`, text));
     steps.Children[0].Disabled = true;
     steps.Children[1].ID = 'wizardMove';
     steps.Children[3].ID = 'wizardStep/3';
+    steps.Children[4].ID = 'wizardStep/6';
     const emit = vi.fn(); await mount(<PublicNode node={steps} emit={emit}/>);
     const navigation = host.querySelector('ol[aria-label="Exchange steps"]')!;
     expect(navigation.querySelectorAll('button')).toHaveLength(2);

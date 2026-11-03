@@ -38,6 +38,7 @@ func (a *wizardExchange) SpotInstrument(_ context.Context, symbol string) (bybit
 	v.LotSizeFilter.QuotePrecision = "0.01"
 	v.LotSizeFilter.MinOrderAmt = "5"
 	v.LotSizeFilter.MaxMarketOrderQty = "100"
+	v.PriceFilter.TickSize = "0.01"
 	return v, nil
 }
 func wizardCoordinator(t *testing.T) (*core, *wizardExchange, *publicAdapter, string, exchange.WizardState) {

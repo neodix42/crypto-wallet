@@ -1,7 +1,7 @@
 # Independent Exchange steps and Travel Rule response formats
 
 The owner requested freely selectable Exchange steps on 2026-11-03. Deposit,
-Funding → Unified, Swap and Withdraw are now navigation buttons. They select a
+Funding → Unified, Swap, Unified → Funding and Withdraw are navigation buttons. They select a
 page without preparing, approving, signing, cancelling or sending anything.
 Selecting step 3 does not assert that steps 1 or 2 completed. Navigation stays
 available during reads; an active economic approval retains its own context.
@@ -42,18 +42,23 @@ values rather than inventing additional approval states.
    deposit passed Travel Rule review. Fresh account mode, permission, balance,
    exact consent/password and durable-transfer checks apply. After completion,
    balances are refreshed read-only.
-3. **Swap:** refresh supported pairs and current market rules. The action spends
+3. **Swap:** refresh reviewed wallet-supported USDT/USDC pair candidates and current market rules. Both **Buy** and **Sell** are offered only for actual verified spot listings, such as GRAMUSDT or ETHUSDT. Unrelated blockchain network metadata is not part of spot discovery, quote or order authorization. The action spends
    only current Unified funds; it cannot silently move Funding funds. The old
    workflow's transfer amount does not limit an independently approved trade.
    Fresh lot/minimum/precision, safe balance, price/slippage, fee and spot-only
    checks remain. A confirmed original trade retains its actual net output;
-   visiting Withdraw selects a supported owned output asset and rounds its
-   default debit down to network precision.
-4. **Withdraw:** choose the asset and an offered network/owned wallet in the
-   selected account group. Go supplies the receiving address. The debit uses
-   currently available custody funds and current withdrawal limits/fees.
-   Any required Unified → Funding transfer still has separate exact approval.
-   Existing funds can be withdrawn without a fabricated previous swap ID.
+   visiting step 4 or 5 selects a supported owned output asset and rounds its
+   suggested amount down to network precision.
+4. **Unified → Funding:** refresh balances and explicitly approve a fixed
+   `UNIFIED` → `FUND` transfer. The amount must fit current safe Unified
+   availability. Its durable ID, exact approval and status are separate from
+   the trade and withdrawal. After confirmation both pools are refreshed.
+5. **Withdraw:** choose the asset and an offered network/owned wallet in the
+   selected account group. Go supplies the receiving address. Only currently
+   available **Funding** funds cover the inclusive debit and fee; Unified
+   availability is never counted or moved implicitly. Current route identity,
+   network precision, minimum and fees remain required. Existing funds can be
+   withdrawn without a fabricated previous swap ID.
 
 All economic actions retain their separate current-password approval. The
 server's safe availability and account restrictions remain authoritative; the
@@ -64,7 +69,9 @@ from a claim that one original deposit was credited.
 ## Durability and recovery
 
 Visible step is separate from saved economic chronology. No vault or wizard
-schema migration is required. Original signed bytes, nonce reservations,
+schema migration is required. Legacy saved Step 4 still means Withdraw and
+Step 5 still means completed; they map to visible step 5 and step 1 respectively,
+without changing any saved economic state. Original signed bytes, nonce reservations,
 credential/endpoint bindings and encrypted wallet/exchange records remain.
 The signer refuses a replacement while an exchange request is unresolved.
 Restored remote pending operations stay visible for original-ID reconciliation.
@@ -79,6 +86,34 @@ automatic pending inbox while being tracked. On a fresh restart, independent
 wallet deposits remain in wallet history and the existing original-payment
 recovery mechanism; no unsupported persistent Exchange correlation is claimed.
 
+The [spot instrument API](https://bybit-exchange.github.io/docs/v5/market/instrument)
+provides current listing and order rules; reviewed candidate symbols do not
+replace it. Explicit transfers use the
+[internal transfer API](https://bybit-exchange.github.io/docs/v5/asset/transfer/create-inter-transfer).
+Step 5 creates a [withdrawal](https://bybit-exchange.github.io/docs/v5/asset/withdraw)
+with Funding as the source.
+
+## Five-step acceptance checklist
+
+| State | Scope |
+|---|---|
+| PASS | 160 frontend tests, including five independent navigation controls and inert malformed/economic IDs. Focused native tests cover reverse transfer, Funding-only limits, original-ID tracking, old-step mapping and read-only spot flags. `reports/exchange-five-frontend.log`, `reports/exchange-five-native-focused.log`. |
+| PASS | Complete aggregate `make test-ci` after the final event-guard/test-fixture correction; complete affected races including signer, final native races, vet and portable build. `reports/exchange-five-ci-final2.log`, `reports/exchange-five-race-complete.log`, `reports/exchange-five-native-race-final.log`, `reports/exchange-five-vet-complete.log`, `reports/exchange-five-build-final.log`. |
+| PASS | Six actual stable-source X11 checks. All five pages are clicked in order 3 → 2 → 4 → 5 → 1, without credentials or a financial request. `reports/exchange-five-appearance-complete.json`. |
+| PASS | Actual unauthenticated Bybit spot-instrument GETs for GRAMUSDT, ETHUSDT, ETHUSDC and USDCUSDT returned exact Trading listings and current rules. `reports/exchange-five-public-instruments.json`; this is no claim of authenticated funded acceptance. |
+| RUNNING | Complete final security/mutation campaign, `reports/exchange-five-security-complete.log`; exact-source hosted tests and publication are not yet recorded. |
+| NOT_RUN | Authenticated real Bybit orders/transfers/withdrawals. No user credentials or automatic mainnet funds used. |
+
+Earlier aggregate fixtures which expected the removed Bybit controls were updated
+to exercise the shared direct UI through Binance. Separate five-step tests retain
+Bybit authority, limits and stale-event refusals. Earlier source-changing graphical
+and mutation runs have `sourceStable:false` and are not counted as final evidence.
+
+## Historical four-step evidence (source `18462f5`)
+
+These results precede the current five-step amendment and do not certify its
+new code.
+
 ## Evidence checklist
 
 | State | Scope |
@@ -89,5 +124,5 @@ recovery mechanism; no unsupported persistent Exchange correlation is claimed.
 | PASS | All 16 independent controller cases, complete native tests/races, asynchronous original-ID tracking, fresh post-transfer pools, net-output withdrawal defaults and explicit unsigned cancellation. `reports/exchange-free-native-complete-final.log`, `reports/exchange-free-native-race-complete-final.log`, `reports/exchange-free-all-current.log`, `reports/exchange-free-contract-final.log`. |
 | PASS | Complete `make test-ci`, `make test-security-ci`, affected full races including signer, vet and portable build. All 81 semantic mutants in ten campaigns killed with stable sources. `reports/exchange-free-ci.log`, `reports/exchange-free-security.log`, `reports/exchange-free-race.log`, `reports/exchange-free-vet.log`, `reports/exchange-free-build.log`. |
 | PASS | Six actual stable-source X11 checks, including new Swap → Funding → Withdraw → Deposit clicks without credentials, invented address or economic request. Binary SHA256 `0b79e465711a59b897f2c5ccedfcd10069ebaefe21849bca235f1bbadc927fd4`. `reports/exchange-free-appearance.json`. |
-| NOT_RUN | Exact-source hosted campaigns, publication and publisher verification until recorded. |
+| PASS | Prior-source hosted tests [41619154765](https://github.com/neodix42/crypto-wallet/actions/runs/41619154765), backend artifact 13224099575 SHA256 `606ee4aeec41d131d4691e8cea7f47032ae3724ea22f8a998232813ad0d38e7e`: all 30 gates, 81 mutants, 26 fuzz targets, 13 integrations and 24 descriptors. Prior [release 0.1.47](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.47) and downloaded-binary acceptance also passed. These certify only source `18462f5`. |
 | NOT_RUN | Live authenticated Bybit review/deposit/transfer/trade/withdrawal acceptance, physical OS/Wayland matrix and independent external review. No user secrets or automatic mainnet funds are used. |

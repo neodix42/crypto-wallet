@@ -1,3 +1,5 @@
+> Current 2026-11-03 update: the visible wizard has five independent pages, including explicit Unified → Funding before Funding-only withdrawal. Spot candidate discovery is independent of blockchain route metadata. See [current behavior and evidence](BYBIT_FREE_STEPS.md). Stored legacy chronology below is preserved.
+
 # Bybit wizard and deposit destination
 
 The owner's 2026-11-03 update makes the four step pages independently

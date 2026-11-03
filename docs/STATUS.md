@@ -1,5 +1,24 @@
 # Implementation and release evidence
 
+## Five-step Exchange and route-independent spot candidates — 2026-11-03
+
+The current amendment adds an explicit Unified → Funding step 4 and a
+Funding-only Withdraw step 5. Reviewed pair candidates offer Buy/Sell only after
+live spot listing/rule checks; spot reads/orders no longer require unrelated
+network metadata. Withdrawal route identity remains strict. Old economic step
+numbers are preserved and mapped separately to visible navigation.
+[Behavior and acceptance checklist](BYBIT_FREE_STEPS.md).
+
+PASS: 160 frontend checks, complete aggregate suite, affected full races including
+signer, final native races, vet, portable build and six actual stable-source X11
+checks including five-page navigation 3 → 2 → 4 → 5 → 1. Controller/backend and
+real signer tests cover reverse transfer, Funding-only limits, original-ID
+tracking, old-state mapping and blocked stale Bybit controls. Actual public
+instrument reads confirmed GRAMUSDT, ETHUSDT, ETHUSDC and USDCUSDT listings.
+Final security/mutation campaign is RUNNING; new exact-source hosted checks and
+publication are NOT_RUN until recorded. Authenticated funded Bybit acceptance is
+NOT_RUN; no real secrets or automatic mainnet funds used.
+
 ## Free Exchange steps and review-state compatibility — 2026-11-03
 
 Deposit, Funding → Unified, Swap and Withdraw are independently selectable

@@ -57,13 +57,13 @@ func TestFreeExchangeNavigationIsIndependentOfDurablePaymentProgress(t *testing.
 	if a.wizard.viewStep != 2 {
 		t.Fatal("runtime did not restore the visible saved step")
 	}
-	for _, step := range []int{3, 1, 4, 2, 1} {
+	for _, step := range []int{3, 1, 4, 5, 2, 1} {
 		a.event(webui.Event{ID: fmt.Sprintf("wizardStep/%d", step)})
 		if a.wizard.viewStep != step || viewText(a.wizard.state) != before || a.wizard.state.DepositOperation != saved.DepositOperation {
 			t.Fatal("navigation mutated payment chronology or lost its original", step)
 		}
 		n, ok := findNode(a.exchangePage(), "exchangeSteps")
-		if !ok || n.Value != fmt.Sprint(step) || len(n.Children) != 4 {
+		if !ok || n.Value != fmt.Sprint(step) || len(n.Children) != 5 {
 			t.Fatal("free navigation not reflected in view", n)
 		}
 		for i, child := range n.Children {
@@ -72,7 +72,7 @@ func TestFreeExchangeNavigationIsIndependentOfDurablePaymentProgress(t *testing.
 			}
 		}
 	}
-	for _, invalid := range []string{"wizardStep/0", "wizardStep/5", "wizardStep/invalid"} {
+	for _, invalid := range []string{"wizardStep/0", "wizardStep/6", "wizardStep/invalid"} {
 		a.event(webui.Event{ID: invalid})
 		if a.wizard.viewStep != 1 {
 			t.Fatal("unreviewed step became a view", invalid)
@@ -228,7 +228,7 @@ func TestFreeExchangeSwapUsesUnifiedFundsRatherThanOldTransferBudget(t *testing.
 	if a.freeData().outputCoin != "USDT" || a.freeData().outputAmount != "100.023456789" || a.freeData().outputAccount != source.ID {
 		t.Fatal("confirmed swap did not retain exact received-asset fees/net output")
 	}
-	a.event(webui.Event{ID: "wizardStep/4"})
+	a.event(webui.Event{ID: "wizardStep/5"})
 	_, receivedAsset, exists := a.freeSource()
 	if !exists || a.fields["freeAccount"] != source.ID || receivedAsset.Symbol != "USDT" {
 		t.Fatal("Withdraw did not select the owned received asset", a.fields["freeAccount"], receivedAsset)
@@ -260,7 +260,7 @@ func TestFreeExchangeInvalidMoveAmountsRequestNoAuthority(t *testing.T) {
 
 func TestFreeExchangeWithdrawalUsesExistingBalancesAndOwnedDestination(t *testing.T) {
 	a, ui, backend, source, saved := freeNativeFixture(t)
-	a.event(webui.Event{ID: "wizardStep/4"})
+	a.event(webui.Event{ID: "wizardStep/5"})
 	destination := wizardDestination{AccountID: source.ID, AssetID: saved.SourceAsset, Coin: "ETH", NetworkName: "Ethereum", Address: source.Address, Precision: "8", Minimum: "0.001", Fee: "0.0001", PercentageFee: "0", Index: source.Index}
 	withdrawals := 0
 	backend.handler = func(_ uint64, method string, body, out any) error {
@@ -275,7 +275,7 @@ func TestFreeExchangeWithdrawalUsesExistingBalancesAndOwnedDestination(t *testin
 			return answer(out, map[string]any{"balances": []wizardBalance{{AccountType: "FUND", Coin: "ETH", Available: "5.123456789"}, {AccountType: "UNIFIED", Coin: "ETH", Available: "2"}}})
 		case "exchangeWithdraw":
 			fields := freeRequestFields(t, body)
-			if fields["existingFunds"] != true || fields["accountId"] != destination.AccountID || fields["assetId"] != destination.AssetID || fields["amount"] != "7.12345678" || fields["wizardId"] != nil || fields["address"] != nil {
+			if fields["existingFunds"] != true || fields["fundingOnly"] != true || fields["accountId"] != destination.AccountID || fields["assetId"] != destination.AssetID || fields["amount"] != "5.12345678" || fields["wizardId"] != nil || fields["address"] != nil {
 				t.Error("withdrawal reused an old proceeds budget or accepted a caller address", fields)
 			}
 			withdrawals++
@@ -289,17 +289,17 @@ func TestFreeExchangeWithdrawalUsesExistingBalancesAndOwnedDestination(t *testin
 	}
 	a.wizardAction("freeRefreshWithdraw")
 	ui.apply(t)
-	if a.fields["freeWithdrawAmount"] != "7.12345678" || !strings.Contains(viewText(a.exchangePage()), source.Address) {
+	if a.fields["freeWithdrawAmount"] != "5.12345678" || !strings.Contains(viewText(a.exchangePage()), source.Address) {
 		t.Fatal("withdrawal did not default to current balances and selected network precision")
 	}
 	if button, _ := findNode(a.exchangePage(), "freeWithdraw"); button.Disabled {
 		t.Fatal("missing historical swap prevented an independent affordable withdrawal")
 	}
-	a.fields["freeWithdrawAmount"] = "8"
+	a.fields["freeWithdrawAmount"] = "6"
 	if button, _ := findNode(a.exchangePage(), "freeWithdraw"); !button.Disabled {
-		t.Fatal("withdrawal greater than all verified custody funds stayed enabled")
+		t.Fatal("withdrawal greater than verified Funding funds stayed enabled")
 	}
-	a.fields["freeWithdrawAmount"] = "7.12345678"
+	a.fields["freeWithdrawAmount"] = "5.12345678"
 	a.wizardAction("freeWithdraw")
 	ui.apply(t)
 	if withdrawals != 1 || a.wizard.state.WithdrawOperation != "" || a.wizard.state.SwapOperation != "" || a.wizard.state.DepositOperation != saved.DepositOperation {
@@ -627,7 +627,7 @@ func TestFreeExchangeAsyncSwapRemembersOriginalPairAndNetWithdrawalAsset(t *test
 			if a.freeData().outputCoin != "USDT" || a.freeData().outputAmount != "100.023456789" || a.freeData().outputAccount != source.ID {
 				t.Fatal("async fill lost exact original output coin/net fees")
 			}
-			a.event(webui.Event{ID: "wizardStep/4"})
+			a.event(webui.Event{ID: "wizardStep/5"})
 			_, output, exists := a.freeSource()
 			if !exists || output.Symbol != "USDT" || a.fields["freeAccount"] != source.ID {
 				t.Fatal("async completed swap did not select its owned withdrawal asset")

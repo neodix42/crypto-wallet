@@ -2375,22 +2375,20 @@ def exchange_wizard_draft_campaign():
     wait(lambda:"Enter a positive ETH amount" not in text())
     if "Bybit deposit address:" in text():raise RuntimeError("Disconnected wizard invented an exchange deposit address")
     navigation=[]
-    for number,control,heading in ((3,"Swap","Swap on Spot"),(2,"Funding","Move Funding to Unified"),(4,"Withdraw","Withdraw to wallet"),(1,"Deposit","Deposit to Funding")):
+    for number,control,heading in ((3,"Swap","Swap on Spot"),(2,"Funding","Move Funding to Unified"),(4,"4","Move Unified to Funding"),(5,"Withdraw","Withdraw to wallet"),(1,"Deposit","Deposit to Funding")):
         click(control)
         wait(lambda heading=heading:heading in text())
         if desktop.secret_window():raise RuntimeError("Exchange step navigation requested private approval")
         navigation.append(number)
     if "Connect your Bybit account in Settings" not in text():raise RuntimeError("Disconnected navigation invented an authenticated exchange session")
-    report["exchangeWizardDraft"]={"sequentialSteps":4,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
+    report["exchangeWizardDraft"]={"sequentialSteps":5,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
     passed("Actual disconnected Exchange steps navigate freely, validate deposit drafts and create no address, approval or payment")
 
 def exchange_input_campaign():
     exchange_wizard_draft_campaign()
-    click("Manage existing Bybit funds")
-    wait(lambda:"Spot direction" in text())
-    choose_public_option("Wallet / network",0)
-    choose_public_option("Wallet asset",0)
-    choose_public_option("Spot direction",0)
+    click("Swap")
+    wait(lambda:"Swap on Spot" in text() and "Amount to spend" in text())
+    if "Manage existing Bybit funds" in text():raise RuntimeError("Removed legacy Bybit controls remain reachable")
     def fill(label,value):
         point=wait(lambda:public_words_position(label))
         desktop.click(point[0],point[1]+40);desktop.key("a",ctrl=True)
@@ -2398,14 +2396,14 @@ def exchange_input_campaign():
         else:desktop.key("BackSpace")
         desktop.park_pointer();time.sleep(.25)
     for value in ("-1","1e3","0","NaN"):
-        fill("Amount to spend / withdraw",value)
+        fill("Amount to spend",value)
         wait(lambda:"Enter a positive decimal amount" in text())
         if desktop.secret_window() or "Prepared payment" in text():raise RuntimeError("Invalid Exchange amount requested authority")
-    fill("Amount to spend / withdraw","1")
+    fill("Amount to spend","1")
     wait(lambda:"positive decimal amount" not in text())
-    fill("Slippage limit","2")
+    fill("Maximum slippage","2")
     wait(lambda:"Enter a slippage limit from 0.01% to 1%" in text())
-    fill("Slippage limit","0.50")
+    fill("Maximum slippage","0.50")
     wait(lambda:"Enter a slippage limit" not in text())
     if desktop.secret_window():raise RuntimeError("Disconnected Exchange validation opened a credential or payment dialog")
     report["exchangeDraftValidation"]={"provider":"Bybit","disconnected":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"slippageBoundsVisible":True,"positiveDraftClearsSyntaxError":True,"preparedOrSent":False}

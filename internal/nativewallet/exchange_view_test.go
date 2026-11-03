@@ -14,6 +14,7 @@ func TestSpotDirectionsSendExactUSDTOrUSDCAndInvalidateChangedQuotes(t *testing.
 		for _, method := range []string{"exchangeQuote", "exchangeSwap"} {
 			t.Run(direction+"/"+method, func(t *testing.T) {
 				a, ui, core := fixture(t)
+				a.fields["exchangeProvider"] = "binance"
 				side, quote, ok := spotDirection(direction)
 				if !ok {
 					t.Fatal("supported direction rejected")
@@ -24,7 +25,7 @@ func TestSpotDirectionsSendExactUSDTOrUSDCAndInvalidateChangedQuotes(t *testing.
 					t.Fatal("changing quote currency retained stale market")
 				}
 				a.fields["exchangeAmount"] = "10.25"
-				body := map[string]string{"provider": "bybit", "accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"], "side": side, "quoteCoin": quote}
+				body := map[string]string{"provider": "binance", "accountId": a.fields["exchangeAccount"], "assetId": a.fields["exchangeAsset"], "side": side, "quoteCoin": quote}
 				if method == "exchangeSwap" {
 					body["amount"], body["slippage"] = "10.25", "0.5"
 					account, asset := selectedExchangeValidationAsset(t, a)
@@ -51,8 +52,8 @@ func TestExchangeHumanReadableStatusQuoteAndOriginalReconcileWithoutJSONDump(t *
 	a, _, _ := fixture(t)
 	a.exchange = json.RawMessage(`{"connected":true,"endpoint":"https://api.bybit.com","message":"Public connected","operations":[{"id":"original-id","kind":"spot","state":"UNKNOWN"}],"debugDump":"must-not-render"}`)
 	a.quote = json.RawMessage(`{"symbol":"ETHUSDC","coin":"ETH","quoteCoin":"USDC","side":"Buy","lastPrice":"2500.123456","bidPrice":"2500","askPrice":"2501","feeRate":"0.001","observedAt":"public-time","balances":[{"accountType":"UNIFIED","coin":"USDC","available":"50.25"}],"route":{"supported":true,"chain":"ETH","minWithdraw":"0.001","withdrawFee":"0.0001","withdrawPercentageFee":"0"}}`)
-	a.fields["exchangeMode"] = "existing" // Existing balances retain their separately available controls.
-	page := a.exchangePage()
+	// Shared legacy formatting remains used by other exchange providers.
+	page := a.legacyExchangePage()
 	text := viewText(page)
 	if strings.Contains(text, "must-not-render") || strings.Contains(text, `\"connected\"`) || strings.Contains(text, `\"lastPrice\"`) {
 		t.Fatal("raw JSON leaked into exchange presentation")

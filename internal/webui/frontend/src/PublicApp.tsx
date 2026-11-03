@@ -102,7 +102,7 @@ function ExchangeSteps({ node, emit }: { node: Node; emit: Emit }) {
     const number = index + 1, selected = number === current;
     // Steps are navigation. An incorrectly authored child must never turn
     // this control into a deposit, order or withdrawal action.
-    const interactive = step.Kind === 'button' && number <= 4 && step.ID === `wizardStep/${number}`;
+    const interactive = step.Kind === 'button' && number <= 5 && step.ID === `wizardStep/${number}`;
     const content = <><span className="step-number" aria-hidden="true">{!interactive && number < current ? '✓' : number}</span><span>{step.Text}</span></>;
     return <li key={index} className={[selected ? 'current' : !interactive && number < current ? 'complete' : '', interactive ? 'interactive' : ''].filter(Boolean).join(' ')} aria-current={!interactive && selected ? 'step' : undefined}>{interactive
       ? <button type="button" className="exchange-step-button" disabled={step.Disabled} data-action={step.ID} aria-current={selected ? 'step' : undefined} title={step.Tooltip} onClick={() => emit(step.ID)}>{content}</button>

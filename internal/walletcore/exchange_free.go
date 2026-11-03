@@ -43,6 +43,19 @@ func exactExchangeModeField(raw []byte, field string) bool {
 // This explicitly selected action moves currently available custody funds.
 // It neither identifies a prior deposit nor mutates its workflow/journal.
 func (c *core) exchangeFundingMoveAt(epoch uint64, ctx context.Context, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
+	return c.exchangeCustodyMoveAt(epoch, ctx, client, accountID, assetID, value, "FUND", "UNIFIED")
+}
+
+// This is a separate economic action. Withdrawal must never infer approval to
+// perform the reverse transfer from approval of an earlier deposit or trade.
+func (c *core) exchangeUnifiedMoveAt(epoch uint64, ctx context.Context, client exchangeAPI, accountID, assetID, value string) (exchangeResult, error) {
+	return c.exchangeCustodyMoveAt(epoch, ctx, client, accountID, assetID, value, "UNIFIED", "FUND")
+}
+
+func (c *core) exchangeCustodyMoveAt(epoch uint64, ctx context.Context, client exchangeAPI, accountID, assetID, value, from, to string) (exchangeResult, error) {
+	if from != "FUND" && from != "UNIFIED" || to != "FUND" && to != "UNIFIED" || from == to {
+		return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
+	}
 	_, asset, _, err := c.exchangeAsset(accountID, assetID)
 	if err != nil {
 		return exchangeResult{}, err
@@ -65,9 +78,13 @@ func (c *core) exchangeFundingMoveAt(epoch uint64, ctx context.Context, client e
 	if err != nil {
 		return exchangeResult{}, exchangeReadFailure("BALANCE", err)
 	}
-	if !exchangeAtLeast(exchangeAvailable(balances, "FUND", asset.Symbol), value) {
-		return exchangeResult{}, ipc.NewRequestError("EXCHANGE_FUNDING_INSUFFICIENT")
+	if !exchangeAtLeast(exchangeAvailable(balances, from, asset.Symbol), value) {
+		code := "EXCHANGE_FUNDING_INSUFFICIENT"
+		if from == "UNIFIED" {
+			code = "EXCHANGE_UNIFIED_INSUFFICIENT"
+		}
+		return exchangeResult{}, ipc.NewRequestError(code)
 	}
-	request := bybit.TransferRequest{Coin: asset.Symbol, Amount: value, FromAccountType: "FUND", ToAccountType: "UNIFIED"}
+	request := bybit.TransferRequest{Coin: asset.Symbol, Amount: value, FromAccountType: from, ToAccountType: to}
 	return c.executeExchangeAt(epoch, client, exchangeIntent{Kind: "transfer", AccountID: accountID, AssetID: assetID, Transfer: &request, Fee: "0", FeeCoin: asset.Symbol})
 }

@@ -253,11 +253,10 @@ func TestCancelledTokenImportDoesNotInstallMetadataOrChangeWalletKeys(t *testing
 
 func TestImportedERC20WalletAssetsCannotBeOfferedAsReviewedBybitRoutes(t *testing.T) {
 	a, _, _ := fixture(t)
-	a.fields["exchangeMode"] = "existing"
 	account, usdc, dai := tokenFixture(t, a)
 	a.fields["exchangeAccount"], a.fields["exchangeAsset"] = account.ID, usdc.ID
 	a.exchange = json.RawMessage(`{"connected":true}`)
-	page := a.exchangePage()
+	page := a.legacyExchangePage()
 	selector, ok := findNode(page, "field/exchangeAsset")
 	if !ok || len(selector.Options) != 3 {
 		t.Fatal("default Ethereum ETH, USDT and canonical USDC routes changed")

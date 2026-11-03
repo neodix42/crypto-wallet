@@ -110,6 +110,12 @@ func TestExchangeAmountValidationRejectsMalformedNumbersWithoutBlockingRuleDisco
 					return answer(reply, json.RawMessage(`{}`))
 				}
 				a.event(webui.Event{ID: "exchangeQuote"})
+				if provider == "bybit" {
+					if called != 0 || a.busy || len(ui.queue) != 0 {
+						t.Fatal("stale Bybit quote event bypassed the independent spot read")
+					}
+					continue
+				}
 				ui.apply(t)
 				if called != 1 || a.busy {
 					t.Fatal("invalid numeric draft blocked metadata discovery", value, called)

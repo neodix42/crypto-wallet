@@ -491,7 +491,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		return c.nearStakingAt(m, epoch)
 	case "nearTokenStorage", "prepareNearTokenRegistration":
 		return c.nearTokenStorageAt(m, epoch)
-	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDepositPreview", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile", "exchangeCancel", "exchangeWizardSave", "exchangeWizardLoad", "exchangeWizardCancel", "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
+	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDepositPreview", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile", "exchangeCancel", "exchangeWizardSave", "exchangeWizardLoad", "exchangeWizardCancel", "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeUnifiedMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
 		return c.exchangeAt(m, epoch)
 	case "networks":
 		var networks []model.Network

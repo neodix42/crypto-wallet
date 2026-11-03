@@ -459,7 +459,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			return nil, err
 		}
 		return exchangeWizardSnapshot{status.Wizard, status.WizardDepositState, exchangePublicOperations(status.Operations)}, nil
-	case "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
+	case "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeUnifiedMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
 		return c.exchangeWizardAt(message, epoch)
 	case "exchangeWizardSave":
 		var in exchange.WizardState
@@ -556,13 +556,14 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		return c.exchangeDepositPreviewAt(epoch, client, string(in.AccountID), string(in.AssetID))
 	case "exchangeQuote":
 		var in struct {
-			Provider  strictjson.Text `json:"provider,omitempty"`
-			AccountID strictjson.Text `json:"accountId"`
-			AssetID   strictjson.Text `json:"assetId"`
-			Side      strictjson.Text `json:"side"`
-			QuoteCoin strictjson.Text `json:"quoteCoin,omitempty"`
+			Provider    strictjson.Text    `json:"provider,omitempty"`
+			AccountID   strictjson.Text    `json:"accountId"`
+			AssetID     strictjson.Text    `json:"assetId"`
+			Side        strictjson.Text    `json:"side"`
+			QuoteCoin   strictjson.Text    `json:"quoteCoin,omitempty"`
+			UnifiedOnly exchangeActionFlag `json:"unifiedOnly,omitempty"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil {
+		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "unifiedOnly") {
 			return nil, errExchange
 		}
 		client, status, err := c.exchangeClientAt(epoch)
@@ -573,7 +574,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 		if !exchangeProviderMatches(string(in.Provider), status.Provider) {
 			return nil, errExchange
 		}
-		quote, _, _, err := c.exchangeQuoteAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), string(in.QuoteCoin))
+		quote, _, _, err := c.exchangeQuoteModeAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Side), bool(in.UnifiedOnly), string(in.QuoteCoin))
 		return quote, err
 	case "exchangeDeposit", "exchangeWithdraw":
 		var in struct {
@@ -585,8 +586,9 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			ExpectedAddress strictjson.Text    `json:"expectedAddress,omitempty"`
 			ExpectedMemo    strictjson.Text    `json:"expectedMemo,omitempty"`
 			ExistingFunds   exchangeActionFlag `json:"existingFunds,omitempty"`
+			FundingOnly     exchangeActionFlag `json:"fundingOnly,omitempty"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "existingFunds") || bool(in.ExistingFunds) && (message.Method != "exchangeWithdraw" || in.WizardID != "") {
+		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "existingFunds") || !exactExchangeModeField(message.Body, "fundingOnly") || bool(in.ExistingFunds) && (message.Method != "exchangeWithdraw" || in.WizardID != "") || bool(in.FundingOnly) && (!bool(in.ExistingFunds) || message.Method != "exchangeWithdraw" || in.WizardID != "") {
 			return nil, errExchange
 		}
 		client, status, err := c.exchangeClientAt(epoch)
@@ -607,7 +609,7 @@ func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 			if !exchangeProviderMatches("bybit", status.Provider) {
 				return nil, errExchange
 			}
-			return c.exchangeWithdrawWithFundsAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), "", true)
+			return c.exchangeWithdrawWithPolicyAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), "", true, bool(in.FundingOnly))
 		}
 		return c.exchangeWithdrawWizardAt(epoch, client, string(in.AccountID), string(in.AssetID), string(in.Amount), string(in.WizardID))
 	case "exchangeSwap":
@@ -716,6 +718,13 @@ func exchangeBalances(ctx context.Context, client exchangeAPI, coins ...string) 
 	return out, nil
 }
 func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, assetID, side string, selectedQuote ...string) (exchangeQuote, bybit.Chain, bybit.APIKeyInformation, error) {
+	return c.exchangeQuoteModeAt(epoch, client, accountID, assetID, side, false, selectedQuote...)
+}
+
+// A custody spot quote needs an exact ledger instrument, not a deposit or
+// withdrawal network. Route metadata is deliberately retained for legacy
+// combined views only; every withdrawal still verifies its own exact route.
+func (c *core) exchangeQuoteModeAt(epoch uint64, client exchangeAPI, accountID, assetID, side string, unifiedOnly bool, selectedQuote ...string) (exchangeQuote, bybit.Chain, bybit.APIKeyInformation, error) {
 	quoteCoin := "USDT"
 	if len(selectedQuote) == 1 && selectedQuote[0] != "" {
 		quoteCoin = selectedQuote[0]
@@ -726,6 +735,9 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 		return quote, bybit.Chain{}, bybit.APIKeyInformation{}, errExchange
 	}
 	quote.Provider = service.ID
+	if unifiedOnly && service.ID != "bybit" {
+		return quote, bybit.Chain{}, bybit.APIKeyInformation{}, errExchange
+	}
 	if len(selectedQuote) > 1 || !bybit.SpotQuote(quoteCoin) || side != "Buy" && side != "Sell" {
 		return quote, bybit.Chain{}, bybit.APIKeyInformation{}, errExchange
 	}
@@ -740,19 +752,23 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 	if err != nil {
 		return quote, bybit.Chain{}, info, exchangeReadFailure("KEY", err)
 	}
-	coin, err := client.CoinInfo(ctx, asset.Symbol)
-	if err != nil {
-		return quote, bybit.Chain{}, info, exchangeReadFailure("COIN", err)
-	}
-	chain, routeErr := exchange.MatchProviderRoute(service.ID, account, asset, coin)
-	if routeErr == nil {
-		quote.Route = exchangeRoute{Supported: true, Chain: chain.Chain, ChainType: chain.ChainType, DepositEnabled: chain.ChainDeposit == "1", WithdrawEnabled: chain.ChainWithdraw == "1" && exchangeWithdrawalAuthority(service.ID, info) && exchangePermission(info, "Withdraw"), MinDeposit: chain.DepositMin, MinWithdraw: chain.WithdrawMin, WithdrawFee: chain.WithdrawFee, WithdrawPercentageFee: chain.WithdrawPercentageFee, ContractAddress: chain.ContractAddress}
-		if !exchangeWithdrawalRegionSupported(client.Endpoint()) {
-			quote.Route.WithdrawEnabled = false
-			quote.Route.Reason = "This Bybit region requires an additional withdrawal questionnaire which is not implemented. Deposit and spot trading remain separate; withdraw through Bybit after completing its required information."
+	var chain bybit.Chain
+	if !unifiedOnly {
+		coin, err := client.CoinInfo(ctx, asset.Symbol)
+		if err != nil {
+			return quote, bybit.Chain{}, info, exchangeReadFailure("COIN", err)
 		}
-	} else {
-		quote.Route.Reason = "No unambiguous selected-exchange deposit/withdrawal route matches this exact wallet network and token contract."
+		var routeErr error
+		chain, routeErr = exchange.MatchProviderRoute(service.ID, account, asset, coin)
+		if routeErr == nil {
+			quote.Route = exchangeRoute{Supported: true, Chain: chain.Chain, ChainType: chain.ChainType, DepositEnabled: chain.ChainDeposit == "1", WithdrawEnabled: chain.ChainWithdraw == "1" && exchangeWithdrawalAuthority(service.ID, info) && exchangePermission(info, "Withdraw"), MinDeposit: chain.DepositMin, MinWithdraw: chain.WithdrawMin, WithdrawFee: chain.WithdrawFee, WithdrawPercentageFee: chain.WithdrawPercentageFee, ContractAddress: chain.ContractAddress}
+			if !exchangeWithdrawalRegionSupported(client.Endpoint()) {
+				quote.Route.WithdrawEnabled = false
+				quote.Route.Reason = "This Bybit region requires an additional withdrawal questionnaire which is not implemented. Deposit and spot trading remain separate; withdraw through Bybit after completing its required information."
+			}
+		} else {
+			quote.Route.Reason = "No unambiguous selected-exchange deposit/withdrawal route matches this exact wallet network and token contract."
+		}
 	}
 	quote.Balances, err = exchangeBalances(ctx, client, asset.Symbol, quoteCoin)
 	if err != nil {
@@ -777,7 +793,7 @@ func (c *core) exchangeQuoteAt(epoch uint64, client exchangeAPI, accountID, asse
 		}
 		return quote, chain, info, exchangeReadFailure("INSTRUMENT", err)
 	}
-	if instrument.Symbol != symbol || instrument.BaseCoin != asset.Symbol || instrument.QuoteCoin != quoteCoin || instrument.Status != "Trading" {
+	if instrument.Symbol != symbol || instrument.BaseCoin != asset.Symbol || instrument.QuoteCoin != quoteCoin || instrument.Status != "Trading" || unifiedOnly && !exchangeValidSpotInstrument(instrument, asset.Symbol, quoteCoin) {
 		return quote, chain, info, exchangeReadFailure("INSTRUMENT", bybit.ErrInvalidResponse)
 	}
 	ticker, err := client.SpotTicker(ctx, symbol)
@@ -1057,7 +1073,7 @@ func (c *core) exchangeSwapWizardAt(epoch uint64, client exchangeAPI, accountID,
 }
 
 func (c *core) exchangeSwapWithFundsAt(epoch uint64, client exchangeAPI, accountID, assetID, side, value, slippage, wizardID string, unifiedOnly bool, selectedQuote ...string) (exchangeResult, error) {
-	quote, _, info, err := c.exchangeQuoteAt(epoch, client, accountID, assetID, side, selectedQuote...)
+	quote, _, info, err := c.exchangeQuoteModeAt(epoch, client, accountID, assetID, side, unifiedOnly, selectedQuote...)
 	if err != nil {
 		return exchangeResult{}, err
 	}
@@ -1188,6 +1204,13 @@ func (c *core) exchangeWithdrawWizardAt(epoch uint64, client exchangeAPI, accoun
 }
 
 func (c *core) exchangeWithdrawWithFundsAt(epoch uint64, client exchangeAPI, accountID, assetID, value, wizardID string, existingFunds bool) (exchangeResult, error) {
+	return c.exchangeWithdrawWithPolicyAt(epoch, client, accountID, assetID, value, wizardID, existingFunds, false)
+}
+
+func (c *core) exchangeWithdrawWithPolicyAt(epoch uint64, client exchangeAPI, accountID, assetID, value, wizardID string, existingFunds, fundingOnly bool) (exchangeResult, error) {
+	if fundingOnly && (!existingFunds || wizardID != "") {
+		return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
+	}
 	var quote exchangeQuote
 	var chain bybit.Chain
 	var info bybit.APIKeyInformation
@@ -1239,10 +1262,34 @@ func (c *core) exchangeWithdrawWithFundsAt(epoch uint64, client exchangeAPI, acc
 	if e != nil || chain.WithdrawMax != "-1" && !exchangeAtLeast(chain.WithdrawMax, value) {
 		return exchangeResult{}, errExchange
 	}
-	if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, asset.Symbol, fundsValue, target); err != nil {
-		return exchangeResult{}, err
-	} else if transfer != nil {
-		return *transfer, nil
+	if fundingOnly {
+		// Step 5 authorizes a Funding withdrawal only. Do not ask for, infer,
+		// prepare or send an internal transfer from Unified in this action.
+		if quote.Provider != "bybit" {
+			return exchangeResult{}, ipc.NewRequestError("INVALID_ARGUMENT")
+		}
+		ctx, cancel := c.networkContextAt(30*time.Second, epoch)
+		balance, err := client.AccountBalance(ctx, "FUND", asset.Symbol)
+		cancel()
+		if err != nil {
+			return exchangeResult{}, exchangeReadFailure("BALANCE", err)
+		}
+		if balance.AccountType != "FUND" || balance.Balance.Coin != asset.Symbol {
+			return exchangeResult{}, exchangeReadFailure("BALANCE", bybit.ErrInvalidResponse)
+		}
+		available, err := exchangeSafeBalance(balance)
+		if err != nil {
+			return exchangeResult{}, exchangeReadFailure("BALANCE", bybit.ErrInvalidResponse)
+		}
+		if !exchangeAtLeast(available, fundsValue) {
+			return exchangeResult{}, ipc.NewRequestError("EXCHANGE_FUNDING_INSUFFICIENT")
+		}
+	} else {
+		if transfer, err := c.ensureExchangeFunds(epoch, client, info, accountID, assetID, asset.Symbol, fundsValue, target); err != nil {
+			return exchangeResult{}, err
+		} else if transfer != nil {
+			return *transfer, nil
+		}
 	}
 	w := bybit.WithdrawalRequest{Coin: asset.Symbol, Chain: chain.Chain, Address: account.Address, Amount: value, ForceChain: 1, AccountType: "FUND", FeeType: 1}
 	if quote.Provider == "binance" {

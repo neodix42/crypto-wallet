@@ -454,21 +454,22 @@ func TestSettingsExchangeNavigationRoutesCurrentSelection(t *testing.T) {
 func TestExchangeRequestContractsAndResponsesRemainSeparateFromWalletResults(t *testing.T) {
 	for _, method := range []string{"exchangeStatus", "exchangeQuote", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw"} {
 		a, ui, core := fixture(t)
+		a.fields["exchangeProvider"] = "binance" // Shared direct controls; Bybit uses independent five-step requests.
 		a.fields["exchangeAmount"] = "1.25"
 		account := a.fields["exchangeAccount"]
 		asset := a.fields["exchangeAsset"]
-		var expected any = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset}
+		var expected any = map[string]string{"provider": "binance", "accountId": account, "assetId": asset}
 		switch method {
 		case "exchangeStatus":
 			expected = struct{}{}
 		case "exchangeQuote":
-			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT"}
+			expected = map[string]string{"provider": "binance", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT"}
 		case "exchangeSwap":
-			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT", "amount": "1.25", "slippage": "0.5"}
+			expected = map[string]string{"provider": "binance", "accountId": account, "assetId": asset, "side": "Sell", "quoteCoin": "USDT", "amount": "1.25", "slippage": "0.5"}
 			selectedAccount, selectedAsset := selectedExchangeValidationAsset(t, a)
 			setExchangeValidationQuote(a, exchangeValidationQuote(a, selectedAccount, selectedAsset, "Sell", "USDT", time.Now()))
 		default:
-			expected = map[string]string{"provider": "bybit", "accountId": account, "assetId": asset, "amount": "1.25"}
+			expected = map[string]string{"provider": "binance", "accountId": account, "assetId": asset, "amount": "1.25"}
 		}
 		routeFixture(t, a, core, method, expected, json.RawMessage(`{"publicResult":"route-fixture"}`))
 		a.event(webui.Event{ID: method})

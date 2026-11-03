@@ -70,7 +70,7 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 	ctx, cancel := c.networkContextAt(90*time.Second, epoch)
 	defer cancel()
 	switch message.Method {
-	case "exchangeFundingMove":
+	case "exchangeFundingMove", "exchangeUnifiedMove":
 		var in struct {
 			AccountID strictjson.Text `json:"accountId"`
 			AssetID   strictjson.Text `json:"assetId"`
@@ -79,13 +79,17 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 		if strictjson.Decode(message.Body, &in) != nil {
 			return nil, ipc.NewRequestError("INVALID_ARGUMENT")
 		}
+		if message.Method == "exchangeUnifiedMove" {
+			return c.exchangeUnifiedMoveAt(epoch, ctx, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
+		}
 		return c.exchangeFundingMoveAt(epoch, ctx, client, string(in.AccountID), string(in.AssetID), string(in.Amount))
 	case "exchangeFundingBalances", "exchangeSwapOptions":
 		var in struct {
-			AccountID strictjson.Text `json:"accountId"`
-			AssetID   strictjson.Text `json:"assetId"`
+			AccountID strictjson.Text    `json:"accountId"`
+			AssetID   strictjson.Text    `json:"assetId"`
+			SpotOnly  exchangeActionFlag `json:"spotOnly,omitempty"`
 		}
-		if strictjson.Decode(message.Body, &in) != nil {
+		if strictjson.Decode(message.Body, &in) != nil || !exactExchangeModeField(message.Body, "spotOnly") || bool(in.SpotOnly) && message.Method != "exchangeSwapOptions" {
 			return nil, errExchange
 		}
 		account, asset, _, err := c.exchangeAsset(string(in.AccountID), string(in.AssetID))
@@ -93,6 +97,9 @@ func (c *core) exchangeWizardAt(message ipc.Message, epoch uint64) (any, error) 
 			return nil, err
 		}
 		if message.Method == "exchangeSwapOptions" {
+			if bool(in.SpotOnly) {
+				return c.exchangeSpotCandidatesAt(ctx, client, account)
+			}
 			return c.exchangeSwapOptionsAt(ctx, client, account, asset)
 		}
 		balances, err := exchangeBalances(ctx, client, asset.Symbol)
@@ -286,6 +293,91 @@ func (c *core) exchangeWithdrawalQuoteAt(epoch uint64, client exchangeAPI, accou
 	q.Route.Supported = true
 	q.Route.WithdrawEnabled = chain.ChainWithdraw == "1" && exchangeWithdrawalAuthority("bybit", info) && exchangePermission(info, "Withdraw") && exchangeWithdrawalRegionSupported(client.Endpoint())
 	return q, chain, info, nil
+}
+
+// These are reviewed candidate ledger symbols, not claims that Bybit lists a
+// pair or currently permits withdrawal. Only assets in the owned account group
+// are candidates. Live SpotInstrument identity, status and current limits must
+// pass before either direction is offered; withdrawals verify their routes
+// separately and never inherit authority from this read-only list.
+func (c *core) exchangeSpotCandidatesAt(ctx context.Context, client exchangeAPI, source model.Account) ([]exchangeSwapChoice, error) {
+	state, err := c.current()
+	if err != nil {
+		return nil, err
+	}
+	reviewed := map[string]bool{"ETH": true, "HYPE": true, "NEAR": true, "APT": true, "GRAM": true, "ZEN": true, "USDC": true}
+	type candidate struct{ accountID, assetID, coin string }
+	baseAssets := []candidate{}
+	seen := map[string]bool{}
+	// Prefer the selected source when the same ledger coin has several owned
+	// networks. Its wallet identity remains exact in subsequent approvals.
+	accounts := append([]model.Account{source}, state.Accounts...)
+	for _, account := range accounts {
+		if account.Hidden || account.Index != source.Index {
+			continue
+		}
+		adapter, err := c.adapter(account.Network)
+		if err != nil {
+			continue
+		}
+		for _, network := range adapter.Networks() {
+			if network.ID != account.Network || network.Testnet {
+				continue
+			}
+			for _, asset := range network.Assets {
+				asset = exchange.LedgerAsset(asset)
+				if !reviewed[asset.Symbol] || seen[asset.Symbol] {
+					continue
+				}
+				if _, _, _, err := c.exchangeAsset(account.ID, asset.ID); err != nil {
+					continue
+				}
+				seen[asset.Symbol] = true
+				baseAssets = append(baseAssets, candidate{account.ID, asset.ID, asset.Symbol})
+			}
+		}
+	}
+	options := []exchangeSwapChoice{}
+	for _, base := range baseAssets {
+		for _, quote := range []string{"USDT", "USDC"} {
+			if base.coin == quote {
+				continue
+			}
+			symbol := base.coin + quote
+			instrument, err := client.SpotInstrument(ctx, symbol)
+			if err != nil {
+				var api *bybit.APIError
+				if errors.Is(err, bybit.ErrNotListed) || errors.As(err, &api) && api.Code == 10001 {
+					continue
+				}
+				return nil, exchangeReadFailure("INSTRUMENT", err)
+			}
+			if !exchangeValidSpotInstrument(instrument, base.coin, quote) {
+				return nil, exchangeReadFailure("INSTRUMENT", bybit.ErrInvalidResponse)
+			}
+			for _, side := range []string{"Sell", "Buy"} {
+				output := quote
+				if side == "Buy" {
+					output = base.coin
+				}
+				options = append(options, exchangeSwapChoice{ID: strconv.Itoa(len(options)), AccountID: base.accountID, AssetID: base.assetID, Side: side, QuoteCoin: quote, OutputCoin: output, Symbol: symbol})
+			}
+		}
+	}
+	return options, nil
+}
+
+func exchangeValidSpotInstrument(instrument bybit.Instrument, base, quote string) bool {
+	if instrument.Symbol != base+quote || instrument.BaseCoin != base || instrument.QuoteCoin != quote || instrument.Status != "Trading" || base == quote || !bybit.SpotQuote(quote) {
+		return false
+	}
+	for _, value := range []string{instrument.LotSizeFilter.BasePrecision, instrument.LotSizeFilter.QuotePrecision, instrument.LotSizeFilter.MinOrderAmt, instrument.LotSizeFilter.MaxMarketOrderQty, instrument.PriceFilter.TickSize} {
+		n, err := exchangeAtomic(value)
+		if err != nil || n.Sign() <= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *core) exchangeSwapOptionsAt(ctx context.Context, client exchangeAPI, source model.Account, input model.Asset) ([]exchangeSwapChoice, error) {

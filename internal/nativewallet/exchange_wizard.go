@@ -73,8 +73,13 @@ func (a *App) adoptExchangeWizard(raw json.RawMessage) {
 	a.exchangeWizardData().depositState = status.WizardDepositState
 	if a.wizard.viewStep == 0 {
 		a.wizard.viewStep = 1
-		if status.Wizard != nil && status.Wizard.Step <= 4 {
+		if status.Wizard != nil && status.Wizard.Step >= 1 && status.Wizard.Step <= 4 {
 			a.wizard.viewStep = status.Wizard.Step
+			// Stored Step 4 is legacy Withdraw; Step 5 means completed.
+			// Visible step numbers never rewrite the durable economic record.
+			if status.Wizard.Step == 4 {
+				a.wizard.viewStep = 5
+			}
 		}
 	}
 }
@@ -231,7 +236,11 @@ func (a *App) exchangeWizardPage() []webui.Node {
 	_ = json.Unmarshal(a.exchange, &connection)
 	disabled := a.state.Locked || !a.state.RecoveryConfirmed || !connection.Connected || connection.Provider != "" && connection.Provider != "bybit"
 	steps := node("row", "exchangeSteps", "Exchange steps", strconv.Itoa(step))
-	for index, text := range []string{"Deposit", "Funding → Unified", "Swap", "Withdraw"} {
+	labels := []string{"Deposit", "Funding → Unified", "Swap", "Withdraw"}
+	if u.viewStep > 0 {
+		labels = []string{"Deposit", "Funding → Unified", "Swap", "Unified → Funding", "Withdraw"}
+	}
+	for index, text := range labels {
 		button := node("button", "wizardStep/"+strconv.Itoa(index+1), text, "")
 		button.Disabled = a.busy && u.free != nil && u.free.writing
 		steps.Children = append(steps.Children, button)
@@ -767,7 +776,8 @@ func (a *App) wizardAction(id string) bool {
 		return false
 	}
 	if id == "wizardAdvanced" {
-		a.fields["exchangeMode"] = "existing"
+		// Old in-session navigation cannot reopen route-coupled trading controls.
+		a.exchangeWizardData().viewStep = 3
 		a.render()
 		return true
 	}
