@@ -86,15 +86,15 @@ func TestGRAMCurrentRegistryReconcilesOnlyTheOriginalLegacyTONOperation(t *testi
 				writePublicState(t, path, state)
 				out, err := c.handle(message("exchangeReconcile", map[string]string{"id": id}))
 				if mode == "foreign" {
-					if err == nil {
-						t.Fatal("GRAM response substituted for old TON operation")
+					if err != nil || out.(exchangeResult).State != "PENDING" || out.(exchangeResult).RemoteID != original.ExternalID || !strings.Contains(out.(exchangeResult).Code, "PROVIDER_INVALID_RESPONSE") || out.(exchangeResult).FilledBase != "" {
+						t.Fatal("foreign GRAM status supplied completion or replaced original TON identity", out, err)
 					}
 				} else {
 					if err != nil {
 						t.Fatal(err)
 					}
 					result := out.(exchangeResult)
-					expected := "UNKNOWN"
+					expected := "PENDING"
 					if mode == "exact" {
 						expected = "CONFIRMED"
 						if kind == "withdraw" {
@@ -117,8 +117,8 @@ func TestGRAMCurrentRegistryReconcilesOnlyTheOriginalLegacyTONOperation(t *testi
 				if stored["payload"] != original.Payload || stored["digest"] != original.Digest || stored["externalId"] != original.ExternalID {
 					t.Fatal("reconciliation rewrote original bytes/digest/remote ID")
 				}
-				if mode != "exact" && stored["state"] != "UNKNOWN" {
-					t.Fatal("unavailable/foreign renamed history released UNKNOWN")
+				if mode != "exact" && stored["state"] != "PENDING" {
+					t.Fatal("unavailable/foreign history lost an existing acknowledged ID or inferred completion")
 				}
 				if kind == "swap" && mode == "exact" {
 					result := out.(exchangeResult)

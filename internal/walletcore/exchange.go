@@ -1513,14 +1513,25 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 	defer cancel()
 	state := "UNKNOWN"
 	externalID := operation.ExternalID
+	provider, _ := exchange.ProviderForEndpoint(operation.Endpoint)
+	// A successful create acknowledgement is evidence that this exact request
+	// exists at Bybit, even when its asynchronous status/fills are not visible
+	// yet. A failed follow-up read cannot erase that acknowledgement.
+	if provider.ID == "bybit" && externalID != "" {
+		state = "PENDING"
+	}
 	switch operation.Kind {
 	case "swap":
 		var request bybit.SpotOrder
-		if strictjson.Decode([]byte(operation.Payload), &request) != nil {
+		if strictjson.Decode([]byte(operation.Payload), &request) != nil || request.OrderLinkID == "" || request.Symbol == "" {
 			return result, errExchange
 		}
 		order, err := client.FindOrder(ctx, request.Symbol, request.OrderLinkID)
 		if err != nil || order == nil {
+			if err != nil {
+				result.Code = publicRequestErrorCode(exchangeReadFailure("ORDER_STATUS", err))
+				result.Message = "The original order's status could not be verified. Its original request identity is retained; no order was sent again."
+			}
 			break
 		}
 		quantity, unit := request.Qty, request.MarketUnit
@@ -1528,15 +1539,19 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 			quantity, unit = request.BaseQty, "baseCoin"
 		}
 		if order.OrderLinkID != request.OrderLinkID || order.Symbol != request.Symbol || order.Side != request.Side || !sameExchangeAmount(order.Qty, quantity) || order.MarketUnit != unit || order.OrderType != request.OrderType || order.IsLeverage != "0" || externalID != "" && order.OrderID != externalID || request.LimitPrice != "" && (!sameExchangeAmount(order.BaseQty, request.BaseQty) || !sameExchangeAmount(order.LimitPrice, request.LimitPrice) || order.TimeInForce != "IOC") {
-			return result, errExchange
+			result.Code = publicRequestErrorCode(exchangeReadFailure("ORDER_STATUS", bybit.ErrInvalidResponse))
+			result.Message = "The returned order record does not match the original request. Completion is unverified; the original identity was not replaced."
+			break
 		}
 		externalID = order.OrderID
 		switch order.OrderStatus {
 		case "New", "Created", "Untriggered", "Triggered", "PartiallyFilled":
 			state = "PENDING"
-		default:
+		case "Filled", "Cancelled", "Canceled", "PartiallyFilledCanceled", "Rejected", "Deactivated":
 			base, quote, fees, err := verifiedExchangeExecutions(ctx, client, request, *order)
 			if err != nil {
+				result.Code = publicRequestErrorCode(exchangeReadFailure("EXECUTIONS", err))
+				result.Message = "The original order was found, but its exact executed amounts and fees could not yet be verified. No completion was assumed and no new order was sent."
 				break
 			}
 			result.FilledBase, result.FilledQuote, result.Fees = base, quote, fees
@@ -1555,10 +1570,13 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 					result.Message = "The order filled partially and the remainder was cancelled. Only the reported executed amounts were exchanged."
 				}
 			}
+		default:
+			result.Code = publicRequestErrorCode(exchangeReadFailure("ORDER_STATUS", bybit.ErrInvalidResponse))
+			result.Message = "The original order was found with an unrecognized status. Its completion remains unverified; no new order was sent."
 		}
 	case "transfer":
 		var request bybit.TransferRequest
-		if strictjson.Decode([]byte(operation.Payload), &request) != nil {
+		if strictjson.Decode([]byte(operation.Payload), &request) != nil || request.TransferID == "" {
 			return result, errExchange
 		}
 		var record *bybit.TransferRecord
@@ -1571,10 +1589,16 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 			record, err = client.TransferStatus(ctx, request.TransferID)
 		}
 		if err != nil || record == nil {
+			if err != nil {
+				result.Code = publicRequestErrorCode(exchangeReadFailure("TRANSFER_STATUS", err))
+				result.Message = "The original internal transfer's status could not be verified. Its original request identity is retained; no transfer was sent again."
+			}
 			break
 		}
 		if record.TransferID != request.TransferID || record.Coin != request.Coin || !sameExchangeAmount(record.Amount, request.Amount) || record.FromAccountType != request.FromAccountType || record.ToAccountType != request.ToAccountType {
-			return result, errExchange
+			result.Code = publicRequestErrorCode(exchangeReadFailure("TRANSFER_STATUS", bybit.ErrInvalidResponse))
+			result.Message = "The returned internal transfer record does not match the original request. Completion is unverified; the original identity was not replaced."
+			break
 		}
 		if externalID == "" {
 			externalID = record.TransferID
@@ -1590,7 +1614,7 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		}
 	case "withdraw":
 		var request bybit.WithdrawalRequest
-		if strictjson.Decode([]byte(operation.Payload), &request) != nil {
+		if strictjson.Decode([]byte(operation.Payload), &request) != nil || request.Coin == "" || request.Chain == "" || request.Address == "" || request.RequestID == "" {
 			return result, errExchange
 		}
 		var page bybit.WithdrawalPage
@@ -1610,7 +1634,7 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		}
 		if err != nil {
 			result.Code = publicRequestErrorCode(exchangeReadFailure("WITHDRAWALS", err))
-			result.Message = "The original withdrawal status could not be read. Its outcome remains unknown; the request was not sent again."
+			result.Message = "The original withdrawal status could not be verified. Its original identity is retained; the request was not sent again."
 			break
 		}
 		if len(page.Rows) != 1 || page.NextPageCursor != "" {
@@ -1618,7 +1642,9 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		}
 		record := page.Rows[0]
 		if record.WithdrawID == "" || externalID != "" && record.WithdrawID != externalID || record.Coin != request.Coin || record.Chain != request.Chain || record.ToAddress != request.Address || record.Tag != request.Tag {
-			return result, errExchange
+			result.Code = publicRequestErrorCode(exchangeReadFailure("WITHDRAWALS", bybit.ErrInvalidResponse))
+			result.Message = "The returned withdrawal record does not match the original request. Completion is unverified; the original identity was not replaced."
+			break
 		}
 		if request.FeeMode == "binance-native" && record.RequestID != request.RequestID || externalID == "" && record.RequestID != request.RequestID {
 			return result, errExchange
@@ -1627,10 +1653,14 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		// The record API does not define whether `amount` is gross or net for
 		// feeType=1. Never invent that relation or infer an on-chain credit.
 		if _, e := exchangeAtomic(record.Amount); e != nil {
-			return result, errExchange
+			result.Code = publicRequestErrorCode(exchangeReadFailure("WITHDRAWALS", bybit.ErrInvalidResponse))
+			result.Message = "The original withdrawal's reported amount is invalid. Completion remains unverified; its original identity is retained."
+			break
 		}
 		if _, e := exchangeAtomic(record.WithdrawFee); e != nil {
-			return result, errExchange
+			result.Code = publicRequestErrorCode(exchangeReadFailure("WITHDRAWALS", bybit.ErrInvalidResponse))
+			result.Message = "The original withdrawal's reported fee is invalid. Completion remains unverified; its original identity is retained."
+			break
 		}
 		result.ReportedAmount, result.ReportedFee = record.Amount, record.WithdrawFee
 		result.TransactionID = record.TxID
@@ -1652,6 +1682,9 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 	default:
 		return result, errExchange
 	}
+	if provider.ID == "bybit" && state == "UNKNOWN" && externalID != "" {
+		state = "PENDING" // An exact provider record also establishes existence.
+	}
 	if settledSwap {
 		if state != "CONFIRMED" || externalID != operation.ExternalID || result.FilledBase == "" || result.FilledQuote == "" {
 			return result, exchangeReadFailure("EXECUTIONS", bybit.ErrInvalidResponse)
@@ -1667,7 +1700,11 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 		result.State = "EXCHANGE_COMPLETED"
 	}
 	if result.Message == "" {
-		result.Message = "No complete exact exchange result is established. Reconcile this original operation; no replacement was created."
+		if result.State == "PENDING" && provider.ID == "bybit" && result.RemoteID != "" {
+			result.Message = "Bybit acknowledged or recorded this original request. Its exact completion is still being checked; no replacement was created."
+		} else {
+			result.Message = "No complete exact exchange result is established. Reconcile this original operation; no replacement was created."
+		}
 	}
 	return result, nil
 }

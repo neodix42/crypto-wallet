@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import type { ErrorNotice, Node, Page, View, WalletEvent } from './types';
 import { applyAppearance, inputWithinLimit, isAssetTable, isWalletRow, validView } from './protocol';
 import { DialogHost } from './Dialog';
@@ -67,10 +67,43 @@ function isWithdrawalRequestsTable(node: Node): boolean {
   return node.ID === 'freeWithdrawalRequests' && rows.length >= 1 && rows.length <= 11 && rows.every(row => row.Kind === 'row' && row.Children?.length === 8 && row.Children.every(cell => cell.Kind === 'label'));
 }
 
+function WithdrawalStatusInformation({ details }: { details: string }) {
+  const informationID = useId(), container = useRef<HTMLSpanElement>(null);
+  const [hovered, setHovered] = useState(false), [focused, setFocused] = useState(false), [pinned, setPinned] = useState(false), [dismissed, setDismissed] = useState(false);
+  const [position, setPosition] = useState({ left: 16, top: 16, maxHeight: 440, transform: 'none' });
+  const open = (hovered || focused || pinned) && !dismissed;
+  const close = () => { setPinned(false); setDismissed(true); };
+  const show = () => {
+    const bounds = container.current?.getBoundingClientRect();
+    if (bounds) {
+      const width = Math.min(600, Math.max(0, window.innerWidth - 32)), height = Math.min(440, window.innerHeight * .6);
+      const below = window.innerHeight - bounds.bottom >= Math.min(176, height) || bounds.top < window.innerHeight / 2;
+      const top = below ? bounds.bottom : bounds.top;
+      setPosition({ left: Math.max(16, Math.min(bounds.left, window.innerWidth - width - 16)), top, maxHeight: Math.max(0, Math.min(height, below ? window.innerHeight - top - 16 : top - 16)), transform: below ? 'none' : 'translateY(-100%)' });
+    }
+    setDismissed(false);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => { if (event.target instanceof window.Node && !container.current?.contains(event.target)) close(); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { container.current?.querySelector('button')?.focus(); close(); } };
+    document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape); window.addEventListener('resize', close);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); window.removeEventListener('resize', close); };
+  }, [open]);
+  return <span className="withdrawal-status-information" ref={container} onMouseEnter={() => { show(); setHovered(true); }} onMouseLeave={() => setHovered(false)} onFocus={() => { show(); setFocused(true); }} onBlur={event => { if (!(event.relatedTarget instanceof window.Node) || !container.current?.contains(event.relatedTarget)) setFocused(false); }}><button type="button" className="icon-button" title="Withdrawal status information" aria-label="Withdrawal status information" aria-expanded={open} aria-controls={informationID} aria-describedby={open ? informationID : undefined} onClick={() => { if (pinned) close(); else { show(); setPinned(true); } }}><InfoIcon/></button>{open && <span className="history-information-popover withdrawal-status-popover" style={position} role="note" tabIndex={0} aria-label="Withdrawal status details" id={informationID}>{details}</span>}</span>;
+}
+
+function WithdrawalStatus({ node }: { node: Node }) {
+  const known = ['pending', 'success', 'rejected', 'failed', 'cancelled', 'unknown', 'requested'].includes(node.Text);
+  const status = known ? node.Text : 'unknown';
+  const details = [node.Tooltip, !known ? `Raw display status: ${node.Text}` : ''].filter(Boolean).join('\n') || `Status: ${status}`;
+  return <span className="withdrawal-status"><span className="withdrawal-status-word">{status}</span><WithdrawalStatusInformation key={details} details={details}/></span>;
+}
+
 function WithdrawalRequests({ node }: { node: Node }) {
   const [head, ...rows] = node.Children!;
   const hint = (value: string) => ({ plannedDebit: 'Planned total debit, including the estimated fee.', estimated: 'Estimated at approval.', providerReported: 'Reported by Bybit; this does not independently establish receipt.' }[value] || value);
-  return <div className="withdrawal-table-wrap"><table className="withdrawal-table" aria-label="Recent Bybit withdrawal requests"><thead><tr>{head.Children!.map((cell, index) => <th key={index} scope="col">{cell.Text}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index} title={row.Tooltip}>{row.Children!.map((cell, column) => <td key={column} title={hint(cell.Tooltip)}>{cell.Text}</td>)}</tr>)}</tbody></table></div>;
+  return <div className="withdrawal-table-wrap"><table className="withdrawal-table" aria-label="Recent Bybit withdrawal requests"><thead><tr>{head.Children!.map((cell, index) => <th key={index} scope="col">{cell.Text}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={row.ID || index}>{row.Children!.map((cell, column) => <td key={column} title={column === 5 ? undefined : hint(cell.Tooltip)}>{column === 5 ? <WithdrawalStatus node={cell}/> : cell.Text}</td>)}</tr>)}</tbody></table></div>;
 }
 
 function fieldErrorID(node: Node): string { return 'wallet-' + node.ID + '-error'; }

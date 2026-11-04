@@ -720,6 +720,7 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 		WizardDepositState string
 	}
 	loaded := false
+	var reloadError error
 	apply := func() {
 		u.writing = false
 		if a.exchangeWizardData().free != u {
@@ -835,14 +836,26 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 		if loadErr := a.callAt(g, "exchangeWizardLoad", struct{}{}, &saved); loadErr == nil {
 			loaded = true
 		} else if err == nil {
-			err = loadErr
+			result := update.result
+			returnedOutcome := result != nil && result.ID != "" && (result.State == "CONFIRMED" || result.State == "EXCHANGE_COMPLETED" || result.RemoteID != "" && (result.State == "PENDING" || result.State == "UNKNOWN"))
+			if returnedOutcome && ipc.ClassifyErrorCode(loadErr) != "WALLET_LOCKED" {
+				// A later read cannot invalidate an already returned operation
+				// result. Lifecycle guards still run before applying any result.
+				reloadError = loadErr
+			} else {
+				err = loadErr
+			}
 		}
 		return apply, err
 	}, func(err error) {
 		if err != nil {
 			apply()
-		} else if update.result != nil && update.result.State != "FAILED" && update.result.State != "UNKNOWN" {
-			a.notice(freeOperationInformation(update.result.wizardResult))
+		} else if update.result != nil && update.result.State != "FAILED" && (update.result.State != "UNKNOWN" || update.result.RemoteID != "") {
+			message := freeOperationInformation(update.result.wizardResult)
+			if reloadError != nil {
+				message += " Saved exchange details could not be refreshed (" + ipc.ClassifyErrorCode(reloadError) + "). The returned result and original operation ID are retained."
+			}
+			a.notice(message)
 		}
 	})
 }

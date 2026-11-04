@@ -25,6 +25,12 @@ func exchangeReadReason(code string) (string, bool) {
 	if stage == "WITHDRAW_ADDRESS" {
 		name = "Checking the owned withdrawal address in Bybit"
 	}
+	if stage == "ORDER_STATUS" {
+		name = "Reading the original spot order's status"
+	}
+	if stage == "TRANSFER_STATUS" {
+		name = "Reading the original internal transfer's status"
+	}
 	if strings.HasPrefix(cause, "DEPOSIT_RECORD_REVIEW_") {
 		reason = map[string]string{"DEPOSIT_RECORD_REVIEW_NULL": "Bybit returned null instead of a review result. The original deposit's review remains unclassified.", "DEPOSIT_RECORD_REVIEW_EMPTY": "Bybit returned an empty review result. The original deposit's review remains unclassified.", "DEPOSIT_RECORD_REVIEW_TYPE": "Bybit's review result is neither an integer nor a canonical numeric string.", "DEPOSIT_RECORD_REVIEW_VALUE": "Bybit returned an unknown review state; it was not treated as approved.", "DEPOSIT_RECORD_REVIEW_SHADOW": "Bybit returned conflicting spellings of its review field."}[cause]
 	} else if strings.HasPrefix(cause, "DEPOSIT_RECORD_") {

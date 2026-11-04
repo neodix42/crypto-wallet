@@ -106,6 +106,24 @@ func withdrawalValue(value string) string {
 	return value
 }
 
+func withdrawalStatusCell(request freeWithdrawalRow) webui.Node {
+	status := strings.ToLower(strings.TrimSpace(request.State))
+	switch status {
+	case "pending", "success", "rejected", "failed", "cancelled", "unknown", "requested":
+	default:
+		status = "unknown"
+	}
+	cell := label(status)
+	details := []string{"Source: " + withdrawalValue(request.Source), "Raw status: " + withdrawalValue(request.Status), "State: " + withdrawalValue(request.State)}
+	for _, field := range [][2]string{{"Reason", request.Reason}, {"Code", request.Code}, {"Local operation ID", request.OperationID}, {"Bybit request ID", request.WithdrawalID}, {"Created", request.CreatedAt}, {"Updated", request.UpdatedAt}} {
+		if field[1] != "" {
+			details = append(details, field[0]+": "+field[1])
+		}
+	}
+	cell.Tooltip = strings.Join(details, "\n")
+	return cell
+}
+
 func (a *App) freeWithdrawalHistoryNodes(disabled bool) []webui.Node {
 	u, current := a.currentWithdrawalData()
 	information := node("label", "historyInfo/bybit-withdrawals", "", "")
@@ -133,21 +151,13 @@ func (a *App) freeWithdrawalHistoryNodes(disabled bool) []webui.Node {
 		if i == 10 {
 			break
 		}
-		status := withdrawalValue(request.Status)
-		if request.Reason != "" {
-			status += "\n" + request.Reason
-		}
-		if request.Code != "" {
-			status += "\n" + request.Code
-		}
 		id := request.WithdrawalID
 		if id == "" && request.OperationID != "" {
 			id = "Local " + request.OperationID
 		}
 		amount, fee := label(withdrawalValue(request.Amount)), label(withdrawalValue(request.Fee))
 		amount.Tooltip, fee.Tooltip = request.AmountBasis, request.FeeBasis
-		item := row(label(withdrawalDate(request.CreatedAt)), label(request.Coin+" · "+request.Chain), amount, fee, label(withdrawalValue(request.Address)), label(status), label(withdrawalValue(id)), label(withdrawalValue(request.TransactionID)))
-		item.Tooltip = "Source: " + request.Source + "; state: " + request.State + "; updated: " + request.UpdatedAt
+		item := row(label(withdrawalDate(request.CreatedAt)), label(request.Coin+" · "+request.Chain), amount, fee, label(withdrawalValue(request.Address)), withdrawalStatusCell(request), label(withdrawalValue(id)), label(withdrawalValue(request.TransactionID)))
 		table.Children = append(table.Children, item)
 	}
 	nodes = append(nodes, table)
@@ -237,6 +247,11 @@ func (a *App) freeOperationOutcome(title string, result wizardResult) {
 	if result.State != "FAILED" && result.State != "UNKNOWN" {
 		return
 	}
+	if result.State == "UNKNOWN" && result.RemoteID != "" {
+		// An acknowledged request can outpace its read-only history. This is
+		// pending verification, not evidence that its execution failed.
+		return
+	}
 	code := result.Code
 	if code == "" {
 		code = "REQUEST_FAILED_STATE_UNKNOWN"
@@ -249,11 +264,25 @@ func (a *App) freeOperationOutcome(title string, result wizardResult) {
 	if result.RemoteID != "" {
 		message += "\nBybit request: " + result.RemoteID
 	}
-	a.queueError(title, code, message)
+	if result.State == "UNKNOWN" {
+		a.queueErrorTitle("Submission status unknown", title, code, message)
+	} else {
+		a.queueError(title, code, message)
+	}
 }
 
 func freeOperationInformation(result wizardResult) string {
-	message := "Bybit " + result.Kind + ": " + result.State + "."
+	state := result.State
+	if state == "UNKNOWN" && result.RemoteID != "" {
+		state = "PENDING"
+	}
+	message := "Bybit " + result.Kind + ": " + state + "."
+	if state == "PENDING" {
+		message = "Bybit acknowledged this " + result.Kind + "; its status is being checked automatically."
+		if result.Code != "" {
+			message += " Status read: " + result.Code + "."
+		}
+	}
 	if result.RemoteID != "" {
 		message += " Request: " + result.RemoteID + "."
 	}

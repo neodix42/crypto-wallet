@@ -2,8 +2,12 @@
 """Current Go package routing checks; no compiler or wallet process is invoked."""
 import concurrent.futures
 import importlib.util
+import json
+import os
 from pathlib import Path
 import subprocess
+import sys
+import tempfile
 import threading
 import unittest
 from unittest import mock
@@ -39,8 +43,8 @@ class CurrentGoRouting(unittest.TestCase):
             self.assertEqual(ci.run('race'), 0)
         expected = [name for name in listed if name not in (ci.LEGACY_PACKAGE, ci.STRESS_PACKAGE)]
         self.assertEqual(execute.call_args_list, [
-            mock.call(['go', 'test', '-race', '-p', '2', *expected], cwd=ci.ROOT, check=False),
-            mock.call(['go', 'test', '-race', '-p', '1', '-count=1', ci.STRESS_PACKAGE], cwd=ci.ROOT, check=False),
+            mock.call(['go', 'test', '-race', '-p', '1', '-timeout=30m', *expected], cwd=ci.ROOT, check=False),
+            mock.call(['go', 'test', '-race', '-p', '1', '-timeout=30m', '-count=1', ci.STRESS_PACKAGE], cwd=ci.ROOT, check=False),
         ])
         # Dynamic discovery remains the authority: no package is omitted or
         # repeated, and a future stress subpackage still runs in the first batch.
@@ -50,7 +54,7 @@ class CurrentGoRouting(unittest.TestCase):
         self.assertEqual(len(routed), len(set(routed)))
 
     def test_race_retains_both_phases_and_propagates_any_failure(self):
-        for exits, expected in [((0, 0), 0), ((17, 0), 17), ((0, 23), 23),
+        for exits, expected in [((0, 0), 0), ((1, 0), 1), ((17, 0), 17), ((0, 23), 23),
                                 ((17, 23), 17), ((-9, 0), -9)]:
             with self.subTest(exits=exits), \
                     mock.patch.object(ci.subprocess, 'check_output', return_value='\n'.join(self.listing())), \
@@ -58,6 +62,37 @@ class CurrentGoRouting(unittest.TestCase):
                         subprocess.CompletedProcess([], code) for code in exits]) as execute:
                 self.assertEqual(ci.run('race'), expected)
                 self.assertEqual(execute.call_count, 2, 'a failed first batch must not omit stress')
+
+    def test_subprocess_timeout_failure_preserves_every_package_and_fails_the_route(self):
+        # Stand-in Go exercises real process execution, discovery and argv
+        # boundaries without a compiler or wallet. Go package timeouts return
+        # exit 1; a later successful stress phase must not turn that into PASS.
+        listed = self.listing({'localwallet/internal/newchain', ci.STRESS_PACKAGE + '/newhelper'})
+        with tempfile.TemporaryDirectory(prefix='wallet-ci-go-routing-') as temporary:
+            folder = Path(temporary)
+            executable = folder / 'go'
+            executable.write_text('#!' + sys.executable + '\n' +
+                'import json, pathlib, sys\n' +
+                'args = sys.argv[1:]\n' +
+                'with pathlib.Path(__file__).with_name("calls.jsonl").open("a") as log: log.write(json.dumps(args) + "\\n")\n' +
+                'if args == ["list", "./..."]:\n' +
+                ' print("\\n".join(' + repr(listed) + '))\n' +
+                'elif args[:2] == ["test", "-race"]:\n' +
+                ' sys.exit(0 if args[-1] == ' + repr(ci.STRESS_PACKAGE) + ' else 1)\n' +
+                'else: sys.exit(99)\n')
+            executable.chmod(0o755)
+            with mock.patch.dict(os.environ, {'PATH': str(folder) + os.pathsep + os.environ['PATH']}):
+                self.assertEqual(ci.run('race', root=folder), 1)
+            calls = [json.loads(line) for line in (folder / 'calls.jsonl').read_text().splitlines()]
+        self.assertEqual(calls[0], ['list', './...'])
+        self.assertEqual(len(calls), 3, 'all race phases must execute even after exit 1')
+        for command in calls[1:]:
+            self.assertEqual(command[:5], ['test', '-race', '-p', '1', '-timeout=30m'])
+            self.assertFalse(any(arg in ('-run', '-skip', '-short', '-parallel') for arg in command))
+        routed = [name for command in calls[1:] for name in command if name.startswith('localwallet/')]
+        self.assertEqual(sorted(routed), sorted(name for name in listed if name != ci.LEGACY_PACKAGE))
+        self.assertEqual(len(routed), len(set(routed)))
+        self.assertEqual(calls[-1][-2:], ['-count=1', ci.STRESS_PACKAGE])
 
     def test_stress_cannot_start_while_the_first_race_batch_is_running(self):
         first_started = threading.Event()

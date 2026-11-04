@@ -38,3 +38,12 @@ func TestDepositCreditErrorsShowSpecificFixedReasonWithoutPrivateValues(t *testi
 		}
 	}
 }
+
+func TestBybitFollowupReadDiagnosticsKeepTheirExactPublicStage(t *testing.T) {
+	for stage, heading := range map[string]string{"ORDER_STATUS": "Reading the original spot order's status", "TRANSFER_STATUS": "Reading the original internal transfer's status"} {
+		reason, ok := exchangeReadReason("EXCHANGE_READ_" + stage + "__PROVIDER_INVALID_RESPONSE")
+		if !ok || !strings.HasPrefix(reason, heading+" failed.") || !strings.Contains(reason, "did not authorize") {
+			t.Fatal("original-operation read lost its public diagnostic", stage, reason)
+		}
+	}
+}

@@ -1044,20 +1044,20 @@ func TestExchangeOrderReconciliationHandlesPartialCancelledMissingAndForeignResu
 				}
 			case "unknownStatus":
 				record.OrderStatus = "Unrecognized"
-				want = "UNKNOWN"
+				want = "PENDING"
 			case "missing":
 				api.orderResult = nil
 				api.order = bybit.SpotOrder{}
-				want = "UNKNOWN"
+				want = "PENDING"
 			case "provider":
 				api.fail["find"] = errors.New("unavailable")
-				want = "UNKNOWN"
+				want = "PENDING"
 			case "foreign":
 				record.OrderID = "different"
-				wantError = true
+				want = "PENDING"
 			case "executionFailure":
 				api.fail["executions"] = errors.New("unavailable")
-				want = "UNKNOWN"
+				want = "PENDING"
 			case "badPayload":
 				op.Payload = "null"
 				wantError = true
@@ -1095,6 +1095,9 @@ func TestExchangeOrderReconciliationHandlesPartialCancelledMissingAndForeignResu
 			if e != nil || out.(exchangeResult).State != want || api.posts != 0 {
 				t.Fatal(out, e, want, api.posts)
 			}
+			if scenario == "foreign" && (out.(exchangeResult).Code != "EXCHANGE_READ_ORDER_STATUS__PROVIDER_INVALID_RESPONSE" || out.(exchangeResult).RemoteID != op.ExternalID || out.(exchangeResult).FilledBase != "") {
+				t.Fatal("foreign status record changed the acknowledged identity or supplied completion", out)
+			}
 		})
 	}
 }
@@ -1118,10 +1121,10 @@ func TestExchangeTransferReconciliationBindsExactOperationAndPreservesUncertaint
 				want = "PENDING"
 			case "unknown":
 				record.Status = "STATUS_UNKNOWN"
-				want = "UNKNOWN"
+				want = "PENDING"
 			case "foreign":
 				record.Amount = "0.2"
-				bad = true
+				want = "UNKNOWN"
 			case "missing":
 				api.transferRecord = nil
 				want = "UNKNOWN"
@@ -1143,6 +1146,9 @@ func TestExchangeTransferReconciliationBindsExactOperationAndPreservesUncertaint
 			if e != nil || out.State != want || api.posts != 0 {
 				t.Fatal(out, e, want)
 			}
+			if scenario == "foreign" && (out.Code != "EXCHANGE_READ_TRANSFER_STATUS__PROVIDER_INVALID_RESPONSE" || out.RemoteID != "") {
+				t.Fatal("mismatched transfer record supplied an acknowledgement or success", out)
+			}
 		})
 	}
 }
@@ -1156,7 +1162,7 @@ func TestExchangeWithdrawalReconciliationUsesKnownIDAndNeverClaimsChainFinality(
 			op.ExternalID = "withdrawal-1"
 			record := bybit.WithdrawalRecord{WithdrawID: op.ExternalID, Coin: request.Coin, Chain: request.Chain, ToAddress: request.Address, Amount: "0.1", WithdrawFee: "0.0002", Status: scenario, TxID: "onchain-hash"}
 			api.withdrawalPage = &bybit.WithdrawalPage{Rows: []bybit.WithdrawalRecord{record}}
-			want := "UNKNOWN"
+			want := "PENDING"
 			bad := false
 			switch scenario {
 			case "success", "successConfirmed":
@@ -1167,13 +1173,10 @@ func TestExchangeWithdrawalReconciliationUsesKnownIDAndNeverClaimsChainFinality(
 				want = "FAILED"
 			case "foreign":
 				api.withdrawalPage.Rows[0].ToAddress = "attacker"
-				bad = true
 			case "badAmount":
 				api.withdrawalPage.Rows[0].Amount = "bad"
-				bad = true
 			case "badFee":
 				api.withdrawalPage.Rows[0].WithdrawFee = "bad"
-				bad = true
 			case "missing":
 				api.withdrawalPage.Rows = []bybit.WithdrawalRecord{}
 			case "cursor":
@@ -1200,6 +1203,9 @@ func TestExchangeWithdrawalReconciliationUsesKnownIDAndNeverClaimsChainFinality(
 			}
 			if e != nil || out.State != want || api.posts != 0 {
 				t.Fatal(out, e, want)
+			}
+			if (scenario == "foreign" || scenario == "badAmount" || scenario == "badFee") && (out.Code != "EXCHANGE_READ_WITHDRAWALS__PROVIDER_INVALID_RESPONSE" || out.RemoteID != op.ExternalID || out.State == "EXCHANGE_COMPLETED") {
+				t.Fatal("invalid withdrawal observation changed acknowledgement or supplied completion", out)
 			}
 			if out.State == "EXCHANGE_COMPLETED" && !strings.Contains(out.Message, "not") && !strings.Contains(out.Message, "does not") {
 				t.Fatal("exchange report presented as chain finality", out)

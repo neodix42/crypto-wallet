@@ -132,7 +132,11 @@ func TestUSDCWrongFeeCurrencyAndAmbiguousRestartRemainUnresolved(t *testing.T) {
 				}
 			}
 			result := exchangeResultCall(t, c, "exchangeSwap", map[string]any{"side": "Sell", "quoteCoin": "USDC", "amount": "0.1", "slippage": "0.5"})
-			if result.State != "UNKNOWN" || api.posts != 1 {
+			want := "PENDING"
+			if fault == "lost-ack" {
+				want = "UNKNOWN"
+			}
+			if result.State != want || api.posts != 1 || result.FilledBase != "" || result.FilledQuote != "" || fault != "lost-ack" && (result.RemoteID == "" || result.Code == "") {
 				t.Fatal("incomplete USDC outcome was called complete", result)
 			}
 			c.child.Kill()
@@ -140,7 +144,7 @@ func TestUSDCWrongFeeCurrencyAndAmbiguousRestartRemainUnresolved(t *testing.T) {
 			if err != nil {
 				t.Fatal("original USDC operation was not retained on child restart", err)
 			}
-			if fault != "lost-ack" && value.(exchangeResult).State != "UNKNOWN" {
+			if fault != "lost-ack" && (value.(exchangeResult).State != "PENDING" || value.(exchangeResult).RemoteID != result.RemoteID || value.(exchangeResult).FilledBase != "" || value.(exchangeResult).Code == "") {
 				t.Fatal("restart discarded incomplete fee evidence")
 			}
 			ops := readExchangeFixtureState(path)["exchangeOps"].([]any)

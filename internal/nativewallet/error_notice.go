@@ -31,6 +31,10 @@ func (a *App) errorText(operation, message string) {
 	a.queueError(operation, "REQUEST_DENIED", message)
 }
 func (a *App) queueError(operation, code, message string) {
+	a.queueErrorTitle("Operation failed", operation, code, message)
+}
+
+func (a *App) queueErrorTitle(title, operation, code, message string) {
 	if a.closed {
 		return
 	}
@@ -57,7 +61,7 @@ func (a *App) queueError(operation, code, message string) {
 			return
 		}
 	}
-	notice := webui.ErrorNotice{ID: strconv.FormatUint(a.errorSequence, 10), Title: "Operation failed", Operation: operation, Code: code, Message: message}
+	notice := webui.ErrorNotice{ID: strconv.FormatUint(a.errorSequence, 10), Title: title, Operation: operation, Code: code, Message: message}
 	if len(a.errorQueue) < 32 {
 		a.errorQueue = append(a.errorQueue, notice)
 	} else {

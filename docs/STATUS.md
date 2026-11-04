@@ -1,5 +1,23 @@
 # Implementation and release evidence
 
+## Bybit acknowledgements and compact transaction tables — 2026-11-04
+
+Acknowledged Bybit requests remain pending through unverifiable asynchronous
+follow-up reads instead of showing false failure dialogs. Genuine refusals and
+lost acknowledgements remain explicit; exact identity/execution checks and
+original encrypted records are preserved. Withdrawal status is one word with
+Info details; wallet history uses Explorer icons, abbreviated peers and
+single-line exact comments with full-text hover.
+[Behavior and evidence checklist](BYBIT_ACKNOWLEDGEMENTS_HISTORY.md).
+PASS: complete local aggregate/security suites and affected races/vet, 185
+frontend checks, TypeScript, portable build and current-package CI routing/failure
+checks. All 81 mutants in ten stable-source campaigns are killed; 7,703 hash
+comparisons match 1,688 current files. Six actual offline GUI checks have stable
+sources and match the final built executable. Reload-feedback regressions retain
+accepted results while preserving action/lock/lost-ack/stale-session failures.
+Exact-source hosted verification remains NOT_RUN until recorded below.
+Authenticated funded Bybit acceptance is NOT_RUN.
+
 ## Bybit session approval, automatic reads and withdrawal status — 2026-11-04
 
 The current owner update removes repeated Bybit operation passwords while
@@ -14,7 +32,19 @@ races, vet and portable build. All 81 compiling mutants in ten stable-source
 campaigns are killed; 7,680 source-hash comparisons match 1,684 current files.
 Six final actual GUI checks have matching current-source/executable fingerprints,
 including automatic guidance, removed controls and recent-request presentation.
-Exact-source hosted CI and publication verification remain NOT_RUN until recorded.
+[Build/release 41780885403](https://github.com/neodix42/crypto-wallet/actions/runs/41780885403)
+and [release 0.1.54](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.54)
+pass publisher/repository/source/tag/version/archive verification for
+`a6760cd480ed6bef6f58f092af6b19970bc26dbc`. The authenticated downloaded binary
+passes three actual offline GUI checks with stable source, including automatic
+guidance, removed refresh controls and recent-withdrawals presentation.
+Wails job 126411912195 in [tests 41780885454](https://github.com/neodix42/crypto-wallet/actions/runs/41780885454)
+passes all steps, with its nine exact-Git/binary-bound reports independently
+verified. Backend job 126411912433 FAILS at Go's ten-minute cumulative signer
+race timeout during production Argon2 work; no data race/assertion failure was
+reported. Its partial artifact independently verifies 81 semantic mutants and
+1,717 source bindings, but downstream interop/integration/fuzz/dependency/recovery/
+crash gates were NOT_RUN. It is not complete CI PASS evidence.
 The reported account's private rejection/cooldown cause and funded Bybit
 acceptance remain NOT_RUN.
 

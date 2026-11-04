@@ -1,5 +1,29 @@
 # Current desktop checks in GitHub Actions
 
+## Hosted cumulative race-package timeout — 2026-11-04
+
+[Run 41780885454](https://github.com/neodix42/crypto-wallet/actions/runs/41780885454)
+at `a6760cd` passes the Wails job, but its backend race step fails when the full
+signer package reaches Go's default ten-minute cumulative deadline (600.111
+seconds). The timeout stack is inside production Argon2 in `vault.Open`; the
+retained race log reports no data race. The timeout is a failed, incomplete
+backend gate, not a race-suite pass.
+
+Hosted race routing now runs packages one at a time with `-race -p 1` and an
+explicit `-timeout=30m` per package. The full stress package still runs separately
+after all other race packages, with uncached execution. Dynamic discovery retains
+every current package and excludes only the existing legacy launcher. Ordinary
+unit/vet routing and local `make test-race` remain unchanged. Production KDFs,
+test selectors, protocol deadlines, stress budgets and mutation controls are
+unchanged; a package timeout or any other nonzero exit still fails the command.
+
+Routing regressions check complete package coverage, serial phase ordering and
+failure propagation, including an actual subprocess exit-1 fixture followed by a
+successful stress phase. New complete local and hosted race results remain
+separate evidence; this scheduling change does not pass the failed historical
+run. Its log is retained in
+`reports/bybit-withdraw-hosted-checks/failed-race.log`.
+
 ## Hosted ERC-20 hover-text observation — 2026-10-29
 
 [Run 40760159215](https://github.com/neodix42/crypto-wallet/actions/runs/40760159215/job/123069590093)

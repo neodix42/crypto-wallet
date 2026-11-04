@@ -90,18 +90,21 @@ describe('transaction table and expanded main pages', () => {
       expect(host.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(input.value).toBe('bad');
     }
   });
-  it('renders every transfer field exactly as inert text with complete selectable addresses', async () => {
+  it('renders inert compact addresses with complete original values in hover and accessible context', async () => {
     const table = history(), emit = vi.fn();
     await mount(<PublicNode node={table} emit={emit}/>);
     expect(host.querySelector('caption')!.textContent).toBe('Transaction history');
     expect([...host.querySelectorAll('th')].map(cell => cell.textContent)).toEqual(['Date and time', 'Source', 'Destination', 'Amount', 'Explorer', 'Comment', 'Status']);
     const cells = [...host.querySelectorAll('tbody td')];
-    expect(cells.map(cell => cell.textContent)).toEqual(table.Children![0].Children!.map(cell => cell.Kind === 'address' ? cell.Value : cell.Kind === 'explorer' ? cell.Text + '↗' : cell.Text));
+    expect(cells.map(cell => cell.textContent)).toEqual(['2026-10-30 10:01:02 UTC', '0x1111 . . . 111111', 'recipi . . . xxxxxx', '123456789.000000000000000001 ETH', '', '<img src=x onerror=alert(1)>\nsecond line', 'OBSERVED']);
+    expect(cells[1].getAttribute('title')).toBe(table.Children![0].Children![1].Value);
+    expect(cells[2].getAttribute('title')).toBe(table.Children![0].Children![2].Value);
+    expect(cells[2].getAttribute('aria-label')).toBe('Destination address: ' + table.Children![0].Children![2].Value);
     expect(host.querySelector('img,script,a')).toBeNull();
     expect(window.runtime!.BrowserOpenURL).not.toHaveBeenCalled();
     const code = cells[2].querySelector('code')!, range = document.createRange(), selection = window.getSelection()!;
     range.selectNodeContents(code); selection.addRange(range);
-    expect(selection.toString()).toBe(table.Children![0].Children![2].Value);
+    expect(selection.toString()).toBe('recipi . . . xxxxxx');
     for (const key of [new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }), new Event('copy', { bubbles: true, cancelable: true })]) {
       await act(async () => { code.dispatchEvent(key); }); expect(key.defaultPrevented).toBe(false);
     }
@@ -121,12 +124,13 @@ describe('transaction table and expanded main pages', () => {
     await click(link);
     expect(emit).not.toHaveBeenCalled();
   });
-  it('renders missing, hostile and unreviewed explorer links as plain transaction identity, retaining other history values', async () => {
+  it('renders missing, hostile and unreviewed explorer links as inert unavailable markers, retaining other history values', async () => {
     for (const value of ['', 'javascript:alert(1)', 'https://attacker.invalid/tx/' + txid, url + '?redirect=evil']) {
       const table = history(); table.Children![0].Children![4].Value = value;
       if (!root) await mount(<PublicNode node={table} emit={() => {}}/>); else await rerender(<PublicNode node={table} emit={() => {}}/>);
       expect(host.querySelector('.explorer-link,a')).toBeNull();
-      expect(host.querySelector('.transaction-id')!.textContent).toBe(txid);
+      expect(host.querySelector('.transaction-explorer-unavailable')!.textContent).toBe('—');
+      expect(host.textContent).not.toContain(txid);
       expect(host.textContent).toContain('OBSERVED');
     }
     expect(window.runtime!.BrowserOpenURL).not.toHaveBeenCalled();
@@ -143,7 +147,7 @@ describe('transaction table and expanded main pages', () => {
     expect(host.querySelectorAll('tbody tr')).toHaveLength(0);
     expect(host.textContent).not.toMatch(/no transactions|complete history|no earlier/i);
     await rerender(<PublicNode node={node('explorer', '', txid, '')} emit={() => {}}/>);
-    expect(host.textContent).toBe(txid);
+    expect(host.textContent).toBe('—');
   });
   it('separates icon-only utilities in the header from account/wallet tabs, preserving selection and actions', async () => {
     const state = view(); state.Active = 'settings';
@@ -175,7 +179,8 @@ describe('transaction table and expanded main pages', () => {
         expect(computed.width).toBe('100%'); expect(parseFloat(computed.minWidth)).toBe(0); expect(computed.maxWidth).not.toBe('1170px');
         expect(getComputedStyle(host.querySelector('.transaction-table-wrap')!).overflowX).toBe('auto');
         expect(getComputedStyle(host.querySelector('.transaction-table .address')!).whiteSpace).toBe('nowrap');
-        expect(getComputedStyle(host.querySelector('.transaction-table td:nth-child(6)')!).overflowWrap).toBe('anywhere');
+        expect(getComputedStyle(host.querySelector('.transaction-table .transaction-comment')!).whiteSpace).toBe('nowrap');
+        expect(getComputedStyle(host.querySelector('.transaction-table .transaction-comment')!).textOverflow).toBe('ellipsis');
       }
     } finally { style.remove(); }
   });

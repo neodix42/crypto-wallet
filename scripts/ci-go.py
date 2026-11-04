@@ -8,6 +8,9 @@ test-race still exercise their original complete package sets.
 Race-instrumented stress runs after the other race packages have completed. Its
 production-KDF latency budgets measure an isolated workload rather than competing
 with the signer suite for the hosted runner's two CPUs and memory bandwidth.
+Race packages run one at a time, with an explicit cumulative 30-minute package
+deadline for the complete production-KDF signer suite. Individual test, protocol,
+stress and mutation limits remain unchanged; expiration still fails the command.
 """
 import argparse
 from pathlib import Path
@@ -36,10 +39,10 @@ def run(action, root=ROOT):
     selected = packages(root)
     if action == 'race':
         commands = [
-            ['go', 'test', '-race', '-p', '2'] + [name for name in selected if name != STRESS_PACKAGE],
+            ['go', 'test', '-race', '-p', '1', '-timeout=30m'] + [name for name in selected if name != STRESS_PACKAGE],
             # Keep the complete stress package and every existing budget. A
             # fresh execution is required for meaningful performance evidence.
-            ['go', 'test', '-race', '-p', '1', '-count=1', STRESS_PACKAGE],
+            ['go', 'test', '-race', '-p', '1', '-timeout=30m', '-count=1', STRESS_PACKAGE],
         ]
     else:
         commands = [{'test': ['go', 'test'], 'vet': ['go', 'vet']}[action] + selected]

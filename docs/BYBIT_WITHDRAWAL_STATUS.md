@@ -41,8 +41,12 @@ A completed exchange request does not independently prove on-chain receipt.
 
 Previously, a definitive refusal could return a normal result while the free
 wizard hid its details. A withdrawal could therefore appear to finish without
-showing the refusal or a useful current status. Foreground FAILED/UNKNOWN
-outcomes now produce persistent safe-reason dialogs and remain in history.
+showing the refusal or a useful current status. Foreground FAILED outcomes now
+produce persistent safe-reason dialogs and remain in history. The subsequent
+[acknowledgement correction](BYBIT_ACKNOWLEDGEMENTS_HISTORY.md) keeps known
+accepted requests PENDING through unverifiable follow-up reads, without a false
+failure dialog. A lost acknowledgement remains UNKNOWN with an explicit
+Submission status unknown dialog.
 Bybit codes 131093, 131098 and 131089 are terminal preacceptance refusals only
 for withdrawal operations; transport failures, lost acknowledgments and other
 unclassified codes remain UNKNOWN. No request is automatically resent.
@@ -81,7 +85,10 @@ and [error definitions](https://bybit-exchange.github.io/docs/v5/error).
 | PASS | Complete local `make test-ci`, `make test-security-ci`, portable build and vet. All 81 compiling semantic mutants in ten stable-source campaigns are killed. 166 frontend checks pass. `reports/bybit-withdraw-ci-final.log`, `reports/bybit-withdraw-security-final.log`, `reports/bybit-withdraw-build-final.log`, `reports/bybit-withdraw-vet.log`, `reports/bybit-withdraw-frontend-final.log`. |
 | PASS | Focused actual offline GUI and six-check appearance/restart campaign verify automatic deposit guidance, removed refresh controls, all five balance summaries, stablecoin selectors and the recent-request section without fabricated credentials or provider records. The final presentation rerun is recorded separately. `reports/bybit-withdraw-gui.json`, `reports/bybit-withdraw-appearance.json`. |
 | PASS | Complete final races across native controller, coordinator, signer, signer dispatch, vault, Bybit client and IPC, plus six final actual GUI/appearance checks. The GUI fingerprint and executable hash match the current built candidate; all 7,680 mutation source-hash comparisons match 1,684 current source files. `reports/bybit-withdraw-race-final.log`, `reports/bybit-withdraw-appearance-final.json`, `reports/bybit-withdraw-local-security-summary.json`. |
-| NOT_RUN | Exact-source hosted CI and publisher/downloaded-release verification for this amendment. |
+| PASS | Exact-source Wails job 126411912195 in [hosted tests 41780885454](https://github.com/neodix42/crypto-wallet/actions/runs/41780885454), with independently verified nine-report artifact 13299679065: 38 full GUI, five TON, seven recovery and nine actual private-geth checks. |
+| FAIL | Backend job 126411912433 in that run: ten-minute cumulative signer race timeout during production Argon2 work. No data race/assertion failure was reported. Partial artifact 13300381749 verifies 81 mutants and 1,717 exact-Git source bindings; it is not full-backend PASS evidence. Later interop/integration/fuzz/dependency/recovery/crash gates were NOT_RUN. `reports/bybit-withdraw-hosted-checks/partial-verification.json`, `failed-race.log`. |
+| PASS | [Build/release 41780885403](https://github.com/neodix42/crypto-wallet/actions/runs/41780885403) and normal [release 0.1.54](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.54) for `a6760cd480ed6bef6f58f092af6b19970bc26dbc`: publisher, repository/source/tag/app version, four-file portable archive and published bytes verified. Archive SHA256 `42577c2f13c02ebe6a8d3b8965e85e6a3a28c17b643757865dfa031487c26971`. `reports/bybit-withdraw-release/summary.json`. |
+| PASS | Three actual offline GUI checks on the authenticated downloaded executable: stable sources, all five stablecoin tables and six selectors, removed refresh controls, automatic deposit guidance and recent-withdrawals section. `reports/bybit-withdraw-release/published-summary.json`, `reports/bybit-withdraw-published.json`. No successful authenticated Bybit response or funded action is fabricated. |
 | NOT_RUN | Authenticated funded Bybit acceptance, the reported account's private cooldown/rejection reason, physical installed OS matrix and independent external review. No real profile or credentials are accessed and no mainnet transaction is automatically sent. |
 
 During development, the historical whole-signer-suite locked-signing mutant
