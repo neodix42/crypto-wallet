@@ -8,7 +8,7 @@ export function ExplorerLink({ node }: { node: Node }) {
 }
 
 function shortAddress(value: string): string {
-  if (value.length <= 12 || !/^[a-zA-Z0-9_.:-]+$/.test(value) || /^(unknown|unavailable|missing|pending)(?:$|[:._-])/i.test(value)) return value;
+  if (value.length <= 12 || !/^[a-zA-Z0-9_.:-]+$/.test(value)) return value;
   return value.slice(0, 6) + ' . . . ' + value.slice(-6);
 }
 

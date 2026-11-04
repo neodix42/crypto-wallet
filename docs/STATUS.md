@@ -12,11 +12,19 @@ single-line exact comments with full-text hover.
 PASS: complete local aggregate/security suites and affected races/vet, 185
 frontend checks, TypeScript, portable build and current-package CI routing/failure
 checks. All 81 mutants in ten stable-source campaigns are killed; 7,703 hash
-comparisons match 1,688 current files. Six actual offline GUI checks have stable
-sources and match the final built executable. Reload-feedback regressions retain
+comparisons match 1,688 source files. Six initial actual offline GUI checks and
+three final named-address follow-up checks have stable sources and match their
+respective built executables. The final frontend also abbreviates valid NEAR
+names beginning with words such as unknown/pending. Reload-feedback regressions retain
 accepted results while preserving action/lock/lost-ack/stale-session failures.
 Exact-source hosted verification remains NOT_RUN until recorded below.
 Authenticated funded Bybit acceptance is NOT_RUN.
+Initial `73b23db` release 0.1.55 passes publisher/source/archive and downloaded
+GUI verification. Its Wails attempt fails before Xvfb readiness at the unchanged
+five-second deadline; runtime security assertions and later GUI gates are
+NOT_RUN. The same source/probes pass locally; no specific hosted stall cause is
+established. Backend unit/security stages pass before the named-address follow-up;
+incomplete/cancelled later gates are not PASS evidence.
 
 ## Bybit session approval, automatic reads and withdrawal status — 2026-11-04
 

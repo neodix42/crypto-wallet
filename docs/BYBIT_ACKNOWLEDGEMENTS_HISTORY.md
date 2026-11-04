@@ -46,7 +46,9 @@ with the URL on hover and the existing fixed-network URL checks before opening.
 Source/destination addresses longer than twelve characters show their first six,
 ` . . . ` and last six characters. Full addresses remain available on hover and
 to assistive technology. Unknown peer labels and short named accounts remain
-intact. Actual blockchain comments preserve their exact text but occupy one
+intact. Valid named NEAR accounts beginning with words such as `unknown` or
+`pending` are still addresses and use the same abbreviation. Actual blockchain
+comments preserve their exact text but occupy one
 visual line, with ellipsis and complete text on hover. Backend records, exact
 approval addresses and receive-address copying are unchanged.
 
@@ -60,7 +62,9 @@ approval addresses and receive-address copying are unchanged.
 | PASS | Native foreground regressions distinguish acknowledged pending/legacy results, actual post-acknowledgement refusals and lost-ack uncertainty. Twelve reload-feedback subcases and their races retain accepted results through a failed later read, while action/lock errors and stale callbacks remain protected. `reports/exchange-followup-feedback-native.log`, `reports/exchange-followup-feedback-race.log`. |
 | PASS | CI race routing command/failure tests retain all 43 discovered current packages exactly once, including uncached stress, with serial execution and an explicit 30-minute cumulative package deadline. Timeout-style failure remains failure; no KDF, individual test, protocol, stress or mutation budget is weakened. |
 | PASS | Final complete `make test-ci`, `make test-security-ci`, affected native/core/client/IPC races, vet and portable build. All 81 mutants in ten stable-source campaigns are killed; 7,703 hash comparisons match 1,688 current files. `reports/bybit-ack-test-ci-final.log`, `reports/bybit-ack-security-final.log`, `reports/bybit-ack-local-security-summary.json`, `reports/bybit-ack-race-final.log`, `reports/bybit-ack-native-race-final.log`, `reports/bybit-ack-vet-final.log`, `reports/bybit-ack-build-final.log`. |
-| PASS | Six actual offline GUI checks on the final built executable, including theme/restart/Enter unlock and Exchange navigation, all five stablecoin summaries, independent selections and recent-request guidance. Stable source fingerprint `089d956023b272faad2b5edcaff6e2726362afd39fc6c176f024e17489ba7c41` and executable SHA256 `d9aedc14a21a8d67614da196abffe70c093fd2a5e8e01c05c35d95754349e618` match the current candidate. `reports/bybit-ack-appearance-final.json`. Positive authenticated withdrawal rows and funded Bybit actions are not fabricated. |
+| PASS | Six actual offline GUI checks on initial candidate `73b23db`, including theme/restart/Enter unlock and Exchange navigation, all five stablecoin summaries, independent selections and recent-request guidance. Stable source fingerprint `089d956023b272faad2b5edcaff6e2726362afd39fc6c176f024e17489ba7c41` and executable SHA256 `d9aedc14a21a8d67614da196abffe70c093fd2a5e8e01c05c35d95754349e618` match that candidate. `reports/bybit-ack-appearance-final.json`. Positive authenticated withdrawal rows and funded Bybit actions are not fabricated. |
+| PASS | Final named-address follow-up: complete aggregate/185 frontend tests, TypeScript/portable build, surface checks and three actual offline Exchange GUI checks. Source fingerprint `6aa53d15325fedb8ffe35af597f0ac0a1fee5f6d54041435168e169cc4fa034f` and executable SHA256 `f4479cf147bd3087ad11afa4b06efc090bda70b26804cf851a65733a986adedb` match this build. `reports/bybit-ack-address-final-ci.log`, `reports/bybit-ack-address-final-build.log`, `reports/bybit-ack-address-final-surface.log`, `reports/bybit-ack-address-final-gui.json`. |
+| PASS | Final source integrity: the affected 25-mutant campaign is reexecuted with stable final UI inputs; the other nine passing campaigns retain byte-identical recorded inputs. All 81 valid kills and 7,703 hash comparisons/1,688 files match the final source. No stale UI hashes are reused. `reports/bybit-ack-address-final-mutation.json`, `reports/bybit-ack-address-final-security-inputs.json`. |
 | NOT_RUN | Exact-source hosted test/build/release verification until this candidate is committed and its jobs/artifacts complete. |
 | NOT_RUN | Authenticated funded Bybit acceptance and the reported private account's response diagnostics. No real user profile, secrets or automatic mainnet funds are used. Physical installed OS matrix and independent external review remain separate gates. |
 
@@ -69,3 +73,17 @@ backend job failed at Go's ten-minute cumulative signer race timeout during
 production Argon2 work, with no reported data race/assertion failure. Later gates
 in that job did not run; the partial artifact is not whole-suite PASS evidence.
 The serial race scheduling/package deadline fix preserves the full suite.
+
+Initial candidate `73b23db` release 0.1.55 passes publisher/source/version/archive
+verification and three actual downloaded offline GUI checks. Its Wails test
+attempt fails before display readiness: no Xvfb announcement or stderr within
+the unchanged five-second startup deadline, clean owned-process shutdown, and
+runtime policy/clipboard/native-copy assertions NOT_RUN. All sixteen security
+source inputs and three probe binaries match the preceding passing run. The
+same unchanged full probe passes locally with a 0.062-second startup; the failed
+hosted artifact cannot establish the specific stall cause. No timeout or
+assertion is weakened. Backend unit/security stages pass before the final
+named-address follow-up; incomplete/cancelled race and downstream stages cannot
+be counted as passed. Preserve `reports/bybit-acknowledgement-hosted-gui/summary.json`
+and `reports/bybit-ack-hosted-checks/partial-before-cancel.json` separately from
+the final source's complete test evidence.

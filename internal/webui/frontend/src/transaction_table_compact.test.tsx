@@ -88,8 +88,8 @@ describe('compact transaction details', () => {
     await act(async () => { link.click(); }); expect(window.runtime!.BrowserOpenURL).not.toHaveBeenCalled();
   });
   it('shows first/last six address characters while retaining exact full hover and accessible values', async () => {
-    const addresses = ['0x73410EA1FcbE1b8bCA883762dC56beF46403A469', 'UQAomnBshnaKi0Uu645Qg-hXScddgZwXa2U__ba7kf8UvZ05', '6066e22782257c3edaca6220990bfeda37eb2926ceb034b4d75c2bc1e3f8958d', 'validator.pool.near'];
-    const expected = ['0x7341 . . . 03A469', 'UQAomn . . . 8UvZ05', '6066e2 . . . f8958d', 'valida . . . l.near'];
+    const addresses = ['0x73410EA1FcbE1b8bCA883762dC56beF46403A469', 'UQAomnBshnaKi0Uu645Qg-hXScddgZwXa2U__ba7kf8UvZ05', '6066e22782257c3edaca6220990bfeda37eb2926ceb034b4d75c2bc1e3f8958d', 'validator.pool.near', 'unknown.pool.near', 'pending.pool.near', 'unavailable-public-address-not-observed'];
+    const expected = ['0x7341 . . . 03A469', 'UQAomn . . . 8UvZ05', '6066e2 . . . f8958d', 'valida . . . l.near', 'unknow . . . l.near', 'pendin . . . l.near', 'unavai . . . served'];
     for (let i = 0; i < addresses.length; i++) {
       const table = transaction(addresses[i], addresses[i]), original = JSON.stringify(table); await render(table);
       for (const [index, context] of [[1, 'Source'], [2, 'Destination']] as const) {
@@ -102,7 +102,7 @@ describe('compact transaction details', () => {
     }
   });
   it('leaves short addresses and unknown provider states unchanged instead of inventing address fragments', async () => {
-    for (const value of ['', '—', 'Unknown', 'alice.near', 'unavailable-public-address-not-observed', 'Unknown source address from this provider']) {
+    for (const value of ['', '—', 'Unknown', 'alice.near', 'Unknown source address from this provider']) {
       await render(transaction(value, value));
       for (const code of host.querySelectorAll('.transaction-address')) expect(code.textContent).toBe(value);
     }
