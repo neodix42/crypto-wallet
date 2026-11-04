@@ -24,6 +24,19 @@ separate evidence; this scheduling change does not pass the failed historical
 run. Its log is retained in
 `reports/bybit-withdraw-hosted-checks/failed-race.log`.
 
+Final exact source `85484b24fc442487948852bcee5433aec8f9ab8a` passes both complete
+jobs in [run 41788836704](https://github.com/neodix42/crypto-wallet/actions/runs/41788836704),
+with every step successful. The actual hosted race log records the
+`python3 scripts/ci-go.py race` invocation, the full signer package at 553.941
+seconds and the uncached isolated stress package at 63.690 seconds. The exact
+committed routing source binds that invocation to serial packages and the
+30-minute cumulative package deadline. The proof distinguishes configured
+argument lists from directly logged output; no test selectors, KDF settings,
+stress or mutation limits are changed.
+`reports/bybit-ack-final-hosted-checks/race-routing-success.json`,
+`race-routing-success.log` and `verification.json` retain the execution and
+all 30 required backend gate/source checks. The earlier failed run stays failed.
+
 ## Hosted ERC-20 hover-text observation — 2026-10-29
 
 [Run 40760159215](https://github.com/neodix42/crypto-wallet/actions/runs/40760159215/job/123069590093)

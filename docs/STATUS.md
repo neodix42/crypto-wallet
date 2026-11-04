@@ -17,8 +17,29 @@ three final named-address follow-up checks have stable sources and match their
 respective built executables. The final frontend also abbreviates valid NEAR
 names beginning with words such as unknown/pending. Reload-feedback regressions retain
 accepted results while preserving action/lock/lost-ack/stale-session failures.
-Exact-source hosted verification remains NOT_RUN until recorded below.
+Both jobs and every step in exact-source
+[tests 41788836704](https://github.com/neodix42/crypto-wallet/actions/runs/41788836704)
+pass for `85484b24fc442487948852bcee5433aec8f9ab8a`.
 Authenticated funded Bybit acceptance is NOT_RUN.
+Final Wails job 126437663043 in [tests 41788836704](https://github.com/neodix42/crypto-wallet/actions/runs/41788836704)
+passes all 23 steps. Artifact 13304105425 independently verifies nine
+source/binary-bound reports: 38 full GUI, five TON, seven recovery and nine
+actual private-geth checks. All 2,468 Git blobs and the rebuilt UI fingerprint
+match. The unchanged five-second native display probe is READY in 2.329 seconds,
+with the same three probe hashes as the earlier failed candidate.
+`reports/bybit-ack-final-hosted-gui/summary.json`.
+Backend job 126437662830 passes all 25 steps. Artifact 13304038541 independently
+verifies all 30 required gates, 81 semantic mutants/ten campaigns, 26 measured
+fuzz targets, 13 actual local integrations and 24 recovered descriptors/eight
+networks. All 9,095 recorded hash comparisons match 1,723 unique files from the
+2,468 exact Git blobs, with zero mismatches.
+`reports/bybit-ack-final-hosted-checks/verification.json`.
+Final [build/release 41788836716](https://github.com/neodix42/crypto-wallet/actions/runs/41788836716)
+and regular [release 0.1.56](https://github.com/neodix42/crypto-wallet/releases/tag/0.1.56)
+pass publisher/repository/source/tag/version/archive verification for
+`85484b24fc442487948852bcee5433aec8f9ab8a`. The authenticated downloaded executable
+passes three actual offline GUI checks with the final stable source fingerprint.
+`reports/named-near-release/summary.json`, `published-summary.json`.
 Initial `73b23db` release 0.1.55 passes publisher/source/archive and downloaded
 GUI verification. Its Wails attempt fails before Xvfb readiness at the unchanged
 five-second deadline; runtime security assertions and later GUI gates are
