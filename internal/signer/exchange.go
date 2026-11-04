@@ -143,8 +143,9 @@ func exchangeCredentialBytes(v []byte, key bool) bool {
 
 // ConnectExchange requests credentials through the trusted masked wallet
 // dialog in the same Wails window. An already unlocked, recovery-confirmed session may
-// connect without entering its storage password again; spending and disconnect
-// keep their own password checks. Neither the public portfolio nor core receives
+// connect without entering its storage password again. Exact Bybit operations
+// use that live session; other providers and disconnect keep password checks.
+// Neither the public portfolio nor core receives
 // the secret outside that transient prompt reply.
 func (e *Engine) ConnectExchange(endpoint string) error {
 	return e.ConnectExchangeProvider("bybit", endpoint)
@@ -646,14 +647,16 @@ func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
 	if !e.canAuthorize() {
 		return vault.ExchangeOperation{}, ErrDenied
 	}
-	if err = e.exchangePassword("Reauthenticate this " + service.Name + " operation"); err != nil {
-		if current() {
-			o.State = "CANCELLED"
-			if pErr := e.persist(); pErr != nil {
-				return vault.ExchangeOperation{}, pErr
+	if service.ID != "bybit" {
+		if err = e.exchangePassword("Reauthenticate this " + service.Name + " operation"); err != nil {
+			if current() {
+				o.State = "CANCELLED"
+				if pErr := e.persist(); pErr != nil {
+					return vault.ExchangeOperation{}, pErr
+				}
 			}
+			return vault.ExchangeOperation{}, err
 		}
-		return vault.ExchangeOperation{}, err
 	}
 	if !current() {
 		return vault.ExchangeOperation{}, ErrDenied
@@ -663,8 +666,8 @@ func (e *Engine) AuthorizeExchange(id string) (vault.ExchangeOperation, error) {
 		if strictjson.Decode([]byte(o.Payload), &w) != nil {
 			return vault.ExchangeOperation{}, ErrDenied
 		}
-		// The anti-replay timestamp is generated immediately after password
-		// authentication. All economic fields and the durable request ID stay
+		// The anti-replay timestamp is generated immediately after current-session
+		// authorization. All economic fields and the durable request ID stay
 		// exactly as displayed; callers receive this final canonical payload.
 		w.Timestamp = time.Now().UnixMilli()
 		b, _ := json.Marshal(w)
@@ -759,7 +762,7 @@ func (e *Engine) UpdateExchange(id, state, externalID string) error {
 // service messages, which can echo private fields, are never persisted.
 func (e *Engine) RejectExchange(id string, code int64) error {
 	o, err := e.exchangeOperation(id)
-	if err != nil || o.State != "SUBMITTING" || o.ExternalID != "" || !vault.ExchangeRejectionAllowed(code) {
+	if err != nil || o.State != "SUBMITTING" || o.ExternalID != "" || !vault.ExchangeOperationRejectionAllowed(o.Kind, code) {
 		return ErrDenied
 	}
 	provider, ok := exchange.ProviderForEndpoint(o.Endpoint)

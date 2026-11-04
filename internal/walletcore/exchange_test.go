@@ -69,7 +69,7 @@ const exchangeChildBranches = `
  elif method=='exchangeUpdate':
   output=next(o for o in state.get('exchangeOps',[]) if o['id']==body['id']);output['state']=body['state'];output['externalId']=body['externalId']
  elif method=='exchangeReject':
-  output=next(o for o in state.get('exchangeOps',[]) if o['id']==body['id']);output['state']='FAILED'
+  output=next(o for o in state.get('exchangeOps',[]) if o['id']==body['id']);output['state']='FAILED';output['rejectionCode']=body['code']
 `
 
 type fixtureExchangeAPI struct {
@@ -835,11 +835,11 @@ func TestExchangeDepositValidationAndSignerFailuresKeepWalletUnspent(t *testing.
 				adapter.prepareError = true
 			case "signerPrepare":
 				state := readPublicState(t, path)
-				state["reject"] = []string{"prepare"}
+				state["reject"] = []string{"prepareBybitDeposit"}
 				writePublicState(t, path, state)
 			case "signerSign":
 				state := readPublicState(t, path)
-				state["reject"] = []string{"sign"}
+				state["reject"] = []string{"signBybitDeposit"}
 				writePublicState(t, path, state)
 			case "unknownSubmission":
 				adapter.submitError = true

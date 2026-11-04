@@ -262,6 +262,13 @@ func ValidateAuthRequest(r AuthRequest) error {
 		valid = keys([]string{"transferId", "limit"}) && uuid(q.Get("transferId")) && q.Get("limit") == "50"
 	case "/v5/asset/withdraw/query-record":
 		valid = keys([]string{"coin", "withdrawID", "withdrawType", "limit"}, "cursor") && coinName(q.Get("coin")) && identifier(q.Get("withdrawID"), 128) && q.Get("withdrawType") == "0" && q.Get("limit") == "50"
+		// A separate read-only view lists recent on-chain requests, including
+		// manual requests. It never supplies an identity for reconciliation.
+		valid = valid || keys([]string{"withdrawType", "limit"}, "cursor") && q.Get("withdrawType") == "0" && q.Get("limit") == "50"
+	case "/v5/asset/withdraw/query-address":
+		// A chain-only query includes both regular and universal addresses.
+		// No remark, beneficiary or address input is sent to the provider.
+		valid = keys([]string{"chain", "addressType", "limit"}, "cursor") && identifier(q.Get("chain"), 40) && q.Get("addressType") == "0" && q.Get("limit") == "50"
 	case "/v5/asset/deposit/query-record":
 		valid = keys([]string{"coin", "txID", "limit"}, "cursor") && coinName(q.Get("coin")) && transactionID(q.Get("txID")) && q.Get("limit") == "50"
 	}

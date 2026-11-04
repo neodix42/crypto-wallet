@@ -87,8 +87,8 @@ func TestExchangeConnectUsesOnlyPrivateAPICredentialsAndCustodyConfirmation(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := e.AuthorizeExchange(operation.ID); err == nil || result.ID != "" {
-		t.Fatal("connect-only password exception authorized a trade without its password")
+	if result, err := e.AuthorizeExchange(operation.ID); err != nil || result.ID != operation.ID || len(ui.titles) != 1 {
+		t.Fatal("exact Bybit confirmation requested the unlocked session password again", err)
 	}
 	if e.DisconnectExchange() == nil || e.data.Exchange.Credentials == nil {
 		t.Fatal("connect-only password exception removed disconnection authentication")

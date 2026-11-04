@@ -40,17 +40,19 @@ type UI interface {
 	Receive(string, string, []byte) bool
 }
 type Engine struct {
-	Environment            string
-	Files                  *vault.Files
-	UI                     UI
-	Adapters               []model.Adapter
-	data                   *vault.Data
-	password               []byte
-	parameters             vault.Parameters
-	persistFailed          bool
-	initializing           bool
-	backupInProgress       bool
-	exchangeAuthorizations map[string]string
+	Environment              string
+	Files                    *vault.Files
+	UI                       UI
+	Adapters                 []model.Adapter
+	data                     *vault.Data
+	password                 []byte
+	parameters               vault.Parameters
+	persistFailed            bool
+	initializing             bool
+	backupInProgress         bool
+	exchangeAuthorizations   map[string]string
+	bybitDepositPreparations map[string]*bybitDepositAuthorization
+	bybitDepositSigning      *bybitDepositAuthorization
 }
 type Snapshot struct {
 	Locked            bool                      `json:"locked"`
@@ -128,6 +130,7 @@ func (e *Engine) Snapshot() Snapshot {
 }
 func (e *Engine) Lock() {
 	e.exchangeAuthorizations = nil
+	e.bybitDepositPreparations, e.bybitDepositSigning = nil, nil
 	if e.data != nil {
 		e.data.Destroy()
 		e.data = nil
@@ -715,6 +718,15 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 	if !e.canAuthorize() {
 		return model.Signed{}, ErrDenied
 	}
+	deposit := e.bybitDepositSigning
+	if deposit != nil {
+		if deposit.id != id {
+			return model.Signed{}, ErrDenied
+		}
+		if _, err := e.bybitDepositOperation(deposit, "PREPARED", deposit.generation); err != nil {
+			return model.Signed{}, err
+		}
+	}
 	for i := range e.data.Operations {
 		o := &e.data.Operations[i]
 		if o.Plan.ID != id {
@@ -732,6 +744,7 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 		if err := e.persist(); err != nil {
 			return model.Signed{}, err
 		}
+		depositGeneration := e.data.Generation
 		p := o.Plan
 		adapter, err := e.adapter(p.Account.Network)
 		if err != nil || adapter.ValidatePlan(p) != nil {
@@ -768,19 +781,36 @@ func (e *Engine) Sign(id string) (model.Signed, error) {
 		summary := fmt.Sprintf("Network: %s\nSource: %s\nDestination: %s\nAsset identity: %s\n%s: %s\n%s: %s %s\nNonce/sequence: %s\nExpiry (Unix): %d\nMemo: %q\nExact chain effects:\n%s", p.Account.Network, p.Account.Address, p.Recipient, p.Asset, amountLabel, p.Amount, feeLabel, p.MaxFee, p.FeeAsset, p.Nonce, p.Expires, p.Memo, nativeEffects(p))
 		summary += e.tokenApproval(p)
 		summary += e.nearTokenApproval(p)
-		if !e.UI.Confirm(approvalTitle, summary) {
+		if deposit != nil {
+			approvalTitle = "Authorize exact Bybit deposit — Go signer"
+			summary = "Deposit to Bybit Funding\nBybit endpoint: " + deposit.endpoint + "\n" + summary
+		}
+		accepted := e.UI.Confirm(approvalTitle, summary)
+		if deposit != nil {
+			current, err := e.bybitDepositOperation(deposit, "AWAITING_CONFIRMATION", depositGeneration)
+			if err != nil {
+				return model.Signed{}, err
+			}
+			o = current
+		}
+		if !accepted {
 			o.State = "CANCELLED"
 			return model.Signed{}, e.cancelError()
 		}
 		if !e.canAuthorize() {
 			return model.Signed{}, e.cancelOperation(o)
 		}
-		in, err := e.UI.Input(passwordTitle, "Storage password")
-		if err != nil {
-			return model.Signed{}, e.cancelOperation(o)
+		if deposit == nil {
+			in, err := e.UI.Input(passwordTitle, "Storage password")
+			if err != nil {
+				return model.Signed{}, e.cancelOperation(o)
+			}
+			defer wipeInputs(in)
+			if len(in) != 1 || !hmac.Equal(in[0], e.password) {
+				return model.Signed{}, e.cancelOperation(o)
+			}
 		}
-		defer wipeInputs(in)
-		if len(in) != 1 || !hmac.Equal(in[0], e.password) || p.Expires <= time.Now().Unix() || !e.canAuthorize() || journal.Digest(p) != o.Digest || journal.Digest(o.Plan) != o.Digest {
+		if p.Expires <= time.Now().Unix() || !e.canAuthorize() || journal.Digest(p) != o.Digest || journal.Digest(o.Plan) != o.Digest {
 			return model.Signed{}, e.cancelOperation(o)
 		}
 		adapter, err = e.adapter(p.Account.Network)

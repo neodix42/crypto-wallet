@@ -1,5 +1,9 @@
 # Bybit actions from current available funds
 
+The later [Bybit session and withdrawal update](BYBIT_WITHDRAWAL_STATUS.md)
+replaces this document's repeated-password requirement with exact approval in
+the current unlocked session. Its historical evidence retains the original scope.
+
 The 2026-11-03 owner update makes steps 2–5 independent of older exchange
 operation outcomes. A recorded UNKNOWN transfer no longer greys out an
 otherwise affordable Funding move, spot order, return to Funding or withdrawal.

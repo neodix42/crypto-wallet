@@ -16,7 +16,7 @@ func ExchangeReadErrorParts(code string) (stage, cause string, ok bool) {
 		return "", "", false
 	}
 	switch stage {
-	case "KEY", "COIN", "BALANCE", "INSTRUMENT", "TICKER", "FEE", "EXECUTIONS", "DEPOSIT_ADDRESS", "DEPOSIT_CREDIT", "WALLET_FEE":
+	case "KEY", "COIN", "BALANCE", "INSTRUMENT", "TICKER", "FEE", "EXECUTIONS", "DEPOSIT_ADDRESS", "DEPOSIT_CREDIT", "WALLET_FEE", "WITHDRAWALS", "WITHDRAW_ADDRESS":
 	default:
 		return "", "", false
 	}

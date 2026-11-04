@@ -1,5 +1,9 @@
 # Stablecoin balances and independent Exchange assets
 
+The later [Bybit session and withdrawal update](BYBIT_WITHDRAWAL_STATUS.md)
+adds automatic deposit reads and recent withdrawal/address status, and replaces
+the repeated Bybit password input with current-session exact approval.
+
 The 2026-11-04 owner update requires USDT and USDC safe available balances
 from both Bybit Funding and Unified accounts on every wizard page. These are
 custody balances, separate from the selected wallet's on-chain holdings.

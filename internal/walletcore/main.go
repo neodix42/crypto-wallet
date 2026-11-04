@@ -184,7 +184,7 @@ func (c *core) childCallAt(epoch uint64, method string, body, out any) error {
 	}
 	interactive := false
 	switch method {
-	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangePrepareCurrentFunds", "exchangeAuthorize", "exchangeWizardCancel":
+	case "create", "import", "unlock", "confirmRecovery", "backupPhrase", "password", "addNextAccount", "renameWallet", "renameGroup", "deleteWallet", "deleteGroup", "addTonAccount", "receive", "copyReceive", "saveQR", "scanQR", "configure", "discovery", "discoverAccounts", "associate", "sign", "signBybitDeposit", "importToken", "importNearToken", "exchangeConnect", "exchangeDisconnect", "exchangePrepare", "exchangePrepareCurrentFunds", "exchangeAuthorize", "exchangeWizardCancel":
 		interactive = true
 	}
 	if interactive {
@@ -491,7 +491,7 @@ func (c *core) handleAt(m ipc.Message, epoch uint64) (out any, err error) {
 		return c.nearStakingAt(m, epoch)
 	case "nearTokenStorage", "prepareNearTokenRegistration":
 		return c.nearTokenStorageAt(m, epoch)
-	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDepositPreview", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile", "exchangeCancel", "exchangeWizardSave", "exchangeWizardLoad", "exchangeWizardCancel", "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeUnifiedMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck":
+	case "exchangeStatus", "exchangeConnect", "exchangeSelect", "exchangeDisconnect", "exchangeQuote", "exchangeDepositPreview", "exchangeDeposit", "exchangeSwap", "exchangeWithdraw", "exchangeReconcile", "exchangeCancel", "exchangeWizardSave", "exchangeWizardLoad", "exchangeWizardCancel", "exchangeFundingBalances", "exchangeFundingTransfer", "exchangeFundingMove", "exchangeUnifiedMove", "exchangeSwapOptions", "exchangeWithdrawOptions", "exchangeDepositCheck", "exchangeWithdrawals", "exchangeWithdrawalAddressStatus":
 		return c.exchangeAt(m, epoch)
 	case "networks":
 		var networks []model.Network
@@ -759,12 +759,16 @@ func (c *core) paymentAt(method, id string, epoch uint64) (any, error) {
 	if e != nil {
 		return nil, e
 	}
-	if method == "send" {
+	if method == "send" || method == "sendBybitDeposit" {
 		if op.State != "PREPARED" {
 			return nil, errors.New("payment already authorized or resolved")
 		}
 		var signed model.Signed
-		if e = c.childCallAt(epoch, "sign", struct {
+		signMethod := "sign"
+		if method == "sendBybitDeposit" {
+			signMethod = "signBybitDeposit"
+		}
+		if e = c.childCallAt(epoch, signMethod, struct {
 			ID string `json:"id"`
 		}{id}, &signed); e != nil {
 			return nil, e

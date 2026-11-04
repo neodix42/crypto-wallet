@@ -36,6 +36,7 @@ type wizardDestination struct {
 }
 type wizardResult struct {
 	ID, Kind, State, Message, TransactionID, FilledBase, FilledQuote string
+	RemoteID, Code                                                   string
 	Fees                                                             map[string]string
 }
 type exchangeWizardUI struct {

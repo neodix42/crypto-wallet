@@ -22,15 +22,16 @@ func TestExchangeUnifiedReturnApprovalIsExactDurableAndDoesNotAuthorizeWithdrawa
 	if _, err = e.ExchangeAuth(exchangeRequest(op)); err == nil {
 		t.Fatal("navigation or unsigned preparation authorized return transfer")
 	}
-	ui.inputs = append(ui.inputs, input("incorrect-public-fixture-password"))
+	ui.approve = false
 	if _, err = e.AuthorizeExchange(op.ID); err == nil {
-		t.Fatal("reverse transfer accepted a password other than current storage password")
+		t.Fatal("reverse transfer bypassed its exact confirmation")
 	}
 	cancelledID := op.ID
 	stored, err := e.ExchangeOperation(cancelledID)
 	if err != nil || stored.State != "CANCELLED" {
-		t.Fatal("failed password left a reverse transfer authorized", err)
+		t.Fatal("declined confirmation left a reverse transfer authorized", err)
 	}
+	ui.approve = true
 	op, err = e.PrepareExchange(intent)
 	if err != nil || op.ID == cancelledID || json.Unmarshal([]byte(op.Payload), &request) != nil || request.TransferID != exchangeUUID(op.ID) {
 		t.Fatal("new explicit reverse transfer reused failed approval authority", err)

@@ -1,5 +1,23 @@
 # Implementation and release evidence
 
+## Bybit session approval, automatic reads and withdrawal status — 2026-11-04
+
+The current owner update removes repeated Bybit operation passwords while
+retaining exact per-operation approval in the unlocked session. Deposit addresses
+load automatically after selection changes; redundant wizard refresh controls
+are removed. Step 5 displays ten recent local/provider withdrawal requests and
+exact owned-address book/verification/new-address-lock status. Explicit refusals
+and UNKNOWN outcomes remain visible without automatic replay or fuzzy matching.
+[Behavior and evidence checklist](BYBIT_WITHDRAWAL_STATUS.md).
+PASS: complete local aggregate/security suites, 166 frontend checks, full affected
+races, vet and portable build. All 81 compiling mutants in ten stable-source
+campaigns are killed; 7,680 source-hash comparisons match 1,684 current files.
+Six final actual GUI checks have matching current-source/executable fingerprints,
+including automatic guidance, removed controls and recent-request presentation.
+Exact-source hosted CI and publication verification remain NOT_RUN until recorded.
+The reported account's private rejection/cooldown cause and funded Bybit
+acceptance remain NOT_RUN.
+
 ## Stablecoin balances and independent Exchange assets — 2026-11-04
 
 The current owner update adds an always-visible USDT/USDC Funding/Unified

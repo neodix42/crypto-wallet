@@ -19,6 +19,12 @@ func exchangeReadReason(code string) (string, bool) {
 	if stage == "EXECUTIONS" {
 		name = "Verifying the original spot order's executed amounts and fees"
 	}
+	if stage == "WITHDRAWALS" {
+		name = "Reading recent Bybit withdrawal requests"
+	}
+	if stage == "WITHDRAW_ADDRESS" {
+		name = "Checking the owned withdrawal address in Bybit"
+	}
 	if strings.HasPrefix(cause, "DEPOSIT_RECORD_REVIEW_") {
 		reason = map[string]string{"DEPOSIT_RECORD_REVIEW_NULL": "Bybit returned null instead of a review result. The original deposit's review remains unclassified.", "DEPOSIT_RECORD_REVIEW_EMPTY": "Bybit returned an empty review result. The original deposit's review remains unclassified.", "DEPOSIT_RECORD_REVIEW_TYPE": "Bybit's review result is neither an integer nor a canonical numeric string.", "DEPOSIT_RECORD_REVIEW_VALUE": "Bybit returned an unknown review state; it was not treated as approved.", "DEPOSIT_RECORD_REVIEW_SHADOW": "Bybit returned conflicting spellings of its review field."}[cause]
 	} else if strings.HasPrefix(cause, "DEPOSIT_RECORD_") {
@@ -49,6 +55,12 @@ func exchangeReadReason(code string) (string, bool) {
 			reason += "The service rate limit was reached. Wait before refreshing."
 		case "10001", "131001", "131002":
 			reason += "The service rejected the selected asset, account or request. Check that this asset and network are available for the selected Bybit region."
+		case "131093":
+			reason += "This exact withdrawal address is not in Bybit's whitelist. Its address spelling, network and memo must match the saved entry."
+		case "131098":
+			reason += "Bybit currently blocks withdrawals to this newly added address. Check the new-address withdrawal lock in Bybit."
+		case "131089":
+			reason += "Bybit reports a 24-hour withdrawal restriction after a sensitive account-security change."
 		default:
 			reason += "Check this numeric code with Bybit for the selected region, asset and account. The provider's private response text is not displayed."
 		}

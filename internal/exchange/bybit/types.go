@@ -227,6 +227,22 @@ type WithdrawalPage struct {
 	Rows           []WithdrawalRecord `json:"rows"`
 	NextPageCursor string             `json:"nextPageCursor"`
 }
+
+// Only the fields needed to check the selected owned destination are retained.
+// Provider remarks and other address-book personal information are discarded.
+type WithdrawalAddress struct {
+	Coin        string `json:"coin"`
+	Chain       string `json:"chain"`
+	Address     string `json:"address"`
+	Tag         string `json:"tag"`
+	Status      int    `json:"status"`
+	AddressType int    `json:"addressType"`
+	Verified    int    `json:"verified"`
+}
+type WithdrawalAddressPage struct {
+	Rows           []WithdrawalAddress `json:"rows"`
+	NextPageCursor string              `json:"nextPageCursor"`
+}
 type DepositRecord struct {
 	ID               string `json:"id"`
 	Coin             string `json:"coin"`

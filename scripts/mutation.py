@@ -10,7 +10,7 @@ mutants=[
  ('aead-authentication','internal/vault/envelope.go','return nil, ErrUnlock','return []byte("synthetic authentication bypass"), nil','./internal/vault'),
  ('kdf-floor','internal/vault/envelope.go','p.Memory >= 64*1024','p.Memory >= 1024','./internal/vault'),
  ('chain-id','internal/chains/evm/adapter.go','if x.ChainID != n.ChainID {','if false {','./internal/chains/evm'),
- ('native-confirmation','internal/signer/engine.go','if !e.UI.Confirm(approvalTitle, summary) {','if false && !e.UI.Confirm(approvalTitle, summary) {','./internal/signer'),
+ ('native-confirmation','internal/signer/engine.go','accepted := e.UI.Confirm(approvalTitle, summary)','accepted := e.UI.Confirm(approvalTitle, summary) || true','./internal/signer'),
  ('changed-recipient','internal/chains/evm/adapter.go','x.To != p.Recipient || x.Value != p.Amount','false || x.Value != p.Amount','./internal/chains/evm'),
  ('foreign-change','internal/chains/decred/decred.go','if e != nil || change != x.ChangeAddress {','if e != nil || len(change)==0 {','./internal/chains/decred'),
  ('locked-signing','internal/signer/engine.go','func (e *Engine) Sign(id string) (model.Signed, error) {\n\tif !e.canAuthorize() {','func (e *Engine) Sign(id string) (model.Signed, error) {\n\tif false {','./internal/signer'),
@@ -19,7 +19,7 @@ mutants=[
  ('unlock-recovery-durability','internal/signer/engine.go','if changed {\n\t\t// Recovery transitions must be durable','if false && changed {\n\t\t// Recovery transitions must be durable','./internal/signer'),
  ('nonce-reservation','internal/journal/journal.go','o.Plan.Account.ID == p.Account.ID && !Terminal(o.State)','o.Plan.Account.ID == p.Account.ID && false','./internal/journal ./internal/signer'),
  ('ambiguous-resign','internal/journal/journal.go','s == "CANCELLED" || s == "FAILED"','s == "UNKNOWN" || s == "CANCELLED" || s == "FAILED"','./internal/journal ./internal/signer'),
- ('password-reauthentication','internal/signer/engine.go','!hmac.Equal(in[0], e.password) || p.Expires','false || p.Expires','./internal/signer'),
+ ('password-reauthentication','internal/signer/engine.go','if len(in) != 1 || !hmac.Equal(in[0], e.password) {\n\t\t\t\treturn model.Signed{}, e.cancelOperation(o)','if len(in) != 1 {\n\t\t\t\treturn model.Signed{}, e.cancelOperation(o)','./internal/signer'),
  ('backup-ready-state-and-reentry','internal/signer/engine.go','if !e.canAuthorize() || e.backupInProgress {','if false {','./internal/signer'),
  ('backup-explicit-confirmation','internal/signer/engine.go','if !accepted {\n\t\treturn nil\n\t}\n\tin, err := e.UI.Input("Confirm app password to back up recovery phrase"','if false && !accepted {\n\t\treturn nil\n\t}\n\tin, err := e.UI.Input("Confirm app password to back up recovery phrase"','./internal/signer'),
  ('backup-app-password-reauthentication','internal/signer/engine.go','if len(in) != 1 || !hmac.Equal(in[0], e.password) {\n\t\treturn ErrDenied\n\t}\n\t// Authentication inputs are no longer needed while the words are displayed.','if len(in) != 1 {\n\t\treturn ErrDenied\n\t}\n\t// Authentication inputs are no longer needed while the words are displayed.','./internal/signer'),
@@ -55,6 +55,9 @@ backup_checks={
 # must be killed both by the journal rule and by real signing, encrypted journal
 # persistence, restart and rejection of a distinct replacement transaction.
 runtime_checks={
+ 'locked-signing':[
+  ('./internal/signer', '^TestLockedSigningRejectsBeforeJournalOrPrompt$', 'TestLockedSigningRejectsBeforeJournalOrPrompt', 'locked signing crossed the session boundary'),
+ ],
  'unlock-recovery-durability':[
   ('./internal/signer', '^TestUnlockRecoveryTransitionsRemainDurable$/^SUBMITTING$', 'TestUnlockRecoveryTransitionsRemainDurable/SUBMITTING', 'recovery transitions were not committed as one new encrypted generation'),
   ('./internal/signer', '^TestUnlockRecoveryWriteFailureStillLocksAndPreservesCiphertext$', 'TestUnlockRecoveryWriteFailureStillLocksAndPreservesCiphertext', 'failed recovery write released an unlocked session'),

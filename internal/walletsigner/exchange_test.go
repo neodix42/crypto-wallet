@@ -45,7 +45,6 @@ func TestExchangePrivateDispatchRequiresMaskedCredentialsAndDurableApproval(t *t
 	if err != nil || !strings.Contains(string(raw), op.ID) {
 		t.Fatal("lookup")
 	}
-	u.inputs = append(u.inputs, publicInput(publicPassword))
 	raw, err = handle(e, request("exchangeAuthorize", map[string]string{"id": op.ID}), "mainnet")
 	if err != nil || json.Unmarshal(raw, &op) != nil {
 		t.Fatal("authorize")
@@ -76,7 +75,6 @@ func TestExchangePrivateDispatchRequiresMaskedCredentialsAndDurableApproval(t *t
 	if err != nil || json.Unmarshal(raw, &op) != nil {
 		t.Fatal("rejection preparation")
 	}
-	u.inputs = append(u.inputs, publicInput(publicPassword))
 	raw, err = handle(e, request("exchangeAuthorize", map[string]string{"id": op.ID}), "mainnet")
 	if err != nil || json.Unmarshal(raw, &op) != nil {
 		t.Fatal("rejection authorization")

@@ -3,6 +3,9 @@
 Current Bybit interface: [five independent steps](BYBIT_FREE_STEPS.md),
 [current-funds actions without older-operation waits](BYBIT_CURRENT_FUNDS.md)
 and [USDT/USDC balances and independent asset selections](BYBIT_STABLECOIN_FUNDS.md).
+The latest [session approval and withdrawal update](BYBIT_WITHDRAWAL_STATUS.md)
+adds automatic reads, recent request/address status and exact Bybit approvals
+without another app-password input in the unlocked session.
 The [four-step wizard](EXCHANGE_WIZARD.md) records the earlier implementation.
 Earlier deposit/navigation correction: [Exchange tabs and deposit diagnostics](EXCHANGE_DEPOSIT_DIAGNOSTICS.md).
 The header icon opens a tab beside account names. On-chain deposits use their

@@ -191,7 +191,7 @@ func validateExchange(d *ExchangeData, accounts map[string]bool) error {
 			return ErrFormat
 		}
 		seen[o.ID] = true
-		if o.RejectionCode != 0 && (provider.ID != "bybit" || o.State != "FAILED" || o.ExternalID != "" || !ExchangeRejectionAllowed(o.RejectionCode)) {
+		if o.RejectionCode != 0 && (provider.ID != "bybit" || o.State != "FAILED" || o.ExternalID != "" || !ExchangeOperationRejectionAllowed(o.Kind, o.RejectionCode)) {
 			return ErrFormat
 		}
 		switch o.Kind {
@@ -215,6 +215,21 @@ func ExchangeRejectionAllowed(code int64) bool {
 	switch code {
 	case 10001, 10003, 10004, 10005:
 		return true
+	case 131093, 131098, 131089:
+		return true
 	}
 	return false
+}
+
+// The documented address-whitelist/new-address/security-lock refusals apply
+// only to a withdrawal's original first POST, never to an order or transfer.
+func ExchangeOperationRejectionAllowed(kind string, code int64) bool {
+	if !ExchangeRejectionAllowed(code) {
+		return false
+	}
+	switch code {
+	case 131093, 131098, 131089:
+		return kind == "withdraw"
+	}
+	return true
 }

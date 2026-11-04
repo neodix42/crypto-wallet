@@ -166,8 +166,8 @@ func TestCurrentFundsSerializesOnlyLiveUnconsumedAuthorization(t *testing.T) {
 	}
 }
 
-func TestCurrentFundsStillRequiresExactPasswordPolicyAndCurrentGeneration(t *testing.T) {
-	for _, scenario := range []string{"password", "generation-confirm", "generation-password", "credential", "policy-digest", "payload-digest"} {
+func TestCurrentFundsStillRequiresExactSessionPolicyAndCurrentGeneration(t *testing.T) {
+	for _, scenario := range []string{"cancel", "generation-confirm", "recovery-confirm", "credential", "policy-digest", "payload-digest"} {
 		t.Run(scenario, func(t *testing.T) {
 			e, ui, account := currentFundsGRAMEngine(t)
 			old := currentFundsOldUnknown(t, e, ui, account, "UNKNOWN")
@@ -176,13 +176,12 @@ func TestCurrentFundsStillRequiresExactPasswordPolicyAndCurrentGeneration(t *tes
 				t.Fatal(err)
 			}
 			switch scenario {
-			case "password":
-				ui.inputs = append(ui.inputs, input("incorrect-public-fixture-password"))
+			case "cancel":
+				ui.approve = false
 			case "generation-confirm":
 				e.UI = &exchangeHookUI{testUI: ui, confirmHook: func() { e.data.Generation++ }}
-			case "generation-password":
-				ui.inputs = append(ui.inputs, input(syntheticPassword))
-				e.UI = &exchangeHookUI{testUI: ui, inputHook: func() { e.data.Generation++ }}
+			case "recovery-confirm":
+				e.UI = &exchangeHookUI{testUI: ui, confirmHook: func() { e.data.RecoveryConfirmed = false }}
 			case "credential":
 				e.UI = &exchangeHookUI{testUI: ui, confirmHook: func() { e.data.Exchange.Credentials.APIKey = []byte("DIFFERENT_PUBLIC_FIXTURE_KEY") }}
 			default:
@@ -210,6 +209,9 @@ func TestCurrentFundsStillRequiresExactPasswordPolicyAndCurrentGeneration(t *tes
 			}
 			if _, err = e.ExchangeAuth(exchangeRequest(op)); err == nil {
 				t.Fatal("invalid consent signed", scenario)
+			}
+			if scenario == "recovery-confirm" {
+				e.data.RecoveryConfirmed = true // Inspect the unchanged original after testing the closed gate.
 			}
 			unchanged, err := e.ExchangeOperation(old.ID)
 			if err != nil || !reflect.DeepEqual(old, unchanged) {

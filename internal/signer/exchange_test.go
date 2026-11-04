@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"localwallet/internal/chains/evm"
 	"localwallet/internal/chains/ton"
+	"localwallet/internal/exchange"
 	"localwallet/internal/exchange/bybit"
 	"localwallet/internal/model"
 	"localwallet/internal/vault"
@@ -47,7 +48,9 @@ func exchangeRequest(o vault.ExchangeOperation) bybit.AuthRequest {
 }
 func authorizeExchange(t *testing.T, e *Engine, u *testUI, o vault.ExchangeOperation) vault.ExchangeOperation {
 	t.Helper()
-	u.inputs = append(u.inputs, input(syntheticPassword))
+	if service, _ := exchange.ProviderForEndpoint(o.Endpoint); service.ID != "bybit" {
+		u.inputs = append(u.inputs, input(syntheticPassword))
+	}
 	o, err := e.AuthorizeExchange(o.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -397,7 +400,15 @@ func TestExchangeTP043AuthorizationFailuresLockAndPersistence(t *testing.T) {
 	for _, scenario := range []string{"cancel", "wrong-password", "missing-password", "lock-confirm", "lock-password", "expired", "mutated", "persist"} {
 		t.Run(scenario, func(t *testing.T) {
 			e, u, a := exchangeEngine(t)
-			o, err := e.PrepareExchange(exchangeSwap(a))
+			intent := exchangeSwap(a)
+			if scenario == "wrong-password" || scenario == "missing-password" || scenario == "lock-password" {
+				u.inputs = append(u.inputs, input("PUBLIC_NATIVE_API_KEY_82745", "PUBLIC_NATIVE_API_SECRET_957245827"))
+				if err := e.ConnectExchangeProvider("binance", "https://api.binance.com"); err != nil {
+					t.Fatal(err)
+				}
+				intent = nativeExchangeSwap(a.ID)
+			}
+			o, err := e.PrepareExchange(intent)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -417,8 +428,7 @@ func TestExchangeTP043AuthorizationFailuresLockAndPersistence(t *testing.T) {
 			case "mutated":
 				e.data.Exchange.Operations[0].Payload = strings.Replace(o.Payload, "ETHUSDT", "TONUSDT", 1)
 			case "persist":
-				u.inputs = append(u.inputs, input(syntheticPassword))
-				e.UI = &exchangeHookUI{testUI: u, inputHook: func() { e.parameters = vault.Parameters{} }}
+				e.UI = &exchangeHookUI{testUI: u, confirmHook: func() { e.parameters = vault.Parameters{} }}
 			}
 			if out, err := e.AuthorizeExchange(o.ID); err == nil || out.ID != "" {
 				t.Fatal("rejected authorization released operation")

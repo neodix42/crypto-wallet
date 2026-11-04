@@ -79,7 +79,7 @@ while True:
  elif method=='settings':output=state.get('settings',{})
  elif method=='tokenPolicies':output=state.get('tokenPolicies',[])
  elif method=='nearTokenPolicies':output=state.get('nearTokenPolicies',[])
- elif method=='prepare':
+ elif method in ['prepare','prepareBybitDeposit']:
   digest=hashlib.sha256(json.dumps(body,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
   state.setdefault('ops',[]).append({'plan':body,'state':'PREPARED','digest':digest})
   output={}
@@ -89,7 +89,7 @@ while True:
     if operation['state']!='PREPARED' or operation.get('signed') is not None:error='SYNTHETIC_DENIED'
     else:operation['state']='CANCELLED'
   output={}
- elif method=='sign':
+ elif method in ['sign','signBybitDeposit']:
   output={'identity':'synthetic-identity','bytes':'AQ=='}
   for operation in state.get('ops',[]):
    if operation['plan']['id']==body['id']:operation['signed']=output;operation['state']='SIGNED_NOT_SUBMITTED'

@@ -62,6 +62,17 @@ function StablecoinBalances({ node }: { node: Node }) {
   return <div className="exchange-balances-wrap"><table className="exchange-balances" aria-label="Bybit available stablecoin funds"><thead><tr>{head.Children!.map((cell, index) => <th key={index} scope="col">{cell.Text}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={row.ID || index}>{row.Children!.map((cell, column) => column === 0 ? <th key={column} scope="row">{cell.Text}</th> : <td key={column} title={cell.Tooltip}>{cell.Text}</td>)}</tr>)}</tbody></table></div>;
 }
 
+function isWithdrawalRequestsTable(node: Node): boolean {
+  const rows = node.Children || [];
+  return node.ID === 'freeWithdrawalRequests' && rows.length >= 1 && rows.length <= 11 && rows.every(row => row.Kind === 'row' && row.Children?.length === 8 && row.Children.every(cell => cell.Kind === 'label'));
+}
+
+function WithdrawalRequests({ node }: { node: Node }) {
+  const [head, ...rows] = node.Children!;
+  const hint = (value: string) => ({ plannedDebit: 'Planned total debit, including the estimated fee.', estimated: 'Estimated at approval.', providerReported: 'Reported by Bybit; this does not independently establish receipt.' }[value] || value);
+  return <div className="withdrawal-table-wrap"><table className="withdrawal-table" aria-label="Recent Bybit withdrawal requests"><thead><tr>{head.Children!.map((cell, index) => <th key={index} scope="col">{cell.Text}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index} title={row.Tooltip}>{row.Children!.map((cell, column) => <td key={column} title={hint(cell.Tooltip)}>{cell.Text}</td>)}</tr>)}</tbody></table></div>;
+}
+
 function fieldErrorID(node: Node): string { return 'wallet-' + node.ID + '-error'; }
 
 export function Field({ node, emit, hideInlineError = false }: { node: Node; emit: Emit; hideInlineError?: boolean }) {
@@ -128,7 +139,7 @@ export function PublicNode({ node, emit }: { node: Node; emit: Emit }) {
     case 'separator': return <hr/>;
     case 'transactionTable': return <TransactionTable node={node}/>;
     case 'explorer': return <ExplorerLink node={node}/>;
-    case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : isStablecoinBalanceTable(node) ? <StablecoinBalances node={node}/> : <div className="node-column">{children()}</div>;
+    case 'column': return node.ID.startsWith('bookComposer/') ? <>{children()}</> : isAssetTable(node) ? <AssetTable node={node} emit={emit}/> : isStablecoinBalanceTable(node) ? <StablecoinBalances node={node}/> : isWithdrawalRequestsTable(node) ? <WithdrawalRequests node={node}/> : <div className="node-column">{children()}</div>;
     case 'row': {
       if (node.ID === 'exchangeSteps') return <ExchangeSteps node={node} emit={emit}/>;
       if (node.ID.startsWith('walletSections/') || node.ID === 'settingsSections') return <nav className="wallet-sections" role="tablist" aria-label={node.Text}>{(node.Children || []).map(child => <button key={child.ID} type="button" role="tab" aria-selected={child.Text === node.Value} className={child.Text === node.Value ? 'selected' : ''} disabled={child.Disabled} data-action={child.ID} onClick={() => emit(child.ID)}>{child.Text}</button>)}</nav>;

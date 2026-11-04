@@ -2482,6 +2482,10 @@ def exchange_wizard_draft_campaign():
     wait(lambda:"Deposit to Funding" in text() and "Asset to deposit" in text())
     choose_public_option("Network / source account",0)
     choose_public_option("Asset to deposit",0)
+    if "Refresh market / deposit address" in text():
+        raise RuntimeError("Removed deposit-address refresh button remains visible")
+    if "selected deposit address automatically" not in text():
+        raise RuntimeError("Disconnected deposit page omitted automatic-address guidance")
     def fill_deposit(value):
         stage("Validate the visible disconnected deposit amount")
         point=exchange_public_field("Deposit amount")
@@ -2503,6 +2507,8 @@ def exchange_wizard_draft_campaign():
         click_exchange_step(number,heading)
         if desktop.secret_window():raise RuntimeError("Exchange step navigation requested private approval")
         visible=text()
+        if "Refresh Bybit status" in visible or number in (2,4) and "Refresh Funding / Unified balances" in visible:
+            raise RuntimeError("Removed duplicate wizard refresh control remains visible")
         if any(label not in visible for label in ("Funding available","Unified available","USDT","USDC")):
             raise RuntimeError("Exchange page omitted its stablecoin Funding/Unified summary")
         stablecoin_pages.append(number)
@@ -2515,10 +2521,14 @@ def exchange_wizard_draft_campaign():
                 wait(lambda:amount+" ("+coin+")" in text())
                 if desktop.secret_window():raise RuntimeError("Stablecoin selection requested private approval")
                 stablecoin_selections.append({"step":number,"coin":coin})
+            if number==5:
+                exchange_public_field("Recent withdrawals")
+                wait(lambda:"Withdrawal requests have not been loaded yet" in text())
+                report["exchangeWithdrawalHistoryUI"]={"recentRequestsSection":True,"disconnectedStateExplicit":True,"providerRecordsOrBalancesFabricated":False,"liveWhitelistAndRequestStatus":"NOT_RUN"}
             scroll_public(4,35)
         navigation.append(number)
     if "Connect your Bybit account in Settings" not in text():raise RuntimeError("Disconnected navigation invented an authenticated exchange session")
-    report["exchangeWizardDraft"]={"sequentialSteps":5,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"stablecoinSummarySteps":stablecoin_pages,"independentStablecoinSelections":stablecoin_selections,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
+    report["exchangeWizardDraft"]={"sequentialSteps":5,"initialStep":"Deposit to Funding","freelySelectableSteps":True,"navigationSequence":navigation,"networkAndAssetSelectors":True,"stablecoinSummarySteps":stablecoin_pages,"independentStablecoinSelections":stablecoin_selections,"removedManualRefreshControls":True,"automaticDepositGuidance":True,"malformedAmountsRejected":["-1","1e3","0","NaN"],"credentialsOrPayments":False,"liveAddressRead":"NOT_RUN"}
     passed("Actual disconnected Exchange steps navigate freely, validate deposit drafts and create no address, approval or payment")
 
 def exchange_input_campaign():

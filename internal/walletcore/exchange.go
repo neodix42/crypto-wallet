@@ -139,6 +139,7 @@ type exchangeResult struct {
 	Kind           string            `json:"kind"`
 	State          string            `json:"state"`
 	Message        string            `json:"message"`
+	Code           string            `json:"code,omitempty"`
 	RemoteID       string            `json:"remoteId,omitempty"`
 	TransactionID  string            `json:"transactionId,omitempty"`
 	FilledBase     string            `json:"filledBase,omitempty"`
@@ -408,6 +409,8 @@ func (c *core) exchangeProviderStatusAt(epoch uint64, status exchangePrivateStat
 }
 func (c *core) exchangeAt(message ipc.Message, epoch uint64) (any, error) {
 	switch message.Method {
+	case "exchangeWithdrawals", "exchangeWithdrawalAddressStatus":
+		return c.exchangeWithdrawalViewAt(message, epoch)
 	case "exchangeCancel":
 		var in struct {
 			ID       strictjson.Text `json:"id"`
@@ -898,10 +901,16 @@ func (c *core) exchangeDepositAt(epoch uint64, client exchangeAPI, accountID, as
 			return exchangeResult{}, err
 		}
 	}
-	if err = c.childCallAt(epoch, "prepare", plan, nil); err != nil {
+	prepareMethod, sendMethod := "prepare", "send"
+	if service, known := exchange.ProviderForEndpoint(client.Endpoint()); known && service.ID == "bybit" {
+		// This private path is selected only after authenticating and freezing
+		// the exact Bybit deposit route; public wallet Send has no bypass flag.
+		prepareMethod, sendMethod = "prepareBybitDeposit", "sendBybitDeposit"
+	}
+	if err = c.childCallAt(epoch, prepareMethod, plan, nil); err != nil {
 		return exchangeResult{}, err
 	}
-	result, err := c.paymentAt("send", plan.ID, epoch)
+	result, err := c.paymentAt(sendMethod, plan.ID, epoch)
 	if err != nil {
 		return exchangeResult{}, err
 	}
@@ -1419,7 +1428,7 @@ func (c *core) executeExchangeModeAt(epoch uint64, client exchangeAPI, intent ex
 	if err != nil {
 		var apiError *bybit.APIError
 		if service, ok := exchange.ProviderForEndpoint(client.Endpoint()); ok && service.ID == "bybit" && errors.As(err, &apiError) && apiError.HTTPStatus == 0 {
-			if message := exchangeRejectionMessage(apiError.Code); message != "" {
+			if message := exchangeRejectionMessage(apiError.Code); message != "" && (!withdrawalOnlyRejection(apiError.Code) || operation.Kind == "withdraw") {
 				var rejected vault.ExchangeOperation
 				failure := c.childCallAt(epoch, "exchangeReject", struct {
 					ID   string `json:"id"`
@@ -1428,7 +1437,7 @@ func (c *core) executeExchangeModeAt(epoch uint64, client exchangeAPI, intent ex
 				if failure != nil {
 					return exchangeResult{}, failure
 				}
-				return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: rejected.State, Message: message}, nil
+				return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: rejected.State, Message: message, Code: exchangeRejectionCode(apiError.Code)}, nil
 			}
 		}
 		state = "UNKNOWN"
@@ -1439,7 +1448,11 @@ func (c *core) executeExchangeModeAt(epoch uint64, client exchangeAPI, intent ex
 		return exchangeResult{}, persistErr
 	}
 	if state == "UNKNOWN" && operation.CurrentFunds {
-		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The service did not return a confirmed result. This separate request remains in local history and is not retried automatically."}, nil
+		code := "REQUEST_FAILED_STATE_UNKNOWN"
+		if operation.Kind == "withdraw" {
+			code = "EXCHANGE_WITHDRAWAL_UNKNOWN"
+		}
+		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The service did not return a confirmed result. This separate request remains in local history and is not retried automatically.", Code: code}, nil
 	}
 	if state == "UNKNOWN" {
 		return exchangeResult{ID: operation.ID, Kind: operation.Kind, State: state, Message: "The request result is unknown. Its original operation is retained and new exchange writes are blocked. Reconcile it; never create a replacement after a timeout. A missing acknowledgement can only be recovered when the selected service exposes the exact original request identity."}, nil
@@ -1457,8 +1470,25 @@ func exchangeRejectionMessage(code int64) string {
 		return "Bybit rejected request authentication. Check the API key and secret in the dedicated connection dialog."
 	case 10005:
 		return "Bybit denied the required API permission. Adjust the key permissions in Bybit before approving another operation."
+	case 131093:
+		return "Bybit refused this withdrawal because its exact destination is not in the withdrawal address whitelist. Add the exact network, address and memo in Bybit, then check its address status. No accepted withdrawal is established by this refusal."
+	case 131098:
+		return "Bybit refused this withdrawal because the newly added destination is not yet available for withdrawals. Check the address's restriction in Bybit; this response does not establish an accepted withdrawal."
+	case 131089:
+		return "Bybit refused this withdrawal because a sensitive account operation triggered a 24-hour withdrawal restriction. Check the account restriction in Bybit; this response does not establish an accepted withdrawal."
 	}
 	return ""
+}
+
+func withdrawalOnlyRejection(code int64) bool {
+	return code == 131093 || code == 131098 || code == 131089
+}
+
+func exchangeRejectionCode(code int64) string {
+	if exchangeRejectionMessage(code) == "" {
+		return ""
+	}
+	return "EXCHANGE_BYBIT_" + strconv.FormatInt(code, 10)
 }
 func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation vault.ExchangeOperation) (exchangeResult, error) {
 	result := exchangeResult{ID: operation.ID, Kind: operation.Kind, State: operation.State, RemoteID: operation.ExternalID}
@@ -1471,6 +1501,9 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 			result.State = "EXCHANGE_COMPLETED"
 		}
 		result.Message = "Recorded exchange result. A completed withdrawal is the exchange's report, not independent on-chain finality."
+		if operation.State == "FAILED" && operation.RejectionCode != 0 {
+			result.Message, result.Code = exchangeRejectionMessage(operation.RejectionCode), exchangeRejectionCode(operation.RejectionCode)
+		}
 		return result, nil
 	}
 	if !settledSwap && operation.State != "SUBMITTING" && operation.State != "UNKNOWN" && operation.State != "PENDING" {
@@ -1576,6 +1609,8 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 			page, err = client.WithdrawalRecords(ctx, request.Coin, externalID, "")
 		}
 		if err != nil {
+			result.Code = publicRequestErrorCode(exchangeReadFailure("WITHDRAWALS", err))
+			result.Message = "The original withdrawal status could not be read. Its outcome remains unknown; the request was not sent again."
 			break
 		}
 		if len(page.Rows) != 1 || page.NextPageCursor != "" {
@@ -1605,8 +1640,14 @@ func (c *core) reconcileExchangeAt(epoch uint64, client exchangeAPI, operation v
 			result.Message = "The exchange reports this exact withdrawal completed. This does not independently establish on-chain credit/finality; refresh the destination wallet balance."
 		case "SecurityCheck", "Pending", "BlockchainConfirmed", "MoreInformationRequired", "Unknown":
 			state = "PENDING"
+			_, result.Message = providerWithdrawalReason(record.Status)
 		case "CancelByUser", "Reject", "Fail":
 			state = "FAILED"
+			_, result.Message = providerWithdrawalReason(record.Status)
+			result.Code = "EXCHANGE_WITHDRAWAL_REJECTED"
+			if record.Status == "Fail" {
+				result.Code = "EXCHANGE_WITHDRAWAL_FAILED"
+			}
 		}
 	default:
 		return result, errExchange

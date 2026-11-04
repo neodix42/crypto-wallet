@@ -35,6 +35,8 @@ type exchangeFreeUI struct {
 	balanceCheckedAt                        time.Time
 	balanceScope                            string
 	balanceVersion                          uint64
+	withdrawals                             *freeWithdrawalUI
+	automatic                               *freeExchangeAutomatic
 }
 
 type freeExchangeOperation struct {
@@ -412,6 +414,7 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		assetLabel = "Asset to deposit"
 	}
 	nodes := []webui.Node{a.freeStablecoinBalances(), a.button("freeRefreshBalances", "Refresh balances", disabled || !sourceOK || a.busy)}
+	nodes = append(nodes, a.freeAutomaticReadNodes()...)
 	if step == 1 || step == 3 {
 		nodes = append(nodes, row(a.combo("freeAccount", "Network / source account", accounts), a.combo("freeAsset", assetLabel, assets)))
 	}
@@ -425,7 +428,6 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 			balance.Tooltip = hint
 			nodes = append(nodes, balance)
 		}
-		nodes = append(nodes, a.button("freeRefreshDeposit", "Refresh market / deposit address", blocked))
 		if p := u.preview; p != nil {
 			nodes = append(nodes, row(node("address", "", "Bybit deposit address", p.Address), node("button", "copyReceive/exchange-free-deposit", "Copy address", p.Address)), label("Deposit network: "+p.Chain+" · "+p.Coin))
 			if p.Memo == "" {
@@ -481,7 +483,7 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		}
 		button := a.button(actionID, buttonText, blocked || !valid)
 		button.Tooltip = reason
-		nodes = append(nodes, field, a.button("freeRefreshFunding", "Refresh Funding / Unified balances", blocked), button)
+		nodes = append(nodes, field, button)
 		if reason != "" && !blocked {
 			nodes = append(nodes, label(reason))
 		}
@@ -529,6 +531,9 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		if chosen {
 			nodes = append(nodes, row(node("address", "", "Owned receiving address", d.Address), node("button", "copyReceive/exchange-free-withdrawal", "Copy address", d.Address)), label("Withdrawal fee: "+d.Fee+" "+d.Coin+" · Percentage fee: "+d.PercentageFee+" · Minimum: "+d.Minimum+" · Decimals: "+d.Precision))
 		}
+		if chosen {
+			nodes = append(nodes, a.freeWithdrawalAddressNodes(d)...)
+		}
 		_, withdrawAsset, _ := a.freeSelectedAsset("freeWithdrawAsset")
 		field := a.entry("freeWithdrawAmount", "Total withdrawal debit ("+withdrawAsset.Symbol+")")
 		field.InputMode = "decimal"
@@ -541,9 +546,11 @@ func (a *App) freeExchangePage(step int, disabled bool) []webui.Node {
 		if field.Value != "" && !valid {
 			field.Error = "Use the selected network's minimum and precision, within the verified available balance."
 		}
-		nodes = append(nodes, field, a.button("freeWithdraw", "Withdraw", blocked || !valid))
+		nodes = append(nodes, field, a.button("freeWithdraw", "Withdraw", blocked || !valid || a.freeWithdrawalBlocked(d)))
 	}
-	nodes = append(nodes, a.button("exchangeStatus", "Refresh Bybit status", a.busy))
+	if step == 5 {
+		nodes = append(nodes, a.freeWithdrawalHistoryNodes(disabled)...)
+	}
 	return nodes
 }
 
@@ -701,6 +708,10 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 	if writing {
 		u.balanceVersion++  // A read started before this write cannot refresh funds.
 		u.balanceScope = "" // Refresh custody pools promptly after this action.
+		if u.withdrawals != nil {
+			u.withdrawals.version++
+			u.withdrawals.checkedAt = time.Time{}
+		}
 	}
 	var update freeExchangeUpdate
 	var saved struct {
@@ -750,6 +761,9 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 			}
 			a.result = exchangeResultSummary(mustFreeResult(update.result.wizardResult))
 			a.resultOwner = "exchange"
+			if writing {
+				a.freeOperationOutcome(title, update.result.wizardResult)
+			}
 		}
 		if a.exchangeRevision != revision {
 			return
@@ -827,6 +841,8 @@ func (a *App) freeWork(title string, writing bool, fn func(uint64) (freeExchange
 	}, func(err error) {
 		if err != nil {
 			apply()
+		} else if update.result != nil && update.result.State != "FAILED" && update.result.State != "UNKNOWN" {
+			a.notice(freeOperationInformation(update.result.wizardResult))
 		}
 	})
 }
@@ -836,6 +852,10 @@ func (a *App) freeExchangeAction(id string) bool {
 		return false
 	}
 	if a.selectedExchangeProvider().ID != "bybit" || a.state.Locked || !a.state.RecoveryConfirmed {
+		return true
+	}
+	if id == "freeRefreshWithdrawals" {
+		a.nextFreeWithdrawalRefresh(true)
 		return true
 	}
 	if strings.HasPrefix(id, "freeCancel/") {
@@ -1137,7 +1157,11 @@ func (a *App) nextFreeExchangeCheck() bool {
 			}
 			if !freePending(result.State) && freePending(original.State) {
 				if !original.restored {
-					a.notice("Exchange operation: " + result.State + ".")
+					if result.State == "FAILED" || result.State == "UNKNOWN" {
+						a.freeOperationOutcome("Bybit "+result.Kind, result)
+					} else {
+						a.notice(freeOperationInformation(result))
+					}
 				}
 				if original.Stage == 1 && result.State == "CONFIRMED" && a.wizard.viewStep == 1 && a.fields["freeAccount"] == original.AccountID && a.fields["freeAsset"] == original.AssetID {
 					a.wizard.viewStep = 2

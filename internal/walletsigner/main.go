@@ -436,20 +436,28 @@ func handle(e *signer.Engine, m ipc.Message, environment string) (json.RawMessag
 		if err == nil {
 			out, err = e.SnapshotPage("")
 		}
-	case "prepare":
+	case "prepare", "prepareBybitDeposit":
 		var p model.Plan
 		if err = signer.DecodeBody(m.Body, &p); err == nil {
-			err = e.Prepare(p)
+			if m.Method == "prepareBybitDeposit" {
+				err = e.PrepareBybitDeposit(p)
+			} else {
+				err = e.Prepare(p)
+			}
 		}
 		if err == nil {
 			out, err = e.SnapshotPage("")
 		}
-	case "sign":
+	case "sign", "signBybitDeposit":
 		var b struct {
 			ID string `json:"id"`
 		}
 		if err = signer.DecodeBody(m.Body, &b); err == nil {
-			out, err = e.Sign(b.ID)
+			if m.Method == "signBybitDeposit" {
+				out, err = e.SignBybitDeposit(b.ID)
+			} else {
+				out, err = e.Sign(b.ID)
+			}
 		}
 	case "update":
 		var b struct {
